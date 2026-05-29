@@ -1,32 +1,28 @@
 {
   "$schema": "https://www.schemastore.org/package.json",
-  "name": "scaffold",
-  "version": "0.1.1",
-  "description": "Language-agnostic baseline template for new kirchDev repositories.",
+  "name": "glimpse",
+  "version": "0.0.0",
+  "description": "Ultra-lightweight, passive Git diff & graph viewer built for developers who pair with terminal AI agents.",
   "keywords": [
-    "commitlint",
-    "conventional-commits",
-    "dependabot",
-    "github-template",
-    "husky",
+    "ai-agent",
+    "diff-viewer",
+    "git",
+    "git-graph",
     "kirchdev",
-    "nodejs",
-    "oxfmt",
-    "oxlint",
-    "pnpm",
-    "release-please",
-    "scaffold",
-    "template"
+    "nuxt",
+    "review",
+    "tauri",
+    "vue"
   ],
-  "homepage": "https://github.com/TitusKirch/scaffold#readme",
+  "homepage": "https://github.com/TitusKirch/glimpse#readme",
   "bugs": {
-    "url": "https://github.com/TitusKirch/scaffold/issues"
+    "url": "https://github.com/TitusKirch/glimpse/issues"
   },
   "license": "MIT",
   "author": "Titus Kirch <titus.kirch@kirch.dev>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TitusKirch/scaffold.git"
+    "url": "git+https://github.com/TitusKirch/glimpse.git"
   },
   "type": "module",
   "scripts": {

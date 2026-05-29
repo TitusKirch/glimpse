@@ -4,9 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-`scaffold` is a **GitHub template repository**, not an application. It ships the meta layer (lint, format, commit hooks, CI, CodeQL, Dependabot, release-please, issue/PR templates, standard meta docs) that every new kirchDev repo should start with. There is no application code — the project code can be anything (PHP, Go, Rust, Vue, shell). Only the meta layer lives here.
+`glimpse` is an **ultra-lightweight, passive Git diff & graph viewer** — a desktop companion for developers who drive AI coding agents (Claude CLI, Aider, Codex, custom scripts) from the terminal. It watches the repository and renders diffs and the branch graph in real time so the user can review what the agent changed, without keeping a heavy IDE open just as a viewer.
 
-Implication: when changing files, ask "does this default make sense for _every_ future repo created from this template?" — not just for one project type.
+It is deliberately **read-only / review-focused**: no merge, rebase, or push dialogs. Speed and a tiny footprint are the point.
+
+> [!NOTE]
+> The repo currently ships only the meta layer (lint, format, hooks, CI, release-please) inherited from the `scaffold` template. The application code (Tauri + Nuxt) is being built out — see the intended architecture below and `TEMP_AI.md` for the original design brief.
+
+## Intended architecture
+
+- **Desktop shell:** Tauri (Rust). Uses the OS-native webview — no Chromium/Electron. Target: very small disk + RAM footprint.
+- **Frontend:** Nuxt 3 (Vue 3, Tailwind CSS), SPA mode (`ssr: false`).
+- **Diff engine:** `@git-diff-view/vue` for side-by-side / unified diffs with Web-Worker syntax highlighting.
+- **Graph:** SVG rendered from structured `git log` data produced by the Rust backend.
+- **Data flow:** Rust backend runs native Git queries + a filesystem watcher → emits Tauri IPC events → Nuxt frontend repaints. The FS watcher is what makes diffs auto-refresh the instant an agent saves a file.
+
+Key features that differentiate it: live auto-refresh on FS events, a prominent "Revert AI" button (roll back all uncommitted changes from the current agent run), and a focus on review-only workflows.
 
 ## Commands
 
@@ -22,25 +35,19 @@ Implication: when changing files, ask "does this default make sense for _every_ 
 | `pnpm taze`       | Interactive dependency upgrade check                       |
 | `pnpm taze:w`     | Write upgrade results                                      |
 
-There is no test suite — this is config-only. CI runs `pnpm lint` and `pnpm format` on PR.
+Once the Tauri/Nuxt app lands, `pnpm tauri dev` (dev shell) and `pnpm tauri build` (packaged binary) will be the primary app commands. There is no test suite yet; CI currently runs `pnpm lint` and `pnpm format` on PR.
 
-## Architecture / conventions
+## Meta-layer conventions
 
 - **Node 24, pnpm 11.** Pinned via `.nvmrc`, `engines`, and `packageManager`. `.npmrc` enforces `minimumReleaseAge=4320` (3-day cooldown), `trustPolicy=no-downgrade`, isolated node-linker. Don't loosen these without reason.
 - **oxc, not eslint/prettier.** Linting via `oxlint`, formatting via `oxfmt`. Configs live in `.oxlintrc.json` / `.oxfmtrc.json`. `oxlint` uses `unicorn` + `oxc` plugins; rules deliberately minimal.
-- **Husky hooks** (`.husky/pre-commit`, `.husky/commit-msg`) run `lint-staged` and `commitlint`. `lint-staged.config.js` excludes `README.md` (free-form prose) and `pnpm-lock.yaml`. `oxlint --fix --deny-warnings` then `oxfmt` on JS; `oxfmt` only on JSON/YAML/MD.
+- **Husky hooks** (`.husky/pre-commit`, `.husky/commit-msg`) run `lint-staged` and `commitlint`. `lint-staged.config.js` excludes `README.md` and `pnpm-lock.yaml`. `oxlint --fix --deny-warnings` then `oxfmt` on JS; `oxfmt` only on JSON/YAML/MD.
 - **Conventional Commits enforced** via `@commitlint/config-conventional`. Don't `--no-verify` unless explicitly asked.
-- **release-please is included** (unlike many templates that omit it). Files: `release-please-config.json`, `.release-please-manifest.json`, `.github/workflows/release-please.yml`. Config uses `release-type: simple` (language-agnostic), `include-v-in-tag: true`. Downstream repos start at `0.0.0` and reset via the steps in README → _Resetting release-please_.
+- **release-please** drives versioning. Files: `release-please-config.json` (`release-type: node`, `include-v-in-tag: true`), `.release-please-manifest.json`, `.github/workflows/release-please.yml`. The repo starts at `0.0.0`.
 - **Workflows** use `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`, `github/codeql-action/{init,analyze}@v4`. Keep these pinned to major versions; Dependabot bumps them monthly.
-- **CodeQL** scans `actions` + `javascript-typescript` with `security-extended,security-and-quality` queries, gated by path filters so non-code changes don't trigger it.
-- **Dependabot** groups all minor/patch updates per ecosystem into a single PR (`npm-minor-patch`, `actions-minor-patch`). Majors come as separate PRs.
+- **CodeQL** scans `actions` + `javascript-typescript` with `security-extended,security-and-quality` queries, gated by path filters. When Rust lands, consider extending coverage.
+- **Dependabot** groups all minor/patch updates per ecosystem into a single PR. Majors come as separate PRs.
 
 ## House style for READMEs and meta files
 
-`/write-readme` skill encodes the canonical structure. Key rules: hero block wrapped in `<div align="center">`, prescribed section emojis (✨ Features, 🚀 Setup, 🤝 Contributing, 🛣️ Versioning, 📄 License), license footer always reads `[MIT](LICENSE) © [Titus Kirch](https://github.com/TitusKirch/) / [IT-Dienstleistungen Titus Kirch](https://kirch.dev)`. Use GitHub callouts (`> [!TIP]`, `> [!IMPORTANT]`), never plain blockquotes.
-
-## When editing this template
-
-- Every file referencing `TitusKirch/scaffold` is a placeholder that downstream users will replace. Keep the references consistent so a single `grep -rn "TitusKirch/scaffold"` catches them all.
-- `forgemap` (sibling repo at `../forgemap`) is the de-facto reference implementation of these conventions. When unsure about a config choice, check what forgemap does.
-- The template's own `package.json` is `"private": true` and `"name": "scaffold"` — not published anywhere.
+The `/write-readme` skill encodes the canonical structure. Key rules: hero block wrapped in `<div align="center">`, prescribed section emojis (✨ Features, 🚀 Setup, 🤝 Contributing, 🛣️ Versioning, 📄 License), license footer always reads `[MIT](LICENSE) © [Titus Kirch](https://github.com/TitusKirch/) / [IT-Dienstleistungen Titus Kirch](https://kirch.dev)`. Use GitHub callouts (`> [!TIP]`, `> [!IMPORTANT]`), never plain blockquotes.

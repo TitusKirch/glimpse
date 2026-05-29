@@ -2,28 +2,29 @@
 
 ## Scope
 
-`scaffold` is a **template repository** — it contains configuration files, GitHub workflows, and meta documents that are copied into new repositories. It is not a runtime package and has no users in the traditional sense.
+`glimpse` is a **desktop application** (Tauri + Nuxt) that reads from local Git repositories on the user's machine. It executes Git operations and watches the filesystem, so security issues centre on local trust boundaries rather than network services.
 
-The supported "version" is always the **tip of `main`**. There are no historical branches to back-port fixes to; downstream repositories should re-pull the relevant file(s) from `main` if a vulnerability is discovered in the shipped templates.
+The supported version is always the **latest release** on the tip of `main`. Fixes are not back-ported to older releases — please upgrade to the latest version.
 
 ## Reporting a Vulnerability
 
 **Please do not file a public GitHub issue for security problems.**
 
-In the context of this template, a "vulnerability" typically means:
+In the context of glimpse, a "vulnerability" typically means:
 
-- An insecure default in a shipped workflow (e.g. overly broad `permissions`).
-- A misconfigured Action that could leak secrets.
-- A dependency in `package.json` that introduces a known CVE.
+- A path traversal or command injection via crafted repository data (branch names, paths, commit metadata).
+- An overly permissive Tauri allowlist / IPC surface exposing host capabilities to the webview.
+- Arbitrary code execution triggered by opening or watching a malicious repository.
+- A dependency (npm or Cargo) that introduces a known CVE.
 
 Use one of the following private channels:
 
-1. **GitHub Private Vulnerability Reporting** (preferred): open a private advisory at <https://github.com/TitusKirch/scaffold/security/advisories/new>.
+1. **GitHub Private Vulnerability Reporting** (preferred): open a private advisory at <https://github.com/TitusKirch/glimpse/security/advisories/new>.
 2. **Email**: [titus.kirch@kirch.dev](mailto:titus.kirch@kirch.dev). PGP available on request.
 
 Please include:
 
-- A description of the vulnerability and its impact on downstream repositories.
+- A description of the vulnerability and its impact on users.
 - Steps to reproduce.
 - Any suggested fix, if you have one.
 

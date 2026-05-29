@@ -1,18 +1,18 @@
 name: 🐛 Bug report
-description: Something in the template isn't working as expected
+description: Something in glimpse isn't working as expected
 labels: ['bug', 'triage']
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for taking the time to report a bug. Please fill out the form below.
-        For security vulnerabilities, see [SECURITY.md](https://github.com/TitusKirch/scaffold/blob/main/SECURITY.md) instead.
+        For security vulnerabilities, see [SECURITY.md](https://github.com/TitusKirch/glimpse/blob/main/SECURITY.md) instead.
 
   - type: input
-    id: file
+    id: version
     attributes:
-      label: Affected file / template
-      placeholder: e.g. .github/workflows/ci.yml
+      label: glimpse version & OS
+      placeholder: e.g. v0.1.0 on Windows 11 / macOS 15 / Ubuntu 24.04
     validations:
       required: true
 
