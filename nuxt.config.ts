@@ -21,7 +21,21 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
     // Tauri expects a fixed dev server; fail loudly instead of hopping ports.
     clearScreen: false,
-    server: { strictPort: true }
+    server: { strictPort: true },
+    // Pre-bundle these so Vite doesn't re-optimize mid-load and force a reload
+    // (which can leave the Tauri webview on a blank/black screen).
+    optimizeDeps: {
+      include: [
+        '@git-diff-view/vue',
+        '@lucide/vue',
+        '@tauri-apps/api/core',
+        '@vueuse/core',
+        'class-variance-authority',
+        'clsx',
+        'reka-ui',
+        'tailwind-merge'
+      ]
+    }
   },
 
   // class-based dark mode driven by the `.dark` / `.light` class on <html>.
