@@ -15,6 +15,12 @@ async function submitBranch() {
   await repo.createBranch(newBranch.value);
   cancel();
 }
+
+// "origin/dev" -> "dev"; checking it out lets git create a tracking branch.
+function shortName(remoteBranch: string): string {
+  const i = remoteBranch.indexOf('/');
+  return i >= 0 ? remoteBranch.slice(i + 1) : remoteBranch;
+}
 </script>
 
 <template>
@@ -81,6 +87,26 @@ async function submitBranch() {
               <UiSidebarMenuButton :tooltip="r">
                 <NuxtIcon name="lucide:cloud" />
                 <span>{{ r }}</span>
+              </UiSidebarMenuButton>
+            </UiSidebarMenuItem>
+          </UiSidebarMenu>
+        </UiSidebarGroupContent>
+      </UiSidebarGroup>
+
+      <UiSidebarGroup v-if="repo.remoteBranches.length">
+        <UiSidebarGroupLabel>{{
+          t('sidebar.remoteBranches')
+        }}</UiSidebarGroupLabel>
+        <UiSidebarGroupContent>
+          <UiSidebarMenu>
+            <UiSidebarMenuItem v-for="rb in repo.remoteBranches" :key="rb">
+              <UiSidebarMenuButton
+                :is-active="shortName(rb) === repo.currentBranch"
+                :tooltip="rb"
+                @click="repo.checkout(shortName(rb))"
+              >
+                <NuxtIcon name="lucide:git-branch" class="opacity-60" />
+                <span>{{ rb }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
           </UiSidebarMenu>

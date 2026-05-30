@@ -40,6 +40,7 @@ const syncButtons = [
                 variant="ghost"
                 size="icon"
                 :disabled="repo.busy"
+                :loading="repo.syncing === b.command"
                 @click="repo.sync(b.command)"
               >
                 <NuxtIcon :name="b.icon" class="size-4" />

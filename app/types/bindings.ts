@@ -15,6 +15,7 @@ export type RepoInfo = {
   toplevel: string;
   currentBranch: string;
   branches: Array<string>;
+  remoteBranches: Array<string>;
   remotes: Array<string>;
   tags: Array<string>;
   flavor: string;

@@ -32,6 +32,7 @@ pub struct RepoInfo {
     pub toplevel: String,
     pub current_branch: String,
     pub branches: Vec<String>,
+    pub remote_branches: Vec<String>,
     pub remotes: Vec<String>,
     pub tags: Vec<String>,
     pub flavor: String,
@@ -114,6 +115,13 @@ impl Repo {
             lines(&self.run(&["for-each-ref", "--format=%(refname:short)", "refs/heads"])?)
                 .map(str::to_string)
                 .collect();
+        // Remote-tracking branches (e.g. `origin/main`), minus the `origin/HEAD`
+        // symbolic pointer.
+        let remote_branches =
+            lines(&self.run(&["for-each-ref", "--format=%(refname:short)", "refs/remotes"])?)
+                .filter(|b| !b.ends_with("/HEAD"))
+                .map(str::to_string)
+                .collect();
         let remotes = lines(&self.run(&["remote"])?).map(str::to_string).collect();
         let tags = lines(&self.run(&["tag", "--sort=-creatordate"])?)
             .take(50)
@@ -124,6 +132,7 @@ impl Repo {
             toplevel,
             current_branch,
             branches,
+            remote_branches,
             remotes,
             tags,
             flavor: self.target.flavor.to_string(),

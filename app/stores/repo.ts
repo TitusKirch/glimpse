@@ -33,6 +33,7 @@ export interface RepoState {
   flavor: GitFlavor;
   distro?: string;
   branches: string[];
+  remoteBranches: string[];
   currentBranch: string;
   remotes: string[];
   tags: string[];
@@ -54,6 +55,7 @@ function demoRepo(): RepoState {
     flavor: 'wsl',
     distro: 'Ubuntu-22.04',
     branches: ['main', 'dev', 'feat/wsl'],
+    remoteBranches: ['origin/main', 'origin/dev'],
     currentBranch: 'main',
     remotes: ['origin'],
     tags: ['v0.0.0'],
@@ -75,7 +77,9 @@ export const useRepoStore = defineStore('repo', {
     commitMessage: '',
     lastRefresh: 'just now',
     lastError: null as string | null,
-    busy: false
+    busy: false,
+    // Which remote sync (if any) is in flight — drives the button spinner.
+    syncing: null as 'fetch' | 'pull' | 'push' | null
   }),
   getters: {
     // The active repository and the tab strip over all open ones.
@@ -89,6 +93,9 @@ export const useRepoStore = defineStore('repo', {
     },
     branches(): string[] {
       return this.active.branches;
+    },
+    remoteBranches(): string[] {
+      return this.active.remoteBranches;
     },
     currentBranch(): string {
       return this.active.currentBranch;
@@ -225,10 +232,15 @@ export const useRepoStore = defineStore('repo', {
 
     async sync(command: 'fetch' | 'pull' | 'push') {
       if (!isTauri()) return;
-      await this.guarded(async () => {
-        await gitClient[command](this.repoPath);
-        await this.loadFromBackend();
-      });
+      this.syncing = command;
+      try {
+        await this.guarded(async () => {
+          await gitClient[command](this.repoPath);
+          await this.loadFromBackend();
+        });
+      } finally {
+        this.syncing = null;
+      }
     },
 
     // Runs an action with a busy flag and surfaces failures via lastError.
@@ -281,6 +293,7 @@ export const useRepoStore = defineStore('repo', {
         r.flavor = (info.flavor as GitFlavor) ?? 'linux';
         r.distro = info.distro ?? undefined;
         r.branches = info.branches;
+        r.remoteBranches = info.remoteBranches;
         r.currentBranch = info.currentBranch;
         r.remotes = info.remotes;
         r.tags = info.tags;

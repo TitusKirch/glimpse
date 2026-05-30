@@ -10,6 +10,10 @@ interface Props extends PrimitiveProps {
   variant?: ButtonVariants['variant'];
   size?: ButtonVariants['size'];
   class?: HTMLAttributes['class'];
+  disabled?: boolean;
+  // When true the button is disabled and shows a spinner in place of its
+  // content — for in-flight actions.
+  loading?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,8 +28,11 @@ const props = withDefaults(defineProps<Props>(), {
     :data-size="size"
     :as="as"
     :as-child="asChild"
+    :disabled="disabled || loading"
+    :data-loading="loading || undefined"
     :class="cn(buttonVariants({ variant, size }), props.class)"
   >
-    <slot />
+    <NuxtIcon v-if="loading" name="lucide:loader-circle" class="animate-spin" />
+    <slot v-else />
   </Primitive>
 </template>
