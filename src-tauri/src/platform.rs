@@ -81,7 +81,7 @@ impl GitTarget {
 pub fn resolve(repo_path: &str) -> GitTarget {
     // WSL interop only exists on Windows; everywhere else git is always native.
     #[cfg(windows)]
-    if let Some((distro, linux_path)) = wsl::parse_path(repo_path) {
+    if let Some((distro, linux_path)) = parse_wsl_path(repo_path) {
         return GitTarget {
             program: "wsl.exe".into(),
             prefix_args: vec!["-d".into(), distro.clone(), "--".into(), "git".into()],
@@ -109,19 +109,63 @@ const fn native_flavor() -> Flavor {
     }
 }
 
-/// Windows-only WSL support.
-#[cfg(windows)]
-mod wsl {
-    /// `\\wsl$\Ubuntu-22.04\home\u\repo` -> (`Ubuntu-22.04`, `/home/u/repo`).
-    pub fn parse_path(path: &str) -> Option<(String, String)> {
-        let normalized = path.replace('/', "\\");
-        let rest = normalized
-            .strip_prefix("\\\\wsl$\\")
-            .or_else(|| normalized.strip_prefix("\\\\wsl.localhost\\"))?;
-        let mut parts = rest.splitn(2, '\\');
-        let distro = parts.next()?.to_string();
-        let tail = parts.next().unwrap_or("");
-        let linux_path = format!("/{}", tail.replace('\\', "/"));
-        Some((distro, linux_path))
+/// Translate a Windows WSL UNC path into `(distro, linux_path)`, or `None` if it
+/// is not a `\\wsl$\…` / `\\wsl.localhost\…` path. Pure string logic — kept out
+/// of the `#[cfg(windows)]` call site so it compiles and is tested on every OS
+/// (it is the most test-worthy backend string code, see ARCHITECTURE.md §4/§9).
+/// Only [`resolve`]'s *use* of it is Windows-gated.
+///
+/// `\\wsl$\Ubuntu-22.04\home\u\repo` -> (`Ubuntu-22.04`, `/home/u/repo`).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn parse_wsl_path(path: &str) -> Option<(String, String)> {
+    let normalized = path.replace('/', "\\");
+    let rest = normalized
+        .strip_prefix("\\\\wsl$\\")
+        .or_else(|| normalized.strip_prefix("\\\\wsl.localhost\\"))?;
+    let mut parts = rest.splitn(2, '\\');
+    let distro = parts.next()?.to_string();
+    let tail = parts.next().unwrap_or("");
+    let linux_path = format!("/{}", tail.replace('\\', "/"));
+    Some((distro, linux_path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_wsl_path;
+
+    #[test]
+    fn parses_wsl_unc_path() {
+        let (distro, path) = parse_wsl_path("\\\\wsl$\\Ubuntu-22.04\\home\\titus\\repo").unwrap();
+        assert_eq!(distro, "Ubuntu-22.04");
+        assert_eq!(path, "/home/titus/repo");
+    }
+
+    #[test]
+    fn parses_wsl_localhost_prefix() {
+        let (distro, path) = parse_wsl_path("\\\\wsl.localhost\\Debian\\srv\\app").unwrap();
+        assert_eq!(distro, "Debian");
+        assert_eq!(path, "/srv/app");
+    }
+
+    #[test]
+    fn accepts_forward_slashes() {
+        // Pickers and IPC may hand us a slash-normalized UNC path.
+        let (distro, path) = parse_wsl_path("//wsl$/Ubuntu/home/u").unwrap();
+        assert_eq!(distro, "Ubuntu");
+        assert_eq!(path, "/home/u");
+    }
+
+    #[test]
+    fn distro_root_has_no_tail() {
+        let (distro, path) = parse_wsl_path("\\\\wsl$\\Ubuntu").unwrap();
+        assert_eq!(distro, "Ubuntu");
+        assert_eq!(path, "/");
+    }
+
+    #[test]
+    fn native_paths_are_not_wsl() {
+        assert!(parse_wsl_path("C:\\dev\\repo").is_none());
+        assert!(parse_wsl_path("/home/u/repo").is_none());
+        assert!(parse_wsl_path("\\\\server\\share").is_none());
     }
 }
