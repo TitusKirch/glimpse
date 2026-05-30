@@ -245,6 +245,7 @@ impl Repo {
 /// Regenerate with `pnpm bindings` (runs this test, then formats the output).
 #[cfg(test)]
 #[test]
+#[ignore = "writes app/types/bindings.ts; regenerate via `pnpm bindings`"]
 fn export_bindings() {
     let decls = [
         Commit::decl(),
