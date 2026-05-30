@@ -26,104 +26,6 @@ export interface RepoTab {
   distro?: string;
 }
 
-const MOCK_COMMITS: Commit[] = [
-  {
-    hash: 'a1b2c3d',
-    subject: 'feat(diff): side-by-side diff panel',
-    author: 'Titus Kirch',
-    date: '2026-05-30',
-    refs: ['HEAD -> main'],
-    parents: ['b2c3d4e'],
-    lane: 0
-  },
-  {
-    hash: 'b2c3d4e',
-    subject: 'feat(graph): render commit lanes as SVG',
-    author: 'Titus Kirch',
-    date: '2026-05-29',
-    refs: [],
-    parents: ['c3d4e5f'],
-    lane: 0
-  },
-  {
-    hash: 'c3d4e5f',
-    subject: 'feat(wsl): resolve git per repo flavor',
-    author: 'Titus Kirch',
-    date: '2026-05-29',
-    refs: ['origin/main'],
-    parents: ['d4e5f60', 'f6a7b80'],
-    lane: 0
-  },
-  {
-    hash: 'f6a7b80',
-    subject: 'feat(wsl): detect installed distros',
-    author: 'Titus Kirch',
-    date: '2026-05-28',
-    refs: ['feat/wsl'],
-    parents: ['d4e5f60'],
-    lane: 1
-  },
-  {
-    hash: 'd4e5f60',
-    subject: 'chore: scaffold tauri + nuxt shell',
-    author: 'Titus Kirch',
-    date: '2026-05-28',
-    refs: [],
-    parents: ['e5f6071'],
-    lane: 0
-  },
-  {
-    hash: 'e5f6071',
-    subject: 'chore: adapt scaffold template for glimpse',
-    author: 'Titus Kirch',
-    date: '2026-05-27',
-    refs: ['v0.0.0'],
-    parents: [],
-    lane: 0
-  }
-];
-
-const MOCK_STATUS: StatusEntry[] = [
-  {
-    path: 'app/stores/repo.ts',
-    x: ' ',
-    y: 'M',
-    staged: false,
-    unstaged: true,
-    untracked: false
-  },
-  {
-    path: 'src-tauri/src/git.rs',
-    x: 'M',
-    y: ' ',
-    staged: true,
-    unstaged: false,
-    untracked: false
-  },
-  {
-    path: 'docs/NOTES.md',
-    x: '?',
-    y: '?',
-    staged: false,
-    unstaged: false,
-    untracked: true
-  }
-];
-
-const MOCK_DIFF: DiffData = {
-  fileName: 'app/stores/repo.ts',
-  oldContent: '',
-  newContent: '',
-  hunks: [
-    `@@ -1,4 +1,6 @@
- export const useRepoStore = defineStore('repo', {
--  state: () => ({ commits: [] }),
-+  state: () => ({ commits: [], status: [] }),
-+  // now talks to the real git backend
- })`
-  ]
-};
-
 export const useRepoStore = defineStore('repo', {
   state: () => ({
     tabs: [
@@ -140,14 +42,14 @@ export const useRepoStore = defineStore('repo', {
     currentBranch: 'main',
     remotes: ['origin'] as string[],
     tags: ['v0.0.0'] as string[],
-    commits: MOCK_COMMITS,
-    status: MOCK_STATUS as StatusEntry[],
+    commits: mock.commits as Commit[],
+    status: mock.status as StatusEntry[],
     selectedHash: null as string | null,
     selectedFile: 'app/stores/repo.ts' as string | null,
     selectedFileStaged: false,
     commitFiles: [] as CommitFile[],
     commitMessage: '',
-    diff: MOCK_DIFF as DiffData | null,
+    diff: mock.diff as DiffData | null,
     lastRefresh: 'just now',
     lastError: null as string | null,
     busy: false
@@ -169,11 +71,7 @@ export const useRepoStore = defineStore('repo', {
 
     async selectCommit(hash: string) {
       this.selectedHash = hash;
-      this.commitFiles = await gitInvoke<CommitFile[]>(
-        'commit_files',
-        { path: this.repoPath, hash },
-        []
-      );
+      this.commitFiles = await gitClient.commitFiles(this.repoPath, hash);
       const first = this.commitFiles[0];
       if (first) {
         await this.selectCommitFile(first.path);
@@ -186,10 +84,10 @@ export const useRepoStore = defineStore('repo', {
     async selectCommitFile(file: string) {
       if (!this.selectedHash) return;
       this.selectedFile = file;
-      this.diff = await gitInvoke<DiffData | null>(
-        'commit_file_diff',
-        { path: this.repoPath, hash: this.selectedHash, file },
-        MOCK_DIFF
+      this.diff = await gitClient.commitFileDiff(
+        this.repoPath,
+        this.selectedHash,
+        file
       );
     },
 
@@ -198,23 +96,19 @@ export const useRepoStore = defineStore('repo', {
       this.selectedFileStaged = staged;
       this.selectedHash = null;
       this.commitFiles = [];
-      this.diff = await gitInvoke<DiffData | null>(
-        'file_diff',
-        { path: this.repoPath, file, staged },
-        MOCK_DIFF
-      );
+      this.diff = await gitClient.fileDiff(this.repoPath, file, staged);
     },
 
     async stage(file: string) {
       if (!isTauri()) return;
-      await gitInvoke<null>('stage', { path: this.repoPath, file }, null);
+      await gitClient.stage(this.repoPath, file);
       await this.loadStatus();
       if (this.selectedFile === file) await this.selectFile(file, true);
     },
 
     async unstage(file: string) {
       if (!isTauri()) return;
-      await gitInvoke<null>('unstage', { path: this.repoPath, file }, null);
+      await gitClient.unstage(this.repoPath, file);
       await this.loadStatus();
       if (this.selectedFile === file) await this.selectFile(file, false);
     },
@@ -223,7 +117,7 @@ export const useRepoStore = defineStore('repo', {
       const message = this.commitMessage.trim();
       if (!message || !this.stagedFiles.length || !isTauri()) return;
       await this.guarded(async () => {
-        await gitInvoke<string>('commit', { path: this.repoPath, message }, '');
+        await gitClient.commit(this.repoPath, message);
         this.commitMessage = '';
         await Promise.all([this.loadStatus(), this.loadLog()]);
       });
@@ -232,11 +126,7 @@ export const useRepoStore = defineStore('repo', {
     async discard(file: string, untracked: boolean) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitInvoke<null>(
-          'discard',
-          { path: this.repoPath, file, untracked },
-          null
-        );
+        await gitClient.discard(this.repoPath, file, untracked);
         await this.loadStatus();
         if (this.selectedFile === file) this.diff = null;
       });
@@ -245,11 +135,7 @@ export const useRepoStore = defineStore('repo', {
     async checkout(branch: string) {
       if (!isTauri() || branch === this.currentBranch) return;
       await this.guarded(async () => {
-        await gitInvoke<null>(
-          'checkout_branch',
-          { path: this.repoPath, branch },
-          null
-        );
+        await gitClient.checkoutBranch(this.repoPath, branch);
         await this.loadFromBackend();
       });
     },
@@ -258,11 +144,7 @@ export const useRepoStore = defineStore('repo', {
       const trimmed = name.trim();
       if (!trimmed || !isTauri()) return;
       await this.guarded(async () => {
-        await gitInvoke<null>(
-          'create_branch',
-          { path: this.repoPath, name: trimmed },
-          null
-        );
+        await gitClient.createBranch(this.repoPath, trimmed);
         await this.loadFromBackend();
       });
     },
@@ -270,11 +152,7 @@ export const useRepoStore = defineStore('repo', {
     async deleteBranch(name: string) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitInvoke<null>(
-          'delete_branch',
-          { path: this.repoPath, name },
-          null
-        );
+        await gitClient.deleteBranch(this.repoPath, name);
         await this.loadFromBackend();
       });
     },
@@ -282,7 +160,7 @@ export const useRepoStore = defineStore('repo', {
     async sync(command: 'fetch' | 'pull' | 'push') {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitInvoke<string>(command, { path: this.repoPath }, '');
+        await gitClient[command](this.repoPath);
         await this.loadFromBackend();
       });
     },
@@ -314,19 +192,12 @@ export const useRepoStore = defineStore('repo', {
 
     async loadStatus() {
       if (!isTauri()) return;
-      this.status = await gitInvoke<StatusEntry[]>(
-        'git_status',
-        { path: this.repoPath },
-        []
-      );
+      this.status = await gitClient.status(this.repoPath);
     },
 
     async loadLog() {
       if (!isTauri()) return;
-      const commits = await gitInvoke<Commit[]>('git_log', {
-        path: this.repoPath,
-        limit: 100
-      });
+      const commits = await gitClient.log(this.repoPath);
       if (commits.length) this.commits = commits;
     },
 
@@ -339,8 +210,8 @@ export const useRepoStore = defineStore('repo', {
     async loadFromBackend() {
       if (!isTauri()) return;
       try {
-        const start = await gitInvoke<string>('default_repo', {}, '.');
-        const info = await gitInvoke<RepoInfo>('repo_info', { path: start });
+        const start = await gitClient.defaultRepo();
+        const info = await gitClient.info(start);
         const top = info.toplevel || start;
 
         this.branches = info.branches;
