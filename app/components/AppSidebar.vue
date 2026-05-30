@@ -41,7 +41,7 @@ function shortName(remoteBranch: string): string {
           :title="t('sidebar.newBranch')"
           @click="creating = !creating"
         >
-          <NuxtIcon name="lucide:plus" />
+          <NuxtIcon name="lucide:git-branch-plus" />
         </UiSidebarGroupAction>
         <UiSidebarGroupContent>
           <div
@@ -105,7 +105,14 @@ function shortName(remoteBranch: string): string {
                 :tooltip="rb"
                 @click="repo.checkout(shortName(rb))"
               >
-                <NuxtIcon name="lucide:git-branch" class="opacity-60" />
+                <NuxtIcon
+                  :name="
+                    repo.branches.includes(shortName(rb))
+                      ? 'lucide:git-branch'
+                      : 'lucide:git-branch-plus'
+                  "
+                  class="opacity-60"
+                />
                 <span>{{ rb }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
