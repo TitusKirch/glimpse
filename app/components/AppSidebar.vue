@@ -111,7 +111,7 @@ function shortName(remoteBranch: string): string {
                       ? 'lucide:git-branch'
                       : 'lucide:git-branch-plus'
                   "
-                  class="opacity-60"
+                  class="size-5 opacity-60"
                 />
                 <span>{{ rb }}</span>
               </UiSidebarMenuButton>
