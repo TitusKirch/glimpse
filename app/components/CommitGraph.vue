@@ -1,9 +1,9 @@
 <script setup lang="ts">
 const repo = useRepoStore();
 
-const ROW_H = 50;
+const ROW_H = 60;
 const LANE_W = 18;
-const ORIGIN_X = 16;
+const ORIGIN_X = 18;
 const LANE_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#a855f7'];
 
 const laneX = (lane: number) => ORIGIN_X + lane * LANE_W;
@@ -46,6 +46,19 @@ const edges = computed<Edge[]>(() => {
   });
   return out;
 });
+
+function refLabel(ref: string): string {
+  return ref.replace('HEAD -> ', '').replace('tag: ', '');
+}
+function refClass(ref: string): string {
+  if (ref.startsWith('HEAD'))
+    return 'border-green-500/40 text-green-600 dark:text-green-400';
+  if (ref.startsWith('tag:'))
+    return 'border-amber-500/40 text-amber-600 dark:text-amber-400';
+  if (ref.includes('/'))
+    return 'border-purple-500/40 text-purple-600 dark:text-purple-400';
+  return 'border-blue-500/40 text-blue-600 dark:text-blue-400';
+}
 </script>
 
 <template>
@@ -74,7 +87,7 @@ const edges = computed<Edge[]>(() => {
           r="5"
           :fill="laneColor(c.lane)"
           stroke="var(--background)"
-          stroke-width="2"
+          stroke-width="2.5"
         />
       </svg>
 
@@ -83,10 +96,10 @@ const edges = computed<Edge[]>(() => {
         <li
           v-for="c in repo.commits"
           :key="c.hash"
-          class="flex cursor-pointer items-center gap-2 border-l pr-4 transition-colors"
+          class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
           :style="{ height: ROW_H + 'px' }"
           :class="
-            c.hash === repo.selectedHash ? 'bg-accent/70' : 'hover:bg-accent/40'
+            c.hash === repo.selectedHash ? 'bg-accent' : 'hover:bg-accent/40'
           "
           @click="repo.selectCommit(c.hash)"
         >
@@ -96,16 +109,20 @@ const edges = computed<Edge[]>(() => {
                 v-for="ref in c.refs"
                 :key="ref"
                 variant="outline"
-                class="text-[10px] text-blue-500"
+                class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
+                :class="refClass(ref)"
               >
-                {{ ref }}
+                {{ refLabel(ref) }}
               </UiBadge>
-              <span class="truncate text-sm">{{ c.subject }}</span>
+              <span class="truncate text-sm font-medium">{{ c.subject }}</span>
             </div>
-            <div class="text-xs text-muted-foreground">
-              <code>{{ c.hash }}</code> · {{ c.author }} · {{ c.date }}
+            <div class="mt-1 truncate text-xs text-muted-foreground">
+              {{ c.author }} · {{ c.date }}
             </div>
           </div>
+          <code class="shrink-0 font-mono text-[11px] text-muted-foreground">{{
+            c.hash.slice(0, 7)
+          }}</code>
         </li>
       </ul>
     </div>

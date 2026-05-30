@@ -4,21 +4,12 @@ import type { StatusEntry } from '@/stores/repo';
 const repo = useRepoStore();
 const { t } = useI18n();
 
+// Single, consistent letter per file: A = new/untracked, M = modified,
+// D = deleted, R = renamed. (git's literal "?"/"U" codes are not user-facing.)
 function letter(f: StatusEntry, staged: boolean): string {
-  if (f.untracked) return 'U';
-  return (staged ? f.x : f.y).trim() || '·';
-}
-
-function letterClass(l: string): string {
-  return (
-    {
-      M: 'text-amber-500',
-      A: 'text-green-500',
-      D: 'text-red-500',
-      U: 'text-blue-500',
-      R: 'text-purple-500'
-    }[l] || 'text-muted-foreground'
-  );
+  const c = (staged ? f.x : f.y).trim();
+  if (!c || c === '?') return 'A';
+  return c;
 }
 
 function isSelected(path: string, staged: boolean): boolean {
@@ -30,88 +21,82 @@ function isSelected(path: string, staged: boolean): boolean {
   <div class="flex h-full flex-col text-sm">
     <div class="min-h-0 flex-1 overflow-auto">
       <!-- staged -->
-      <section v-if="repo.stagedFiles.length">
+      <section v-if="repo.stagedFiles.length" class="px-1">
         <h3
-          class="sticky top-0 bg-background px-3 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+          class="sticky top-0 z-10 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
         >
           {{ t('changes.staged') }} ({{ repo.stagedFiles.length }})
         </h3>
-        <button
+        <FileRow
           v-for="f in repo.stagedFiles"
           :key="`s-${f.path}`"
-          class="group flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-accent/50"
-          :class="isSelected(f.path, true) && 'bg-accent'"
-          @click="repo.selectFile(f.path, true)"
+          :path="f.path"
+          :status="letter(f, true)"
+          :active="isSelected(f.path, true)"
+          @select="repo.selectFile(f.path, true)"
         >
-          <span
-            class="w-3 text-center font-mono text-xs"
-            :class="letterClass(letter(f, true))"
-            >{{ letter(f, true) }}</span
-          >
-          <span class="min-w-0 flex-1 truncate">{{ f.path }}</span>
-          <UiTooltip>
-            <UiTooltipTrigger as-child>
-              <UiButton
-                variant="ghost"
-                size="icon"
-                class="size-5 opacity-0 group-hover:opacity-100"
-                @click.stop="repo.unstage(f.path)"
-              >
-                <NuxtIcon name="lucide:minus" class="size-3.5" />
-              </UiButton>
-            </UiTooltipTrigger>
-            <UiTooltipContent>{{ t('changes.unstage') }}</UiTooltipContent>
-          </UiTooltip>
-        </button>
+          <template #actions>
+            <UiTooltip>
+              <UiTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon"
+                  class="size-5 opacity-0 group-hover:opacity-100"
+                  @click.stop="repo.unstage(f.path)"
+                >
+                  <NuxtIcon name="lucide:minus" class="size-3.5" />
+                </UiButton>
+              </UiTooltipTrigger>
+              <UiTooltipContent>{{ t('changes.unstage') }}</UiTooltipContent>
+            </UiTooltip>
+          </template>
+        </FileRow>
       </section>
 
       <!-- unstaged / untracked -->
-      <section v-if="repo.unstagedFiles.length">
+      <section v-if="repo.unstagedFiles.length" class="px-1">
         <h3
-          class="sticky top-0 bg-background px-3 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+          class="sticky top-0 z-10 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
         >
           {{ t('changes.unstaged') }} ({{ repo.unstagedFiles.length }})
         </h3>
-        <button
+        <FileRow
           v-for="f in repo.unstagedFiles"
           :key="`u-${f.path}`"
-          class="group flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-accent/50"
-          :class="isSelected(f.path, false) && 'bg-accent'"
-          @click="repo.selectFile(f.path, false)"
+          :path="f.path"
+          :status="letter(f, false)"
+          :active="isSelected(f.path, false)"
+          @select="repo.selectFile(f.path, false)"
         >
-          <span
-            class="w-3 text-center font-mono text-xs"
-            :class="letterClass(letter(f, false))"
-            >{{ letter(f, false) }}</span
-          >
-          <span class="min-w-0 flex-1 truncate">{{ f.path }}</span>
-          <UiTooltip>
-            <UiTooltipTrigger as-child>
-              <UiButton
-                variant="ghost"
-                size="icon"
-                class="size-5 opacity-0 group-hover:opacity-100"
-                @click.stop="repo.discard(f.path, f.untracked)"
-              >
-                <NuxtIcon name="lucide:undo-2" class="size-3.5" />
-              </UiButton>
-            </UiTooltipTrigger>
-            <UiTooltipContent>{{ t('changes.discard') }}</UiTooltipContent>
-          </UiTooltip>
-          <UiTooltip>
-            <UiTooltipTrigger as-child>
-              <UiButton
-                variant="ghost"
-                size="icon"
-                class="size-5 opacity-0 group-hover:opacity-100"
-                @click.stop="repo.stage(f.path)"
-              >
-                <NuxtIcon name="lucide:plus" class="size-3.5" />
-              </UiButton>
-            </UiTooltipTrigger>
-            <UiTooltipContent>{{ t('changes.stage') }}</UiTooltipContent>
-          </UiTooltip>
-        </button>
+          <template #actions>
+            <UiTooltip>
+              <UiTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon"
+                  class="size-5 opacity-0 group-hover:opacity-100"
+                  @click.stop="repo.discard(f.path, f.untracked)"
+                >
+                  <NuxtIcon name="lucide:undo-2" class="size-3.5" />
+                </UiButton>
+              </UiTooltipTrigger>
+              <UiTooltipContent>{{ t('changes.discard') }}</UiTooltipContent>
+            </UiTooltip>
+            <UiTooltip>
+              <UiTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon"
+                  class="size-5 opacity-0 group-hover:opacity-100"
+                  @click.stop="repo.stage(f.path)"
+                >
+                  <NuxtIcon name="lucide:plus" class="size-3.5" />
+                </UiButton>
+              </UiTooltipTrigger>
+              <UiTooltipContent>{{ t('changes.stage') }}</UiTooltipContent>
+            </UiTooltip>
+          </template>
+        </FileRow>
       </section>
 
       <p v-if="!repo.status.length" class="p-4 text-muted-foreground">
