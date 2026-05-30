@@ -42,15 +42,16 @@ const { t } = useI18n();
       class="min-h-0 flex-1"
     >
       <UiResizablePanel :default-size="30" :min-size="10">
-        <div class="h-full overflow-auto px-1 py-1 text-sm">
-          <FileRow
-            v-for="f in repo.commitFiles"
-            :key="f.path"
-            :path="f.path"
-            :status="f.status"
-            :active="repo.selectedFile === f.path"
-            @select="repo.selectCommitFile(f.path)"
-          />
+        <div class="flex h-full flex-col text-sm">
+          <FileViewToggle class="border-b" />
+          <div class="min-h-0 flex-1 overflow-auto px-1 py-1">
+            <FileTree
+              :files="repo.commitFiles"
+              :view="layout.fileView"
+              :selected="repo.selectedFile"
+              @select="repo.selectCommitFile"
+            />
+          </div>
         </div>
       </UiResizablePanel>
       <UiResizableHandle with-handle />

@@ -35,6 +35,10 @@
     "commitPlaceholder": "Commit message",
     "clean": "Working tree clean — nothing to commit"
   },
+  "fileView": {
+    "list": "List view",
+    "tree": "Tree view"
+  },
   "diff": {
     "title": "Diff",
     "sideBySide": "Side by side",

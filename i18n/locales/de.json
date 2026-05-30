@@ -35,6 +35,10 @@
     "commitPlaceholder": "Commit-Nachricht",
     "clean": "Arbeitsverzeichnis sauber — nichts zu committen"
   },
+  "fileView": {
+    "list": "Listenansicht",
+    "tree": "Baumansicht"
+  },
   "diff": {
     "title": "Diff",
     "sideBySide": "Nebeneinander",

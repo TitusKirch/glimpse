@@ -2,6 +2,7 @@
 import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
+const layout = useLayoutStore();
 const { t } = useI18n();
 
 // Single, consistent letter per file: A = new/untracked, M = modified,
@@ -12,13 +13,19 @@ function letter(f: StatusEntry, staged: boolean): string {
   return c;
 }
 
-function isSelected(path: string, staged: boolean): boolean {
-  return repo.selectedFile === path && repo.selectedFileStaged === staged;
-}
+// FileTree items carry the display letter plus the original entry fields.
+const stagedItems = computed(() =>
+  repo.stagedFiles.map((f) => ({ ...f, status: letter(f, true) }))
+);
+const unstagedItems = computed(() =>
+  repo.unstagedFiles.map((f) => ({ ...f, status: letter(f, false) }))
+);
 </script>
 
 <template>
   <div class="flex h-full flex-col text-sm">
+    <FileViewToggle class="border-b" />
+
     <div class="min-h-0 flex-1 overflow-auto">
       <!-- staged -->
       <section v-if="repo.stagedFiles.length" class="px-1">
@@ -27,22 +34,20 @@ function isSelected(path: string, staged: boolean): boolean {
         >
           {{ t('changes.staged') }} ({{ repo.stagedFiles.length }})
         </h3>
-        <FileRow
-          v-for="f in repo.stagedFiles"
-          :key="`s-${f.path}`"
-          :path="f.path"
-          :status="letter(f, true)"
-          :active="isSelected(f.path, true)"
-          @select="repo.selectFile(f.path, true)"
+        <FileTree
+          :files="stagedItems"
+          :view="layout.fileView"
+          :selected="repo.selectedFileStaged ? repo.selectedFile : null"
+          @select="(p) => repo.selectFile(p, true)"
         >
-          <template #actions>
+          <template #actions="{ file }">
             <UiTooltip>
               <UiTooltipTrigger as-child>
                 <UiButton
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
-                  @click.stop="repo.unstage(f.path)"
+                  @click.stop="repo.unstage(file.path)"
                 >
                   <NuxtIcon name="lucide:minus" class="size-3.5" />
                 </UiButton>
@@ -50,7 +55,7 @@ function isSelected(path: string, staged: boolean): boolean {
               <UiTooltipContent>{{ t('changes.unstage') }}</UiTooltipContent>
             </UiTooltip>
           </template>
-        </FileRow>
+        </FileTree>
       </section>
 
       <!-- unstaged / untracked -->
@@ -60,22 +65,20 @@ function isSelected(path: string, staged: boolean): boolean {
         >
           {{ t('changes.unstaged') }} ({{ repo.unstagedFiles.length }})
         </h3>
-        <FileRow
-          v-for="f in repo.unstagedFiles"
-          :key="`u-${f.path}`"
-          :path="f.path"
-          :status="letter(f, false)"
-          :active="isSelected(f.path, false)"
-          @select="repo.selectFile(f.path, false)"
+        <FileTree
+          :files="unstagedItems"
+          :view="layout.fileView"
+          :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
+          @select="(p) => repo.selectFile(p, false)"
         >
-          <template #actions>
+          <template #actions="{ file }">
             <UiTooltip>
               <UiTooltipTrigger as-child>
                 <UiButton
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
-                  @click.stop="repo.discard(f.path, f.untracked)"
+                  @click.stop="repo.discard(file.path, file.untracked)"
                 >
                   <NuxtIcon name="lucide:undo-2" class="size-3.5" />
                 </UiButton>
@@ -88,7 +91,7 @@ function isSelected(path: string, staged: boolean): boolean {
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
-                  @click.stop="repo.stage(f.path)"
+                  @click.stop="repo.stage(file.path)"
                 >
                   <NuxtIcon name="lucide:plus" class="size-3.5" />
                 </UiButton>
@@ -96,7 +99,7 @@ function isSelected(path: string, staged: boolean): boolean {
               <UiTooltipContent>{{ t('changes.stage') }}</UiTooltipContent>
             </UiTooltip>
           </template>
-        </FileRow>
+        </FileTree>
       </section>
 
       <p v-if="!repo.status.length" class="p-4 text-muted-foreground">
