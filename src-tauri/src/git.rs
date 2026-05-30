@@ -4,6 +4,8 @@
 use crate::platform::{self, GitTarget};
 use serde::Serialize;
 
+mod parse;
+
 const US: char = '\u{1f}'; // unit separator, safe field delimiter
 
 fn run(target: &GitTarget, args: &[&str]) -> Result<String, String> {
@@ -110,82 +112,7 @@ pub fn git_log(repo_path: &str, limit: u32) -> Result<Vec<Commit>, String> {
     let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
     let n = format!("-n{limit}");
     let out = run(&t, &["log", "--date=short", &fmt, &n])?;
-
-    let mut commits: Vec<Commit> = out
-        .lines()
-        .filter_map(|line| {
-            let mut f = line.split(US);
-            let hash = f.next()?.to_string();
-            let parents = f
-                .next()
-                .unwrap_or("")
-                .split_whitespace()
-                .map(str::to_string)
-                .collect();
-            let author = f.next().unwrap_or("").to_string();
-            let date = f.next().unwrap_or("").to_string();
-            let refs = f
-                .next()
-                .unwrap_or("")
-                .split(", ")
-                .filter(|r| !r.is_empty())
-                .map(str::to_string)
-                .collect();
-            let subject = f.next().unwrap_or("").to_string();
-            Some(Commit {
-                hash,
-                subject,
-                author,
-                date,
-                refs,
-                parents,
-                lane: 0,
-            })
-        })
-        .collect();
-
-    assign_lanes(&mut commits);
-    Ok(commits)
-}
-
-/// Assign a column ("lane") to each commit so the frontend can draw a
-/// multi-branch graph. Commits arrive newest-first. Each lane tracks the hash
-/// of the next commit expected to occupy it; the first parent continues a
-/// lane, extra parents (merges) open new lanes.
-fn assign_lanes(commits: &mut [Commit]) {
-    let mut lanes: Vec<Option<String>> = Vec::new();
-
-    let free_lane = |lanes: &mut Vec<Option<String>>| -> usize {
-        match lanes.iter().position(Option::is_none) {
-            Some(i) => i,
-            None => {
-                lanes.push(None);
-                lanes.len() - 1
-            }
-        }
-    };
-
-    for commit in commits.iter_mut() {
-        let lane = match lanes
-            .iter()
-            .position(|l| l.as_deref() == Some(&commit.hash))
-        {
-            Some(i) => i,
-            None => free_lane(&mut lanes),
-        };
-        commit.lane = lane as u32;
-
-        // First parent continues this lane; clear it otherwise.
-        lanes[lane] = commit.parents.first().cloned();
-
-        // Extra parents (merge) reserve their own lanes if not already tracked.
-        for parent in commit.parents.iter().skip(1) {
-            if !lanes.iter().any(|l| l.as_deref() == Some(parent.as_str())) {
-                let i = free_lane(&mut lanes);
-                lanes[i] = Some(parent.clone());
-            }
-        }
-    }
+    Ok(parse::log(&out))
 }
 
 pub fn git_status(repo_path: &str) -> Result<Vec<StatusEntry>, String> {
@@ -194,35 +121,7 @@ pub fn git_status(repo_path: &str) -> Result<Vec<StatusEntry>, String> {
         &t,
         &["status", "--porcelain=v1", "--untracked-files=all", "-z"],
     )?;
-
-    let tokens: Vec<&str> = raw.split('\u{0}').filter(|s| !s.is_empty()).collect();
-    let mut entries = Vec::new();
-    let mut i = 0;
-    while i < tokens.len() {
-        let tok = tokens[i];
-        i += 1;
-        if tok.len() < 3 {
-            continue;
-        }
-        let bytes = tok.as_bytes();
-        let x = bytes[0] as char;
-        let y = bytes[1] as char;
-        let path = tok[3..].to_string();
-        // Renames/copies carry an extra "from" path token; skip it.
-        if x == 'R' || x == 'C' {
-            i += 1;
-        }
-        let untracked = x == '?';
-        entries.push(StatusEntry {
-            path,
-            x: x.to_string(),
-            y: y.to_string(),
-            staged: !untracked && x != ' ',
-            unstaged: !untracked && y != ' ',
-            untracked,
-        });
-    }
-    Ok(entries)
+    Ok(parse::status(&raw))
 }
 
 /// Full content of a git object (`git show <spec>`); empty on error (e.g. the
@@ -250,7 +149,7 @@ pub fn file_diff(repo_path: &str, file: &str, staged: bool) -> Result<Option<Dif
         raw = run(&t, &["diff", "--no-color", "--no-index", null, file]).unwrap_or_default();
     }
 
-    let Some(mut diff) = parse_first_file(&raw) else {
+    let Some(mut diff) = parse::diff(&raw) else {
         return Ok(None);
     };
     if staged {
@@ -267,19 +166,7 @@ pub fn file_diff(repo_path: &str, file: &str, staged: bool) -> Result<Option<Dif
 pub fn commit_files(repo_path: &str, hash: &str) -> Result<Vec<CommitFile>, String> {
     let t = platform::resolve(repo_path);
     let raw = run(&t, &["show", "--name-status", "--format=", hash])?;
-    let files = lines(&raw)
-        .filter_map(|line| {
-            let mut parts = line.split('\t');
-            let status = parts.next()?.chars().next()?;
-            // For renames/copies the last field is the new path.
-            let path = parts.next_back()?.to_string();
-            Some(CommitFile {
-                path,
-                status: status.to_string(),
-            })
-        })
-        .collect();
-    Ok(files)
+    Ok(parse::commit_files(&raw))
 }
 
 /// Diff of a single file as introduced by a commit, with both file contents.
@@ -290,7 +177,7 @@ pub fn commit_file_diff(
 ) -> Result<Option<DiffData>, String> {
     let t = platform::resolve(repo_path);
     let raw = run(&t, &["show", "--no-color", "--format=", hash, "--", file])?;
-    let Some(mut diff) = parse_first_file(&raw) else {
+    let Some(mut diff) = parse::diff(&raw) else {
         return Ok(None);
     };
     diff.old_content = content(&t, &format!("{hash}^:{file}"));
@@ -352,45 +239,4 @@ pub fn pull(repo_path: &str) -> Result<String, String> {
 pub fn push(repo_path: &str) -> Result<String, String> {
     let t = platform::resolve(repo_path);
     run(&t, &["push"])
-}
-
-/// Pull the first file's hunks out of a unified-diff blob.
-fn parse_first_file(diff: &str) -> Option<DiffData> {
-    let mut file_name: Option<String> = None;
-    let mut hunks: Vec<String> = Vec::new();
-    let mut cur: Option<String> = None;
-
-    for line in diff.lines() {
-        if line.starts_with("diff --git") {
-            if file_name.is_some() {
-                break; // only the first file in this skeleton
-            }
-            continue;
-        }
-        if let Some(name) = line.strip_prefix("+++ b/") {
-            file_name = Some(name.to_string());
-            continue;
-        }
-        if line.starts_with("@@") {
-            if let Some(h) = cur.take() {
-                hunks.push(h);
-            }
-            cur = Some(line.to_string());
-        } else if let Some(h) = cur.as_mut() {
-            h.push('\n');
-            h.push_str(line);
-        }
-    }
-    if let Some(h) = cur.take() {
-        hunks.push(h);
-    }
-
-    file_name
-        .filter(|_| !hunks.is_empty())
-        .map(|name| DiffData {
-            file_name: name,
-            old_content: String::new(),
-            new_content: String::new(),
-            hunks,
-        })
 }
