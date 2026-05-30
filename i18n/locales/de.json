@@ -1,0 +1,48 @@
+{
+  "app": {
+    "name": "glimpse"
+  },
+  "sidebar": {
+    "branches": "Branches",
+    "remotes": "Remotes",
+    "tags": "Tags",
+    "newBranch": "Neuer Branch",
+    "branchName": "Branch-Name…"
+  },
+  "sync": {
+    "fetch": "Fetch",
+    "pull": "Pull",
+    "push": "Push"
+  },
+  "graph": {
+    "title": "Commit-Graph",
+    "uncommitted": "Uncommittete Änderungen"
+  },
+  "history": {
+    "title": "Verlauf"
+  },
+  "changes": {
+    "title": "Änderungen",
+    "staged": "Vorgemerkt",
+    "unstaged": "Änderungen",
+    "stage": "Vormerken",
+    "unstage": "Zurücknehmen",
+    "discard": "Änderungen verwerfen",
+    "commit": "Committen",
+    "commitPlaceholder": "Commit-Nachricht",
+    "clean": "Arbeitsverzeichnis sauber — nichts zu committen"
+  },
+  "diff": {
+    "title": "Diff",
+    "sideBySide": "Nebeneinander",
+    "unified": "Vereinheitlicht",
+    "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen"
+  },
+  "actions": {
+    "refresh": "Aktualisieren",
+    "openRepo": "Repository öffnen"
+  },
+  "theme": {
+    "toggle": "Theme umschalten"
+  }
+}
