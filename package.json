@@ -32,6 +32,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "tauri": "tauri",
+    "bindings": "cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings && oxfmt app/types/bindings.ts",
     "lint": "oxlint . --deny-warnings",
     "lint:fix": "oxlint . --fix --deny-warnings",
     "format": "oxfmt --check .",

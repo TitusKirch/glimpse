@@ -1,7 +1,22 @@
 // Repo store. Talks to the Rust/Tauri git backend when running in the desktop
 // shell; falls back to mock data in the browser so the UI stays developable.
 
+// The IPC payload shapes are the single source of truth in src-tauri/src/git.rs;
+// app/types/bindings.ts is generated from them (ts-rs). Re-exported here so the
+// rest of the app keeps importing these names from the store.
+import type {
+  Commit,
+  CommitFile,
+  DiffData,
+  RepoInfo,
+  StatusEntry
+} from '~/types/bindings';
+
+export type { Commit, CommitFile, DiffData, RepoInfo, StatusEntry };
+
+// Frontend-only types (no backend counterpart).
 export type GitFlavor = 'windows' | 'wsl' | 'linux' | 'macos';
+export type DiffMode = 'split' | 'unified';
 
 export interface RepoTab {
   id: string;
@@ -9,49 +24,6 @@ export interface RepoTab {
   path: string;
   flavor: GitFlavor;
   distro?: string;
-}
-
-export interface Commit {
-  hash: string;
-  subject: string;
-  author: string;
-  date: string;
-  refs: string[];
-  parents: string[];
-  lane: number;
-}
-
-export interface DiffData {
-  fileName: string;
-  oldContent: string;
-  newContent: string;
-  hunks: string[];
-}
-
-export interface StatusEntry {
-  path: string;
-  x: string;
-  y: string;
-  staged: boolean;
-  unstaged: boolean;
-  untracked: boolean;
-}
-
-export interface CommitFile {
-  path: string;
-  status: string;
-}
-
-export type DiffMode = 'split' | 'unified';
-
-export interface RepoInfo {
-  toplevel: string;
-  currentBranch: string;
-  branches: string[];
-  remotes: string[];
-  tags: string[];
-  flavor: string;
-  distro: string | null;
 }
 
 const MOCK_COMMITS: Commit[] = [

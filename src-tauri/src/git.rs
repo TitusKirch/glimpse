@@ -5,6 +5,7 @@
 
 use crate::platform::{self, GitTarget};
 use serde::Serialize;
+use ts_rs::TS;
 
 mod parse;
 
@@ -14,7 +15,7 @@ fn lines(s: &str) -> impl Iterator<Item = &str> {
     s.lines().filter(|l| !l.trim().is_empty())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
 pub struct Commit {
     pub hash: String,
     pub subject: String,
@@ -25,7 +26,7 @@ pub struct Commit {
     pub lane: u32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoInfo {
     pub toplevel: String,
@@ -37,7 +38,7 @@ pub struct RepoInfo {
     pub distro: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffData {
     pub file_name: String,
@@ -46,7 +47,7 @@ pub struct DiffData {
     pub hunks: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitFile {
     pub path: String,
@@ -54,7 +55,7 @@ pub struct CommitFile {
     pub status: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct StatusEntry {
     pub path: String,
@@ -237,4 +238,26 @@ impl Repo {
     pub fn push(&self) -> Result<String, String> {
         self.run(&["push"])
     }
+}
+
+/// Generates `app/types/bindings.ts` from the serde structs above so the
+/// frontend imports one source-of-truth contract instead of re-declaring it.
+/// Regenerate with `pnpm bindings` (runs this test, then formats the output).
+#[cfg(test)]
+#[test]
+fn export_bindings() {
+    let decls = [
+        Commit::decl(),
+        RepoInfo::decl(),
+        DiffData::decl(),
+        CommitFile::decl(),
+        StatusEntry::decl(),
+    ];
+    let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
+    let file = format!(
+        "// GENERATED from src-tauri/src/git.rs by `cargo test` (ts-rs).\n\
+         // Do not edit — change the Rust structs and re-run.\n\n{body}"
+    );
+    std::fs::create_dir_all("../app/types").expect("create app/types");
+    std::fs::write("../app/types/bindings.ts", file).expect("write bindings.ts");
 }
