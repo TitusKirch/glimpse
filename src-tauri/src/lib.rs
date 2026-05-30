@@ -5,39 +5,43 @@ use std::env;
 
 /// Current working directory — the frontend uses this as the default repo to open.
 #[tauri::command]
-fn default_repo() -> Result<String, String> {
+async fn default_repo() -> Result<String, String> {
     env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn repo_info(path: String) -> Result<git::RepoInfo, String> {
+async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
     git::Repo::open(&path).info()
 }
 
 #[tauri::command]
-fn git_log(path: String, limit: Option<u32>) -> Result<Vec<git::Commit>, String> {
+async fn git_log(path: String, limit: Option<u32>) -> Result<Vec<git::Commit>, String> {
     git::Repo::open(&path).log(limit.unwrap_or(100))
 }
 
 #[tauri::command]
-fn git_status(path: String) -> Result<Vec<git::StatusEntry>, String> {
+async fn git_status(path: String) -> Result<Vec<git::StatusEntry>, String> {
     git::Repo::open(&path).status()
 }
 
 #[tauri::command]
-fn file_diff(path: String, file: String, staged: bool) -> Result<Option<git::DiffData>, String> {
+async fn file_diff(
+    path: String,
+    file: String,
+    staged: bool,
+) -> Result<Option<git::DiffData>, String> {
     git::Repo::open(&path).file_diff(&file, staged)
 }
 
 #[tauri::command]
-fn commit_files(path: String, hash: String) -> Result<Vec<git::CommitFile>, String> {
+async fn commit_files(path: String, hash: String) -> Result<Vec<git::CommitFile>, String> {
     git::Repo::open(&path).commit_files(&hash)
 }
 
 #[tauri::command]
-fn commit_file_diff(
+async fn commit_file_diff(
     path: String,
     hash: String,
     file: String,
@@ -46,52 +50,52 @@ fn commit_file_diff(
 }
 
 #[tauri::command]
-fn stage(path: String, file: String) -> Result<(), String> {
+async fn stage(path: String, file: String) -> Result<(), String> {
     git::Repo::open(&path).stage(&file)
 }
 
 #[tauri::command]
-fn unstage(path: String, file: String) -> Result<(), String> {
+async fn unstage(path: String, file: String) -> Result<(), String> {
     git::Repo::open(&path).unstage(&file)
 }
 
 #[tauri::command]
-fn commit(path: String, message: String) -> Result<String, String> {
+async fn commit(path: String, message: String) -> Result<String, String> {
     git::Repo::open(&path).commit(&message)
 }
 
 #[tauri::command]
-fn discard(path: String, file: String, untracked: bool) -> Result<(), String> {
+async fn discard(path: String, file: String, untracked: bool) -> Result<(), String> {
     git::Repo::open(&path).discard(&file, untracked)
 }
 
 #[tauri::command]
-fn checkout_branch(path: String, branch: String) -> Result<(), String> {
+async fn checkout_branch(path: String, branch: String) -> Result<(), String> {
     git::Repo::open(&path).checkout_branch(&branch)
 }
 
 #[tauri::command]
-fn create_branch(path: String, name: String) -> Result<(), String> {
+async fn create_branch(path: String, name: String) -> Result<(), String> {
     git::Repo::open(&path).create_branch(&name)
 }
 
 #[tauri::command]
-fn delete_branch(path: String, name: String) -> Result<(), String> {
+async fn delete_branch(path: String, name: String) -> Result<(), String> {
     git::Repo::open(&path).delete_branch(&name)
 }
 
 #[tauri::command]
-fn fetch(path: String) -> Result<String, String> {
+async fn fetch(path: String) -> Result<String, String> {
     git::Repo::open(&path).fetch()
 }
 
 #[tauri::command]
-fn pull(path: String) -> Result<String, String> {
+async fn pull(path: String) -> Result<String, String> {
     git::Repo::open(&path).pull()
 }
 
 #[tauri::command]
-fn push(path: String) -> Result<String, String> {
+async fn push(path: String) -> Result<String, String> {
     git::Repo::open(&path).push()
 }
 

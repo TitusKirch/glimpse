@@ -71,7 +71,7 @@ function shortName(remoteBranch: string): string {
                 :tooltip="b"
                 @click="repo.checkout(b)"
               >
-                <NuxtIcon name="lucide:git-branch" />
+                <NuxtIcon name="lucide:git-branch" class="size-5" />
                 <span>{{ b }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
