@@ -54,6 +54,7 @@ const syncButtons = [
             size="sm"
             class="gap-1.5"
             :disabled="repo.busy"
+            :loading="repo.refreshing"
             @click="repo.refresh"
           >
             <NuxtIcon name="lucide:refresh-cw" class="size-3.5" />

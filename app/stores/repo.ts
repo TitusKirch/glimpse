@@ -79,7 +79,8 @@ export const useRepoStore = defineStore('repo', {
     lastError: null as string | null,
     busy: false,
     // Which remote sync (if any) is in flight — drives the button spinner.
-    syncing: null as 'fetch' | 'pull' | 'push' | null
+    syncing: null as 'fetch' | 'pull' | 'push' | null,
+    refreshing: false
   }),
   getters: {
     // The active repository and the tab strip over all open ones.
@@ -273,9 +274,14 @@ export const useRepoStore = defineStore('repo', {
       if (commits.length) this.active.commits = commits;
     },
 
-    refresh() {
+    async refresh() {
       this.lastRefresh = 'just now';
-      void this.loadFromBackend();
+      this.refreshing = true;
+      try {
+        await this.loadFromBackend();
+      } finally {
+        this.refreshing = false;
+      }
     },
 
     // When running inside Tauri, replace the active repo's mock data with real
