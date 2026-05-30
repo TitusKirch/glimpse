@@ -21,6 +21,25 @@ function shortName(remoteBranch: string): string {
   const i = remoteBranch.indexOf('/');
   return i >= 0 ? remoteBranch.slice(i + 1) : remoteBranch;
 }
+
+// External links pinned to the bottom of the sidebar.
+const links = [
+  {
+    title: 'GitHub',
+    url: 'https://github.com/TitusKirch/glimpse',
+    icon: 'simple-icons:github'
+  },
+  {
+    title: 'Discord',
+    url: 'https://discord.gg/cwFp2nx',
+    icon: 'simple-icons:discord'
+  },
+  {
+    title: 'Report a bug',
+    url: 'https://github.com/TitusKirch/glimpse/issues',
+    icon: 'lucide:bug'
+  }
+];
 </script>
 
 <template>
@@ -71,7 +90,7 @@ function shortName(remoteBranch: string): string {
                 :tooltip="b"
                 @click="repo.checkout(b)"
               >
-                <NuxtIcon name="lucide:git-branch" class="size-5!" />
+                <NuxtIcon name="lucide:git-branch" class="shrink-0" />
                 <span>{{ b }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
@@ -111,7 +130,7 @@ function shortName(remoteBranch: string): string {
                       ? 'lucide:git-branch'
                       : 'lucide:git-branch-plus'
                   "
-                  class="size-5! opacity-60"
+                  class="shrink-0 opacity-60"
                 />
                 <span>{{ rb }}</span>
               </UiSidebarMenuButton>
@@ -128,6 +147,21 @@ function shortName(remoteBranch: string): string {
               <UiSidebarMenuButton :tooltip="tag">
                 <NuxtIcon name="lucide:tag" />
                 <span>{{ tag }}</span>
+              </UiSidebarMenuButton>
+            </UiSidebarMenuItem>
+          </UiSidebarMenu>
+        </UiSidebarGroupContent>
+      </UiSidebarGroup>
+
+      <UiSidebarGroup class="mt-auto">
+        <UiSidebarGroupContent>
+          <UiSidebarMenu>
+            <UiSidebarMenuItem v-for="item in links" :key="item.title">
+              <UiSidebarMenuButton as-child size="sm">
+                <a :href="item.url" target="_blank" rel="noopener noreferrer">
+                  <NuxtIcon :name="item.icon" class="shrink-0" />
+                  <span>{{ item.title }}</span>
+                </a>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
           </UiSidebarMenu>

@@ -53,11 +53,14 @@ const syncButtons = [
             variant="ghost"
             size="sm"
             class="gap-1.5"
-            :disabled="repo.busy"
-            :loading="repo.refreshing"
+            :disabled="repo.busy || repo.refreshing"
             @click="repo.refresh"
           >
-            <NuxtIcon name="lucide:refresh-cw" class="size-3.5" />
+            <NuxtIcon
+              name="lucide:refresh-cw"
+              class="size-3.5"
+              :class="repo.refreshing && 'animate-spin'"
+            />
             {{ t('actions.refresh') }}
           </UiButton>
           <ThemeToggle />
