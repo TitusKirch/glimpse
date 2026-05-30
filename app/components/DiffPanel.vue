@@ -1,31 +1,7 @@
 <script setup lang="ts">
-import { DiffModeEnum, DiffView } from '@git-diff-view/vue';
-import '@git-diff-view/vue/styles/diff-view.css';
-
 const repo = useRepoStore();
 const layout = useLayoutStore();
-const colorMode = useColorMode();
 const { t } = useI18n();
-
-const viewMode = computed(() =>
-  layout.diffMode === 'unified' ? DiffModeEnum.Unified : DiffModeEnum.Split
-);
-
-const diffData = computed(() =>
-  repo.diff
-    ? {
-        oldFile: {
-          fileName: repo.diff.fileName,
-          content: repo.diff.oldContent
-        },
-        newFile: {
-          fileName: repo.diff.fileName,
-          content: repo.diff.newContent
-        },
-        hunks: repo.diff.hunks
-      }
-    : undefined
-);
 </script>
 
 <template>
@@ -34,13 +10,12 @@ const diffData = computed(() =>
       class="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3"
     >
       <div class="min-w-0">
-        <h2 class="text-sm font-semibold">{{ t('diff.title') }}</h2>
-        <code
-          v-if="repo.diff"
-          class="block truncate text-xs text-muted-foreground"
-        >
-          {{ repo.diff.fileName }}
-        </code>
+        <code v-if="repo.diff" class="block truncate text-sm font-medium">{{
+          repo.diff.fileName
+        }}</code>
+        <span v-else class="text-sm font-semibold text-muted-foreground">{{
+          t('diff.title')
+        }}</span>
       </div>
       <div class="flex shrink-0 items-center gap-1">
         <UiButton
@@ -60,16 +35,47 @@ const diffData = computed(() =>
       </div>
     </header>
 
-    <div class="min-h-0 flex-1 overflow-auto text-sm">
-      <DiffView
-        v-if="diffData"
-        :data="diffData"
-        :diff-view-mode="viewMode"
-        :diff-view-theme="colorMode.value === 'dark' ? 'dark' : 'light'"
-        diff-view-highlight
-        diff-view-wrap
+    <!-- commit: resizable file list (top) / diff (bottom) -->
+    <UiResizablePanelGroup
+      v-if="repo.selectedHash && repo.commitFiles.length"
+      direction="vertical"
+      class="min-h-0 flex-1"
+    >
+      <UiResizablePanel :default-size="30" :min-size="10">
+        <div class="h-full overflow-auto px-1 py-1 text-sm">
+          <FileRow
+            v-for="f in repo.commitFiles"
+            :key="f.path"
+            :path="f.path"
+            :status="f.status"
+            :active="repo.selectedFile === f.path"
+            @select="repo.selectCommitFile(f.path)"
+          />
+        </div>
+      </UiResizablePanel>
+      <UiResizableHandle with-handle />
+      <UiResizablePanel :default-size="70" :min-size="20">
+        <CodeDiff
+          v-if="repo.diff && repo.diff.hunks.length"
+          :hunks="repo.diff.hunks"
+          :mode="layout.diffMode"
+          :file-name="repo.diff.fileName"
+        />
+        <p v-else class="p-6 text-sm text-muted-foreground">
+          {{ t('diff.noSelection') }}
+        </p>
+      </UiResizablePanel>
+    </UiResizablePanelGroup>
+
+    <!-- working file: just the diff -->
+    <div v-else class="min-h-0 flex-1">
+      <CodeDiff
+        v-if="repo.diff && repo.diff.hunks.length"
+        :hunks="repo.diff.hunks"
+        :mode="layout.diffMode"
+        :file-name="repo.diff.fileName"
       />
-      <p v-else class="p-6 text-muted-foreground">
+      <p v-else class="p-6 text-sm text-muted-foreground">
         {{ t('diff.noSelection') }}
       </p>
     </div>

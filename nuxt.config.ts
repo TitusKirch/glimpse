@@ -34,12 +34,11 @@ export default defineNuxtConfig({
     // (which can leave the Tauri webview on a blank/black screen).
     optimizeDeps: {
       include: [
-        '@git-diff-view/vue',
-        '@lucide/vue',
         '@tauri-apps/api/core',
         '@vueuse/core',
         'class-variance-authority',
         'clsx',
+        'highlight.js',
         'reka-ui',
         'tailwind-merge'
       ]

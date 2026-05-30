@@ -37,6 +37,11 @@ export interface StatusEntry {
   untracked: boolean;
 }
 
+export interface CommitFile {
+  path: string;
+  status: string;
+}
+
 export type DiffMode = 'split' | 'unified';
 
 export interface RepoInfo {
@@ -168,6 +173,7 @@ export const useRepoStore = defineStore('repo', {
     selectedHash: null as string | null,
     selectedFile: 'app/stores/repo.ts' as string | null,
     selectedFileStaged: false,
+    commitFiles: [] as CommitFile[],
     commitMessage: '',
     diff: MOCK_DIFF as DiffData | null,
     lastRefresh: 'just now',
@@ -191,10 +197,26 @@ export const useRepoStore = defineStore('repo', {
 
     async selectCommit(hash: string) {
       this.selectedHash = hash;
-      this.selectedFile = null;
-      this.diff = await gitInvoke<DiffData | null>(
-        'commit_diff',
+      this.commitFiles = await gitInvoke<CommitFile[]>(
+        'commit_files',
         { path: this.repoPath, hash },
+        []
+      );
+      const first = this.commitFiles[0];
+      if (first) {
+        await this.selectCommitFile(first.path);
+      } else {
+        this.selectedFile = null;
+        this.diff = null;
+      }
+    },
+
+    async selectCommitFile(file: string) {
+      if (!this.selectedHash) return;
+      this.selectedFile = file;
+      this.diff = await gitInvoke<DiffData | null>(
+        'commit_file_diff',
+        { path: this.repoPath, hash: this.selectedHash, file },
         MOCK_DIFF
       );
     },
@@ -203,6 +225,7 @@ export const useRepoStore = defineStore('repo', {
       this.selectedFile = file;
       this.selectedFileStaged = staged;
       this.selectedHash = null;
+      this.commitFiles = [];
       this.diff = await gitInvoke<DiffData | null>(
         'file_diff',
         { path: this.repoPath, file, staged },
