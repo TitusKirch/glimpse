@@ -29,3 +29,18 @@ updates:
         update-types:
           - 'minor'
           - 'patch'
+
+  - package-ecosystem: 'cargo'
+    directory: '/src-tauri'
+    schedule:
+      interval: 'weekly'
+    labels:
+      - 'dependencies'
+      - 'area: rust'
+    groups:
+      cargo-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
