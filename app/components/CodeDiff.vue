@@ -250,7 +250,7 @@ const gutter =
         </div>
       </div>
     </UiResizablePanel>
-    <UiResizableHandle with-handle class="z-20" />
+    <UiResizableHandle class="z-20" />
     <UiResizablePanel :default-size="50" :min-size="15">
       <div ref="rightPane" class="h-full overflow-auto" @scroll="sync('r')">
         <div class="w-max min-w-full">

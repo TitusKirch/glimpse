@@ -54,7 +54,7 @@ const { t } = useI18n();
           </div>
         </div>
       </UiResizablePanel>
-      <UiResizableHandle with-handle />
+      <UiResizableHandle />
       <UiResizablePanel :default-size="70" :min-size="20">
         <CodeDiff
           v-if="repo.diff && repo.diff.hunks.length"

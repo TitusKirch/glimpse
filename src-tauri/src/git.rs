@@ -134,7 +134,9 @@ impl Repo {
     pub fn log(&self, limit: u32) -> Result<Vec<Commit>, String> {
         let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
         let n = format!("-n{limit}");
-        let out = self.run(&["log", "--date=short", &fmt, &n])?;
+        // `--all` so every branch/remote/tag tip shows as its own parallel lane;
+        // `--topo-order` keeps a branch's commits contiguous for a clean graph.
+        let out = self.run(&["log", "--all", "--topo-order", "--date=short", &fmt, &n])?;
         Ok(parse::log(&out))
     }
 

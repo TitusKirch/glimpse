@@ -36,7 +36,19 @@ const DEFAULTS = {
   rowHeight: 60,
   laneWidth: 18,
   originX: 18,
-  colors: ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#a855f7']
+  // A wide hue spread so many parallel lanes stay visually distinct.
+  colors: [
+    '#22c55e', // green
+    '#3b82f6', // blue
+    '#f59e0b', // amber
+    '#ec4899', // pink
+    '#a855f7', // purple
+    '#06b6d4', // cyan
+    '#ef4444', // red
+    '#84cc16', // lime
+    '#f97316', // orange
+    '#14b8a6' // teal
+  ]
 };
 
 export function commitGraphLayout(

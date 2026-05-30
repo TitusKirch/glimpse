@@ -114,7 +114,7 @@ const syncButtons = [
             </UiTabsContent>
           </UiTabs>
         </UiResizablePanel>
-        <UiResizableHandle with-handle class="z-30" />
+        <UiResizableHandle class="z-30" />
         <UiResizablePanel :default-size="layout.panelSizes[1]" :min-size="25">
           <DiffPanel />
         </UiResizablePanel>
