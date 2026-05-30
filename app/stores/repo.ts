@@ -1,5 +1,11 @@
 // Repo store. Talks to the Rust/Tauri git backend when running in the desktop
 // shell; falls back to mock data in the browser so the UI stays developable.
+//
+// Multi-repo: each open repository is one RepoState (its identity + its whole
+// view — branches, commits, status, diff, selection). The store keeps them
+// keyed by id with an activeId; projection getters expose the active repo, so
+// switching tabs swaps the entire graph + diff. Transient UI bits
+// (commitMessage, busy, lastError) stay at the top level.
 
 // The IPC payload shapes are the single source of truth in src-tauri/src/git.rs;
 // app/types/bindings.ts is generated from them (ts-rs). Re-exported here so the
@@ -18,99 +24,159 @@ export type { Commit, CommitFile, DiffData, RepoInfo, StatusEntry };
 export type GitFlavor = 'windows' | 'wsl' | 'linux' | 'macos';
 export type DiffMode = 'split' | 'unified';
 
-export interface RepoTab {
+// Everything one open repository shows. The tab strip renders id/name/flavor;
+// the panels read the rest of the active repo via projection getters.
+export interface RepoState {
   id: string;
   name: string;
   path: string;
   flavor: GitFlavor;
   distro?: string;
+  branches: string[];
+  currentBranch: string;
+  remotes: string[];
+  tags: string[];
+  commits: Commit[];
+  status: StatusEntry[];
+  selectedHash: string | null;
+  selectedFile: string | null;
+  selectedFileStaged: boolean;
+  commitFiles: CommitFile[];
+  diff: DiffData | null;
+}
+
+// Demo repository shown in the browser (no Tauri shell).
+function demoRepo(): RepoState {
+  return {
+    id: 'r1',
+    name: 'glimpse',
+    path: '\\\\wsl$\\Ubuntu-22.04\\home\\titus\\glimpse',
+    flavor: 'wsl',
+    distro: 'Ubuntu-22.04',
+    branches: ['main', 'dev', 'feat/wsl'],
+    currentBranch: 'main',
+    remotes: ['origin'],
+    tags: ['v0.0.0'],
+    commits: mock.commits,
+    status: mock.status,
+    selectedHash: null,
+    selectedFile: 'app/stores/repo.ts',
+    selectedFileStaged: false,
+    commitFiles: [],
+    diff: mock.diff
+  };
 }
 
 export const useRepoStore = defineStore('repo', {
   state: () => ({
-    tabs: [
-      {
-        id: 'r1',
-        name: 'glimpse',
-        path: '\\\\wsl$\\Ubuntu-22.04\\home\\titus\\glimpse',
-        flavor: 'wsl',
-        distro: 'Ubuntu-22.04'
-      }
-    ] as RepoTab[],
-    activeTabId: 'r1',
-    branches: ['main', 'dev', 'feat/wsl'] as string[],
-    currentBranch: 'main',
-    remotes: ['origin'] as string[],
-    tags: ['v0.0.0'] as string[],
-    commits: mock.commits as Commit[],
-    status: mock.status as StatusEntry[],
-    selectedHash: null as string | null,
-    selectedFile: 'app/stores/repo.ts' as string | null,
-    selectedFileStaged: false,
-    commitFiles: [] as CommitFile[],
+    repos: { r1: demoRepo() } as Record<string, RepoState>,
+    order: ['r1'] as string[],
+    activeId: 'r1',
     commitMessage: '',
-    diff: mock.diff as DiffData | null,
     lastRefresh: 'just now',
     lastError: null as string | null,
     busy: false
   }),
   getters: {
-    activeTab: (s) => s.tabs.find((t) => t.id === s.activeTabId) ?? null,
+    // The active repository and the tab strip over all open ones.
+    active: (s): RepoState => s.repos[s.activeId]!,
+    tabs: (s): RepoState[] => s.order.map((id) => s.repos[id]!),
+    activeTabId: (s): string => s.activeId,
+
+    // Projections of the active repo — keep the panel-facing API flat.
     repoPath(): string {
-      return this.activeTab?.path ?? '.';
+      return this.active?.path ?? '.';
     },
-    selectedCommit: (s) =>
-      s.commits.find((c) => c.hash === s.selectedHash) ?? null,
-    stagedFiles: (s) => s.status.filter((f) => f.staged),
-    unstagedFiles: (s) => s.status.filter((f) => f.unstaged || f.untracked)
+    branches(): string[] {
+      return this.active.branches;
+    },
+    currentBranch(): string {
+      return this.active.currentBranch;
+    },
+    remotes(): string[] {
+      return this.active.remotes;
+    },
+    tags(): string[] {
+      return this.active.tags;
+    },
+    commits(): Commit[] {
+      return this.active.commits;
+    },
+    status(): StatusEntry[] {
+      return this.active.status;
+    },
+    selectedHash(): string | null {
+      return this.active.selectedHash;
+    },
+    selectedFile(): string | null {
+      return this.active.selectedFile;
+    },
+    selectedFileStaged(): boolean {
+      return this.active.selectedFileStaged;
+    },
+    commitFiles(): CommitFile[] {
+      return this.active.commitFiles;
+    },
+    diff(): DiffData | null {
+      return this.active.diff;
+    },
+    selectedCommit(): Commit | null {
+      const r = this.active;
+      return r.commits.find((c) => c.hash === r.selectedHash) ?? null;
+    },
+    stagedFiles(): StatusEntry[] {
+      return this.active.status.filter((f) => f.staged);
+    },
+    unstagedFiles(): StatusEntry[] {
+      return this.active.status.filter((f) => f.unstaged || f.untracked);
+    }
   },
   actions: {
     selectTab(id: string) {
-      this.activeTabId = id;
+      if (this.repos[id]) this.activeId = id;
     },
 
     async selectCommit(hash: string) {
-      this.selectedHash = hash;
-      this.commitFiles = await gitClient.commitFiles(this.repoPath, hash);
-      const first = this.commitFiles[0];
+      const r = this.active;
+      r.selectedHash = hash;
+      r.commitFiles = await gitClient.commitFiles(r.path, hash);
+      const first = r.commitFiles[0];
       if (first) {
         await this.selectCommitFile(first.path);
       } else {
-        this.selectedFile = null;
-        this.diff = null;
+        r.selectedFile = null;
+        r.diff = null;
       }
     },
 
     async selectCommitFile(file: string) {
-      if (!this.selectedHash) return;
-      this.selectedFile = file;
-      this.diff = await gitClient.commitFileDiff(
-        this.repoPath,
-        this.selectedHash,
-        file
-      );
+      const r = this.active;
+      if (!r.selectedHash) return;
+      r.selectedFile = file;
+      r.diff = await gitClient.commitFileDiff(r.path, r.selectedHash, file);
     },
 
     async selectFile(file: string, staged: boolean) {
-      this.selectedFile = file;
-      this.selectedFileStaged = staged;
-      this.selectedHash = null;
-      this.commitFiles = [];
-      this.diff = await gitClient.fileDiff(this.repoPath, file, staged);
+      const r = this.active;
+      r.selectedFile = file;
+      r.selectedFileStaged = staged;
+      r.selectedHash = null;
+      r.commitFiles = [];
+      r.diff = await gitClient.fileDiff(r.path, file, staged);
     },
 
     async stage(file: string) {
       if (!isTauri()) return;
       await gitClient.stage(this.repoPath, file);
       await this.loadStatus();
-      if (this.selectedFile === file) await this.selectFile(file, true);
+      if (this.active.selectedFile === file) await this.selectFile(file, true);
     },
 
     async unstage(file: string) {
       if (!isTauri()) return;
       await gitClient.unstage(this.repoPath, file);
       await this.loadStatus();
-      if (this.selectedFile === file) await this.selectFile(file, false);
+      if (this.active.selectedFile === file) await this.selectFile(file, false);
     },
 
     async commit() {
@@ -128,7 +194,7 @@ export const useRepoStore = defineStore('repo', {
       await this.guarded(async () => {
         await gitClient.discard(this.repoPath, file, untracked);
         await this.loadStatus();
-        if (this.selectedFile === file) this.diff = null;
+        if (this.active.selectedFile === file) this.active.diff = null;
       });
     },
 
@@ -186,13 +252,13 @@ export const useRepoStore = defineStore('repo', {
 
     async loadStatus() {
       if (!isTauri()) return;
-      this.status = await gitClient.status(this.repoPath);
+      this.active.status = await gitClient.status(this.repoPath);
     },
 
     async loadLog() {
       if (!isTauri()) return;
       const commits = await gitClient.log(this.repoPath);
-      if (commits.length) this.commits = commits;
+      if (commits.length) this.active.commits = commits;
     },
 
     refresh() {
@@ -200,7 +266,8 @@ export const useRepoStore = defineStore('repo', {
       void this.loadFromBackend();
     },
 
-    // When running inside Tauri, replace the mock data with real git output.
+    // When running inside Tauri, replace the active repo's mock data with real
+    // git output.
     async loadFromBackend() {
       if (!isTauri()) return;
       try {
@@ -208,20 +275,15 @@ export const useRepoStore = defineStore('repo', {
         const info = await gitClient.info(start);
         const top = info.toplevel || start;
 
-        this.branches = info.branches;
-        this.currentBranch = info.currentBranch;
-        this.remotes = info.remotes;
-        this.tags = info.tags;
-        this.tabs = [
-          {
-            id: 'r1',
-            name: top.split(/[\\/]/).pop() || 'repo',
-            path: top,
-            flavor: (info.flavor as GitFlavor) ?? 'linux',
-            distro: info.distro ?? undefined
-          }
-        ];
-        this.activeTabId = 'r1';
+        const r = this.active;
+        r.name = top.split(/[\\/]/).pop() || 'repo';
+        r.path = top;
+        r.flavor = (info.flavor as GitFlavor) ?? 'linux';
+        r.distro = info.distro ?? undefined;
+        r.branches = info.branches;
+        r.currentBranch = info.currentBranch;
+        r.remotes = info.remotes;
+        r.tags = info.tags;
 
         await Promise.all([this.loadLog(), this.loadStatus()]);
 
@@ -232,10 +294,10 @@ export const useRepoStore = defineStore('repo', {
             first.path,
             !first.unstaged && !first.untracked
           );
-        } else if (this.commits[0]) {
-          await this.selectCommit(this.commits[0].hash);
+        } else if (r.commits[0]) {
+          await this.selectCommit(r.commits[0].hash);
         } else {
-          this.diff = null;
+          r.diff = null;
         }
       } catch (err) {
         console.error('loadFromBackend failed:', err);
