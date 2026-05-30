@@ -29,6 +29,16 @@ pub struct GitTarget {
 }
 
 impl GitTarget {
+    /// The platform's null device, valid in the environment git runs in
+    /// (`NUL` on native Windows, `/dev/null` on Linux/macOS and inside WSL).
+    pub fn null_device(&self) -> &'static str {
+        if self.flavor == "windows" {
+            "NUL"
+        } else {
+            "/dev/null"
+        }
+    }
+
     /// Build a `Command` running `git <args...>` against this target's repo.
     pub fn command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::new(&self.program);
@@ -36,6 +46,23 @@ impl GitTarget {
         cmd.arg("-C").arg(&self.repo_arg);
         cmd.args(args);
         cmd
+    }
+
+    /// Read a working-tree file's content (native fs, or `cat` inside WSL).
+    pub fn read_file(&self, rel: &str) -> Option<String> {
+        if let Some(distro) = &self.distro {
+            let path = format!("{}/{}", self.repo_arg, rel);
+            let out = Command::new("wsl.exe")
+                .args(["-d", distro, "--", "cat", &path])
+                .output()
+                .ok()?;
+            return out
+                .status
+                .success()
+                .then(|| String::from_utf8_lossy(&out.stdout).into_owned());
+        }
+        let path = std::path::Path::new(&self.repo_arg).join(rel);
+        std::fs::read_to_string(path).ok()
     }
 
     /// Native `git` on the host OS — the default on every platform.

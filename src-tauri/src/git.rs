@@ -55,6 +55,14 @@ pub struct DiffData {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CommitFile {
+    pub path: String,
+    /// Single-letter change status: M, A, D, R, C.
+    pub status: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StatusEntry {
     pub path: String,
     /// Index (staged) status char, e.g. "M", "A", "D", "?".
@@ -217,7 +225,14 @@ pub fn git_status(repo_path: &str) -> Result<Vec<StatusEntry>, String> {
     Ok(entries)
 }
 
+/// Full content of a git object (`git show <spec>`); empty on error (e.g. the
+/// file did not exist on that side of the diff).
+fn content(t: &GitTarget, spec: &str) -> String {
+    run(t, &["show", spec]).unwrap_or_default()
+}
+
 /// Diff of a single file, either the staged version or the working-tree change.
+/// Both file contents are included so the diff viewer can render full context.
 pub fn file_diff(repo_path: &str, file: &str, staged: bool) -> Result<Option<DiffData>, String> {
     let t = platform::resolve(repo_path);
     let mut args = vec!["diff", "--no-color"];
@@ -226,15 +241,61 @@ pub fn file_diff(repo_path: &str, file: &str, staged: bool) -> Result<Option<Dif
     }
     args.push("--");
     args.push(file);
-    let raw = run(&t, &args)?;
-    Ok(parse_first_file(&raw))
+    let mut raw = run(&t, &args)?;
+
+    // Untracked files have no diff target; diff against the null device so the
+    // whole file shows up as additions.
+    if raw.trim().is_empty() && !staged {
+        let null = t.null_device();
+        raw = run(&t, &["diff", "--no-color", "--no-index", null, file]).unwrap_or_default();
+    }
+
+    let Some(mut diff) = parse_first_file(&raw) else {
+        return Ok(None);
+    };
+    if staged {
+        diff.old_content = content(&t, &format!("HEAD:{file}"));
+        diff.new_content = content(&t, &format!(":{file}"));
+    } else {
+        diff.old_content = content(&t, &format!(":{file}"));
+        diff.new_content = t.read_file(file).unwrap_or_default();
+    }
+    Ok(Some(diff))
 }
 
-/// Diff introduced by a commit (first changed file).
-pub fn commit_diff(repo_path: &str, hash: &str) -> Result<Option<DiffData>, String> {
+/// List of files changed by a commit (path + single-letter status).
+pub fn commit_files(repo_path: &str, hash: &str) -> Result<Vec<CommitFile>, String> {
     let t = platform::resolve(repo_path);
-    let raw = run(&t, &["show", "--no-color", "--format=", hash])?;
-    Ok(parse_first_file(&raw))
+    let raw = run(&t, &["show", "--name-status", "--format=", hash])?;
+    let files = lines(&raw)
+        .filter_map(|line| {
+            let mut parts = line.split('\t');
+            let status = parts.next()?.chars().next()?;
+            // For renames/copies the last field is the new path.
+            let path = parts.next_back()?.to_string();
+            Some(CommitFile {
+                path,
+                status: status.to_string(),
+            })
+        })
+        .collect();
+    Ok(files)
+}
+
+/// Diff of a single file as introduced by a commit, with both file contents.
+pub fn commit_file_diff(
+    repo_path: &str,
+    hash: &str,
+    file: &str,
+) -> Result<Option<DiffData>, String> {
+    let t = platform::resolve(repo_path);
+    let raw = run(&t, &["show", "--no-color", "--format=", hash, "--", file])?;
+    let Some(mut diff) = parse_first_file(&raw) else {
+        return Ok(None);
+    };
+    diff.old_content = content(&t, &format!("{hash}^:{file}"));
+    diff.new_content = content(&t, &format!("{hash}:{file}"));
+    Ok(Some(diff))
 }
 
 pub fn stage(repo_path: &str, file: &str) -> Result<(), String> {

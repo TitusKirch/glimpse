@@ -32,8 +32,17 @@ fn file_diff(path: String, file: String, staged: bool) -> Result<Option<git::Dif
 }
 
 #[tauri::command]
-fn commit_diff(path: String, hash: String) -> Result<Option<git::DiffData>, String> {
-    git::commit_diff(&path, &hash)
+fn commit_files(path: String, hash: String) -> Result<Vec<git::CommitFile>, String> {
+    git::commit_files(&path, &hash)
+}
+
+#[tauri::command]
+fn commit_file_diff(
+    path: String,
+    hash: String,
+    file: String,
+) -> Result<Option<git::DiffData>, String> {
+    git::commit_file_diff(&path, &hash, &file)
 }
 
 #[tauri::command]
@@ -105,7 +114,8 @@ pub fn run() {
             git_log,
             git_status,
             file_diff,
-            commit_diff,
+            commit_files,
+            commit_file_diff,
             stage,
             unstage,
             commit,
