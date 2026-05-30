@@ -4,22 +4,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-`glimpse` is an **ultra-lightweight, passive Git diff & graph viewer** — a desktop companion for developers who drive AI coding agents (Claude CLI, Aider, Codex, custom scripts) from the terminal. It watches the repository and renders diffs and the branch graph in real time so the user can review what the agent changed, without keeping a heavy IDE open just as a viewer.
+`glimpse` is a **lightweight, git-native desktop Git client** — a slim, free GitKraken-style tool. It shows the multi-branch graph and diffs, and supports everyday write actions (stage, commit, branch, push/pull). It stays small and fast by shelling out to the user's real `git` instead of reimplementing it.
 
-It is deliberately **read-only / review-focused**: no merge, rebase, or push dialogs. Speed and a tiny footprint are the point.
+It is **not** an AI-agent-specific tool. The earlier "AI companion / Revert-AI / prompt-to-diff" framing is dropped. The differentiators are now **git-native behaviour**, a **small footprint**, and **first-class WSL support** on Windows.
 
-> [!NOTE]
-> The repo currently ships only the meta layer (lint, format, hooks, CI, release-please) inherited from the `scaffold` template. The application code (Tauri + Nuxt) is being built out — see the intended architecture below and `TEMP_AI.md` for the original design brief.
+> [!IMPORTANT]
+> **`docs/ARCHITECTURE.md` is the source of truth** for product + technical decisions (scope, WSL handling, stack, distribution). Read it before making design choices. The application code (Tauri + Nuxt) is being scaffolded; the meta layer (lint, format, hooks, CI, release-please) is inherited from the `scaffold` template.
 
-## Intended architecture
+## Architecture (summary — see `docs/ARCHITECTURE.md`)
 
-- **Desktop shell:** Tauri (Rust). Uses the OS-native webview — no Chromium/Electron. Target: very small disk + RAM footprint.
-- **Frontend:** Nuxt 3 (Vue 3, Tailwind CSS), SPA mode (`ssr: false`).
-- **Diff engine:** `@git-diff-view/vue` for side-by-side / unified diffs with Web-Worker syntax highlighting.
-- **Graph:** SVG rendered from structured `git log` data produced by the Rust backend.
-- **Data flow:** Rust backend runs native Git queries + a filesystem watcher → emits Tauri IPC events → Nuxt frontend repaints. The FS watcher is what makes diffs auto-refresh the instant an agent saves a file.
+- **Platforms:** **Windows and Linux are both first-class** native builds (macOS later). CI compiles on an ubuntu + windows matrix.
+- **Desktop shell:** Tauri (Rust). OS-native WebView (WebView2 on Windows, WebKitGTK on Linux) — no Chromium/Electron. Small disk + RAM footprint.
+- **Frontend:** Nuxt 4 (Vue 3) SPA (`ssr: false`), Tailwind v4 + shadcn-vue, Pinia, `@nuxtjs/i18n` (de + en), `@nuxtjs/color-mode` (dark/light follows OS). App code lives in `app/` (Nuxt 4 srcDir).
+- **Git engine:** shells out to the **system `git` binary**, native on every OS. `src-tauri/src/wsl.rs::resolve()` is native by default; on **Windows only** a `\\wsl$` repo path is routed through the distro's git via `wsl.exe -d <distro> -- git`. Credentials come from the user's own git setup; glimpse stores no secrets.
+- **WSL (Windows-only twist):** auto-resolve per repo (Windows path → Windows git, `\\wsl$` path → WSL git). FS watcher is best-effort over `\\wsl$`, backed by manual + on-window-focus refresh. There is no WSL on Linux/macOS — git is simply native.
+- **Diff:** `@git-diff-view/vue`, side-by-side (default) / unified toggle. **Graph:** SVG from structured `git log`.
+- **v1 write actions:** stage/unstage (file-level), discard, commit, amend; branch create/switch/delete/rename + commit checkout; fetch/pull/push. _Out of scope v1:_ hunk/line staging, stash, merge/rebase, blame, submodules/worktrees/LFS.
 
-Key features that differentiate it: live auto-refresh on FS events, a prominent "Revert AI" button (roll back all uncommitted changes from the current agent run), and a focus on review-only workflows.
+## Dev & testing on WSL
+
+This repo is often developed inside WSL2. Practical loop:
+
+- **Frontend demo:** `pnpm dev` (Nuxt) runs in WSL; open `http://localhost:3000` from the Windows browser. Fastest UI iteration. Backend IPC is mocked when not running under Tauri.
+- **Full Tauri shell in WSL:** needs `rustup` + `webkit2gtk-4.1` + build deps; produces a **Linux** build shown via WSLg. Not the Windows target.
+- **WSL-git feature + Windows behaviour:** can only be exercised in a **Windows** build (that's where `wsl.exe` is invoked). Build/run on Windows for those.
 
 ## Commands
 
@@ -35,7 +43,7 @@ Key features that differentiate it: live auto-refresh on FS events, a prominent 
 | `pnpm taze`       | Interactive dependency upgrade check                       |
 | `pnpm taze:w`     | Write upgrade results                                      |
 
-Once the Tauri/Nuxt app lands, `pnpm tauri dev` (dev shell) and `pnpm tauri build` (packaged binary) will be the primary app commands. There is no test suite yet; CI currently runs `pnpm lint` and `pnpm format` on PR.
+App commands (once scaffolded): `pnpm dev` (Nuxt dev server, browser-testable), `pnpm tauri dev` (desktop dev shell), `pnpm tauri build` (packaged binary). Planned tests: Rust unit tests for the git/WSL backend layer. CI currently runs `pnpm lint` and `pnpm format`; it will gain `cargo fmt --check`, `cargo clippy`, and a Tauri build check.
 
 ## Meta-layer conventions
 
