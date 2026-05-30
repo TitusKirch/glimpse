@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const repo = useRepoStore()
+const repo = useRepoStore();
 </script>
 
 <template>

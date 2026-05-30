@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ArrowDown, ArrowUp, Download, RefreshCw, X } from '@lucide/vue';
-
 const repo = useRepoStore();
 const layout = useLayoutStore();
 const { t } = useI18n();
@@ -16,9 +14,9 @@ onBeforeUnmount(() => {
 });
 
 const syncButtons = [
-  { command: 'fetch' as const, icon: Download, label: 'sync.fetch' },
-  { command: 'pull' as const, icon: ArrowDown, label: 'sync.pull' },
-  { command: 'push' as const, icon: ArrowUp, label: 'sync.push' }
+  { command: 'fetch' as const, icon: 'lucide:download', label: 'sync.fetch' },
+  { command: 'pull' as const, icon: 'lucide:arrow-down', label: 'sync.pull' },
+  { command: 'push' as const, icon: 'lucide:arrow-up', label: 'sync.push' }
 ];
 </script>
 
@@ -44,7 +42,7 @@ const syncButtons = [
                 :disabled="repo.busy"
                 @click="repo.sync(b.command)"
               >
-                <component :is="b.icon" class="size-4" />
+                <NuxtIcon :name="b.icon" class="size-4" />
               </UiButton>
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t(b.label) }}</UiTooltipContent>
@@ -57,22 +55,32 @@ const syncButtons = [
             :disabled="repo.busy"
             @click="repo.refresh"
           >
-            <RefreshCw class="size-3.5" /> {{ t('actions.refresh') }}
+            <NuxtIcon name="lucide:refresh-cw" class="size-3.5" />
+            {{ t('actions.refresh') }}
           </UiButton>
           <ThemeToggle />
         </div>
       </header>
 
-      <div
-        v-if="repo.lastError"
-        class="flex items-start gap-2 border-b border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs text-destructive"
-      >
-        <span class="min-w-0 flex-1 break-words whitespace-pre-wrap">{{
-          repo.lastError
-        }}</span>
-        <button class="shrink-0 hover:opacity-70" @click="repo.clearError()">
-          <X class="size-3.5" />
-        </button>
+      <div v-if="repo.lastError" class="shrink-0 px-3 pt-2">
+        <UiAlert
+          variant="destructive"
+          class="grid-cols-[1rem_1fr] gap-x-3 pr-9"
+        >
+          <NuxtIcon name="lucide:circle-alert" class="size-4 translate-y-0.5" />
+          <UiAlertTitle>{{ t('error.title') }}</UiAlertTitle>
+          <UiAlertDescription class="break-words whitespace-pre-wrap">
+            {{ repo.lastError }}
+          </UiAlertDescription>
+          <UiButton
+            variant="ghost"
+            size="icon"
+            class="absolute top-2 right-2 size-6 text-destructive hover:bg-destructive/10"
+            @click="repo.clearError()"
+          >
+            <NuxtIcon name="lucide:x" class="size-4" />
+          </UiButton>
+        </UiAlert>
       </div>
 
       <UiResizablePanelGroup

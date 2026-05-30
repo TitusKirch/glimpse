@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { Cloud, GitBranch, Plus, Tag, X } from '@lucide/vue';
-
 const repo = useRepoStore();
 const { t } = useI18n();
 
@@ -37,7 +35,7 @@ async function submitBranch() {
           :title="t('sidebar.newBranch')"
           @click="creating = !creating"
         >
-          <Plus />
+          <NuxtIcon name="lucide:plus" />
         </UiSidebarGroupAction>
         <UiSidebarGroupContent>
           <div
@@ -57,7 +55,7 @@ async function submitBranch() {
               class="size-7 shrink-0"
               @click="cancel"
             >
-              <X class="size-4" />
+              <NuxtIcon name="lucide:x" class="size-4" />
             </UiButton>
           </div>
           <UiSidebarMenu>
@@ -67,7 +65,7 @@ async function submitBranch() {
                 :tooltip="b"
                 @click="repo.checkout(b)"
               >
-                <GitBranch />
+                <NuxtIcon name="lucide:git-branch" />
                 <span>{{ b }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
@@ -81,7 +79,7 @@ async function submitBranch() {
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
               <UiSidebarMenuButton :tooltip="r">
-                <Cloud />
+                <NuxtIcon name="lucide:cloud" />
                 <span>{{ r }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
@@ -95,7 +93,7 @@ async function submitBranch() {
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="tag in repo.tags" :key="tag">
               <UiSidebarMenuButton :tooltip="tag">
-                <Tag />
+                <NuxtIcon name="lucide:tag" />
                 <span>{{ tag }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>

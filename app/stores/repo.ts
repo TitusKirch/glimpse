@@ -299,7 +299,14 @@ export const useRepoStore = defineStore('repo', {
       try {
         await fn();
       } catch (err) {
-        this.lastError = typeof err === 'string' ? err : String(err);
+        const raw = typeof err === 'string' ? err : String(err);
+        // Trim git noise: indented file lists and the trailing "Aborting".
+        this.lastError =
+          raw
+            .split('\n')
+            .filter((l) => !l.startsWith('\t') && l.trim() !== 'Aborting')
+            .join('\n')
+            .trim() || raw.trim();
         console.error('git action failed:', err);
       } finally {
         this.busy = false;

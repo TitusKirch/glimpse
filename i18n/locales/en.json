@@ -2,6 +2,9 @@
   "app": {
     "name": "glimpse"
   },
+  "error": {
+    "title": "Error"
+  },
   "sidebar": {
     "branches": "Branches",
     "remotes": "Remotes",

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Minus, Plus, Undo2 } from '@lucide/vue';
 import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
@@ -58,7 +57,7 @@ function isSelected(path: string, staged: boolean): boolean {
                 class="size-5 opacity-0 group-hover:opacity-100"
                 @click.stop="repo.unstage(f.path)"
               >
-                <Minus class="size-3.5" />
+                <NuxtIcon name="lucide:minus" class="size-3.5" />
               </UiButton>
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('changes.unstage') }}</UiTooltipContent>
@@ -94,7 +93,7 @@ function isSelected(path: string, staged: boolean): boolean {
                 class="size-5 opacity-0 group-hover:opacity-100"
                 @click.stop="repo.discard(f.path, f.untracked)"
               >
-                <Undo2 class="size-3.5" />
+                <NuxtIcon name="lucide:undo-2" class="size-3.5" />
               </UiButton>
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('changes.discard') }}</UiTooltipContent>
@@ -107,7 +106,7 @@ function isSelected(path: string, staged: boolean): boolean {
                 class="size-5 opacity-0 group-hover:opacity-100"
                 @click.stop="repo.stage(f.path)"
               >
-                <Plus class="size-3.5" />
+                <NuxtIcon name="lucide:plus" class="size-3.5" />
               </UiButton>
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('changes.stage') }}</UiTooltipContent>

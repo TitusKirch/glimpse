@@ -4,7 +4,6 @@ import type {
   SplitterResizeHandleProps
 } from 'reka-ui';
 import type { HTMLAttributes } from 'vue';
-import { GripVertical } from '@lucide/vue';
 import { reactiveOmit } from '@vueuse/core';
 import { SplitterResizeHandle, useForwardPropsEmits } from 'reka-ui';
 import { cn } from '@/lib/utils';
@@ -37,7 +36,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
         class="bg-border z-10 flex h-4 w-3 items-center justify-center rounded-xs border"
       >
         <slot>
-          <GripVertical class="size-2.5" />
+          <NuxtIcon name="lucide:grip-vertical" class="size-2.5" />
         </slot>
       </div>
     </template>

@@ -8,12 +8,20 @@ export default defineNuxtConfig({
   ssr: false,
 
   modules: [
+    '@nuxt/icon',
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
     '@nuxtjs/i18n',
     'shadcn-nuxt'
   ],
+
+  icon: {
+    componentName: 'NuxtIcon',
+    serverBundle: {
+      collections: ['flag', 'lucide', 'simple-icons']
+    }
+  },
 
   css: ['~/assets/css/tailwind.css'],
 
