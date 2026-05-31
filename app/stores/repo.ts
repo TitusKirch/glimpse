@@ -569,21 +569,68 @@ export const useRepoStore = defineStore('repo', {
     async sync(command: 'fetch' | 'pull' | 'push') {
       if (!isTauri()) return;
       this.syncing = command;
+      this.busy = true;
+      this.lastError = null;
       try {
         await Promise.all([
-          this.guarded(async () => {
-            if (command === 'pull') {
-              const rebase = useLayoutStore().pullStrategy === 'rebase';
-              await gitClient.pull(this.repoPath, rebase);
-            } else {
-              await gitClient[command](this.repoPath);
-            }
-            await this.loadFromBackend(this.active?.path);
-          }),
+          this.doSync(command),
           promiseTimeout(MIN_SPINNER_MS)
         ]);
       } finally {
+        this.busy = false;
         this.syncing = null;
+      }
+    },
+
+    async doPull() {
+      const rebase = useLayoutStore().pullStrategy === 'rebase';
+      await gitClient.pull(this.repoPath, rebase);
+    },
+
+    // Runs a sync, turning the "no upstream / no tracking" failures into a
+    // helpful prompt (publish branch / set upstream) instead of a raw error.
+    async doSync(command: 'fetch' | 'pull' | 'push') {
+      try {
+        if (command === 'pull') await this.doPull();
+        else if (command === 'push') await gitClient.push(this.repoPath);
+        else await gitClient.fetch(this.repoPath);
+        await this.loadFromBackend(this.active?.path);
+      } catch (err) {
+        const raw = typeof err === 'string' ? err : String(err);
+        if (command === 'push' && /upstream/i.test(raw)) {
+          const ok = await useConfirm().confirm({
+            titleKey: 'confirm.publishBranch.title',
+            descriptionKey: 'confirm.publishBranch.description',
+            confirmKey: 'confirm.publishBranch.confirm'
+          });
+          if (ok) {
+            await gitClient.push(this.repoPath, true, false);
+            await this.loadFromBackend(this.active?.path);
+          }
+          return;
+        }
+        if (
+          command === 'pull' &&
+          /no tracking information|upstream/i.test(raw)
+        ) {
+          const ok = await useConfirm().confirm({
+            titleKey: 'confirm.setUpstream.title',
+            descriptionKey: 'confirm.setUpstream.description',
+            confirmKey: 'confirm.setUpstream.confirm'
+          });
+          if (ok) {
+            await gitClient.setUpstream(
+              this.repoPath,
+              'origin',
+              this.currentBranch
+            );
+            await this.doPull();
+            await this.loadFromBackend(this.active?.path);
+          }
+          return;
+        }
+        this.lastError = cleanGitError(raw);
+        console.error('sync failed:', err);
       }
     },
 

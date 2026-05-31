@@ -28,6 +28,10 @@
     "failed": "Update check failed"
   },
   "copied": "Copied to clipboard",
+  "help": {
+    "title": "Keyboard shortcuts",
+    "contextHint": "Tip: right-click a commit for more actions."
+  },
   "common": {
     "cancel": "Cancel"
   },
@@ -46,6 +50,16 @@
       "title": "Discard all changes",
       "description": "This permanently discards every uncommitted change, including untracked files. Continue?",
       "confirm": "Discard all"
+    },
+    "publishBranch": {
+      "title": "Publish branch",
+      "description": "This branch has no upstream yet. Push it to origin and set it as the upstream?",
+      "confirm": "Publish"
+    },
+    "setUpstream": {
+      "title": "No upstream branch",
+      "description": "This branch isn't tracking a remote. Set its upstream to origin and pull?",
+      "confirm": "Set upstream & pull"
     }
   },
   "branch": {

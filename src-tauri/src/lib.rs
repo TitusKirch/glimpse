@@ -215,6 +215,11 @@ async fn rename_branch(path: String, old: String, new: String) -> Result<(), Str
 }
 
 #[tauri::command]
+async fn set_upstream(path: String, remote: String, branch: String) -> Result<(), String> {
+    git::Repo::open(&path).set_upstream(&remote, &branch)
+}
+
+#[tauri::command]
 async fn create_tag(path: String, name: String, hash: String) -> Result<(), String> {
     git::Repo::open(&path).create_tag(&name, &hash)
 }
@@ -400,6 +405,7 @@ pub fn run() {
             cherry_pick,
             reset,
             rename_branch,
+            set_upstream,
             create_tag,
             delete_tag,
             push_tags,

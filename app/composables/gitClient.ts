@@ -227,6 +227,9 @@ export const gitClient = {
       null
     ),
 
+  setUpstream: (path: string, remote: string, branch: string) =>
+    gitInvoke<null>('set_upstream', { path, remote, branch }, null),
+
   createTag: (path: string, name: string, hash = '') =>
     gitInvoke<null>('create_tag', { path, name, hash }, null),
 

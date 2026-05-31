@@ -28,6 +28,10 @@
     "failed": "Update-Prüfung fehlgeschlagen"
   },
   "copied": "In die Zwischenablage kopiert",
+  "help": {
+    "title": "Tastenkürzel",
+    "contextHint": "Tipp: Rechtsklick auf einen Commit für weitere Aktionen."
+  },
   "common": {
     "cancel": "Abbrechen"
   },
@@ -46,6 +50,16 @@
       "title": "Alle Änderungen verwerfen",
       "description": "Verwirft dauerhaft alle uncommitteten Änderungen, inklusive nicht getrackter Dateien. Fortfahren?",
       "confirm": "Alle verwerfen"
+    },
+    "publishBranch": {
+      "title": "Branch veröffentlichen",
+      "description": "Dieser Branch hat noch keinen Upstream. Nach origin pushen und als Upstream setzen?",
+      "confirm": "Veröffentlichen"
+    },
+    "setUpstream": {
+      "title": "Kein Upstream-Branch",
+      "description": "Dieser Branch trackt kein Remote. Upstream auf origin setzen und pullen?",
+      "confirm": "Upstream setzen & pullen"
     }
   },
   "branch": {

@@ -11,6 +11,7 @@ export function useShortcuts() {
   const layout = useLayoutStore();
   const palette = useCommandPalette();
   const settings = useSettingsDialog();
+  const help = useHelpDialog();
 
   const isMac = navigator.platform.toLowerCase().includes('mac');
 
@@ -43,6 +44,11 @@ export function useShortcuts() {
     if (k === 'b') {
       e.preventDefault();
       layout.setSidebarOpen(!layout.sidebarOpen);
+      return;
+    }
+    if (k === '/') {
+      e.preventDefault();
+      help.toggle();
       return;
     }
     if (k === 'enter') {

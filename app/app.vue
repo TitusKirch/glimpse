@@ -196,5 +196,6 @@ const syncButtons = [
   <SettingsDialog v-model:open="settings.open.value" />
   <ConfirmDialog />
   <PromptDialog />
+  <HelpDialog />
   <UiSonner />
 </template>

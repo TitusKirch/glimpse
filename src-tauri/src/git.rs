@@ -406,6 +406,12 @@ impl Repo {
         self.run(&["branch", "-m", old, new]).map(|_| ())
     }
 
+    /// Set a branch's upstream to `<remote>/<branch>` (so pull/push track it).
+    pub fn set_upstream(&self, remote: &str, branch: &str) -> Result<(), String> {
+        let target = format!("--set-upstream-to={remote}/{branch}");
+        self.run(&["branch", &target, branch]).map(|_| ())
+    }
+
     /// Create a lightweight tag at `hash` (or HEAD when `hash` is empty).
     pub fn create_tag(&self, name: &str, hash: &str) -> Result<(), String> {
         if hash.is_empty() {

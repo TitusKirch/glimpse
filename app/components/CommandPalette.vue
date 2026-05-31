@@ -6,6 +6,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const { open, hide } = useCommandPalette();
 const settings = useSettingsDialog();
+const help = useHelpDialog();
 const repo = useRepoStore();
 const recent = useRecentStore();
 const layout = useLayoutStore();
@@ -133,6 +134,11 @@ function toggleTheme() {
           <NuxtIcon name="lucide:settings" />
           {{ t('settings.title') }}
           <UiCommandShortcut>{{ mod }}+,</UiCommandShortcut>
+        </UiCommandItem>
+        <UiCommandItem value="keyboard shortcuts help" @select="run(help.show)">
+          <NuxtIcon name="lucide:keyboard" />
+          {{ t('help.title') }}
+          <UiCommandShortcut>{{ mod }}+/</UiCommandShortcut>
         </UiCommandItem>
       </UiCommandGroup>
 
