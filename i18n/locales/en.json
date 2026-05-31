@@ -61,6 +61,9 @@
       "devMode": "Developer settings",
       "devModeHint": "Show extra debugging tools in settings."
     },
+    "developer": {
+      "title": "Developer"
+    },
     "dev": {
       "toasts": "Test toasts",
       "toastsHint": "Fire one of each toast kind.",

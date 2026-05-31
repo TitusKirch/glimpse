@@ -13,7 +13,8 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
     '@nuxtjs/i18n',
-    'shadcn-nuxt'
+    'shadcn-nuxt',
+    'vue-sonner/nuxt'
   ],
 
   icon: {

@@ -14,13 +14,27 @@ const toastKinds = [
   { kind: 'error', fn: () => toast.error(t('settings.dev.toastError')) }
 ] as const;
 
-// Left navigation pages. Add entries here to grow settings.
-const pages = [
-  { key: 'general', icon: 'lucide:sliders-horizontal' },
-  { key: 'appearance', icon: 'lucide:palette' },
-  { key: 'language', icon: 'lucide:languages' }
-] as const;
-const page = ref<(typeof pages)[number]['key']>('general');
+// Left navigation pages. The Developer page only appears when dev mode is on.
+const pages = computed(() => {
+  const base = [
+    { key: 'general', icon: 'lucide:sliders-horizontal' },
+    { key: 'appearance', icon: 'lucide:palette' },
+    { key: 'language', icon: 'lucide:languages' }
+  ];
+  if (layout.devMode) {
+    base.push({ key: 'developer', icon: 'lucide:flask-conical' });
+  }
+  return base;
+});
+const page = ref('general');
+
+// Leave the Developer page if dev mode is switched off while it is open.
+watch(
+  () => layout.devMode,
+  (on) => {
+    if (!on && page.value === 'developer') page.value = 'general';
+  }
+);
 
 const themeOptions = ['system', 'light', 'dark'] as const;
 const diffModeOptions = ['split', 'unified'] as const;
@@ -94,30 +108,39 @@ const lang = computed({
                   </div>
                   <UiSwitch v-model="layout.devMode" class="shrink-0" />
                 </div>
+              </div>
+            </div>
+          </section>
 
-                <div
-                  v-if="layout.devMode"
-                  class="flex items-center justify-between gap-4"
-                >
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.dev.toasts') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.dev.toastsHint') }}
-                    </p>
-                  </div>
-                  <div class="flex shrink-0 gap-2">
-                    <UiButton
-                      v-for="tk in toastKinds"
-                      :key="tk.kind"
-                      variant="outline"
-                      size="sm"
-                      @click="tk.fn()"
-                    >
-                      {{ t(`settings.dev.${tk.kind}`) }}
-                    </UiButton>
-                  </div>
+          <section
+            v-else-if="page === 'developer'"
+            class="w-full space-y-8"
+          >
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.dev.toasts') }}
+              </h3>
+              <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    {{ t('settings.dev.toasts') }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ t('settings.dev.toastsHint') }}
+                  </p>
+                </div>
+                <div class="flex shrink-0 gap-2">
+                  <UiButton
+                    v-for="tk in toastKinds"
+                    :key="tk.kind"
+                    variant="outline"
+                    size="sm"
+                    @click="tk.fn()"
+                  >
+                    {{ t(`settings.dev.${tk.kind}`) }}
+                  </UiButton>
                 </div>
               </div>
             </div>

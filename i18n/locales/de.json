@@ -61,6 +61,9 @@
       "devMode": "Entwickler-Einstellungen",
       "devModeHint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
     },
+    "developer": {
+      "title": "Entwickler"
+    },
     "dev": {
       "toasts": "Toasts testen",
       "toastsHint": "Je einen Toast pro Art auslösen.",
