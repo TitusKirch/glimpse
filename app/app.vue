@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { toast } from 'vue-sonner';
+import { Sonner as UiSonner } from '@/components/ui/sonner';
 
 const repo = useRepoStore();
 const layout = useLayoutStore();
@@ -125,5 +126,5 @@ const syncButtons = [
     </UiSidebarInset>
   </UiSidebarProvider>
 
-  <UiSonner position="bottom-right" rich-colors close-button />
+  <UiSonner />
 </template>

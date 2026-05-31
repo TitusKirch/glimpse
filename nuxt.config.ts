@@ -13,8 +13,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'pinia-plugin-persistedstate/nuxt',
     '@nuxtjs/i18n',
-    'shadcn-nuxt',
-    'vue-sonner/nuxt'
+    'shadcn-nuxt'
   ],
 
   icon: {
@@ -24,13 +23,16 @@ export default defineNuxtConfig({
     }
   },
 
-  css: ['~/assets/css/tailwind.css'],
+  css: ['~/assets/css/tailwind.css', 'vue-sonner/style.css'],
 
   vite: {
     plugins: [tailwindcss()],
     // Tauri expects a fixed dev server; fail loudly instead of hopping ports.
     clearScreen: false,
     server: { strictPort: true },
+    // vue-sonner keeps its toast queue in a module-level singleton; a second
+    // copy means the mounted <Toaster> never sees toast() calls. Force one.
+    resolve: { dedupe: ['vue-sonner'] },
     // Pre-bundle these so Vite doesn't re-optimize mid-load and force a reload
     // (which can leave the Tauri webview on a blank/black screen).
     optimizeDeps: {
