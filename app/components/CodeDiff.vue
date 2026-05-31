@@ -239,8 +239,11 @@ const gutter =
   'sticky z-10 shrink-0 bg-background px-2 text-right text-muted-foreground select-none';
 
 // --- Virtualization ---------------------------------------------------------
-// text-xs (12px) × leading 1.6 ≈ 19px; measureElement refines per row.
-const ROW_H = 19;
+// Every row is a single line pinned to an exact 20px box (`h-5 leading-5`), so
+// we use a fixed size and skip per-row measurement. Measuring would re-round the
+// 12px×1.6 line box to 19/20px frame-by-frame while scrolling, nudging paddingTop
+// and making the row backgrounds flicker — a fixed height keeps it rock steady.
+const ROW_H = 20;
 
 // Only the active mode feeds rows to its virtualizer (the hidden one stays at
 // count 0 and does no work).
@@ -266,10 +269,7 @@ function makeVirtualizer(count: Ref<number>, getEl: () => HTMLElement | null) {
     const last = items.value[items.value.length - 1];
     return last ? virt.value.getTotalSize() - last.end : 0;
   });
-  const measure = (el: Element | null) => {
-    if (el) virt.value.measureElement(el);
-  };
-  return reactive({ items, padTop, padBottom, measure });
+  return reactive({ items, padTop, padBottom });
 }
 
 const unifiedCount = computed(() => unifiedRows.value.length);
@@ -308,9 +308,7 @@ const rVisible = computed(() =>
       <div
         v-for="{ vi, row } in uVisible"
         :key="vi.key"
-        :ref="uv.measure"
-        :data-index="vi.index"
-        class="flex"
+        class="flex h-5 leading-5"
         :class="rowBg[row.type]"
       >
         <div
@@ -366,9 +364,7 @@ const rVisible = computed(() =>
           <div
             v-for="{ vi, row: r } in lVisible"
             :key="vi.key"
-            :ref="lv.measure"
-            :data-index="vi.index"
-            class="flex"
+            class="flex h-5 leading-5"
             :class="r.left ? rowBg[r.left.type] : ''"
           >
             <div
@@ -410,9 +406,7 @@ const rVisible = computed(() =>
           <div
             v-for="{ vi, row: r } in rVisible"
             :key="vi.key"
-            :ref="rv.measure"
-            :data-index="vi.index"
-            class="flex"
+            class="flex h-5 leading-5"
             :class="r.right ? rowBg[r.right.type] : ''"
           >
             <span
