@@ -2,6 +2,8 @@
 // and command palette can offer one-click reopen. Kept separate from the repo
 // store (which holds live, non-persisted git state).
 
+import { acceptHMRUpdate } from 'pinia';
+
 export interface RecentRepo {
   path: string;
   name: string;
@@ -30,3 +32,8 @@ export const useRecentStore = defineStore('recent', {
   },
   persist: true
 });
+
+// Clean HMR so editing this store doesn't desync the dev client.
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useRecentStore, import.meta.hot));
+}

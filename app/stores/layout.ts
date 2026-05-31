@@ -1,6 +1,7 @@
 // Persisted UI layout state (survives restarts via pinia-plugin-persistedstate).
 // Repo data lives in the repo store and is intentionally NOT persisted.
 
+import { acceptHMRUpdate } from 'pinia';
 import type { DiffMode } from '@/stores/repo';
 
 export type FileView = 'list' | 'tree';
@@ -58,3 +59,8 @@ export const useLayoutStore = defineStore('layout', {
   },
   persist: true
 });
+
+// Clean HMR so editing this store doesn't desync the dev client.
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useLayoutStore, import.meta.hot));
+}

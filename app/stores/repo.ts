@@ -11,6 +11,7 @@
 // app/types/bindings.ts is generated from them (ts-rs). Re-exported here so the
 // rest of the app keeps importing these names from the store.
 import { promiseTimeout } from '@vueuse/core';
+import { acceptHMRUpdate } from 'pinia';
 import type {
   Branch,
   Commit,
@@ -627,3 +628,8 @@ export const useRepoStore = defineStore('repo', {
     }
   }
 });
+
+// Clean HMR so editing this store doesn't desync the dev client.
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useRepoStore, import.meta.hot));
+}
