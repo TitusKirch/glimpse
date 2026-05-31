@@ -143,6 +143,36 @@ async fn rename_branch(path: String, old: String, new: String) -> Result<(), Str
 }
 
 #[tauri::command]
+async fn create_tag(path: String, name: String, hash: String) -> Result<(), String> {
+    git::Repo::open(&path).create_tag(&name, &hash)
+}
+
+#[tauri::command]
+async fn delete_tag(path: String, name: String) -> Result<(), String> {
+    git::Repo::open(&path).delete_tag(&name)
+}
+
+#[tauri::command]
+async fn stash_save(path: String, message: String) -> Result<(), String> {
+    git::Repo::open(&path).stash_save(&message)
+}
+
+#[tauri::command]
+async fn stash_pop(path: String, reference: String) -> Result<(), String> {
+    git::Repo::open(&path).stash_pop(&reference)
+}
+
+#[tauri::command]
+async fn stash_apply(path: String, reference: String) -> Result<(), String> {
+    git::Repo::open(&path).stash_apply(&reference)
+}
+
+#[tauri::command]
+async fn stash_drop(path: String, reference: String) -> Result<(), String> {
+    git::Repo::open(&path).stash_drop(&reference)
+}
+
+#[tauri::command]
 async fn fetch(path: String) -> Result<String, String> {
     git::Repo::open(&path).fetch()
 }
@@ -203,6 +233,12 @@ pub fn run() {
             create_branch,
             delete_branch,
             rename_branch,
+            create_tag,
+            delete_tag,
+            stash_save,
+            stash_pop,
+            stash_apply,
+            stash_drop,
             fetch,
             pull,
             push,

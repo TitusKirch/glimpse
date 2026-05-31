@@ -180,6 +180,24 @@ export const gitClient = {
       null
     ),
 
+  createTag: (path: string, name: string, hash = '') =>
+    gitInvoke<null>('create_tag', { path, name, hash }, null),
+
+  deleteTag: (path: string, name: string) =>
+    gitInvoke<null>('delete_tag', { path, name }, null),
+
+  stashSave: (path: string, message = '') =>
+    gitInvoke<null>('stash_save', { path, message }, null),
+
+  stashPop: (path: string, reference: string) =>
+    gitInvoke<null>('stash_pop', { path, reference }, null),
+
+  stashApply: (path: string, reference: string) =>
+    gitInvoke<null>('stash_apply', { path, reference }, null),
+
+  stashDrop: (path: string, reference: string) =>
+    gitInvoke<null>('stash_drop', { path, reference }, null),
+
   fetch: (path: string) => gitInvoke<string>('fetch', { path }, ''),
   pull: (path: string) => gitInvoke<string>('pull', { path }, ''),
   push: (path: string, setUpstream = false, force = false) =>

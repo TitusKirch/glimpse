@@ -43,7 +43,8 @@
     "openEditor": "Open in editor",
     "toggleSidebar": "Toggle sidebar",
     "pushUpstream": "Push and set upstream",
-    "pushForce": "Force push (with lease)"
+    "pushForce": "Force push (with lease)",
+    "stash": "Stash changes"
   },
   "start": {
     "title": "No repository open",

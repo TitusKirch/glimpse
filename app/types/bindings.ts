@@ -20,6 +20,14 @@ export type Branch = {
   behind: number;
 };
 
+export type StashEntry = {
+  /**
+   * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.
+   */
+  reference: string;
+  message: string;
+};
+
 export type RepoInfo = {
   toplevel: string;
   currentBranch: string;
@@ -27,6 +35,7 @@ export type RepoInfo = {
   remoteBranches: Array<string>;
   remotes: Array<string>;
   tags: Array<string>;
+  stashes: Array<StashEntry>;
   flavor: string;
   distro: string | null;
 };

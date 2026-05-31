@@ -43,7 +43,8 @@
     "openEditor": "Im Editor öffnen",
     "toggleSidebar": "Seitenleiste umschalten",
     "pushUpstream": "Push & Upstream setzen",
-    "pushForce": "Force-Push (mit Lease)"
+    "pushForce": "Force-Push (mit Lease)",
+    "stash": "Änderungen stashen"
   },
   "start": {
     "title": "Kein Repository geöffnet",

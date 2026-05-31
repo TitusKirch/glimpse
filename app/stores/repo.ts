@@ -17,6 +17,7 @@ import type {
   CommitFile,
   DiffData,
   RepoInfo,
+  StashEntry,
   StatusEntry
 } from '~/types/bindings';
 
@@ -24,7 +25,15 @@ import type {
 // flicker.
 const MIN_SPINNER_MS = 300;
 
-export type { Branch, Commit, CommitFile, DiffData, RepoInfo, StatusEntry };
+export type {
+  Branch,
+  Commit,
+  CommitFile,
+  DiffData,
+  RepoInfo,
+  StashEntry,
+  StatusEntry
+};
 
 // Frontend-only types (no backend counterpart).
 export type GitFlavor = 'windows' | 'wsl' | 'linux' | 'macos';
@@ -43,6 +52,7 @@ export interface RepoState {
   currentBranch: string;
   remotes: string[];
   tags: string[];
+  stashes: StashEntry[];
   commits: Commit[];
   status: StatusEntry[];
   selectedHash: string | null;
@@ -70,6 +80,7 @@ function demoRepo(): RepoState {
     currentBranch: 'main',
     remotes: ['origin'],
     tags: ['v0.0.0'],
+    stashes: [],
     commits: mock.commits,
     status: mock.status,
     selectedHash: null,
@@ -94,6 +105,7 @@ function blankRepo(id: string, path: string): RepoState {
     currentBranch: '',
     remotes: [],
     tags: [],
+    stashes: [],
     commits: [],
     status: [],
     selectedHash: null,
@@ -153,6 +165,9 @@ export const useRepoStore = defineStore('repo', {
     },
     tags(): string[] {
       return this.active?.tags ?? [];
+    },
+    stashes(): StashEntry[] {
+      return this.active?.stashes ?? [];
     },
     commits(): Commit[] {
       return this.active?.commits ?? [];
@@ -339,6 +354,43 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    async createTag(name: string, hash = '') {
+      const trimmed = name.trim();
+      if (!trimmed || !isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.createTag(this.repoPath, trimmed, hash);
+        await this.loadFromBackend();
+      });
+    },
+
+    async deleteTag(name: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.deleteTag(this.repoPath, name);
+        await this.loadFromBackend();
+      });
+    },
+
+    async stashSave(message = '') {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.stashSave(this.repoPath, message);
+        await this.loadFromBackend();
+      });
+    },
+
+    async stashAction(action: 'pop' | 'apply' | 'drop', reference: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        if (action === 'pop')
+          await gitClient.stashPop(this.repoPath, reference);
+        else if (action === 'apply')
+          await gitClient.stashApply(this.repoPath, reference);
+        else await gitClient.stashDrop(this.repoPath, reference);
+        await this.loadFromBackend();
+      });
+    },
+
     async sync(command: 'fetch' | 'pull' | 'push') {
       if (!isTauri()) return;
       this.syncing = command;
@@ -494,6 +546,7 @@ export const useRepoStore = defineStore('repo', {
         r.currentBranch = info.currentBranch;
         r.remotes = info.remotes;
         r.tags = info.tags;
+        r.stashes = info.stashes;
 
         await Promise.all([this.loadLog(), this.loadStatus()]);
 

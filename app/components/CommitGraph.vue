@@ -5,6 +5,21 @@ const { t } = useI18n();
 // All geometry comes from the pure layout module; this component only binds it.
 const layout = computed(() => commitGraphLayout(repo.commits));
 
+// Client-side commit search over the loaded log. While a query is active the
+// SVG graph is replaced by a flat filtered list (lane geometry can't follow an
+// arbitrary subset), which is exactly what a search wants anyway.
+const query = ref('');
+const filtered = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  if (!q) return [];
+  return repo.commits.filter(
+    (c) =>
+      c.subject.toLowerCase().includes(q) ||
+      c.author.toLowerCase().includes(q) ||
+      c.hash.toLowerCase().includes(q)
+  );
+});
+
 function refLabel(ref: string): string {
   return ref.replace('HEAD -> ', '').replace('tag: ', '');
 }
@@ -36,60 +51,41 @@ function refClass(ref: string): string {
     :description="t('history.emptyHint')"
   />
 
-  <div v-else class="relative h-full overflow-auto">
-    <div class="relative" :style="{ minHeight: layout.height + 'px' }">
-      <!-- lane lines + nodes -->
-      <svg
-        class="absolute top-0 left-0"
-        :width="layout.width"
-        :height="layout.height"
-        :style="{ height: layout.height + 'px' }"
-      >
-        <path
-          v-for="(e, idx) in layout.edges"
-          :key="idx"
-          :d="e.d"
-          :stroke="e.color"
-          stroke-width="2"
-          fill="none"
-        />
-        <circle
-          v-for="n in layout.nodes"
-          :key="n.hash"
-          :cx="n.cx"
-          :cy="n.cy"
-          r="5"
-          :fill="n.color"
-          stroke="var(--background)"
-          stroke-width="2.5"
-        />
-      </svg>
+  <div v-else class="flex h-full flex-col">
+    <!-- search -->
+    <div class="relative shrink-0 border-b p-2">
+      <NuxtIcon
+        name="lucide:search"
+        class="pointer-events-none absolute top-1/2 left-4 size-3.5 -translate-y-1/2 text-muted-foreground"
+      />
+      <UiInput
+        v-model="query"
+        :placeholder="t('history.search')"
+        class="h-8 pl-8 text-sm"
+      />
+    </div>
 
-      <!-- commit rows -->
-      <ul :style="{ paddingLeft: layout.width + 'px' }">
+    <!-- filtered flat list -->
+    <div v-if="query" class="min-h-0 flex-1 overflow-auto">
+      <EmptyState
+        v-if="!filtered.length"
+        icon="lucide:search-x"
+        :title="t('history.noMatches')"
+      />
+      <ul v-else>
         <li
-          v-for="c in repo.commits"
+          v-for="c in filtered"
           :key="c.hash"
           class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
-          :style="{ height: layout.rowHeight + 'px' }"
           :class="
             c.hash === repo.selectedHash ? 'bg-accent' : 'hover:bg-accent/40'
           "
           @click="repo.selectCommit(c.hash)"
         >
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5">
-              <UiBadge
-                v-for="ref in c.refs"
-                :key="ref"
-                variant="outline"
-                class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
-                :class="refClass(ref)"
-              >
-                {{ refLabel(ref) }}
-              </UiBadge>
-              <span class="truncate text-sm font-medium">{{ c.subject }}</span>
-            </div>
+            <span class="block truncate text-sm font-medium">{{
+              c.subject
+            }}</span>
             <div class="mt-1 truncate text-xs text-muted-foreground">
               {{ c.author }} · {{ c.date }}
             </div>
@@ -99,6 +95,76 @@ function refClass(ref: string): string {
           }}</code>
         </li>
       </ul>
+    </div>
+
+    <!-- graph -->
+    <div v-else class="relative min-h-0 flex-1 overflow-auto">
+      <div class="relative" :style="{ minHeight: layout.height + 'px' }">
+        <!-- lane lines + nodes -->
+        <svg
+          class="absolute top-0 left-0"
+          :width="layout.width"
+          :height="layout.height"
+          :style="{ height: layout.height + 'px' }"
+        >
+          <path
+            v-for="(e, idx) in layout.edges"
+            :key="idx"
+            :d="e.d"
+            :stroke="e.color"
+            stroke-width="2"
+            fill="none"
+          />
+          <circle
+            v-for="n in layout.nodes"
+            :key="n.hash"
+            :cx="n.cx"
+            :cy="n.cy"
+            r="5"
+            :fill="n.color"
+            stroke="var(--background)"
+            stroke-width="2.5"
+          />
+        </svg>
+
+        <!-- commit rows -->
+        <ul :style="{ paddingLeft: layout.width + 'px' }">
+          <li
+            v-for="c in repo.commits"
+            :key="c.hash"
+            class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
+            :style="{ height: layout.rowHeight + 'px' }"
+            :class="
+              c.hash === repo.selectedHash ? 'bg-accent' : 'hover:bg-accent/40'
+            "
+            @click="repo.selectCommit(c.hash)"
+          >
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <UiBadge
+                  v-for="ref in c.refs"
+                  :key="ref"
+                  variant="outline"
+                  class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
+                  :class="refClass(ref)"
+                >
+                  {{ refLabel(ref) }}
+                </UiBadge>
+                <span class="truncate text-sm font-medium">{{
+                  c.subject
+                }}</span>
+              </div>
+              <div class="mt-1 truncate text-xs text-muted-foreground">
+                {{ c.author }} · {{ c.date }}
+              </div>
+            </div>
+            <code
+              class="shrink-0 font-mono text-[11px] text-muted-foreground"
+              >{{ c.hash.slice(0, 7) }}</code
+            >
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>

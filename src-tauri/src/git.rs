@@ -37,6 +37,14 @@ pub struct Branch {
 
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct StashEntry {
+    /// Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.
+    pub reference: String,
+    pub message: String,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct RepoInfo {
     pub toplevel: String,
     pub current_branch: String,
@@ -44,6 +52,7 @@ pub struct RepoInfo {
     pub remote_branches: Vec<String>,
     pub remotes: Vec<String>,
     pub tags: Vec<String>,
+    pub stashes: Vec<StashEntry>,
     pub flavor: String,
     pub distro: Option<String>,
 }
@@ -136,6 +145,7 @@ impl Repo {
             .take(50)
             .map(str::to_string)
             .collect();
+        let stashes = self.stash_list()?;
 
         Ok(RepoInfo {
             toplevel,
@@ -144,6 +154,7 @@ impl Repo {
             remote_branches,
             remotes,
             tags,
+            stashes,
             flavor: self.target.flavor.to_string(),
             distro: self.target.distro.clone(),
         })
@@ -273,6 +284,54 @@ impl Repo {
         self.run(&["branch", "-m", old, new]).map(|_| ())
     }
 
+    /// Create a lightweight tag at `hash` (or HEAD when `hash` is empty).
+    pub fn create_tag(&self, name: &str, hash: &str) -> Result<(), String> {
+        if hash.is_empty() {
+            self.run(&["tag", name]).map(|_| ())
+        } else {
+            self.run(&["tag", name, hash]).map(|_| ())
+        }
+    }
+
+    pub fn delete_tag(&self, name: &str) -> Result<(), String> {
+        self.run(&["tag", "-d", name]).map(|_| ())
+    }
+
+    /// List stash entries as (ref, message) pairs.
+    pub fn stash_list(&self) -> Result<Vec<StashEntry>, String> {
+        let fmt = format!("--format=%gd{US}%s");
+        let raw = self.run(&["stash", "list", &fmt])?;
+        Ok(lines(&raw)
+            .filter_map(|l| {
+                let mut p = l.splitn(2, US);
+                let reference = p.next()?.to_string();
+                let message = p.next().unwrap_or("").to_string();
+                Some(StashEntry { reference, message })
+            })
+            .collect())
+    }
+
+    /// Stash the working tree (optionally with a message).
+    pub fn stash_save(&self, message: &str) -> Result<(), String> {
+        if message.is_empty() {
+            self.run(&["stash", "push"]).map(|_| ())
+        } else {
+            self.run(&["stash", "push", "-m", message]).map(|_| ())
+        }
+    }
+
+    pub fn stash_pop(&self, reference: &str) -> Result<(), String> {
+        self.run(&["stash", "pop", reference]).map(|_| ())
+    }
+
+    pub fn stash_apply(&self, reference: &str) -> Result<(), String> {
+        self.run(&["stash", "apply", reference]).map(|_| ())
+    }
+
+    pub fn stash_drop(&self, reference: &str) -> Result<(), String> {
+        self.run(&["stash", "drop", reference]).map(|_| ())
+    }
+
     pub fn fetch(&self) -> Result<String, String> {
         self.run(&["fetch", "--all", "--prune"])
     }
@@ -306,6 +365,7 @@ fn export_bindings() {
     let decls = [
         Commit::decl(),
         Branch::decl(),
+        StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),
         CommitFile::decl(),

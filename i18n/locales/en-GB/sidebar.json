@@ -5,6 +5,14 @@
     "remoteBranches": "Remote branches",
     "tags": "Tags",
     "newBranch": "New branch",
-    "branchName": "branch name…"
+    "branchName": "branch name…",
+    "newTag": "New tag",
+    "tagName": "tag name…",
+    "stashes": "Stashes",
+    "stashPush": "Stash changes",
+    "stashPop": "Pop",
+    "stashApply": "Apply",
+    "stashDrop": "Drop",
+    "noStashes": "No stashes"
   }
 }

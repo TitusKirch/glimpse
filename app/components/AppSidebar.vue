@@ -21,6 +21,19 @@ async function submitBranch() {
   cancel();
 }
 
+// Inline tag creation (tags HEAD).
+const creatingTag = ref(false);
+const newTag = ref('');
+function cancelTag() {
+  creatingTag.value = false;
+  newTag.value = '';
+}
+async function submitTag() {
+  if (!newTag.value.trim()) return;
+  await repo.createTag(newTag.value);
+  cancelTag();
+}
+
 function startRename(name: string) {
   renaming.value = name;
   renameDraft.value = name;
@@ -232,15 +245,122 @@ const links = [
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
-      <UiSidebarGroup v-if="repo.tags.length">
+      <UiSidebarGroup v-if="repo.hasRepos">
         <UiSidebarGroupLabel>{{ t('sidebar.tags') }}</UiSidebarGroupLabel>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="creatingTag = !creatingTag"
+            >
+              <NuxtIcon name="lucide:tag" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.newTag') }}</UiTooltipContent>
+        </UiTooltip>
         <UiSidebarGroupContent>
+          <div
+            v-if="creatingTag"
+            class="flex items-center gap-1 px-2 pb-1 group-data-[collapsible=icon]:hidden"
+          >
+            <UiSidebarInput
+              v-model="newTag"
+              :placeholder="t('sidebar.tagName')"
+              autofocus
+              @keydown.enter="submitTag"
+              @keydown.esc="cancelTag"
+            />
+            <UiButton
+              variant="ghost"
+              size="icon"
+              class="size-7 shrink-0"
+              @click="cancelTag"
+            >
+              <NuxtIcon name="lucide:x" class="size-4" />
+            </UiButton>
+          </div>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="tag in repo.tags" :key="tag">
               <UiSidebarMenuButton :tooltip="tag">
                 <NuxtIcon name="lucide:tag" class="shrink-0" />
                 <span>{{ tag }}</span>
               </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="repo.deleteTag(tag)"
+                  >
+                    <NuxtIcon name="lucide:trash-2" />
+                    {{ t('branch.delete') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
+            </UiSidebarMenuItem>
+          </UiSidebarMenu>
+        </UiSidebarGroupContent>
+      </UiSidebarGroup>
+
+      <UiSidebarGroup v-if="repo.hasRepos">
+        <UiSidebarGroupLabel>{{ t('sidebar.stashes') }}</UiSidebarGroupLabel>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="repo.stashSave()"
+            >
+              <NuxtIcon name="lucide:archive" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.stashPush') }}</UiTooltipContent>
+        </UiTooltip>
+        <UiSidebarGroupContent>
+          <p
+            v-if="!repo.stashes.length"
+            class="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+          >
+            {{ t('sidebar.noStashes') }}
+          </p>
+          <UiSidebarMenu>
+            <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
+              <UiSidebarMenuButton :tooltip="s.message">
+                <NuxtIcon name="lucide:archive" class="shrink-0" />
+                <span class="truncate">{{ s.message }}</span>
+              </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem
+                    @click="repo.stashAction('pop', s.reference)"
+                  >
+                    <NuxtIcon name="lucide:archive-restore" />
+                    {{ t('sidebar.stashPop') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuItem
+                    @click="repo.stashAction('apply', s.reference)"
+                  >
+                    <NuxtIcon name="lucide:copy-plus" />
+                    {{ t('sidebar.stashApply') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuSeparator />
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="repo.stashAction('drop', s.reference)"
+                  >
+                    <NuxtIcon name="lucide:trash-2" />
+                    {{ t('sidebar.stashDrop') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
         </UiSidebarGroupContent>
