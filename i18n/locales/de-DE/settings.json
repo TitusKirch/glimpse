@@ -12,6 +12,12 @@
         "label": "Intervall (Minuten)",
         "hint": "Wie oft automatisch gefetcht wird."
       },
+      "pullStrategy": {
+        "label": "Pull-Strategie",
+        "hint": "Beim Pull mergen oder rebasen.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
       "developer": "Entwickler",
       "devMode": {
         "label": "Entwickler-Einstellungen",

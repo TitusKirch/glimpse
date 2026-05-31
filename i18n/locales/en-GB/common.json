@@ -21,6 +21,16 @@
     "toggle": "Toggle theme"
   },
   "copied": "Copied to clipboard",
+  "common": {
+    "cancel": "Cancel"
+  },
+  "confirm": {
+    "dirtySwitch": {
+      "title": "Uncommitted changes",
+      "description": "You have uncommitted changes. Stash them and switch branch?",
+      "confirm": "Stash & switch"
+    }
+  },
   "branch": {
     "switch": "Switch to branch",
     "rename": "Rename",

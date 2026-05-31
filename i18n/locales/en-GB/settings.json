@@ -12,6 +12,12 @@
         "label": "Interval (minutes)",
         "hint": "How often to fetch automatically."
       },
+      "pullStrategy": {
+        "label": "Pull strategy",
+        "hint": "Merge or rebase when pulling.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
       "developer": "Developer",
       "devMode": {
         "label": "Developer settings",

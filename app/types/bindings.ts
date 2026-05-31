@@ -68,4 +68,8 @@ export type StatusEntry = {
   staged: boolean;
   unstaged: boolean;
   untracked: boolean;
+  /**
+   * Unmerged (merge-conflict) entry — shown in its own section.
+   */
+  conflicted: boolean;
 };

@@ -78,7 +78,8 @@ export const mock = {
       y: 'M',
       staged: false,
       unstaged: true,
-      untracked: false
+      untracked: false,
+      conflicted: false
     },
     {
       path: 'src-tauri/src/git.rs',
@@ -86,7 +87,8 @@ export const mock = {
       y: ' ',
       staged: true,
       unstaged: false,
-      untracked: false
+      untracked: false,
+      conflicted: false
     },
     {
       path: 'docs/NOTES.md',
@@ -94,7 +96,8 @@ export const mock = {
       y: '?',
       staged: false,
       unstaged: false,
-      untracked: true
+      untracked: true,
+      conflicted: false
     }
   ] satisfies StatusEntry[],
   diff: {
@@ -221,9 +224,14 @@ export const gitClient = {
     gitInvoke<null>('stash_drop', { path, reference }, null),
 
   fetch: (path: string) => gitInvoke<string>('fetch', { path }, ''),
-  pull: (path: string) => gitInvoke<string>('pull', { path }, ''),
+  pull: (path: string, rebase = false) =>
+    gitInvoke<string>('pull', { path, rebase }, ''),
   push: (path: string, setUpstream = false, force = false) =>
     gitInvoke<string>('push', { path, setUpstream, force }, ''),
+
+  // Resolve a conflicted file ("ours" | "theirs" | "mark").
+  resolveConflict: (path: string, file: string, side: string) =>
+    gitInvoke<null>('resolve_conflict', { path, file, side }, null),
 
   // Open the repo folder in an external app ("files" | "terminal" | "editor").
   openIn: (path: string, app: 'files' | 'terminal' | 'editor') =>

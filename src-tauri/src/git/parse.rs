@@ -49,13 +49,17 @@ pub fn status(raw: &str) -> Vec<StatusEntry> {
             i += 1;
         }
         let untracked = x == '?';
+        // Unmerged entries: a 'U' on either side, or matching A/A or D/D.
+        let conflicted =
+            x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D');
         entries.push(StatusEntry {
             path,
             x: x.to_string(),
             y: y.to_string(),
-            staged: !untracked && x != ' ',
-            unstaged: !untracked && y != ' ',
+            staged: !conflicted && !untracked && x != ' ',
+            unstaged: !conflicted && !untracked && y != ' ',
             untracked,
+            conflicted,
         });
     }
     entries

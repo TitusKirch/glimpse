@@ -21,6 +21,16 @@
     "toggle": "Theme umschalten"
   },
   "copied": "In die Zwischenablage kopiert",
+  "common": {
+    "cancel": "Abbrechen"
+  },
+  "confirm": {
+    "dirtySwitch": {
+      "title": "Uncommittete Änderungen",
+      "description": "Du hast uncommittete Änderungen. Stashen und Branch wechseln?",
+      "confirm": "Stashen & wechseln"
+    }
+  },
   "branch": {
     "switch": "Zu Branch wechseln",
     "rename": "Umbenennen",

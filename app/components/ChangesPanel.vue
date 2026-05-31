@@ -54,6 +54,54 @@ const canCommit = computed(
         <UiSkeleton v-for="n in 6" :key="n" class="h-6 w-full" />
       </div>
 
+      <!-- merge conflicts -->
+      <section v-if="repo.conflictedFiles.length" class="px-1">
+        <h3
+          class="sticky top-0 z-10 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide text-warning uppercase"
+        >
+          {{ t('changes.conflicts') }} ({{ repo.conflictedFiles.length }})
+        </h3>
+        <div
+          v-for="f in repo.conflictedFiles"
+          :key="f.path"
+          class="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
+          :class="repo.selectedFile === f.path ? 'bg-accent' : ''"
+          @click="repo.selectFile(f.path, false)"
+        >
+          <NuxtIcon
+            name="lucide:triangle-alert"
+            class="size-3.5 shrink-0 text-warning"
+          />
+          <span class="min-w-0 flex-1 truncate">{{ f.path }}</span>
+          <UiDropdownMenu>
+            <UiDropdownMenuTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                class="size-5 opacity-0 group-hover:opacity-100"
+                @click.stop
+              >
+                <NuxtIcon name="lucide:ellipsis" class="size-3.5" />
+              </UiButton>
+            </UiDropdownMenuTrigger>
+            <UiDropdownMenuContent align="end">
+              <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'ours')">
+                {{ t('changes.useOurs') }}
+              </UiDropdownMenuItem>
+              <UiDropdownMenuItem
+                @click="repo.resolveConflict(f.path, 'theirs')"
+              >
+                {{ t('changes.useTheirs') }}
+              </UiDropdownMenuItem>
+              <UiDropdownMenuSeparator />
+              <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'mark')">
+                {{ t('changes.markResolved') }}
+              </UiDropdownMenuItem>
+            </UiDropdownMenuContent>
+          </UiDropdownMenu>
+        </div>
+      </section>
+
       <!-- staged -->
       <section v-if="repo.stagedFiles.length" class="px-1">
         <h3

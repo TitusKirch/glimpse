@@ -195,8 +195,13 @@ async fn fetch(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn pull(path: String) -> Result<String, String> {
-    git::Repo::open(&path).pull()
+async fn pull(path: String, rebase: bool) -> Result<String, String> {
+    git::Repo::open(&path).pull(rebase)
+}
+
+#[tauri::command]
+async fn resolve_conflict(path: String, file: String, side: String) -> Result<(), String> {
+    git::Repo::open(&path).resolve_conflict(&file, &side)
 }
 
 #[tauri::command]
@@ -261,6 +266,7 @@ pub fn run() {
             fetch,
             pull,
             push,
+            resolve_conflict,
             open_in
         ])
         .run(tauri::generate_context!())

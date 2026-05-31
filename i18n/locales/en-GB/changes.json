@@ -12,6 +12,10 @@
     },
     "amend": "Amend",
     "amendCommit": "Amend commit",
+    "conflicts": "Conflicts",
+    "useOurs": "Use ours",
+    "useTheirs": "Use theirs",
+    "markResolved": "Mark resolved",
     "clean": "Working tree clean",
     "cleanHint": "There are no changes to commit."
   }

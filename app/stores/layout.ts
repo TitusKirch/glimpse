@@ -16,6 +16,8 @@ export const useLayoutStore = defineStore('layout', {
     diffMode: 'split' as DiffMode,
     // Ignore whitespace-only changes in diffs (git -w).
     ignoreWhitespace: false,
+    // Pull strategy: plain merge or --rebase.
+    pullStrategy: 'merge' as 'merge' | 'rebase',
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
     fileView: 'tree' as FileView,

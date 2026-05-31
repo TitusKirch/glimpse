@@ -182,6 +182,30 @@ const lang = computed({
                     class="w-24 shrink-0"
                   />
                 </div>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.pullStrategy.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.pullStrategy.hint') }}
+                    </p>
+                  </div>
+                  <UiSelect v-model="layout.pullStrategy">
+                    <UiSelectTrigger class="w-44 shrink-0">
+                      <UiSelectValue />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      <UiSelectItem value="merge">
+                        {{ t('settings.general.pullStrategy.merge') }}
+                      </UiSelectItem>
+                      <UiSelectItem value="rebase">
+                        {{ t('settings.general.pullStrategy.rebase') }}
+                      </UiSelectItem>
+                    </UiSelectContent>
+                  </UiSelect>
+                </div>
               </div>
             </div>
 

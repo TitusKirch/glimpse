@@ -204,6 +204,9 @@ export const useRepoStore = defineStore('repo', {
     unstagedFiles(): StatusEntry[] {
       return this.status.filter((f) => f.unstaged || f.untracked);
     },
+    conflictedFiles(): StatusEntry[] {
+      return this.status.filter((f) => f.conflicted);
+    },
     // How far the current branch is behind its upstream — drives the "new
     // commits" indicator on the pull button after a (manual or auto) fetch.
     behind(): number {
@@ -335,9 +338,31 @@ export const useRepoStore = defineStore('repo', {
 
     async checkout(branch: string) {
       if (!isTauri() || branch === this.currentBranch) return;
+      // Guard a dirty working tree: offer to stash before switching, so the
+      // switch doesn't fail (or silently carry changes across).
+      let stashFirst = false;
+      if (this.status.length) {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.dirtySwitch.title',
+          descriptionKey: 'confirm.dirtySwitch.description',
+          confirmKey: 'confirm.dirtySwitch.confirm'
+        });
+        if (!ok) return;
+        stashFirst = true;
+      }
       await this.guarded(async () => {
+        if (stashFirst) await gitClient.stashSave(this.repoPath, '');
         await gitClient.checkoutBranch(this.repoPath, branch);
         await this.loadFromBackend();
+      });
+    },
+
+    async resolveConflict(file: string, side: 'ours' | 'theirs' | 'mark') {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.resolveConflict(this.repoPath, file, side);
+        await this.loadStatus();
+        await this.reDiff();
       });
     },
 
@@ -419,7 +444,12 @@ export const useRepoStore = defineStore('repo', {
       try {
         await Promise.all([
           this.guarded(async () => {
-            await gitClient[command](this.repoPath);
+            if (command === 'pull') {
+              const rebase = useLayoutStore().pullStrategy === 'rebase';
+              await gitClient.pull(this.repoPath, rebase);
+            } else {
+              await gitClient[command](this.repoPath);
+            }
             await this.loadFromBackend();
           }),
           promiseTimeout(MIN_SPINNER_MS)

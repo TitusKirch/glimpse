@@ -12,6 +12,10 @@
     },
     "amend": "Ändern",
     "amendCommit": "Commit ändern",
+    "conflicts": "Konflikte",
+    "useOurs": "Unsere übernehmen",
+    "useTheirs": "Ihre übernehmen",
+    "markResolved": "Als gelöst markieren",
     "clean": "Arbeitsverzeichnis sauber",
     "cleanHint": "Es gibt keine Änderungen zum Committen."
   }

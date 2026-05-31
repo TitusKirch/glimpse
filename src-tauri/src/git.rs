@@ -87,6 +87,8 @@ pub struct StatusEntry {
     pub staged: bool,
     pub unstaged: bool,
     pub untracked: bool,
+    /// Unmerged (merge-conflict) entry — shown in its own section.
+    pub conflicted: bool,
 }
 
 /// A repository with its `git` invocation resolved once. All operations run
@@ -400,8 +402,27 @@ impl Repo {
         self.run(&["fetch", "--all", "--prune"])
     }
 
-    pub fn pull(&self) -> Result<String, String> {
-        self.run(&["pull"])
+    pub fn pull(&self, rebase: bool) -> Result<String, String> {
+        if rebase {
+            self.run(&["pull", "--rebase"])
+        } else {
+            self.run(&["pull"])
+        }
+    }
+
+    /// Resolve a conflicted file: take `ours`/`theirs` then stage it, or just
+    /// stage a manually-resolved file (`mark`).
+    pub fn resolve_conflict(&self, file: &str, side: &str) -> Result<(), String> {
+        match side {
+            "ours" => {
+                self.run(&["checkout", "--ours", "--", file])?;
+            }
+            "theirs" => {
+                self.run(&["checkout", "--theirs", "--", file])?;
+            }
+            _ => {}
+        }
+        self.run(&["add", "--", file]).map(|_| ())
     }
 
     /// Push the current branch. `set_upstream` publishes a new branch and
