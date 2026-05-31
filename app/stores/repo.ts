@@ -500,6 +500,21 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Merge the CURRENT branch into `branch` (the reverse direction). Git can't
+    // merge into a branch that isn't checked out, so this switches to `branch`
+    // first — reusing checkout()'s dirty-tree guard — then merges the former
+    // current into it. You end up on `branch`, matching the GitKraken
+    // "merge A into B" semantics.
+    async mergeCurrentInto(branch: string) {
+      if (!isTauri() || branch === this.currentBranch) return;
+      const source = this.currentBranch;
+      await this.checkout(branch);
+      // checkout() aborts silently if the user declines the dirty-tree prompt;
+      // only merge once we're actually on the target.
+      if (this.currentBranch !== branch) return;
+      await this.merge(source);
+    },
+
     // Discard every working-tree change (confirms first — irreversible).
     async discardAll() {
       if (!isTauri() || !this.status.length) return;

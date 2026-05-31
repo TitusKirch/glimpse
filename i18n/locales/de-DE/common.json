@@ -115,7 +115,8 @@
     "switch": "Zu Branch wechseln",
     "rename": "Umbenennen",
     "delete": "Löschen",
-    "merge": "In aktuellen mergen"
+    "merge": "In aktuellen mergen",
+    "mergeCurrentInto": "Aktuellen hier hineinmergen"
   },
   "commit": {
     "checkout": "Diesen Commit auschecken",

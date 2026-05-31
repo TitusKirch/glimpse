@@ -115,7 +115,8 @@
     "switch": "Switch to branch",
     "rename": "Rename",
     "delete": "Delete",
-    "merge": "Merge into current"
+    "merge": "Merge into current",
+    "mergeCurrentInto": "Merge current into this"
   },
   "commit": {
     "checkout": "Check out this commit",
