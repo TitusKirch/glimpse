@@ -13,9 +13,9 @@ defineProps<{
     class="flex h-full flex-col items-center justify-center gap-3 p-8 text-center"
   >
     <div
-      class="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
+      class="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground"
     >
-      <NuxtIcon :name="icon" class="size-6" />
+      <NuxtIcon :name="icon" class="size-7" />
     </div>
     <div class="space-y-1">
       <p class="text-sm font-medium">{{ title }}</p>
