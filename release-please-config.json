@@ -9,7 +9,19 @@
     ".": {
       "package-name": "glimpse",
       "changelog-path": "CHANGELOG.md",
-      "release-as": "0.1.0"
+      "release-as": "0.1.0",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "src-tauri/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "json",
+          "path": "src-tauri/tauri.conf.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   }
 }
