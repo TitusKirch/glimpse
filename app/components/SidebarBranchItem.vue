@@ -40,7 +40,7 @@ const { t } = useI18n();
       <span
         v-if="!branch.published"
         :title="t('sidebar.localOnlyHint')"
-        class="ml-auto flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-muted pr-1.5 pl-1 text-[10px] font-medium text-muted-foreground"
+        class="ml-auto flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-destructive/15 pr-1.5 pl-1 text-[10px] font-medium text-destructive"
         ><NuxtIcon name="lucide:cloud-off" class="size-3" />{{
           t('sidebar.localOnly')
         }}</span
