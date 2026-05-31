@@ -206,7 +206,7 @@ function onStageHunk(hunk: string) {
           :file-name="repo.diff.fileName"
         />
         <p v-else class="p-6 text-sm text-muted-foreground">
-          {{ t('diff.noSelection') }}
+          {{ repo.selectedFile ? t('diff.noTextDiff') : t('diff.noSelection') }}
         </p>
       </UiResizablePanel>
     </UiResizablePanelGroup>

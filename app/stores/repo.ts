@@ -356,7 +356,7 @@ export const useRepoStore = defineStore('repo', {
       await this.guarded(async () => {
         if (stashFirst) await gitClient.stashSave(this.repoPath, '');
         await gitClient.checkoutBranch(this.repoPath, branch);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -374,7 +374,7 @@ export const useRepoStore = defineStore('repo', {
       if (!trimmed || !isTauri()) return;
       await this.guarded(async () => {
         await gitClient.createBranch(this.repoPath, trimmed);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -382,7 +382,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.deleteBranch(this.repoPath, name);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -391,7 +391,7 @@ export const useRepoStore = defineStore('repo', {
       if (!trimmed || trimmed === oldName || !isTauri()) return;
       await this.guarded(async () => {
         await gitClient.renameBranch(this.repoPath, oldName, trimmed);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -400,7 +400,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri() || branch === this.currentBranch) return;
       await this.guarded(async () => {
         await gitClient.merge(this.repoPath, branch);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -432,7 +432,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.addRemote(this.repoPath, name, url);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -440,7 +440,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.removeRemote(this.repoPath, name);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -455,7 +455,7 @@ export const useRepoStore = defineStore('repo', {
       if (!name || name === oldName) return;
       await this.guarded(async () => {
         await gitClient.renameRemote(this.repoPath, oldName, name);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -464,7 +464,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.checkoutCommit(this.repoPath, hash);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -479,7 +479,7 @@ export const useRepoStore = defineStore('repo', {
       if (!name) return;
       await this.guarded(async () => {
         await gitClient.createBranchAt(this.repoPath, name, hash);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -499,7 +499,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.revert(this.repoPath, hash);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -507,7 +507,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.cherryPick(this.repoPath, hash);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -525,7 +525,7 @@ export const useRepoStore = defineStore('repo', {
       }
       await this.guarded(async () => {
         await gitClient.reset(this.repoPath, hash, mode);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -534,7 +534,7 @@ export const useRepoStore = defineStore('repo', {
       if (!trimmed || !isTauri()) return;
       await this.guarded(async () => {
         await gitClient.createTag(this.repoPath, trimmed, hash);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -542,7 +542,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.deleteTag(this.repoPath, name);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -550,7 +550,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.stashSave(this.repoPath, message);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -562,7 +562,7 @@ export const useRepoStore = defineStore('repo', {
         else if (action === 'apply')
           await gitClient.stashApply(this.repoPath, reference);
         else await gitClient.stashDrop(this.repoPath, reference);
-        await this.loadFromBackend();
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -578,7 +578,7 @@ export const useRepoStore = defineStore('repo', {
             } else {
               await gitClient[command](this.repoPath);
             }
-            await this.loadFromBackend();
+            await this.loadFromBackend(this.active?.path);
           }),
           promiseTimeout(MIN_SPINNER_MS)
         ]);
@@ -596,7 +596,7 @@ export const useRepoStore = defineStore('repo', {
         await Promise.all([
           this.guarded(async () => {
             await gitClient.push(this.repoPath, setUpstream, force);
-            await this.loadFromBackend();
+            await this.loadFromBackend(this.active?.path);
           }),
           promiseTimeout(MIN_SPINNER_MS)
         ]);
@@ -730,17 +730,33 @@ export const useRepoStore = defineStore('repo', {
 
         await Promise.all([this.loadLog(), this.loadStatus()]);
 
-        // Open the first changed file (or the newest commit) in the diff panel.
-        const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
-        if (first) {
-          await this.selectFile(
-            first.path,
-            !first.unstaged && !first.untracked
-          );
-        } else if (r.commits[0]) {
-          await this.selectCommit(r.commits[0].hash);
+        // Preserve the user's selection across a reload (e.g. on window focus)
+        // instead of jumping back to the first commit/file. Only fall back to a
+        // default selection on the initial load.
+        const keepCommit =
+          r.selectedHash && r.commits.some((c) => c.hash === r.selectedHash);
+        const keepFile =
+          !r.selectedHash &&
+          r.selectedFile &&
+          r.status.some((f) => f.path === r.selectedFile);
+
+        if (keepCommit) {
+          await this.selectCommit(r.selectedHash!);
+        } else if (keepFile) {
+          await this.selectFile(r.selectedFile!, r.selectedFileStaged);
         } else {
-          r.diff = null;
+          // Open the first changed file (or the newest commit) by default.
+          const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
+          if (first) {
+            await this.selectFile(
+              first.path,
+              !first.unstaged && !first.untracked
+            );
+          } else if (r.commits[0]) {
+            await this.selectCommit(r.commits[0].hash);
+          } else {
+            r.diff = null;
+          }
         }
 
         useRecentStore().push(top, r.name);

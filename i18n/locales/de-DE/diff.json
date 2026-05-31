@@ -4,6 +4,7 @@
     "sideBySide": "Nebeneinander",
     "unified": "Vereinheitlicht",
     "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen",
+    "noTextDiff": "Kein Text-Diff darstellbar (binär, leer oder unverändert).",
     "ignoreWhitespace": "Whitespace ignorieren",
     "blame": "Blame",
     "fileHistory": "Datei-Verlauf",

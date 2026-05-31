@@ -4,6 +4,7 @@
     "sideBySide": "Side by side",
     "unified": "Unified",
     "noSelection": "Select a commit or file to see its diff",
+    "noTextDiff": "No text diff to show (binary, empty, or unchanged).",
     "ignoreWhitespace": "Ignore whitespace",
     "blame": "Blame",
     "fileHistory": "File history",
