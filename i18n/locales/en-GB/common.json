@@ -59,7 +59,7 @@
     },
     "remoteUrl": {
       "label": "URL",
-      "description": "HTTPS or SSH, e.g. git@github.com:user/repo.git",
+      "description": "HTTPS or SSH, e.g. git{'@'}github.com:user/repo.git",
       "placeholder": "https://github.com/user/repo.git"
     }
   },
