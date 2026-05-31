@@ -145,23 +145,64 @@ const unified = computed<URow[]>(() => {
     let oldNo = m ? Number(m[1]) : 1;
     let newNo = m ? Number(m[2]) : 1;
     out.push({ type: 'hunk', html: escapeHtml(header), hunkIndex });
+
+    // Buffer consecutive removals/additions so a modified line (a -/+ pair) can
+    // be word-diffed — the changed substring gets emphasised like in split mode.
+    let dels: { text: string; oldNo: number }[] = [];
+    let adds: { text: string; newNo: number }[] = [];
+    const flush = () => {
+      const n = Math.max(dels.length, adds.length);
+      const delHtml: string[] = [];
+      const addHtml: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const d = dels[i];
+        const a = adds[i];
+        if (d && a) {
+          const wd = wordDiff(d.text, a.text);
+          delHtml.push(wd.oldHtml);
+          addHtml.push(wd.newHtml);
+        } else if (d) delHtml.push(hl(d.text));
+        else if (a) addHtml.push(hl(a.text));
+      }
+      dels.forEach((d, i) =>
+        out.push({
+          type: 'del',
+          oldNo: d.oldNo,
+          html: delHtml[i]!,
+          text: d.text
+        })
+      );
+      adds.forEach((a, i) =>
+        out.push({
+          type: 'add',
+          newNo: a.newNo,
+          html: addHtml[i]!,
+          text: a.text
+        })
+      );
+      dels = [];
+      adds = [];
+    };
+
     for (let i = 1; i < lines.length; i++) {
       const l = lines[i] ?? '';
       const c = l[0];
       const text = l.slice(1);
-      const html = hl(text);
       if (c === '\\') continue;
-      if (c === '+') out.push({ type: 'add', newNo: newNo++, html, text });
-      else if (c === '-') out.push({ type: 'del', oldNo: oldNo++, html, text });
-      else
+      if (c === '+') adds.push({ text, newNo: newNo++ });
+      else if (c === '-') dels.push({ text, oldNo: oldNo++ });
+      else {
+        flush();
         out.push({
           type: 'context',
           oldNo: oldNo++,
           newNo: newNo++,
-          html,
+          html: hl(text),
           text
         });
+      }
     }
+    flush();
   });
   return out;
 });
@@ -309,7 +350,6 @@ const rVisible = computed(() =>
         v-for="{ vi, row } in uVisible"
         :key="vi.key"
         class="flex h-5 leading-5"
-        :class="rowBg[row.type]"
       >
         <div
           v-if="row.type === 'hunk'"
@@ -336,7 +376,11 @@ const rVisible = computed(() =>
               row.type === 'add' ? '+' : row.type === 'del' ? '-' : ''
             }}</span
           >
-          <span class="grow px-1 whitespace-pre" v-html="row.html" />
+          <span
+            class="grow px-1 whitespace-pre"
+            :class="rowBg[row.type]"
+            v-html="row.html"
+          />
         </template>
       </div>
     </div>
@@ -365,7 +409,6 @@ const rVisible = computed(() =>
             v-for="{ vi, row: r } in lVisible"
             :key="vi.key"
             class="flex h-5 leading-5"
-            :class="r.left ? rowBg[r.left.type] : ''"
           >
             <div
               v-if="r.hunk !== undefined"
@@ -387,7 +430,11 @@ const rVisible = computed(() =>
               <span :class="[gutter, 'left-0 w-12']">{{
                 r.left!.no ?? ''
               }}</span>
-              <span class="grow px-1 whitespace-pre" v-html="r.left!.html" />
+              <span
+                class="grow px-1 whitespace-pre"
+                :class="rowBg[r.left!.type]"
+                v-html="r.left!.html"
+              />
             </template>
           </div>
         </div>
@@ -407,7 +454,6 @@ const rVisible = computed(() =>
             v-for="{ vi, row: r } in rVisible"
             :key="vi.key"
             class="flex h-5 leading-5"
-            :class="r.right ? rowBg[r.right.type] : ''"
           >
             <span
               v-if="r.hunk !== undefined"
@@ -418,7 +464,11 @@ const rVisible = computed(() =>
               <span :class="[gutter, 'left-0 w-12']">{{
                 r.right!.no ?? ''
               }}</span>
-              <span class="grow px-1 whitespace-pre" v-html="r.right!.html" />
+              <span
+                class="grow px-1 whitespace-pre"
+                :class="rowBg[r.right!.type]"
+                v-html="r.right!.html"
+              />
             </template>
           </div>
         </div>
