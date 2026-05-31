@@ -57,18 +57,35 @@
     "title": "Settings",
     "general": {
       "title": "General",
-      "diffMode": "Default diff view",
-      "diffModeHint": "How diffs open by default.",
-      "fileView": "File list view",
-      "fileViewHint": "Flat list or grouped folder tree."
+      "developer": "Developer",
+      "devMode": "Developer settings",
+      "devModeHint": "Show extra debugging tools in settings."
+    },
+    "dev": {
+      "toasts": "Test toasts",
+      "toastsHint": "Fire one of each toast kind.",
+      "info": "Info",
+      "success": "Success",
+      "warning": "Warning",
+      "error": "Error",
+      "toastInfo": "This is an info toast",
+      "toastSuccess": "Saved successfully",
+      "toastWarning": "Heads up — check this",
+      "toastError": "Something went wrong"
     },
     "appearance": {
       "title": "Appearance",
+      "themeSection": "Theme",
       "theme": "Theme",
       "themeHint": "Choose how glimpse looks. System follows your OS.",
       "system": "System",
       "light": "Light",
-      "dark": "Dark"
+      "dark": "Dark",
+      "diffSection": "Diff & files",
+      "diffMode": "Default diff view",
+      "diffModeHint": "How diffs open by default.",
+      "fileView": "File list view",
+      "fileViewHint": "Flat list or grouped folder tree."
     },
     "language": {
       "title": "Language",

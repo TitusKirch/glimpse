@@ -57,18 +57,35 @@
     "title": "Einstellungen",
     "general": {
       "title": "Allgemein",
-      "diffMode": "Standard-Diff-Ansicht",
-      "diffModeHint": "Wie Diffs standardmäßig geöffnet werden.",
-      "fileView": "Dateilisten-Ansicht",
-      "fileViewHint": "Flache Liste oder gruppierter Ordnerbaum."
+      "developer": "Entwickler",
+      "devMode": "Entwickler-Einstellungen",
+      "devModeHint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
+    },
+    "dev": {
+      "toasts": "Toasts testen",
+      "toastsHint": "Je einen Toast pro Art auslösen.",
+      "info": "Info",
+      "success": "Erfolg",
+      "warning": "Warnung",
+      "error": "Fehler",
+      "toastInfo": "Dies ist ein Info-Toast",
+      "toastSuccess": "Erfolgreich gespeichert",
+      "toastWarning": "Achtung — prüfe das",
+      "toastError": "Etwas ist schiefgelaufen"
     },
     "appearance": {
       "title": "Darstellung",
+      "themeSection": "Theme",
       "theme": "Theme",
       "themeHint": "Wähle, wie glimpse aussieht. „System“ folgt deinem Betriebssystem.",
       "system": "System",
       "light": "Hell",
-      "dark": "Dunkel"
+      "dark": "Dunkel",
+      "diffSection": "Diff & Dateien",
+      "diffMode": "Standard-Diff-Ansicht",
+      "diffModeHint": "Wie Diffs standardmäßig geöffnet werden.",
+      "fileView": "Dateilisten-Ansicht",
+      "fileViewHint": "Flache Liste oder gruppierter Ordnerbaum."
     },
     "language": {
       "title": "Sprache",

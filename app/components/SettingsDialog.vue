@@ -1,8 +1,18 @@
 <script setup lang="ts">
+import { toast } from 'vue-sonner';
+
 const open = defineModel<boolean>('open', { required: true });
 const { t, locale, locales, setLocale } = useI18n();
 const colorMode = useColorMode();
 const layout = useLayoutStore();
+
+// Dev-only: fire one of each toast kind to preview styling.
+const toastKinds = [
+  { kind: 'info', fn: () => toast.info(t('settings.dev.toastInfo')) },
+  { kind: 'success', fn: () => toast.success(t('settings.dev.toastSuccess')) },
+  { kind: 'warning', fn: () => toast.warning(t('settings.dev.toastWarning')) },
+  { kind: 'error', fn: () => toast.error(t('settings.dev.toastError')) }
+] as const;
 
 // Left navigation pages. Add entries here to grow settings.
 const pages = [
@@ -65,80 +75,144 @@ const lang = computed({
 
         <!-- content -->
         <div class="min-w-0 flex-1 overflow-auto p-6">
-          <section v-if="page === 'general'" class="w-full space-y-6">
-            <div class="flex items-center justify-between gap-4">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">
-                  {{ t('settings.general.diffMode') }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ t('settings.general.diffModeHint') }}
-                </p>
-              </div>
-              <UiSelect v-model="layout.diffMode">
-                <UiSelectTrigger class="w-44 shrink-0">
-                  <UiSelectValue />
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem
-                    v-for="m in diffModeOptions"
-                    :key="m"
-                    :value="m"
-                  >
-                    {{
-                      m === 'split' ? t('diff.sideBySide') : t('diff.unified')
-                    }}
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
-            </div>
+          <section v-if="page === 'general'" class="w-full space-y-8">
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.general.developer') }}
+              </h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.devMode') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.devModeHint') }}
+                    </p>
+                  </div>
+                  <UiSwitch v-model="layout.devMode" class="shrink-0" />
+                </div>
 
-            <div class="flex items-center justify-between gap-4">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">
-                  {{ t('settings.general.fileView') }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ t('settings.general.fileViewHint') }}
-                </p>
+                <div
+                  v-if="layout.devMode"
+                  class="flex items-center justify-between gap-4"
+                >
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.dev.toasts') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.dev.toastsHint') }}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 gap-2">
+                    <UiButton
+                      v-for="tk in toastKinds"
+                      :key="tk.kind"
+                      variant="outline"
+                      size="sm"
+                      @click="tk.fn()"
+                    >
+                      {{ t(`settings.dev.${tk.kind}`) }}
+                    </UiButton>
+                  </div>
+                </div>
               </div>
-              <UiSelect v-model="layout.fileView">
-                <UiSelectTrigger class="w-44 shrink-0">
-                  <UiSelectValue />
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem
-                    v-for="v in fileViewOptions"
-                    :key="v"
-                    :value="v"
-                  >
-                    {{ t(`fileView.${v}`) }}
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
             </div>
           </section>
 
-          <section v-else-if="page === 'appearance'" class="w-full space-y-6">
-            <div class="flex items-center justify-between gap-4">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">
-                  {{ t('settings.appearance.theme') }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ t('settings.appearance.themeHint') }}
-                </p>
+          <section v-else-if="page === 'appearance'" class="w-full space-y-8">
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.appearance.themeSection') }}
+              </h3>
+              <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    {{ t('settings.appearance.theme') }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ t('settings.appearance.themeHint') }}
+                  </p>
+                </div>
+                <UiSelect v-model="colorMode.preference">
+                  <UiSelectTrigger class="w-44 shrink-0">
+                    <UiSelectValue />
+                  </UiSelectTrigger>
+                  <UiSelectContent>
+                    <UiSelectItem v-for="o in themeOptions" :key="o" :value="o">
+                      {{ t(`settings.appearance.${o}`) }}
+                    </UiSelectItem>
+                  </UiSelectContent>
+                </UiSelect>
               </div>
-              <UiSelect v-model="colorMode.preference">
-                <UiSelectTrigger class="w-44 shrink-0">
-                  <UiSelectValue />
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem v-for="o in themeOptions" :key="o" :value="o">
-                    {{ t(`settings.appearance.${o}`) }}
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.appearance.diffSection') }}
+              </h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.diffMode') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.diffModeHint') }}
+                    </p>
+                  </div>
+                  <UiSelect v-model="layout.diffMode">
+                    <UiSelectTrigger class="w-44 shrink-0">
+                      <UiSelectValue />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      <UiSelectItem
+                        v-for="m in diffModeOptions"
+                        :key="m"
+                        :value="m"
+                      >
+                        {{
+                          m === 'split'
+                            ? t('diff.sideBySide')
+                            : t('diff.unified')
+                        }}
+                      </UiSelectItem>
+                    </UiSelectContent>
+                  </UiSelect>
+                </div>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.fileView') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.fileViewHint') }}
+                    </p>
+                  </div>
+                  <UiSelect v-model="layout.fileView">
+                    <UiSelectTrigger class="w-44 shrink-0">
+                      <UiSelectValue />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      <UiSelectItem
+                        v-for="v in fileViewOptions"
+                        :key="v"
+                        :value="v"
+                      >
+                        {{ t(`fileView.${v}`) }}
+                      </UiSelectItem>
+                    </UiSelectContent>
+                  </UiSelect>
+                </div>
+              </div>
             </div>
           </section>
 

@@ -13,7 +13,9 @@ export const useLayoutStore = defineStore('layout', {
     diffMode: 'split' as DiffMode,
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
-    fileView: 'tree' as FileView
+    fileView: 'tree' as FileView,
+    // Developer settings (extra debug tools in the settings dialog).
+    devMode: false
   }),
   actions: {
     setSidebarOpen(open: boolean) {
