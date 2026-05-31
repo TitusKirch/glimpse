@@ -109,19 +109,11 @@ function hl(text: string): string {
   }
 }
 
-// Word-level diff of a removed/added line pair: trim the common prefix and
-// suffix and wrap the differing middle on each side. Cheap and effective for
-// the common single-edit line; falls back to plain escaped text otherwise.
+// Word-level diff of a removed/added line pair: highlight the changed middle
+// (common prefix/suffix trimmed by the pure wordDiffRanges helper). Cheap and
+// effective for the common single-edit line.
 function wordDiff(a: string, b: string): { oldHtml: string; newHtml: string } {
-  let start = 0;
-  const min = Math.min(a.length, b.length);
-  while (start < min && a[start] === b[start]) start++;
-  let aEnd = a.length;
-  let bEnd = b.length;
-  while (aEnd > start && bEnd > start && a[aEnd - 1] === b[bEnd - 1]) {
-    aEnd--;
-    bEnd--;
-  }
+  const { start, aEnd, bEnd } = wordDiffRanges(a, b);
   const wrap = (s: string, cls: string) =>
     s ? `<span class="${cls}">${escapeHtml(s)}</span>` : '';
   return {

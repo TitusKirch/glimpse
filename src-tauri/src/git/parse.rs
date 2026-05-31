@@ -232,6 +232,17 @@ mod tests {
     }
 
     #[test]
+    fn status_flags_merge_conflicts() {
+        // Unmerged entries ('U' on either side, or AA/DD) are conflicted and
+        // excluded from the staged/unstaged buckets.
+        let raw = z(&["UU both.rs", "AA added.rs", " M plain.rs"]);
+        let e = status(&raw);
+        assert!(e[0].conflicted && !e[0].staged && !e[0].unstaged);
+        assert!(e[1].conflicted);
+        assert!(!e[2].conflicted && e[2].unstaged);
+    }
+
+    #[test]
     fn status_skips_rename_from_path() {
         // Rename carries an extra "from" token that must not become an entry.
         let raw = z(&["R  new_name.rs", "old_name.rs", " M other.rs"]);

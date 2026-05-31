@@ -236,4 +236,24 @@ mod tests {
         assert!(parse_wsl_path("/home/u/repo").is_none());
         assert!(parse_wsl_path("\\\\server\\share").is_none());
     }
+
+    #[test]
+    fn open_candidates_unknown_is_empty() {
+        assert!(super::open_candidates("nope", "/x").is_empty());
+    }
+
+    #[test]
+    fn open_candidates_passes_path_through() {
+        // Every candidate for a known app must reference the target path.
+        for app in ["files", "terminal", "editor"] {
+            let cands = super::open_candidates(app, "/repo/x");
+            assert!(!cands.is_empty(), "no candidates for {app}");
+            for argv in cands {
+                assert!(
+                    argv.iter().any(|a| a.contains("/repo/x")),
+                    "{app} candidate missing path: {argv:?}"
+                );
+            }
+        }
+    }
 }
