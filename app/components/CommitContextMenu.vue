@@ -14,7 +14,9 @@ const copyText = useCopy();
     <UiContextMenuTrigger as-child>
       <slot />
     </UiContextMenuTrigger>
-    <UiContextMenuContent class="w-60">
+    <UiContextMenuContent
+      class="w-64 [&_[data-slot=context-menu-item]]:whitespace-nowrap"
+    >
       <UiContextMenuItem @select="repo.checkoutCommit(hash)">
         <NuxtIcon name="lucide:git-commit-horizontal" />
         {{ t('commit.checkout') }}
@@ -41,7 +43,7 @@ const copyText = useCopy();
       <UiContextMenuSub>
         <UiContextMenuSubTrigger>
           <NuxtIcon name="lucide:rotate-ccw" />
-          {{ t('commit.reset') }}
+          <span class="flex-1 whitespace-nowrap">{{ t('commit.reset') }}</span>
         </UiContextMenuSubTrigger>
         <UiContextMenuSubContent class="w-64">
           <UiContextMenuItem @select="repo.reset(hash, 'soft')">

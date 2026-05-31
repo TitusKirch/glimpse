@@ -387,10 +387,59 @@ export const useRepoStore = defineStore('repo', {
 
     async deleteBranch(name: string) {
       if (!isTauri()) return;
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.deleteBranch.title',
+        descriptionKey: 'confirm.deleteBranch.description',
+        confirmKey: 'branch.delete',
+        params: { name },
+        destructive: true
+      });
+      if (!ok) return;
       await this.guarded(async () => {
         await gitClient.deleteBranch(this.repoPath, name);
         await this.loadFromBackend(this.active?.path);
       });
+    },
+
+    // Create a branch via a name prompt (replaces the inline sidebar input).
+    async createBranchPrompt() {
+      if (!isTauri()) return;
+      const name = await usePrompt().prompt({
+        titleKey: 'sidebar.newBranch',
+        placeholderKey: 'sidebar.branchName',
+        confirmKey: 'sidebar.newBranch'
+      });
+      if (name) await this.createBranch(name);
+    },
+
+    // Rename a branch via a prompt prefilled with its current name.
+    async renameBranchPrompt(oldName: string) {
+      if (!isTauri()) return;
+      const name = await usePrompt().prompt({
+        titleKey: 'sidebar.renameBranch',
+        placeholderKey: 'sidebar.branchName',
+        confirmKey: 'sidebar.rename',
+        initial: oldName
+      });
+      if (name) await this.renameBranch(oldName, name);
+    },
+
+    // Checkout a remote branch: if no local branch exists yet, confirm creating
+    // a tracking branch; otherwise just switch.
+    async checkoutRemote(remoteBranch: string) {
+      const i = remoteBranch.indexOf('/');
+      const name = i >= 0 ? remoteBranch.slice(i + 1) : remoteBranch;
+      if (this.branches.some((b) => b.name === name)) {
+        await this.checkout(name);
+        return;
+      }
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.checkoutRemote.title',
+        descriptionKey: 'confirm.checkoutRemote.description',
+        confirmKey: 'confirm.checkoutRemote.confirm',
+        params: { name }
+      });
+      if (ok) await this.checkout(name);
     },
 
     async renameBranch(oldName: string, newName: string) {
@@ -445,6 +494,14 @@ export const useRepoStore = defineStore('repo', {
 
     async removeRemote(name: string) {
       if (!isTauri()) return;
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.removeRemote.title',
+        descriptionKey: 'confirm.removeRemote.description',
+        confirmKey: 'branch.delete',
+        params: { name },
+        destructive: true
+      });
+      if (!ok) return;
       await this.guarded(async () => {
         await gitClient.removeRemote(this.repoPath, name);
         await this.loadFromBackend(this.active?.path);
@@ -536,6 +593,17 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Create a tag on HEAD via a name prompt.
+    async createTagPrompt() {
+      if (!isTauri()) return;
+      const name = await usePrompt().prompt({
+        titleKey: 'sidebar.newTag',
+        placeholderKey: 'sidebar.tagName',
+        confirmKey: 'sidebar.newTag'
+      });
+      if (name) await this.createTag(name);
+    },
+
     async createTag(name: string, hash = '') {
       const trimmed = name.trim();
       if (!trimmed || !isTauri()) return;
@@ -547,6 +615,14 @@ export const useRepoStore = defineStore('repo', {
 
     async deleteTag(name: string) {
       if (!isTauri()) return;
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.deleteTag.title',
+        descriptionKey: 'confirm.deleteTag.description',
+        confirmKey: 'branch.delete',
+        params: { name },
+        destructive: true
+      });
+      if (!ok) return;
       await this.guarded(async () => {
         await gitClient.deleteTag(this.repoPath, name);
         await this.loadFromBackend(this.active?.path);
@@ -563,6 +639,15 @@ export const useRepoStore = defineStore('repo', {
 
     async stashAction(action: 'pop' | 'apply' | 'drop', reference: string) {
       if (!isTauri()) return;
+      if (action === 'drop') {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.dropStash.title',
+          descriptionKey: 'confirm.dropStash.description',
+          confirmKey: 'sidebar.stashDrop',
+          destructive: true
+        });
+        if (!ok) return;
+      }
       await this.guarded(async () => {
         if (action === 'pop')
           await gitClient.stashPop(this.repoPath, reference);
@@ -795,6 +880,12 @@ export const useRepoStore = defineStore('repo', {
         r.stashes = info.stashes;
 
         await Promise.all([this.loadLog(), this.loadStatus()]);
+
+        // Bail if the active repo changed while we were loading (e.g. the user
+        // opened another project): the selection below reads `this.active`
+        // freshly, so a stale commit hash would hit the wrong repo ("bad
+        // object"). The owning load will finish its own selection.
+        if (this.active !== r) return;
 
         // Preserve the user's selection across a reload (e.g. on window focus)
         // instead of jumping back to the first commit/file. Only fall back to a

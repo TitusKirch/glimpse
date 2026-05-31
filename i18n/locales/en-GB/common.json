@@ -60,6 +60,27 @@
       "title": "No upstream branch",
       "description": "This branch isn't tracking a remote. Set its upstream to origin and pull?",
       "confirm": "Set upstream & pull"
+    },
+    "deleteBranch": {
+      "title": "Delete branch",
+      "description": "Delete branch “{name}”? This can't be undone."
+    },
+    "deleteTag": {
+      "title": "Delete tag",
+      "description": "Delete tag “{name}”?"
+    },
+    "removeRemote": {
+      "title": "Remove remote",
+      "description": "Remove remote “{name}”?"
+    },
+    "dropStash": {
+      "title": "Drop stash",
+      "description": "Drop this stash? Its changes will be lost."
+    },
+    "checkoutRemote": {
+      "title": "Check out remote branch",
+      "description": "Create a local branch tracking “{name}” and switch to it?",
+      "confirm": "Checkout"
     }
   },
   "branch": {

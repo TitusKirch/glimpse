@@ -17,6 +17,7 @@
     "addRemote": "Add remote",
     "remoteName": "name (e.g. origin)",
     "remoteUrl": "remote URL",
+    "renameBranch": "Rename branch",
     "renameRemote": "Rename remote",
     "rename": "Rename",
     "showMore": "Show {n} more",

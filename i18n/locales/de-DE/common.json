@@ -60,6 +60,27 @@
       "title": "Kein Upstream-Branch",
       "description": "Dieser Branch trackt kein Remote. Upstream auf origin setzen und pullen?",
       "confirm": "Upstream setzen & pullen"
+    },
+    "deleteBranch": {
+      "title": "Branch löschen",
+      "description": "Branch „{name}“ löschen? Das kann nicht rückgängig gemacht werden."
+    },
+    "deleteTag": {
+      "title": "Tag löschen",
+      "description": "Tag „{name}“ löschen?"
+    },
+    "removeRemote": {
+      "title": "Remote entfernen",
+      "description": "Remote „{name}“ entfernen?"
+    },
+    "dropStash": {
+      "title": "Stash verwerfen",
+      "description": "Diesen Stash verwerfen? Die Änderungen gehen verloren."
+    },
+    "checkoutRemote": {
+      "title": "Remote-Branch auschecken",
+      "description": "Lokalen Branch erstellen, der „{name}“ trackt, und dorthin wechseln?",
+      "confirm": "Auschecken"
     }
   },
   "branch": {

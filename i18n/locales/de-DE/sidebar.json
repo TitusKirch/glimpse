@@ -17,6 +17,7 @@
     "addRemote": "Remote hinzufügen",
     "remoteName": "Name (z. B. origin)",
     "remoteUrl": "Remote-URL",
+    "renameBranch": "Branch umbenennen",
     "renameRemote": "Remote umbenennen",
     "rename": "Umbenennen",
     "showMore": "{n} weitere anzeigen",

@@ -197,5 +197,6 @@ const syncButtons = [
   <ConfirmDialog />
   <PromptDialog />
   <HelpDialog />
+  <AddRemoteDialog />
   <UiSonner />
 </template>

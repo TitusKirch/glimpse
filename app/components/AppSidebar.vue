@@ -1,81 +1,22 @@
 <script setup lang="ts">
+import { useSidebar } from '@/components/ui/sidebar';
+
 const repo = useRepoStore();
 const settings = useSettingsDialog();
+const remoteDialog = useRemoteDialog();
 const { t } = useI18n();
 
-// Cap long lists; "show more" reveals the rest per group.
-const LIMIT = 5;
-const branchesExpanded = ref(false);
-const remoteBranchesExpanded = ref(false);
-const tagsExpanded = ref(false);
-const cap = <T>(items: T[], expanded: boolean): T[] =>
-  expanded ? items : items.slice(0, LIMIT);
-const visibleBranches = computed(() =>
-  cap(repo.branches, branchesExpanded.value)
+// Collapsed (icon-only) sidebar: items open a dropdown instead of acting
+// directly, so their actions stay reachable.
+const { state, isMobile } = useSidebar();
+const isCollapsed = computed(
+  () => state.value === 'collapsed' && !isMobile.value
 );
-const visibleRemoteBranches = computed(() =>
-  cap(repo.remoteBranches, remoteBranchesExpanded.value)
-);
-const visibleTags = computed(() => cap(repo.tags, tagsExpanded.value));
 
-const creating = ref(false);
-const newBranch = ref('');
-
-// Inline rename: which branch is being renamed, and its draft name.
-const renaming = ref<string | null>(null);
-const renameDraft = ref('');
-
-function cancel() {
-  creating.value = false;
-  newBranch.value = '';
-}
-
-async function submitBranch() {
-  if (!newBranch.value.trim()) return;
-  await repo.createBranch(newBranch.value);
-  cancel();
-}
-
-// Inline tag creation (tags HEAD).
-const creatingTag = ref(false);
-const newTag = ref('');
-
-// Inline remote add (name + url).
-const addingRemote = ref(false);
-const newRemoteName = ref('');
-const newRemoteUrl = ref('');
-function cancelRemote() {
-  addingRemote.value = false;
-  newRemoteName.value = '';
-  newRemoteUrl.value = '';
-}
-async function submitRemote() {
-  if (!newRemoteName.value.trim() || !newRemoteUrl.value.trim()) return;
-  await repo.addRemote(newRemoteName.value.trim(), newRemoteUrl.value.trim());
-  cancelRemote();
-}
-function cancelTag() {
-  creatingTag.value = false;
-  newTag.value = '';
-}
-async function submitTag() {
-  if (!newTag.value.trim()) return;
-  await repo.createTag(newTag.value);
-  cancelTag();
-}
-
-function startRename(name: string) {
-  renaming.value = name;
-  renameDraft.value = name;
-}
-function cancelRename() {
-  renaming.value = null;
-  renameDraft.value = '';
-}
-async function submitRename(oldName: string) {
-  await repo.renameBranch(oldName, renameDraft.value);
-  cancelRename();
-}
+// Capped lists with gildstone-style "show N more / show less".
+const branchesMore = useSidebarMore(() => repo.branches);
+const remoteBranchesMore = useSidebarMore(() => repo.remoteBranches);
+const tagsMore = useSidebarMore(() => repo.tags);
 
 // "origin/dev" -> "dev"; checking it out lets git create a tracking branch.
 function shortName(remoteBranch: string): string {
@@ -121,7 +62,7 @@ const links = [
           <UiTooltipTrigger as-child>
             <UiSidebarGroupAction
               class="size-6 cursor-pointer"
-              @click="creating = !creating"
+              @click="repo.createBranchPrompt()"
             >
               <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />
             </UiSidebarGroupAction>
@@ -129,120 +70,20 @@ const links = [
           <UiTooltipContent>{{ t('sidebar.newBranch') }}</UiTooltipContent>
         </UiTooltip>
         <UiSidebarGroupContent>
-          <div
-            v-if="creating"
-            class="flex items-center gap-1 px-2 pb-1 group-data-[collapsible=icon]:hidden"
-          >
-            <UiSidebarInput
-              v-model="newBranch"
-              :placeholder="t('sidebar.branchName')"
-              autofocus
-              @keydown.enter="submitBranch"
-              @keydown.esc="cancel"
-            />
-            <UiButton
-              variant="ghost"
-              size="icon"
-              class="size-7 shrink-0"
-              @click="cancel"
-            >
-              <NuxtIcon name="lucide:x" class="size-4" />
-            </UiButton>
-          </div>
           <UiSidebarMenu>
-            <template v-for="b in visibleBranches" :key="b.name">
-              <UiSidebarMenuItem v-if="renaming === b.name">
-                <div
-                  class="flex items-center gap-1 px-2 py-1 group-data-[collapsible=icon]:hidden"
-                >
-                  <UiSidebarInput
-                    v-model="renameDraft"
-                    autofocus
-                    @keydown.enter="submitRename(b.name)"
-                    @keydown.esc="cancelRename"
-                  />
-                  <UiButton
-                    variant="ghost"
-                    size="icon"
-                    class="size-7 shrink-0"
-                    @click="cancelRename"
-                  >
-                    <NuxtIcon name="lucide:x" class="size-4" />
-                  </UiButton>
-                </div>
-              </UiSidebarMenuItem>
-              <UiSidebarMenuItem v-else>
-                <UiSidebarMenuButton
-                  :is-active="b.name === repo.currentBranch"
-                  :tooltip="b.name"
-                  @click="repo.checkout(b.name)"
-                >
-                  <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-                  <span>{{ b.name }}</span>
-                  <span
-                    v-if="b.ahead || b.behind"
-                    class="ml-auto flex items-center gap-1 text-[11px] font-medium"
-                  >
-                    <span
-                      v-if="b.ahead"
-                      class="flex items-center gap-0.5 rounded-md bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400"
-                      ><NuxtIcon name="lucide:arrow-up" class="size-3.5" />{{
-                        b.ahead
-                      }}</span
-                    >
-                    <span
-                      v-if="b.behind"
-                      class="flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
-                      ><NuxtIcon name="lucide:arrow-down" class="size-3.5" />{{
-                        b.behind
-                      }}</span
-                    >
-                  </span>
-                </UiSidebarMenuButton>
-                <UiDropdownMenu>
-                  <UiDropdownMenuTrigger as-child>
-                    <UiSidebarMenuAction show-on-hover class="cursor-pointer">
-                      <NuxtIcon name="lucide:ellipsis" />
-                    </UiSidebarMenuAction>
-                  </UiDropdownMenuTrigger>
-                  <UiDropdownMenuContent side="right" align="start">
-                    <UiDropdownMenuItem
-                      :disabled="b.name === repo.currentBranch"
-                      @click="repo.checkout(b.name)"
-                    >
-                      <NuxtIcon name="lucide:check" />
-                      {{ t('branch.switch') }}
-                    </UiDropdownMenuItem>
-                    <UiDropdownMenuItem @click="startRename(b.name)">
-                      <NuxtIcon name="lucide:pencil" />
-                      {{ t('branch.rename') }}
-                    </UiDropdownMenuItem>
-                    <UiDropdownMenuItem
-                      :disabled="b.name === repo.currentBranch"
-                      @click="repo.merge(b.name)"
-                    >
-                      <NuxtIcon name="lucide:git-merge" />
-                      {{ t('branch.merge') }}
-                    </UiDropdownMenuItem>
-                    <UiDropdownMenuSeparator />
-                    <UiDropdownMenuItem
-                      class="text-destructive focus:text-destructive"
-                      :disabled="b.name === repo.currentBranch"
-                      @click="repo.deleteBranch(b.name)"
-                    >
-                      <NuxtIcon name="lucide:trash-2" />
-                      {{ t('branch.delete') }}
-                    </UiDropdownMenuItem>
-                  </UiDropdownMenuContent>
-                </UiDropdownMenu>
-              </UiSidebarMenuItem>
-            </template>
+            <SidebarBranchItem
+              v-for="b in branchesMore.visible.value"
+              :key="b.name"
+              :branch="b"
+              :collapsed="isCollapsed"
+            />
+            <SidebarMoreButton
+              :hidden-count="branchesMore.hiddenCount.value"
+              :expanded="branchesMore.isExpanded.value"
+              :can-collapse="branchesMore.canCollapse.value"
+              @toggle="branchesMore.toggle()"
+            />
           </UiSidebarMenu>
-          <SidebarMore
-            v-model:expanded="branchesExpanded"
-            :total="repo.branches.length"
-            :limit="LIMIT"
-          />
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
@@ -252,7 +93,7 @@ const links = [
           <UiTooltipTrigger as-child>
             <UiSidebarGroupAction
               class="size-6 cursor-pointer"
-              @click="addingRemote = !addingRemote"
+              @click="remoteDialog.show()"
             >
               <NuxtIcon name="lucide:plus" class="shrink-0" />
             </UiSidebarGroupAction>
@@ -260,31 +101,6 @@ const links = [
           <UiTooltipContent>{{ t('sidebar.addRemote') }}</UiTooltipContent>
         </UiTooltip>
         <UiSidebarGroupContent>
-          <div
-            v-if="addingRemote"
-            class="space-y-1 px-2 pb-1 group-data-[collapsible=icon]:hidden"
-          >
-            <UiSidebarInput
-              v-model="newRemoteName"
-              :placeholder="t('sidebar.remoteName')"
-            />
-            <div class="flex items-center gap-1">
-              <UiSidebarInput
-                v-model="newRemoteUrl"
-                :placeholder="t('sidebar.remoteUrl')"
-                @keydown.enter="submitRemote"
-                @keydown.esc="cancelRemote"
-              />
-              <UiButton
-                variant="ghost"
-                size="icon"
-                class="size-7 shrink-0"
-                @click="cancelRemote"
-              >
-                <NuxtIcon name="lucide:x" class="size-4" />
-              </UiButton>
-            </div>
-          </div>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
               <UiSidebarMenuButton :tooltip="r">
@@ -323,11 +139,14 @@ const links = [
         }}</UiSidebarGroupLabel>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="rb in visibleRemoteBranches" :key="rb">
+            <UiSidebarMenuItem
+              v-for="rb in remoteBranchesMore.visible.value"
+              :key="rb"
+            >
               <UiSidebarMenuButton
                 :is-active="shortName(rb) === repo.currentBranch"
                 :tooltip="rb"
-                @click="repo.checkout(shortName(rb))"
+                @click="repo.checkoutRemote(rb)"
               >
                 <NuxtIcon
                   :name="
@@ -340,12 +159,13 @@ const links = [
                 <span>{{ rb }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
+            <SidebarMoreButton
+              :hidden-count="remoteBranchesMore.hiddenCount.value"
+              :expanded="remoteBranchesMore.isExpanded.value"
+              :can-collapse="remoteBranchesMore.canCollapse.value"
+              @toggle="remoteBranchesMore.toggle()"
+            />
           </UiSidebarMenu>
-          <SidebarMore
-            v-model:expanded="remoteBranchesExpanded"
-            :total="repo.remoteBranches.length"
-            :limit="LIMIT"
-          />
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
@@ -355,7 +175,7 @@ const links = [
           <UiTooltipTrigger as-child>
             <UiSidebarGroupAction
               class="size-6 cursor-pointer"
-              @click="creatingTag = !creatingTag"
+              @click="repo.createTagPrompt()"
             >
               <NuxtIcon name="lucide:tag" class="shrink-0" />
             </UiSidebarGroupAction>
@@ -363,28 +183,8 @@ const links = [
           <UiTooltipContent>{{ t('sidebar.newTag') }}</UiTooltipContent>
         </UiTooltip>
         <UiSidebarGroupContent>
-          <div
-            v-if="creatingTag"
-            class="flex items-center gap-1 px-2 pb-1 group-data-[collapsible=icon]:hidden"
-          >
-            <UiSidebarInput
-              v-model="newTag"
-              :placeholder="t('sidebar.tagName')"
-              autofocus
-              @keydown.enter="submitTag"
-              @keydown.esc="cancelTag"
-            />
-            <UiButton
-              variant="ghost"
-              size="icon"
-              class="size-7 shrink-0"
-              @click="cancelTag"
-            >
-              <NuxtIcon name="lucide:x" class="size-4" />
-            </UiButton>
-          </div>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="tag in visibleTags" :key="tag">
+            <UiSidebarMenuItem v-for="tag in tagsMore.visible.value" :key="tag">
               <UiSidebarMenuButton :tooltip="tag">
                 <NuxtIcon name="lucide:tag" class="shrink-0" />
                 <span>{{ tag }}</span>
@@ -406,12 +206,13 @@ const links = [
                 </UiDropdownMenuContent>
               </UiDropdownMenu>
             </UiSidebarMenuItem>
+            <SidebarMoreButton
+              :hidden-count="tagsMore.hiddenCount.value"
+              :expanded="tagsMore.isExpanded.value"
+              :can-collapse="tagsMore.canCollapse.value"
+              @toggle="tagsMore.toggle()"
+            />
           </UiSidebarMenu>
-          <SidebarMore
-            v-model:expanded="tagsExpanded"
-            :total="repo.tags.length"
-            :limit="LIMIT"
-          />
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
