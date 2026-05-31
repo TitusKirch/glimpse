@@ -36,6 +36,11 @@ async fn file_diff(
 }
 
 #[tauri::command]
+async fn commit_body(path: String, hash: String) -> Result<String, String> {
+    git::Repo::open(&path).commit_body(&hash)
+}
+
+#[tauri::command]
 async fn commit_files(path: String, hash: String) -> Result<Vec<git::CommitFile>, String> {
     git::Repo::open(&path).commit_files(&hash)
 }
@@ -119,6 +124,7 @@ pub fn run() {
             git_log,
             git_status,
             file_diff,
+            commit_body,
             commit_files,
             commit_file_diff,
             stage,

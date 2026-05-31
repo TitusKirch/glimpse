@@ -196,6 +196,11 @@ impl Repo {
         Ok(Some(diff))
     }
 
+    /// Full commit message (subject + body) for the detail panel.
+    pub fn commit_body(&self, hash: &str) -> Result<String, String> {
+        Ok(self.run(&["show", "-s", "--format=%B", hash])?.trim().to_string())
+    }
+
     /// List of files changed by a commit (path + single-letter status).
     pub fn commit_files(&self, hash: &str) -> Result<Vec<CommitFile>, String> {
         let raw = self.run(&["show", "--name-status", "--format=", hash])?;

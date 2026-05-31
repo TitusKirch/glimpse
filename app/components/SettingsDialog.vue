@@ -85,7 +85,9 @@ const lang = computed({
                     :key="m"
                     :value="m"
                   >
-                    {{ m === 'split' ? t('diff.sideBySide') : t('diff.unified') }}
+                    {{
+                      m === 'split' ? t('diff.sideBySide') : t('diff.unified')
+                    }}
                   </UiSelectItem>
                 </UiSelectContent>
               </UiSelect>

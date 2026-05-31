@@ -35,6 +35,26 @@ const { t } = useI18n();
       </div>
     </header>
 
+    <!-- commit detail: full message + author/date -->
+    <div
+      v-if="repo.selectedHash && repo.selectedCommit"
+      class="shrink-0 border-b px-4 py-3"
+    >
+      <pre
+        class="max-h-40 overflow-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap"
+        >{{ repo.selectedBody || repo.selectedCommit.subject }}</pre
+      >
+      <div class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+        <NuxtIcon name="lucide:user" class="size-3.5" />
+        <span>{{ repo.selectedCommit.author }}</span>
+        <span>·</span>
+        <span>{{ repo.selectedCommit.date }}</span>
+        <code class="ml-auto font-mono">{{
+          repo.selectedCommit.hash.slice(0, 7)
+        }}</code>
+      </div>
+    </div>
+
     <!-- commit: resizable file list (top) / diff (bottom) -->
     <UiResizablePanelGroup
       v-if="repo.selectedHash && repo.commitFiles.length"

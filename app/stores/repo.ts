@@ -46,6 +46,7 @@ export interface RepoState {
   commits: Commit[];
   status: StatusEntry[];
   selectedHash: string | null;
+  selectedBody: string;
   selectedFile: string | null;
   selectedFileStaged: boolean;
   commitFiles: CommitFile[];
@@ -72,6 +73,7 @@ function demoRepo(): RepoState {
     commits: mock.commits,
     status: mock.status,
     selectedHash: null,
+    selectedBody: '',
     selectedFile: 'app/stores/repo.ts',
     selectedFileStaged: false,
     commitFiles: [],
@@ -126,6 +128,9 @@ export const useRepoStore = defineStore('repo', {
     selectedHash(): string | null {
       return this.active.selectedHash;
     },
+    selectedBody(): string {
+      return this.active.selectedBody;
+    },
     selectedFile(): string | null {
       return this.active.selectedFile;
     },
@@ -157,6 +162,7 @@ export const useRepoStore = defineStore('repo', {
     async selectCommit(hash: string) {
       const r = this.active;
       r.selectedHash = hash;
+      r.selectedBody = await gitClient.commitBody(r.path, hash);
       r.commitFiles = await gitClient.commitFiles(r.path, hash);
       const first = r.commitFiles[0];
       if (first) {
@@ -179,6 +185,7 @@ export const useRepoStore = defineStore('repo', {
       r.selectedFile = file;
       r.selectedFileStaged = staged;
       r.selectedHash = null;
+      r.selectedBody = '';
       r.commitFiles = [];
       r.diff = await gitClient.fileDiff(r.path, file, staged);
     },

@@ -129,6 +129,9 @@ export const gitClient = {
   fileDiff: (path: string, file: string, staged: boolean) =>
     gitInvoke<DiffData | null>('file_diff', { path, file, staged }, mock.diff),
 
+  commitBody: (path: string, hash: string) =>
+    gitInvoke<string>('commit_body', { path, hash }, ''),
+
   commitFiles: (path: string, hash: string) =>
     gitInvoke<CommitFile[]>('commit_files', { path, hash }, []),
 
