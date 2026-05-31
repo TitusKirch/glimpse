@@ -1,0 +1,155 @@
+{
+  "app": {
+    "name": "glimpse"
+  },
+  "error": {
+    "title": "Fehler",
+    "loadFailed": "Repository konnte nicht geladen werden",
+    "retry": "Erneut versuchen"
+  },
+  "sync": {
+    "fetch": "Fetch",
+    "pull": "Pull",
+    "push": "Push"
+  },
+  "actions": {
+    "refresh": "Aktualisieren",
+    "openRepo": "Repository öffnen",
+    "closeRepo": "Repository schließen"
+  },
+  "theme": {
+    "toggle": "Theme umschalten"
+  },
+  "updater": {
+    "available": "Update {version} verfügbar",
+    "installing": "Wird heruntergeladen und installiert…",
+    "installed": "Update installiert — zum Anwenden neu starten",
+    "upToDate": "Du nutzt die neueste Version",
+    "failed": "Update-Prüfung fehlgeschlagen"
+  },
+  "copied": "In die Zwischenablage kopiert",
+  "help": {
+    "title": "Tastenkürzel",
+    "contextHint": "Tipp: Rechtsklick auf einen Commit für weitere Aktionen."
+  },
+  "common": {
+    "cancel": "Abbrechen"
+  },
+  "form": {
+    "create": "Erstellen",
+    "rename": "Umbenennen",
+    "validation": {
+      "required": "Pflichtfeld.",
+      "invalidRef": "Keine Leerzeichen oder Sonderzeichen.",
+      "invalidRemoteName": "Nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche.",
+      "invalidUrl": "Gib eine gültige Git-URL oder einen Pfad ein."
+    },
+    "branch": {
+      "label": "Branch-Name",
+      "description": "z. B. feature/meine-aenderung.",
+      "placeholder": "feature/meine-aenderung"
+    },
+    "tag": {
+      "label": "Tag-Name",
+      "placeholder": "v1.0.0"
+    },
+    "remoteName": {
+      "label": "Name",
+      "placeholder": "origin"
+    },
+    "remoteUrl": {
+      "label": "URL",
+      "description": "HTTPS oder SSH, z. B. git{'@'}github.com:user/repo.git",
+      "placeholder": "https://github.com/user/repo.git"
+    }
+  },
+  "confirm": {
+    "dirtySwitch": {
+      "title": "Uncommittete Änderungen",
+      "description": "Du hast uncommittete Änderungen. Stashen und Branch wechseln?",
+      "confirm": "Stashen & wechseln"
+    },
+    "resetHard": {
+      "title": "Hard-Reset",
+      "description": "Verwirft alle uncommitteten Änderungen und verschiebt den Branch. Fortfahren?",
+      "confirm": "Hard-Reset"
+    },
+    "discardAll": {
+      "title": "Alle Änderungen verwerfen",
+      "description": "Verwirft dauerhaft alle uncommitteten Änderungen, inklusive nicht getrackter Dateien. Fortfahren?",
+      "confirm": "Alle verwerfen"
+    },
+    "publishBranch": {
+      "title": "Branch veröffentlichen",
+      "description": "Dieser Branch hat noch keinen Upstream. Nach origin pushen und als Upstream setzen?",
+      "confirm": "Veröffentlichen"
+    },
+    "setUpstream": {
+      "title": "Kein Upstream-Branch",
+      "description": "Dieser Branch trackt kein Remote. Upstream auf origin setzen und pullen?",
+      "confirm": "Upstream setzen & pullen"
+    },
+    "deleteBranch": {
+      "title": "Branch löschen",
+      "description": "Branch „{name}“ löschen? Das kann nicht rückgängig gemacht werden."
+    },
+    "deleteTag": {
+      "title": "Tag löschen",
+      "description": "Tag „{name}“ löschen?"
+    },
+    "removeRemote": {
+      "title": "Remote entfernen",
+      "description": "Remote „{name}“ entfernen?"
+    },
+    "dropStash": {
+      "title": "Stash verwerfen",
+      "description": "Diesen Stash verwerfen? Die Änderungen gehen verloren."
+    },
+    "checkoutRemote": {
+      "title": "Remote-Branch auschecken",
+      "description": "Lokalen Branch erstellen, der „{name}“ trackt, und dorthin wechseln?",
+      "confirm": "Auschecken"
+    }
+  },
+  "branch": {
+    "switch": "Zu Branch wechseln",
+    "rename": "Umbenennen",
+    "delete": "Löschen",
+    "merge": "In aktuellen mergen"
+  },
+  "commit": {
+    "checkout": "Diesen Commit auschecken",
+    "copyHash": "Hash kopieren",
+    "branchHere": "Branch ab hier",
+    "tagHere": "Diesen Commit taggen",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "reset": "Hierhin zurücksetzen",
+    "resetSoft": "Soft (Änderungen vorgemerkt lassen)",
+    "resetMixed": "Mixed (Änderungen behalten)",
+    "resetHard": "Hard (Änderungen verwerfen)"
+  },
+  "command": {
+    "open": "Befehlspalette",
+    "placeholder": "Befehl eingeben oder suchen…",
+    "empty": "Keine Treffer.",
+    "actions": "Aktionen",
+    "branches": "Branch wechseln",
+    "recent": "Zuletzt geöffnet",
+    "current": "aktuell",
+    "openFiles": "Im Dateimanager öffnen",
+    "openTerminal": "Im Terminal öffnen",
+    "openEditor": "Im Editor öffnen",
+    "toggleSidebar": "Seitenleiste umschalten",
+    "pushUpstream": "Push & Upstream setzen",
+    "pushForce": "Force-Push (mit Lease)",
+    "stash": "Änderungen stashen",
+    "pushTags": "Tags pushen"
+  },
+  "start": {
+    "title": "Kein Repository geöffnet",
+    "subtitle": "Öffne einen Ordner, um seinen Verlauf zu erkunden, oder wähle ein zuletzt geöffnetes.",
+    "recent": "Zuletzt",
+    "clear": "Leeren"
+  }
+}

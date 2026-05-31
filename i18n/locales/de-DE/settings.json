@@ -1,0 +1,117 @@
+{
+  "settings": {
+    "title": "Einstellungen",
+    "general": {
+      "title": "Allgemein",
+      "gitSection": "Git",
+      "autoFetch": {
+        "label": "Automatisch fetchen",
+        "hint": "Im Hintergrund regelmäßig von Remotes fetchen."
+      },
+      "autoFetchInterval": {
+        "label": "Intervall (Minuten)",
+        "hint": "Wie oft automatisch gefetcht wird."
+      },
+      "pullStrategy": {
+        "label": "Pull-Strategie",
+        "hint": "Beim Pull mergen oder rebasen.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
+      "updatesSection": "Updates",
+      "autoUpdate": {
+        "label": "Automatische Updates",
+        "hint": "Beim Start nach Updates suchen und sie automatisch installieren."
+      },
+      "releaseChannel": {
+        "label": "Release-Channel",
+        "hint": "Stable oder frühere Beta-Builds aktivieren.",
+        "stable": "Stable",
+        "beta": "Beta"
+      },
+      "checkUpdatesHint": "Jetzt nach einem Update suchen.",
+      "developer": "Entwickler",
+      "devMode": {
+        "label": "Entwickler-Einstellungen",
+        "hint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
+      }
+    },
+    "developer": {
+      "title": "Entwickler"
+    },
+    "dev": {
+      "toasts": {
+        "label": "Toasts testen",
+        "hint": "Je einen Toast pro Art auslösen."
+      },
+      "info": {
+        "label": "Info",
+        "title": "Info",
+        "description": "Dies ist eine Info-Meldung."
+      },
+      "success": {
+        "label": "Erfolg",
+        "title": "Erfolg",
+        "description": "Deine Änderungen wurden gespeichert."
+      },
+      "warning": {
+        "label": "Warnung",
+        "title": "Warnung",
+        "description": "Bitte prüfe das nochmal, bevor du fortfährst."
+      },
+      "error": {
+        "label": "Fehler",
+        "title": "Fehler",
+        "description": "Etwas ist schiefgelaufen."
+      }
+    },
+    "appearance": {
+      "title": "Darstellung",
+      "themeSection": "Theme",
+      "theme": {
+        "label": "Theme",
+        "hint": "Wähle, wie glimpse aussieht. „System“ folgt deinem Betriebssystem."
+      },
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel",
+      "accent": {
+        "label": "Akzentfarbe",
+        "hint": "Die primäre Hervorhebungsfarbe."
+      },
+      "diffSection": "Diff & Dateien",
+      "diffMode": {
+        "label": "Standard-Diff-Ansicht",
+        "hint": "Wie Diffs standardmäßig geöffnet werden."
+      },
+      "fileView": {
+        "label": "Dateilisten-Ansicht",
+        "hint": "Flache Liste oder gruppierter Ordnerbaum."
+      },
+      "diffFont": {
+        "label": "Diff-Schriftgröße",
+        "hint": "Textgröße im Diff-Viewer.",
+        "small": "Klein",
+        "default": "Standard",
+        "large": "Groß",
+        "xlarge": "Sehr groß"
+      }
+    },
+    "language": {
+      "title": "Sprache",
+      "label": "Sprache",
+      "hint": "Die Anzeigesprache von glimpse.",
+      "name": {
+        "de-DE": "Deutsch",
+        "en-GB": "English",
+        "fr-FR": "Français",
+        "es-ES": "Español"
+      }
+    },
+    "about": {
+      "title": "Über",
+      "description": "Ein leichtgewichtiger, git-nativer Desktop-Git-Client mit erstklassiger WSL-Unterstützung.",
+      "checkUpdates": "Nach Updates suchen"
+    }
+  }
+}

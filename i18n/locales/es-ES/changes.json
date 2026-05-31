@@ -1,0 +1,18 @@
+{
+  "changes": {
+    "title": "Cambios",
+    "staged": "Preparado",
+    "unstaged": "Cambios",
+    "stage": "Preparar",
+    "unstage": "Quitar de preparación",
+    "discard": "Descartar cambios",
+    "commit": {
+      "label": "Confirmar",
+      "placeholder": "Mensaje de confirmación"
+    },
+    "amend": "Enmendar",
+    "amendCommit": "Enmendar confirmación",
+    "clean": "Árbol de trabajo limpio",
+    "cleanHint": "No hay cambios para confirmar."
+  }
+}

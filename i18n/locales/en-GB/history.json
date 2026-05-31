@@ -1,0 +1,14 @@
+{
+  "graph": {
+    "title": "Commit graph",
+    "uncommitted": "Uncommitted changes"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No commits yet",
+    "emptyHint": "This branch has no history to show.",
+    "search": "Search commits…",
+    "noMatches": "No matching commits",
+    "loadMore": "Load more history"
+  }
+}

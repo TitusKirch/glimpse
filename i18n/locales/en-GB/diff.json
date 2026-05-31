@@ -1,0 +1,21 @@
+{
+  "diff": {
+    "title": "Diff",
+    "sideBySide": "Side by side",
+    "unified": "Unified",
+    "noSelection": "Select a commit or file to see its diff",
+    "noTextDiff": "No text diff to show (binary, empty, or unchanged).",
+    "ignoreWhitespace": "Ignore whitespace",
+    "blame": "Blame",
+    "blameEmpty": "No blame available",
+    "blameEmptyHint": "This file isn't committed yet.",
+    "blameViewCommit": "View this commit",
+    "fileHistory": "File history",
+    "copyPath": "Copy path",
+    "copyDiff": "Copy diff"
+  },
+  "fileView": {
+    "list": "List view",
+    "tree": "Tree view"
+  }
+}

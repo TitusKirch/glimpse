@@ -1,0 +1,117 @@
+{
+  "settings": {
+    "title": "Settings",
+    "general": {
+      "title": "General",
+      "gitSection": "Git",
+      "autoFetch": {
+        "label": "Auto-fetch",
+        "hint": "Periodically fetch from remotes in the background."
+      },
+      "autoFetchInterval": {
+        "label": "Interval (minutes)",
+        "hint": "How often to fetch automatically."
+      },
+      "pullStrategy": {
+        "label": "Pull strategy",
+        "hint": "Merge or rebase when pulling.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
+      "updatesSection": "Updates",
+      "autoUpdate": {
+        "label": "Automatic updates",
+        "hint": "Check for updates on launch and install them automatically."
+      },
+      "releaseChannel": {
+        "label": "Release channel",
+        "hint": "Stable, or opt in to earlier beta builds.",
+        "stable": "Stable",
+        "beta": "Beta"
+      },
+      "checkUpdatesHint": "Check for an update right now.",
+      "developer": "Developer",
+      "devMode": {
+        "label": "Developer settings",
+        "hint": "Show extra debugging tools in settings."
+      }
+    },
+    "developer": {
+      "title": "Developer"
+    },
+    "dev": {
+      "toasts": {
+        "label": "Test toasts",
+        "hint": "Fire one of each toast kind."
+      },
+      "info": {
+        "label": "Info",
+        "title": "Info",
+        "description": "This is an informational message."
+      },
+      "success": {
+        "label": "Success",
+        "title": "Success",
+        "description": "Your changes were saved."
+      },
+      "warning": {
+        "label": "Warning",
+        "title": "Warning",
+        "description": "Please double-check this before continuing."
+      },
+      "error": {
+        "label": "Error",
+        "title": "Error",
+        "description": "Something went wrong."
+      }
+    },
+    "appearance": {
+      "title": "Appearance",
+      "themeSection": "Theme",
+      "theme": {
+        "label": "Theme",
+        "hint": "Choose how glimpse looks. System follows your OS."
+      },
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "accent": {
+        "label": "Accent colour",
+        "hint": "The primary highlight colour."
+      },
+      "diffSection": "Diff & files",
+      "diffMode": {
+        "label": "Default diff view",
+        "hint": "How diffs open by default."
+      },
+      "fileView": {
+        "label": "File list view",
+        "hint": "Flat list or grouped folder tree."
+      },
+      "diffFont": {
+        "label": "Diff font size",
+        "hint": "Text size in the diff viewer.",
+        "small": "Small",
+        "default": "Default",
+        "large": "Large",
+        "xlarge": "Extra large"
+      }
+    },
+    "language": {
+      "title": "Language",
+      "label": "Language",
+      "hint": "The display language of glimpse.",
+      "name": {
+        "de-DE": "Deutsch",
+        "en-GB": "English",
+        "fr-FR": "Français",
+        "es-ES": "Español"
+      }
+    },
+    "about": {
+      "title": "About",
+      "description": "A lightweight, git-native desktop Git client with first-class WSL support.",
+      "checkUpdates": "Check for updates"
+    }
+  }
+}

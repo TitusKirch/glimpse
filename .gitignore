@@ -2,3 +2,12 @@ node_modules
 .DS_Store
 .idea
 .vscode
+
+# Nuxt / frontend build artifacts
+.nuxt
+.output
+dist
+
+# Tauri / Rust (src-tauri)
+src-tauri/target
+src-tauri/gen/schemas
