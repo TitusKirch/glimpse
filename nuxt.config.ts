@@ -42,6 +42,7 @@ export default defineNuxtConfig({
         '@tauri-apps/api/event',
         '@tauri-apps/plugin-dialog',
         '@tauri-apps/plugin-opener',
+        '@tanstack/vue-virtual',
         '@vueuse/core',
         'class-variance-authority',
         'clsx',

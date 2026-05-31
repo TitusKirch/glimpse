@@ -1,9 +1,30 @@
 <script setup lang="ts">
+import { useVirtualizer } from '@tanstack/vue-virtual';
+
 const repo = useRepoStore();
 const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
 const layout = computed(() => commitGraphLayout(repo.commits));
+
+// Virtualize the commit rows so large repos stay smooth; the SVG lane overlay
+// is cheap and stays full-height, the heavy per-row DOM is windowed.
+const scrollEl = ref<HTMLElement | null>(null);
+const rowVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: repo.commits.length,
+    getScrollElement: () => scrollEl.value,
+    estimateSize: () => layout.value.rowHeight,
+    overscan: 14
+  }))
+);
+const virtualRows = computed(() =>
+  rowVirtualizer.value.getVirtualItems().map((vr) => ({
+    start: vr.start,
+    size: vr.size,
+    commit: repo.commits[vr.index]!
+  }))
+);
 
 // Client-side commit search over the loaded log. While a query is active the
 // SVG graph is replaced by a flat filtered list (lane geometry can't follow an
@@ -97,9 +118,9 @@ function refClass(ref: string): string {
       </ul>
     </div>
 
-    <!-- graph -->
-    <div v-else class="relative min-h-0 flex-1 overflow-auto">
-      <div class="relative" :style="{ minHeight: layout.height + 'px' }">
+    <!-- graph (virtualized rows + full-height SVG lane overlay) -->
+    <div ref="scrollEl" v-else class="relative min-h-0 flex-1 overflow-auto">
+      <div class="relative" :style="{ height: layout.height + 'px' }">
         <!-- lane lines + nodes -->
         <svg
           class="absolute top-0 left-0"
@@ -128,21 +149,27 @@ function refClass(ref: string): string {
         </svg>
 
         <!-- commit rows -->
-        <ul :style="{ paddingLeft: layout.width + 'px' }">
+        <ul>
           <li
-            v-for="c in repo.commits"
-            :key="c.hash"
-            class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
-            :style="{ height: layout.rowHeight + 'px' }"
+            v-for="vr in virtualRows"
+            :key="vr.commit.hash"
+            class="absolute right-0 left-0 flex cursor-pointer items-center gap-3 border-l pr-3 pl-3 transition-colors"
+            :style="{
+              height: vr.size + 'px',
+              transform: `translateY(${vr.start}px)`,
+              paddingLeft: layout.width + 'px'
+            }"
             :class="
-              c.hash === repo.selectedHash ? 'bg-accent' : 'hover:bg-accent/40'
+              vr.commit.hash === repo.selectedHash
+                ? 'bg-accent'
+                : 'hover:bg-accent/40'
             "
-            @click="repo.selectCommit(c.hash)"
+            @click="repo.selectCommit(vr.commit.hash)"
           >
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5">
                 <UiBadge
-                  v-for="ref in c.refs"
+                  v-for="ref in vr.commit.refs"
                   :key="ref"
                   variant="outline"
                   class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
@@ -151,16 +178,16 @@ function refClass(ref: string): string {
                   {{ refLabel(ref) }}
                 </UiBadge>
                 <span class="truncate text-sm font-medium">{{
-                  c.subject
+                  vr.commit.subject
                 }}</span>
               </div>
               <div class="mt-1 truncate text-xs text-muted-foreground">
-                {{ c.author }} · {{ c.date }}
+                {{ vr.commit.author }} · {{ vr.commit.date }}
               </div>
             </div>
             <code
               class="shrink-0 font-mono text-[11px] text-muted-foreground"
-              >{{ c.hash.slice(0, 7) }}</code
+              >{{ vr.commit.hash.slice(0, 7) }}</code
             >
           </li>
         </ul>
