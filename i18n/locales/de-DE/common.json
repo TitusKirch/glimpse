@@ -20,6 +20,13 @@
   "theme": {
     "toggle": "Theme umschalten"
   },
+  "updater": {
+    "available": "Update {version} verfügbar",
+    "installing": "Wird heruntergeladen und installiert…",
+    "installed": "Update installiert — zum Anwenden neu starten",
+    "upToDate": "Du nutzt die neueste Version",
+    "failed": "Update-Prüfung fehlgeschlagen"
+  },
   "copied": "In die Zwischenablage kopiert",
   "common": {
     "cancel": "Abbrechen"

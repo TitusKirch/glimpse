@@ -25,6 +25,19 @@
       "csp": null
     }
   },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["glimpse"]
+      }
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json"
+      ],
+      "pubkey": "REPLACE_WITH_MINISIGN_PUBLIC_KEY"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

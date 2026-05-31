@@ -98,7 +98,8 @@
     },
     "about": {
       "title": "About",
-      "description": "A lightweight, git-native desktop Git client with first-class WSL support."
+      "description": "A lightweight, git-native desktop Git client with first-class WSL support.",
+      "checkUpdates": "Check for updates"
     }
   }
 }

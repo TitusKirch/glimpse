@@ -98,7 +98,8 @@
     },
     "about": {
       "title": "Über",
-      "description": "Ein leichtgewichtiger, git-nativer Desktop-Git-Client mit erstklassiger WSL-Unterstützung."
+      "description": "Ein leichtgewichtiger, git-nativer Desktop-Git-Client mit erstklassiger WSL-Unterstützung.",
+      "checkUpdates": "Nach Updates suchen"
     }
   }
 }

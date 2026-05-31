@@ -20,6 +20,13 @@
   "theme": {
     "toggle": "Toggle theme"
   },
+  "updater": {
+    "available": "Update {version} available",
+    "installing": "Downloading and installing…",
+    "installed": "Update installed — restart to apply",
+    "upToDate": "You're on the latest version",
+    "failed": "Update check failed"
+  },
   "copied": "Copied to clipboard",
   "common": {
     "cancel": "Cancel"

@@ -54,6 +54,8 @@ const fontScales = [
   { value: 1.3, key: 'xlarge' }
 ] as const;
 
+const { checking, checkForUpdates } = useUpdater();
+
 // App version (Tauri only); shown on the About page.
 const version = ref('dev');
 onMounted(async () => {
@@ -460,6 +462,17 @@ const lang = computed({
             <p class="max-w-md text-sm text-muted-foreground">
               {{ t('settings.about.description') }}
             </p>
+            <div>
+              <UiButton
+                variant="outline"
+                size="sm"
+                :loading="checking"
+                @click="checkForUpdates()"
+              >
+                <NuxtIcon name="lucide:refresh-cw" class="size-4" />
+                {{ t('settings.about.checkUpdates') }}
+              </UiButton>
+            </div>
             <div class="flex flex-wrap gap-2">
               <UiButton
                 v-for="l in aboutLinks"

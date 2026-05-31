@@ -218,13 +218,22 @@ async fn open_in(path: String, app: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         // Persists window size/position/maximized state across restarts.
         // Restores on launch (before show) and saves on exit — handled natively.
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        // `glimpse://` deep links (see tauri.conf.json plugins.deep-link).
+        .plugin(tauri_plugin_deep_link::init());
+
+    // Auto-update is desktop-only; the plugin needs a signing key + endpoint
+    // configured in tauri.conf.json before it can actually fetch updates.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    builder
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -232,6 +241,13 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+            // Register the glimpse:// scheme at runtime (needed for dev/Linux);
+            // a no-op once the installed bundle owns it.
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let _ = app.deep_link().register_all();
             }
             Ok(())
         })

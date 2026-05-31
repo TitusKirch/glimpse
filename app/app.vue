@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
+import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { toast } from 'vue-sonner';
 import { Toaster as UiSonner } from '@/components/ui/sonner';
 
@@ -28,17 +29,33 @@ watch(
 // Load real git data when running inside the desktop shell (mock in browser).
 // Refresh-on-focus fallback (the best-effort FS watcher may miss WSL events).
 let unlisten: (() => void) | undefined;
+let unlistenDeepLink: (() => void) | undefined;
 onMounted(async () => {
   void repo.loadFromBackend();
   window.addEventListener('focus', repo.refresh);
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   if (isTauri()) {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
+    // glimpse://open?path=/abs or glimpse:///abs -> open that repo.
+    unlistenDeepLink = await onOpenUrl((urls) => {
+      for (const u of urls) {
+        try {
+          const url = new URL(u);
+          const path =
+            url.searchParams.get('path') ||
+            decodeURIComponent(url.pathname || url.hostname);
+          if (path) void repo.openRepo(path);
+        } catch {
+          // ignore malformed deep links
+        }
+      }
+    });
   }
 });
 onBeforeUnmount(() => {
   window.removeEventListener('focus', repo.refresh);
   unlisten?.();
+  unlistenDeepLink?.();
 });
 
 const syncButtons = [
