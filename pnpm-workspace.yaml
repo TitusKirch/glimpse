@@ -1,0 +1,6 @@
+# pnpm settings. Native deps allowed to run install/build scripts
+# (pnpm 11 reads this here, not from the package.json "pnpm" field).
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  vue-demi: true

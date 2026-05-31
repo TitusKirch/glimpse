@@ -1,0 +1,12 @@
+{
+  "diff": {
+    "title": "Diff",
+    "sideBySide": "Side by side",
+    "unified": "Unified",
+    "noSelection": "Select a commit or file to see its diff"
+  },
+  "fileView": {
+    "list": "List view",
+    "tree": "Tree view"
+  }
+}

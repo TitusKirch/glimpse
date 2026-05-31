@@ -1,0 +1,15 @@
+{
+  "changes": {
+    "title": "Changes",
+    "staged": "Staged",
+    "unstaged": "Changes",
+    "stage": "Stage",
+    "unstage": "Unstage",
+    "discard": "Discard changes",
+    "commit": {
+      "label": "Commit",
+      "placeholder": "Commit message"
+    },
+    "clean": "Working tree clean — nothing to commit"
+  }
+}

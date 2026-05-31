@@ -1,0 +1,71 @@
+{
+  "settings": {
+    "title": "Settings",
+    "general": {
+      "title": "General",
+      "developer": "Developer",
+      "devMode": {
+        "label": "Developer settings",
+        "hint": "Show extra debugging tools in settings."
+      }
+    },
+    "developer": {
+      "title": "Developer"
+    },
+    "dev": {
+      "toasts": {
+        "label": "Test toasts",
+        "hint": "Fire one of each toast kind."
+      },
+      "info": {
+        "label": "Info",
+        "title": "Info",
+        "description": "This is an informational message."
+      },
+      "success": {
+        "label": "Success",
+        "title": "Success",
+        "description": "Your changes were saved."
+      },
+      "warning": {
+        "label": "Warning",
+        "title": "Warning",
+        "description": "Please double-check this before continuing."
+      },
+      "error": {
+        "label": "Error",
+        "title": "Error",
+        "description": "Something went wrong."
+      }
+    },
+    "appearance": {
+      "title": "Appearance",
+      "themeSection": "Theme",
+      "theme": {
+        "label": "Theme",
+        "hint": "Choose how glimpse looks. System follows your OS."
+      },
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "diffSection": "Diff & files",
+      "diffMode": {
+        "label": "Default diff view",
+        "hint": "How diffs open by default."
+      },
+      "fileView": {
+        "label": "File list view",
+        "hint": "Flat list or grouped folder tree."
+      }
+    },
+    "language": {
+      "title": "Language",
+      "label": "Language",
+      "hint": "The display language of glimpse.",
+      "name": {
+        "de-DE": "Deutsch",
+        "en-GB": "English"
+      }
+    }
+  }
+}

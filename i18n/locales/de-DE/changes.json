@@ -1,0 +1,15 @@
+{
+  "changes": {
+    "title": "Änderungen",
+    "staged": "Vorgemerkt",
+    "unstaged": "Änderungen",
+    "stage": "Vormerken",
+    "unstage": "Zurücknehmen",
+    "discard": "Änderungen verwerfen",
+    "commit": {
+      "label": "Committen",
+      "placeholder": "Commit-Nachricht"
+    },
+    "clean": "Arbeitsverzeichnis sauber — nichts zu committen"
+  }
+}
