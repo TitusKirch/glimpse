@@ -112,10 +112,7 @@ const lang = computed({
             </div>
           </section>
 
-          <section
-            v-else-if="page === 'developer'"
-            class="w-full space-y-8"
-          >
+          <section v-else-if="page === 'developer'" class="w-full space-y-8">
             <div>
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
