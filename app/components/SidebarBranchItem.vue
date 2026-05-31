@@ -35,22 +35,22 @@ const repo = useRepoStore();
       @click="repo.checkout(branch.name)"
     >
       <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-      <span>{{ branch.name }}</span>
+      <span class="truncate">{{ branch.name }}</span>
       <span
         v-if="branch.ahead || branch.behind"
-        class="ml-auto flex items-center gap-1 text-[11px] font-medium"
+        class="ml-auto flex shrink-0 items-center gap-1 pl-1 text-[10px] font-medium"
       >
         <span
           v-if="branch.ahead"
-          class="flex items-center gap-0.5 rounded-md bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400"
-          ><NuxtIcon name="lucide:arrow-up" class="size-3.5" />{{
+          class="flex h-4 items-center gap-0.5 rounded bg-green-500/15 px-1 text-green-600 dark:text-green-400"
+          ><NuxtIcon name="lucide:arrow-up" class="size-3" />{{
             branch.ahead
           }}</span
         >
         <span
           v-if="branch.behind"
-          class="flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
-          ><NuxtIcon name="lucide:arrow-down" class="size-3.5" />{{
+          class="flex h-4 items-center gap-0.5 rounded bg-amber-500/15 px-1 text-amber-600 dark:text-amber-400"
+          ><NuxtIcon name="lucide:arrow-down" class="size-3" />{{
             branch.behind
           }}</span
         >

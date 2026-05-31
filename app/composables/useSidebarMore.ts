@@ -7,7 +7,7 @@ export function useSidebarMore<T>(
   opts?: { initial?: number; step?: number | null }
 ) {
   const initial = opts?.initial ?? 5;
-  const step = opts?.step === undefined ? 5 : opts.step;
+  const step = opts?.step === undefined ? 10 : opts.step;
 
   const count = ref<number | null>(null);
   const total = computed(() => items().length);

@@ -21,6 +21,10 @@
     "renameRemote": "Remote umbenennen",
     "rename": "Umbenennen",
     "showMore": "{n} weitere anzeigen",
-    "showLess": "Weniger anzeigen"
+    "showLess": "Weniger anzeigen",
+    "noRepo": {
+      "title": "Kein Repository geöffnet",
+      "hint": "Öffne ein Repository, um Branches und Verlauf zu sehen."
+    }
   }
 }

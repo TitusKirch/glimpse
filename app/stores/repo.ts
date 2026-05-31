@@ -229,6 +229,41 @@ export const useRepoStore = defineStore('repo', {
       if (!this.repos[id]) return;
       this.activeId = id;
       this.watchActive();
+      this.syncSession();
+    },
+
+    // Persist the open repo paths + active path so the tabs reopen next launch.
+    syncSession() {
+      if (!isTauri()) return;
+      const s = useSessionStore();
+      s.openPaths = this.order.map((id) => this.repos[id]!.path);
+      s.activePath = this.active?.path ?? '';
+      s.initialized = true;
+    },
+
+    // Reopen the previous session's tabs. First-ever launch (not initialized)
+    // opens the process CWD; if the user had closed every tab, show the start
+    // screen instead of forcing the CWD back open.
+    async restoreSession() {
+      if (!isTauri()) return;
+      const s = useSessionStore();
+      if (!s.initialized) {
+        await this.loadFromBackend();
+        this.syncSession();
+        return;
+      }
+      const paths = [...s.openPaths];
+      const activePath = s.activePath;
+      // Rebuild from saved paths; openRepo validates each (invalid ones are
+      // skipped) and the demo tab is dropped.
+      this.repos = {};
+      this.order = [];
+      this.activeId = '';
+      for (const p of paths) await this.openRepo(p);
+      const target = this.tabs.find((t) => t.path === activePath);
+      if (target) this.selectTab(target.id);
+      else if (this.order[0]) this.selectTab(this.order[0]);
+      this.syncSession();
     },
 
     // Point the backend FS watcher at the active repo (live-refresh source).
@@ -765,11 +800,13 @@ export const useRepoStore = defineStore('repo', {
         this.activeId = next;
         if (next) this.watchActive();
       }
+      this.syncSession();
     },
 
     // Persist a new tab order after a drag-and-drop reorder.
     reorderTabs(order: string[]) {
       this.order = order;
+      this.syncSession();
     },
 
     // Runs an action with a busy flag and surfaces failures via lastError.
@@ -840,6 +877,7 @@ export const useRepoStore = defineStore('repo', {
           .find((r) => r.path === top);
         if (existing) {
           this.activeId = existing.id;
+          this.syncSession();
           return;
         }
         this.seq += 1;
@@ -848,6 +886,7 @@ export const useRepoStore = defineStore('repo', {
         this.order.push(id);
         this.activeId = id;
         await this.loadFromBackend(top);
+        this.syncSession();
       });
     },
 

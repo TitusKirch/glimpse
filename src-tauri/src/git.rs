@@ -129,6 +129,18 @@ impl Repo {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
+    /// Like [`run`], but treats exit code 1 as success — `git diff --no-index`
+    /// (used to diff an untracked file against /dev/null) exits 1 whenever the
+    /// files differ, which for a new file is always.
+    fn run_diff(&self, args: &[&str]) -> String {
+        match self.target.command(args).output() {
+            Ok(out) if out.status.success() || out.status.code() == Some(1) => {
+                String::from_utf8_lossy(&out.stdout).to_string()
+            }
+            _ => String::new(),
+        }
+    }
+
     /// Run `git <args>` feeding `input` on stdin (used to pipe a patch into
     /// `git apply`). Returns stdout, or trimmed stderr on failure.
     fn run_stdin(&self, args: &[&str], input: &str) -> Result<String, String> {
@@ -233,12 +245,11 @@ impl Repo {
         let mut raw = self.run(&args)?;
 
         // Untracked files have no diff target; diff against the null device so
-        // the whole file shows up as additions.
+        // the whole file shows up as additions. --no-index exits 1 on any
+        // difference, so use run_diff which tolerates that.
         if raw.trim().is_empty() && !staged {
             let null = self.target.null_device();
-            raw = self
-                .run(&["diff", "--no-color", "--no-index", null, file])
-                .unwrap_or_default();
+            raw = self.run_diff(&["diff", "--no-color", "--no-index", null, file]);
         }
 
         let Some(mut diff) = parse::diff(&raw) else {

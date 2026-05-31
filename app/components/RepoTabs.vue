@@ -1,21 +1,10 @@
 <script setup lang="ts">
-import { open } from '@tauri-apps/plugin-dialog';
-
 const repo = useRepoStore();
+const openRepoDialog = useOpenRepoDialog();
 const { t } = useI18n();
 
 // Native HTML5 drag-and-drop for tab reordering — no extra dependency.
 const dragId = ref<string | null>(null);
-
-async function addRepo() {
-  if (!isTauri()) return;
-  const path = await open({
-    directory: true,
-    multiple: false,
-    title: t('actions.openRepo')
-  });
-  if (typeof path === 'string') await repo.openRepo(path);
-}
 
 function onDrop(targetId: string) {
   const from = dragId.value;
@@ -74,7 +63,12 @@ function onDrop(targetId: string) {
 
     <UiTooltip>
       <UiTooltipTrigger as-child>
-        <UiButton variant="ghost" size="icon" class="size-7" @click="addRepo">
+        <UiButton
+          variant="ghost"
+          size="icon"
+          class="size-7"
+          @click="openRepoDialog.show()"
+        >
           <NuxtIcon name="lucide:plus" class="size-4" />
         </UiButton>
       </UiTooltipTrigger>

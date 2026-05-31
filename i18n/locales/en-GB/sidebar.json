@@ -21,6 +21,10 @@
     "renameRemote": "Rename remote",
     "rename": "Rename",
     "showMore": "Show {n} more",
-    "showLess": "Show less"
+    "showLess": "Show less",
+    "noRepo": {
+      "title": "No repository open",
+      "hint": "Open a repository to see its branches and history."
+    }
   }
 }

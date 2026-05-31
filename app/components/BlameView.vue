@@ -9,6 +9,7 @@ const repo = useRepoStore();
 
 const lines = ref<BlameLine[]>([]);
 const loading = ref(false);
+const lang = computed(() => diffLang(props.file));
 
 async function load() {
   loading.value = true;
@@ -27,7 +28,7 @@ function isNewBlock(i: number): boolean {
 </script>
 
 <template>
-  <div class="h-full overflow-auto font-mono text-xs leading-[1.6]">
+  <div class="hljs-diff h-full overflow-auto font-mono text-xs leading-[1.6]">
     <div v-if="loading" class="space-y-2 p-4">
       <UiSkeleton
         v-for="n in 14"
@@ -43,11 +44,13 @@ function isNewBlock(i: number): boolean {
             class="sticky left-0 max-w-48 min-w-48 truncate border-r bg-background px-2 align-top text-muted-foreground select-none"
           >
             <UiHoverCard v-if="isNewBlock(i)" :open-delay="200">
-              <UiHoverCardTrigger class="cursor-default truncate">
-                <span class="font-mono font-medium text-foreground">{{
-                  l.hash
+              <UiHoverCardTrigger
+                class="flex cursor-default items-baseline gap-1.5 truncate"
+              >
+                <span class="font-semibold text-foreground">{{ l.hash }}</span>
+                <span class="truncate text-muted-foreground">{{
+                  l.author
                 }}</span>
-                {{ l.author }}
               </UiHoverCardTrigger>
               <UiHoverCardContent class="w-auto text-xs" side="right">
                 <div class="flex items-center gap-2">
@@ -65,7 +68,10 @@ function isNewBlock(i: number): boolean {
           <td class="w-10 px-2 text-right text-muted-foreground select-none">
             {{ l.line }}
           </td>
-          <td class="px-2 whitespace-pre">{{ l.content }}</td>
+          <td
+            class="px-2 whitespace-pre"
+            v-html="highlightLine(l.content, lang)"
+          />
         </tr>
       </tbody>
     </table>

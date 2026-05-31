@@ -4,6 +4,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 const repo = useRepoStore();
 const settings = useSettingsDialog();
 const remoteDialog = useRemoteDialog();
+const openRepoDialog = useOpenRepoDialog();
 const help = useHelpDialog();
 const { t } = useI18n();
 
@@ -57,7 +58,25 @@ const links = [
     </UiSidebarHeader>
 
     <UiSidebarContent>
-      <UiSidebarGroup>
+      <!-- no repo open: prompt to open one instead of empty branch lists -->
+      <div
+        v-if="!repo.hasRepos"
+        class="p-2 group-data-[collapsible=icon]:hidden"
+      >
+        <UiAlert>
+          <NuxtIcon name="lucide:folder-open" class="size-4" />
+          <UiAlertTitle>{{ t('sidebar.noRepo.title') }}</UiAlertTitle>
+          <UiAlertDescription>{{
+            t('sidebar.noRepo.hint')
+          }}</UiAlertDescription>
+        </UiAlert>
+        <UiButton size="sm" class="mt-2 w-full" @click="openRepoDialog.show()">
+          <NuxtIcon name="lucide:folder-open" class="size-4" />
+          {{ t('actions.openRepo') }}
+        </UiButton>
+      </div>
+
+      <UiSidebarGroup v-if="repo.hasRepos">
         <UiSidebarGroupLabel>{{ t('sidebar.branches') }}</UiSidebarGroupLabel>
         <UiTooltip>
           <UiTooltipTrigger as-child>

@@ -34,7 +34,7 @@ watch(
 let unlisten: (() => void) | undefined;
 let unlistenDeepLink: (() => void) | undefined;
 onMounted(async () => {
-  void repo.loadFromBackend();
+  void repo.restoreSession();
   window.addEventListener('focus', repo.refresh);
   // Silently check for app updates on launch (auto-installs when found); a
   // no-op until the updater is configured with a real signing key + endpoint.
@@ -208,5 +208,6 @@ const syncButtons = [
   <PromptDialog />
   <HelpDialog />
   <AddRemoteDialog />
+  <OpenRepoDialog />
   <UiSonner />
 </template>
