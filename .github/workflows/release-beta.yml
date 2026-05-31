@@ -34,7 +34,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            args: ''
+          # MSI rejects non-numeric pre-release identifiers (e.g. 0.1.0-beta.1).
+          # The Windows updater uses NSIS anyway, so build only that for betas.
+          - os: windows-latest
+            args: '--bundles nsis'
+          - os: macos-latest
+            args: ''
     steps:
       - uses: actions/checkout@v6
 
@@ -103,3 +111,4 @@ jobs:
           releaseBody: 'Rolling beta channel build ${{ inputs.version }}.'
           prerelease: true
           includeUpdaterJson: true
+          args: ${{ matrix.args }}
