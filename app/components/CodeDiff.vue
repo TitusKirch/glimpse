@@ -4,7 +4,15 @@
 // are sticky-left, and code is syntax-highlighted via highlight.js. In split
 // mode, paired -/+ lines additionally get word-level highlighting. When a hunk
 // action is enabled, each hunk header carries a stage/unstage button.
+//
+// Rows are virtualized (TanStack Virtual) so a 10k-line file only mounts the
+// handful of rows on screen. We use the *padding* technique — real rows stay in
+// normal flow between a top/bottom spacer — rather than absolute positioning,
+// because absolute rows can't push a `w-max` track wider than the viewport and
+// would kill horizontal scrolling of long lines. Heights are measured per row
+// (measureElement), so the estimate only needs to be roughly right.
 import hljs from 'highlight.js';
+import { useVirtualizer } from '@tanstack/vue-virtual';
 
 const props = defineProps<{
   hunks: string[];
@@ -229,45 +237,108 @@ function sync(src: 'l' | 'r') {
 
 const gutter =
   'sticky z-10 shrink-0 bg-background px-2 text-right text-muted-foreground select-none';
+
+// --- Virtualization ---------------------------------------------------------
+// text-xs (12px) × leading 1.6 ≈ 19px; measureElement refines per row.
+const ROW_H = 19;
+
+// Only the active mode feeds rows to its virtualizer (the hidden one stays at
+// count 0 and does no work).
+const unifiedRows = computed(() =>
+  props.mode === 'unified' ? unified.value : []
+);
+const splitRows = computed(() => (props.mode === 'split' ? split.value : []));
+
+const unifiedScroll = ref<HTMLElement | null>(null);
+
+function makeVirtualizer(count: Ref<number>, getEl: () => HTMLElement | null) {
+  const virt = useVirtualizer(
+    computed(() => ({
+      count: count.value,
+      getScrollElement: getEl,
+      estimateSize: () => ROW_H,
+      overscan: 24
+    }))
+  );
+  const items = computed(() => virt.value.getVirtualItems());
+  const padTop = computed(() => items.value[0]?.start ?? 0);
+  const padBottom = computed(() => {
+    const last = items.value[items.value.length - 1];
+    return last ? virt.value.getTotalSize() - last.end : 0;
+  });
+  const measure = (el: Element | null) => {
+    if (el) virt.value.measureElement(el);
+  };
+  return reactive({ items, padTop, padBottom, measure });
+}
+
+const unifiedCount = computed(() => unifiedRows.value.length);
+const splitCount = computed(() => splitRows.value.length);
+
+const uv = makeVirtualizer(unifiedCount, () => unifiedScroll.value);
+const lv = makeVirtualizer(splitCount, () => leftPane.value);
+const rv = makeVirtualizer(splitCount, () => rightPane.value);
+
+// Pair each on-screen virtual item with its row data for the template.
+const uVisible = computed(() =>
+  uv.items.map((vi) => ({ vi, row: unified.value[vi.index]! }))
+);
+const lVisible = computed(() =>
+  lv.items.map((vi) => ({ vi, row: split.value[vi.index]! }))
+);
+const rVisible = computed(() =>
+  rv.items.map((vi) => ({ vi, row: split.value[vi.index]! }))
+);
 </script>
 
 <template>
   <!-- unified -->
   <div
     v-if="mode === 'unified'"
+    ref="unifiedScroll"
     class="hljs-diff h-full overflow-auto font-mono text-xs leading-[1.6]"
   >
-    <div class="w-max min-w-full">
+    <div
+      class="w-max min-w-full"
+      :style="{
+        paddingTop: `${uv.padTop}px`,
+        paddingBottom: `${uv.padBottom}px`
+      }"
+    >
       <div
-        v-for="(r, i) in unified"
-        :key="i"
+        v-for="{ vi, row } in uVisible"
+        :key="vi.key"
+        :ref="uv.measure"
+        :data-index="vi.index"
         class="flex"
-        :class="rowBg[r.type]"
+        :class="rowBg[row.type]"
       >
         <div
-          v-if="r.type === 'hunk'"
+          v-if="row.type === 'hunk'"
           class="sticky left-0 flex w-full items-center bg-accent"
         >
           <span
             class="px-2 whitespace-pre text-muted-foreground"
-            v-html="r.html"
+            v-html="row.html"
           />
           <button
             v-if="hunkAction"
             class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-            @click="emit('stageHunk', hunks[r.hunkIndex!]!)"
+            @click="emit('stageHunk', hunks[row.hunkIndex!]!)"
           >
             {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
           </button>
         </div>
         <template v-else>
-          <span :class="[gutter, 'left-0 w-12']">{{ r.oldNo ?? '' }}</span>
-          <span :class="[gutter, 'left-12 w-12']">{{ r.newNo ?? '' }}</span>
+          <span :class="[gutter, 'left-0 w-12']">{{ row.oldNo ?? '' }}</span>
+          <span :class="[gutter, 'left-12 w-12']">{{ row.newNo ?? '' }}</span>
           <span
             class="sticky left-24 z-10 w-4 shrink-0 bg-background text-center text-muted-foreground select-none"
-            >{{ r.type === 'add' ? '+' : r.type === 'del' ? '-' : '' }}</span
+            >{{
+              row.type === 'add' ? '+' : row.type === 'del' ? '-' : ''
+            }}</span
           >
-          <span class="grow px-1 whitespace-pre" v-html="r.html" />
+          <span class="grow px-1 whitespace-pre" v-html="row.html" />
         </template>
       </div>
     </div>
@@ -285,10 +356,18 @@ const gutter =
         class="diff-no-vscroll h-full overflow-auto"
         @scroll="sync('l')"
       >
-        <div class="w-max min-w-full">
+        <div
+          class="w-max min-w-full"
+          :style="{
+            paddingTop: `${lv.padTop}px`,
+            paddingBottom: `${lv.padBottom}px`
+          }"
+        >
           <div
-            v-for="(r, i) in split"
-            :key="i"
+            v-for="{ vi, row: r } in lVisible"
+            :key="vi.key"
+            :ref="lv.measure"
+            :data-index="vi.index"
             class="flex"
             :class="r.left ? rowBg[r.left.type] : ''"
           >
@@ -321,10 +400,18 @@ const gutter =
     <UiResizableHandle class="z-20" />
     <UiResizablePanel :default-size="50" :min-size="15">
       <div ref="rightPane" class="h-full overflow-auto" @scroll="sync('r')">
-        <div class="w-max min-w-full">
+        <div
+          class="w-max min-w-full"
+          :style="{
+            paddingTop: `${rv.padTop}px`,
+            paddingBottom: `${rv.padBottom}px`
+          }"
+        >
           <div
-            v-for="(r, i) in split"
-            :key="i"
+            v-for="{ vi, row: r } in rVisible"
+            :key="vi.key"
+            :ref="rv.measure"
+            :data-index="vi.index"
             class="flex"
             :class="r.right ? rowBg[r.right.type] : ''"
           >
