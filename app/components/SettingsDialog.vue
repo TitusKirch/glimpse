@@ -13,6 +13,10 @@ const page = ref<(typeof pages)[number]['key']>('appearance');
 const themeOptions = ['system', 'light', 'dark'] as const;
 
 // Language: bind the select straight to the active i18n locale.
+const FLAG: Record<string, string> = {
+  de: 'flag:de-4x3',
+  en: 'flag:gb-4x3'
+};
 const localeOptions = computed(() =>
   locales.value.map((l) => (typeof l === 'string' ? { code: l } : l))
 );
@@ -27,7 +31,7 @@ const lang = computed({
 <template>
   <UiDialog v-model:open="open">
     <UiDialogContent
-      class="flex h-[90vh] w-[98vw] max-w-[1200px] flex-col gap-0 overflow-hidden p-0"
+      class="flex h-[90vh] w-[98vw] max-w-[98vw] flex-col gap-0 overflow-hidden p-0"
     >
       <UiDialogHeader class="border-b px-6 py-4">
         <UiDialogTitle>{{ t('settings.title') }}</UiDialogTitle>
@@ -102,6 +106,7 @@ const lang = computed({
                     :key="l.code"
                     :value="l.code"
                   >
+                    <NuxtIcon :name="FLAG[l.code]" class="size-4 shrink-0" />
                     {{ t(`settings.language.name.${l.code}`) }}
                   </UiSelectItem>
                 </UiSelectContent>
