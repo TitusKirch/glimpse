@@ -215,6 +215,25 @@ const lang = computed({
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
+                {{ t('settings.general.updatesSection') }}
+              </h3>
+              <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    {{ t('settings.general.autoUpdate.label') }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ t('settings.general.autoUpdate.hint') }}
+                  </p>
+                </div>
+                <UiSwitch v-model="layout.autoUpdate" class="shrink-0" />
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
                 {{ t('settings.general.developer') }}
               </h3>
               <div class="flex items-center justify-between gap-4">

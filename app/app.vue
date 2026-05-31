@@ -8,6 +8,7 @@ const repo = useRepoStore();
 const layout = useLayoutStore();
 const settings = useSettingsDialog();
 const palette = useCommandPalette();
+const { checkForUpdates } = useUpdater();
 const { t } = useI18n();
 
 // Cross-cutting app behaviour: apply appearance settings, wire global keyboard
@@ -33,6 +34,9 @@ let unlistenDeepLink: (() => void) | undefined;
 onMounted(async () => {
   void repo.loadFromBackend();
   window.addEventListener('focus', repo.refresh);
+  // Silently check for app updates on launch (auto-installs when found); a
+  // no-op until the updater is configured with a real signing key + endpoint.
+  if (layout.autoUpdate) void checkForUpdates(false);
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   if (isTauri()) {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());

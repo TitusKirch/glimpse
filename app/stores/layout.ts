@@ -28,6 +28,8 @@ export const useLayoutStore = defineStore('layout', {
     // Periodically fetch in the background and flag new upstream commits.
     autoFetch: false,
     autoFetchMinutes: 5,
+    // Check for app updates on launch (and auto-install when found).
+    autoUpdate: true,
     // Developer settings (extra debug tools in the settings dialog).
     devMode: false
   }),

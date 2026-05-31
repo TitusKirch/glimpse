@@ -18,6 +18,11 @@
         "merge": "Merge",
         "rebase": "Rebase"
       },
+      "updatesSection": "Updates",
+      "autoUpdate": {
+        "label": "Automatic updates",
+        "hint": "Check for updates on launch and install them automatically."
+      },
       "developer": "Developer",
       "devMode": {
         "label": "Developer settings",

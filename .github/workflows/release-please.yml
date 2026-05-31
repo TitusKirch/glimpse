@@ -92,14 +92,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Builds NSIS (Windows) and AppImage + .deb (Linux) and uploads them to
-      # the release-please release. To enable auto-update later: generate a key
-      # with `pnpm tauri signer generate`, put the public key in
-      # tauri.conf.json (plugins.updater.pubkey + bundle.createUpdaterArtifacts),
-      # and set the TAURI_SIGNING_PRIVATE_KEY / *_PASSWORD secrets.
+      # Builds NSIS (Windows) and AppImage + .deb (Linux), signs the updater
+      # artifacts, and uploads them plus `latest.json` to the release-please
+      # release. The updater (tauri.conf.json plugins.updater) reads that
+      # manifest. Requires the signing secrets to be set — see
+      # UPDATER-SETUP.local.md for the one-time key generation + secrets.
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ needs.release-please.outputs.tag_name }}
+          # Generate + attach latest.json so the in-app updater can find it.
+          includeUpdaterJson: true
