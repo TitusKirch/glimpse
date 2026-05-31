@@ -57,10 +57,11 @@ const links = [
       <UiSidebarGroup>
         <UiSidebarGroupLabel>{{ t('sidebar.branches') }}</UiSidebarGroupLabel>
         <UiSidebarGroupAction
+          class="size-6"
           :title="t('sidebar.newBranch')"
           @click="creating = !creating"
         >
-          <NuxtIcon name="lucide:git-branch-plus" />
+          <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />
         </UiSidebarGroupAction>
         <UiSidebarGroupContent>
           <div
@@ -104,7 +105,7 @@ const links = [
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
               <UiSidebarMenuButton :tooltip="r">
-                <NuxtIcon name="lucide:cloud" />
+                <NuxtIcon name="lucide:cloud" class="shrink-0" />
                 <span>{{ r }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
@@ -130,7 +131,7 @@ const links = [
                       ? 'lucide:git-branch'
                       : 'lucide:git-branch-plus'
                   "
-                  class="shrink-0 opacity-60"
+                  class="shrink-0"
                 />
                 <span>{{ rb }}</span>
               </UiSidebarMenuButton>
@@ -145,7 +146,7 @@ const links = [
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="tag in repo.tags" :key="tag">
               <UiSidebarMenuButton :tooltip="tag">
-                <NuxtIcon name="lucide:tag" />
+                <NuxtIcon name="lucide:tag" class="shrink-0" />
                 <span>{{ tag }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>

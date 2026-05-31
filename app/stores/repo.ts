@@ -10,6 +10,7 @@
 // The IPC payload shapes are the single source of truth in src-tauri/src/git.rs;
 // app/types/bindings.ts is generated from them (ts-rs). Re-exported here so the
 // rest of the app keeps importing these names from the store.
+import { promiseTimeout } from '@vueuse/core';
 import type {
   Commit,
   CommitFile,
@@ -17,6 +18,10 @@ import type {
   RepoInfo,
   StatusEntry
 } from '~/types/bindings';
+
+// Keep loading spinners visible for at least this long so fast actions don't
+// flicker.
+const MIN_SPINNER_MS = 300;
 
 export type { Commit, CommitFile, DiffData, RepoInfo, StatusEntry };
 
@@ -235,10 +240,13 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       this.syncing = command;
       try {
-        await this.guarded(async () => {
-          await gitClient[command](this.repoPath);
-          await this.loadFromBackend();
-        });
+        await Promise.all([
+          this.guarded(async () => {
+            await gitClient[command](this.repoPath);
+            await this.loadFromBackend();
+          }),
+          promiseTimeout(MIN_SPINNER_MS)
+        ]);
       } finally {
         this.syncing = null;
       }
@@ -278,7 +286,10 @@ export const useRepoStore = defineStore('repo', {
       this.lastRefresh = 'just now';
       this.refreshing = true;
       try {
-        await this.loadFromBackend();
+        await Promise.all([
+          this.loadFromBackend(),
+          promiseTimeout(MIN_SPINNER_MS)
+        ]);
       } finally {
         this.refreshing = false;
       }
