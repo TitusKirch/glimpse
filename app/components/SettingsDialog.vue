@@ -31,7 +31,7 @@ const lang = computed({
 <template>
   <UiDialog v-model:open="open">
     <UiDialogContent
-      class="flex h-[90vh] w-[98vw] max-w-[98vw] flex-col gap-0 overflow-hidden p-0"
+      class="flex h-[90vh] w-[98vw] max-w-[98vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[98vw]"
     >
       <UiDialogHeader class="border-b px-6 py-4">
         <UiDialogTitle>{{ t('settings.title') }}</UiDialogTitle>
@@ -98,7 +98,10 @@ const lang = computed({
               </div>
               <UiSelect v-model="lang">
                 <UiSelectTrigger class="w-44">
-                  <UiSelectValue />
+                  <span class="flex items-center gap-2">
+                    <NuxtIcon :name="FLAG[lang]" class="size-4 shrink-0" />
+                    <UiSelectValue />
+                  </span>
                 </UiSelectTrigger>
                 <UiSelectContent>
                   <UiSelectItem
