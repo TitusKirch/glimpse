@@ -41,8 +41,12 @@ const { t } = useI18n();
       v-if="repo.selectedHash && repo.commitFiles.length"
       direction="vertical"
       class="min-h-0 flex-1"
+      @layout="layout.setCommitPanelSizes"
     >
-      <UiResizablePanel :default-size="20" :min-size="8">
+      <UiResizablePanel
+        :default-size="layout.commitPanelSizes[0]"
+        :min-size="8"
+      >
         <div class="h-full overflow-auto px-4 py-3">
           <pre
             class="font-sans text-sm leading-relaxed break-words whitespace-pre-wrap"
@@ -63,7 +67,10 @@ const { t } = useI18n();
         </div>
       </UiResizablePanel>
       <UiResizableHandle />
-      <UiResizablePanel :default-size="25" :min-size="10">
+      <UiResizablePanel
+        :default-size="layout.commitPanelSizes[1]"
+        :min-size="10"
+      >
         <div class="flex h-full flex-col text-sm">
           <FileViewToggle class="border-b" />
           <div class="min-h-0 flex-1 overflow-auto px-1 py-1">
@@ -77,7 +84,10 @@ const { t } = useI18n();
         </div>
       </UiResizablePanel>
       <UiResizableHandle />
-      <UiResizablePanel :default-size="55" :min-size="20">
+      <UiResizablePanel
+        :default-size="layout.commitPanelSizes[2]"
+        :min-size="20"
+      >
         <CodeDiff
           v-if="repo.diff && repo.diff.hunks.length"
           :hunks="repo.diff.hunks"

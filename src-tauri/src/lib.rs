@@ -148,6 +148,9 @@ pub fn run() {
         .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // Persists window size/position/maximized state across restarts.
+        // Restores on launch (before show) and saves on exit — handled natively.
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(

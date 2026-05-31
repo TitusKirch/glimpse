@@ -23,6 +23,7 @@ tauri = { version = "2.11.2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-window-state = "2"
 notify = "6"
 notify-debouncer-mini = "0.4"
 ts-rs = "11"

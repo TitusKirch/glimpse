@@ -10,6 +10,8 @@ export const useLayoutStore = defineStore('layout', {
     sidebarOpen: true,
     // Horizontal split between the commit graph (left) and the diff (right).
     panelSizes: [58, 42] as number[],
+    // Vertical split inside a commit's diff view (detail / file list / diff).
+    commitPanelSizes: [20, 25, 55] as number[],
     diffMode: 'split' as DiffMode,
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
@@ -26,6 +28,9 @@ export const useLayoutStore = defineStore('layout', {
     },
     setPanelSizes(sizes: number[]) {
       this.panelSizes = sizes;
+    },
+    setCommitPanelSizes(sizes: number[]) {
+      this.commitPanelSizes = sizes;
     },
     setDiffMode(mode: DiffMode) {
       this.diffMode = mode;
