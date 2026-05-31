@@ -6,6 +6,7 @@
     "stage": "Stage",
     "unstage": "Unstage",
     "discard": "Discard changes",
+    "discardAll": "Discard all changes",
     "commit": {
       "label": "Commit",
       "placeholder": "Commit message"

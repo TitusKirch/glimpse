@@ -134,11 +134,26 @@ const canCommit = computed(
       </section>
 
       <!-- unstaged / untracked -->
-      <section v-if="repo.unstagedFiles.length" class="px-1">
+      <section v-if="repo.unstagedFiles.length" class="group/sec px-1">
         <h3
-          class="sticky top-0 z-10 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+          class="sticky top-0 z-10 flex items-center gap-2 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
         >
-          {{ t('changes.unstaged') }} ({{ repo.unstagedFiles.length }})
+          <span
+            >{{ t('changes.unstaged') }} ({{ repo.unstagedFiles.length }})</span
+          >
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                class="ml-auto size-5 opacity-0 group-hover/sec:opacity-100"
+                @click="repo.discardAll()"
+              >
+                <NuxtIcon name="lucide:undo-2" class="size-3.5" />
+              </UiButton>
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('changes.discardAll') }}</UiTooltipContent>
+          </UiTooltip>
         </h3>
         <FileTree
           :files="unstagedItems"

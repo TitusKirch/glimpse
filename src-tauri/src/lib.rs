@@ -140,6 +140,36 @@ async fn checkout_branch(path: String, branch: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn merge(path: String, branch: String) -> Result<String, String> {
+    git::Repo::open(&path).merge(&branch)
+}
+
+#[tauri::command]
+async fn discard_all(path: String) -> Result<(), String> {
+    git::Repo::open(&path).discard_all()
+}
+
+#[tauri::command]
+async fn push_tags(path: String) -> Result<String, String> {
+    git::Repo::open(&path).push_tags()
+}
+
+#[tauri::command]
+async fn add_remote(path: String, name: String, url: String) -> Result<(), String> {
+    git::Repo::open(&path).add_remote(&name, &url)
+}
+
+#[tauri::command]
+async fn remove_remote(path: String, name: String) -> Result<(), String> {
+    git::Repo::open(&path).remove_remote(&name)
+}
+
+#[tauri::command]
+async fn rename_remote(path: String, old: String, new: String) -> Result<(), String> {
+    git::Repo::open(&path).rename_remote(&old, &new)
+}
+
+#[tauri::command]
 async fn checkout_commit(path: String, hash: String) -> Result<(), String> {
     git::Repo::open(&path).checkout_commit(&hash)
 }
@@ -355,6 +385,8 @@ pub fn run() {
             discard,
             checkout_branch,
             checkout_commit,
+            merge,
+            discard_all,
             create_branch,
             create_branch_at,
             delete_branch,
@@ -364,6 +396,10 @@ pub fn run() {
             rename_branch,
             create_tag,
             delete_tag,
+            push_tags,
+            add_remote,
+            remove_remote,
+            rename_remote,
             stash_save,
             stash_pop,
             stash_apply,

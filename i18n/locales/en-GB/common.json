@@ -41,12 +41,18 @@
       "title": "Hard reset",
       "description": "This discards all uncommitted changes and moves the branch. Continue?",
       "confirm": "Hard reset"
+    },
+    "discardAll": {
+      "title": "Discard all changes",
+      "description": "This permanently discards every uncommitted change, including untracked files. Continue?",
+      "confirm": "Discard all"
     }
   },
   "branch": {
     "switch": "Switch to branch",
     "rename": "Rename",
-    "delete": "Delete"
+    "delete": "Delete",
+    "merge": "Merge into current"
   },
   "commit": {
     "checkout": "Check out this commit",
@@ -74,7 +80,8 @@
     "toggleSidebar": "Toggle sidebar",
     "pushUpstream": "Push and set upstream",
     "pushForce": "Force push (with lease)",
-    "stash": "Stash changes"
+    "stash": "Stash changes",
+    "pushTags": "Push tags"
   },
   "start": {
     "title": "No repository open",

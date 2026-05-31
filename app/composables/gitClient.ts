@@ -189,6 +189,11 @@ export const gitClient = {
   checkoutBranch: (path: string, branch: string) =>
     gitInvoke<null>('checkout_branch', { path, branch }, null),
 
+  merge: (path: string, branch: string) =>
+    gitInvoke<string>('merge', { path, branch }, ''),
+
+  discardAll: (path: string) => gitInvoke<null>('discard_all', { path }, null),
+
   checkoutCommit: (path: string, hash: string) =>
     gitInvoke<null>('checkout_commit', { path, hash }, null),
 
@@ -222,6 +227,21 @@ export const gitClient = {
 
   deleteTag: (path: string, name: string) =>
     gitInvoke<null>('delete_tag', { path, name }, null),
+
+  pushTags: (path: string) => gitInvoke<string>('push_tags', { path }, ''),
+
+  addRemote: (path: string, name: string, url: string) =>
+    gitInvoke<null>('add_remote', { path, name, url }, null),
+
+  removeRemote: (path: string, name: string) =>
+    gitInvoke<null>('remove_remote', { path, name }, null),
+
+  renameRemote: (path: string, oldName: string, newName: string) =>
+    gitInvoke<null>(
+      'rename_remote',
+      { path, old: oldName, new: newName },
+      null
+    ),
 
   stashSave: (path: string, message = '') =>
     gitInvoke<null>('stash_save', { path, message }, null),

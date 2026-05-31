@@ -41,12 +41,18 @@
       "title": "Hard-Reset",
       "description": "Verwirft alle uncommitteten Änderungen und verschiebt den Branch. Fortfahren?",
       "confirm": "Hard-Reset"
+    },
+    "discardAll": {
+      "title": "Alle Änderungen verwerfen",
+      "description": "Verwirft dauerhaft alle uncommitteten Änderungen, inklusive nicht getrackter Dateien. Fortfahren?",
+      "confirm": "Alle verwerfen"
     }
   },
   "branch": {
     "switch": "Zu Branch wechseln",
     "rename": "Umbenennen",
-    "delete": "Löschen"
+    "delete": "Löschen",
+    "merge": "In aktuellen mergen"
   },
   "commit": {
     "checkout": "Diesen Commit auschecken",
@@ -74,7 +80,8 @@
     "toggleSidebar": "Seitenleiste umschalten",
     "pushUpstream": "Push & Upstream setzen",
     "pushForce": "Force-Push (mit Lease)",
-    "stash": "Änderungen stashen"
+    "stash": "Änderungen stashen",
+    "pushTags": "Tags pushen"
   },
   "start": {
     "title": "Kein Repository geöffnet",

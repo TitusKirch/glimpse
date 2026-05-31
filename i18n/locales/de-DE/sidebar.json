@@ -13,6 +13,11 @@
     "stashPop": "Pop",
     "stashApply": "Anwenden",
     "stashDrop": "Verwerfen",
-    "noStashes": "Keine Stashes"
+    "noStashes": "Keine Stashes",
+    "addRemote": "Remote hinzufügen",
+    "remoteName": "Name (z. B. origin)",
+    "remoteUrl": "Remote-URL",
+    "renameRemote": "Remote umbenennen",
+    "rename": "Umbenennen"
   }
 }

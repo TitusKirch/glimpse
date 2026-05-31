@@ -24,6 +24,21 @@ async function submitBranch() {
 // Inline tag creation (tags HEAD).
 const creatingTag = ref(false);
 const newTag = ref('');
+
+// Inline remote add (name + url).
+const addingRemote = ref(false);
+const newRemoteName = ref('');
+const newRemoteUrl = ref('');
+function cancelRemote() {
+  addingRemote.value = false;
+  newRemoteName.value = '';
+  newRemoteUrl.value = '';
+}
+async function submitRemote() {
+  if (!newRemoteName.value.trim() || !newRemoteUrl.value.trim()) return;
+  await repo.addRemote(newRemoteName.value.trim(), newRemoteUrl.value.trim());
+  cancelRemote();
+}
 function cancelTag() {
   creatingTag.value = false;
   newTag.value = '';
@@ -187,6 +202,13 @@ const links = [
                       <NuxtIcon name="lucide:pencil" />
                       {{ t('branch.rename') }}
                     </UiDropdownMenuItem>
+                    <UiDropdownMenuItem
+                      :disabled="b.name === repo.currentBranch"
+                      @click="repo.merge(b.name)"
+                    >
+                      <NuxtIcon name="lucide:git-merge" />
+                      {{ t('branch.merge') }}
+                    </UiDropdownMenuItem>
                     <UiDropdownMenuSeparator />
                     <UiDropdownMenuItem
                       class="text-destructive focus:text-destructive"
@@ -204,15 +226,72 @@ const links = [
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
-      <UiSidebarGroup>
+      <UiSidebarGroup v-if="repo.hasRepos">
         <UiSidebarGroupLabel>{{ t('sidebar.remotes') }}</UiSidebarGroupLabel>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="addingRemote = !addingRemote"
+            >
+              <NuxtIcon name="lucide:plus" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.addRemote') }}</UiTooltipContent>
+        </UiTooltip>
         <UiSidebarGroupContent>
+          <div
+            v-if="addingRemote"
+            class="space-y-1 px-2 pb-1 group-data-[collapsible=icon]:hidden"
+          >
+            <UiSidebarInput
+              v-model="newRemoteName"
+              :placeholder="t('sidebar.remoteName')"
+            />
+            <div class="flex items-center gap-1">
+              <UiSidebarInput
+                v-model="newRemoteUrl"
+                :placeholder="t('sidebar.remoteUrl')"
+                @keydown.enter="submitRemote"
+                @keydown.esc="cancelRemote"
+              />
+              <UiButton
+                variant="ghost"
+                size="icon"
+                class="size-7 shrink-0"
+                @click="cancelRemote"
+              >
+                <NuxtIcon name="lucide:x" class="size-4" />
+              </UiButton>
+            </div>
+          </div>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
               <UiSidebarMenuButton :tooltip="r">
                 <NuxtIcon name="lucide:cloud" class="shrink-0" />
                 <span>{{ r }}</span>
               </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem @click="repo.renameRemote(r)">
+                    <NuxtIcon name="lucide:pencil" />
+                    {{ t('branch.rename') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuSeparator />
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="repo.removeRemote(r)"
+                  >
+                    <NuxtIcon name="lucide:trash-2" />
+                    {{ t('branch.delete') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
         </UiSidebarGroupContent>

@@ -89,6 +89,10 @@ function toggleTheme() {
             <NuxtIcon name="lucide:archive" />
             {{ t('command.stash') }}
           </UiCommandItem>
+          <UiCommandItem value="push tags" @select="run(() => repo.pushTags())">
+            <NuxtIcon name="lucide:tags" />
+            {{ t('command.pushTags') }}
+          </UiCommandItem>
 
           <UiCommandItem
             value="open in file manager"

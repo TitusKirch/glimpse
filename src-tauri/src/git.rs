@@ -332,6 +332,19 @@ impl Repo {
         self.run(&["switch", branch]).map(|_| ())
     }
 
+    /// Merge `branch` into the current branch (no editor). Conflicts surface in
+    /// the status as unmerged entries, handled by the conflicts UI.
+    pub fn merge(&self, branch: &str) -> Result<String, String> {
+        self.run(&["merge", "--no-edit", branch])
+    }
+
+    /// Discard every working-tree change: restore tracked files to HEAD and
+    /// remove untracked files/dirs.
+    pub fn discard_all(&self) -> Result<(), String> {
+        self.run(&["restore", "--staged", "--worktree", "--", "."])?;
+        self.run(&["clean", "-fd"]).map(|_| ())
+    }
+
     /// Check out a commit directly, leaving HEAD detached so the user can
     /// inspect or branch off it.
     pub fn checkout_commit(&self, hash: &str) -> Result<(), String> {
@@ -387,6 +400,23 @@ impl Repo {
 
     pub fn delete_tag(&self, name: &str) -> Result<(), String> {
         self.run(&["tag", "-d", name]).map(|_| ())
+    }
+
+    /// Push all local tags to the default remote.
+    pub fn push_tags(&self) -> Result<String, String> {
+        self.run(&["push", "--tags"])
+    }
+
+    pub fn add_remote(&self, name: &str, url: &str) -> Result<(), String> {
+        self.run(&["remote", "add", name, url]).map(|_| ())
+    }
+
+    pub fn remove_remote(&self, name: &str) -> Result<(), String> {
+        self.run(&["remote", "remove", name]).map(|_| ())
+    }
+
+    pub fn rename_remote(&self, old: &str, new: &str) -> Result<(), String> {
+        self.run(&["remote", "rename", old, new]).map(|_| ())
     }
 
     /// List stash entries as (ref, message) pairs.

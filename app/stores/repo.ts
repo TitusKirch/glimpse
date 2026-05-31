@@ -393,6 +393,70 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Merge a branch into the current one; conflicts surface in the status.
+    async merge(branch: string) {
+      if (!isTauri() || branch === this.currentBranch) return;
+      await this.guarded(async () => {
+        await gitClient.merge(this.repoPath, branch);
+        await this.loadFromBackend();
+      });
+    },
+
+    // Discard every working-tree change (confirms first — irreversible).
+    async discardAll() {
+      if (!isTauri() || !this.status.length) return;
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.discardAll.title',
+        descriptionKey: 'confirm.discardAll.description',
+        confirmKey: 'confirm.discardAll.confirm'
+      });
+      if (!ok) return;
+      await this.guarded(async () => {
+        await gitClient.discardAll(this.repoPath);
+        await this.loadStatus();
+        this.active!.diff = null;
+        this.active!.selectedFile = null;
+      });
+    },
+
+    async pushTags() {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.pushTags(this.repoPath);
+      });
+    },
+
+    async addRemote(name: string, url: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.addRemote(this.repoPath, name, url);
+        await this.loadFromBackend();
+      });
+    },
+
+    async removeRemote(name: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.removeRemote(this.repoPath, name);
+        await this.loadFromBackend();
+      });
+    },
+
+    async renameRemote(oldName: string) {
+      if (!isTauri()) return;
+      const name = await usePrompt().prompt({
+        titleKey: 'sidebar.renameRemote',
+        placeholderKey: 'sidebar.remoteName',
+        confirmKey: 'sidebar.rename',
+        initial: oldName
+      });
+      if (!name || name === oldName) return;
+      await this.guarded(async () => {
+        await gitClient.renameRemote(this.repoPath, oldName, name);
+        await this.loadFromBackend();
+      });
+    },
+
     // Check out a commit directly (detached HEAD) to inspect or branch off it.
     async checkoutCommit(hash: string) {
       if (!isTauri()) return;
