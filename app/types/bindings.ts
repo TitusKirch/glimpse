@@ -18,6 +18,19 @@ export type Branch = {
    */
   ahead: number;
   behind: number;
+  /**
+   * True when the branch has a live upstream (it exists on a remote). False
+   * for a purely local branch — never pushed, or its remote ref is `gone`.
+   */
+  published: boolean;
+};
+
+export type StashEntry = {
+  /**
+   * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.
+   */
+  reference: string;
+  message: string;
 };
 
 export type RepoInfo = {
@@ -27,6 +40,7 @@ export type RepoInfo = {
   remoteBranches: Array<string>;
   remotes: Array<string>;
   tags: Array<string>;
+  stashes: Array<StashEntry>;
   flavor: string;
   distro: string | null;
 };
@@ -46,6 +60,17 @@ export type CommitFile = {
   status: string;
 };
 
+export type BlameLine = {
+  line: number;
+  /**
+   * Abbreviated commit hash that last touched this line.
+   */
+  hash: string;
+  author: string;
+  date: string;
+  content: string;
+};
+
 export type StatusEntry = {
   path: string;
   /**
@@ -59,4 +84,8 @@ export type StatusEntry = {
   staged: boolean;
   unstaged: boolean;
   untracked: boolean;
+  /**
+   * Unmerged (merge-conflict) entry — shown in its own section.
+   */
+  conflicted: boolean;
 };

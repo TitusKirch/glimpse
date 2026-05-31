@@ -1,0 +1,42 @@
+{
+  "app": {
+    "name": "glimpse"
+  },
+  "error": {
+    "title": "Erreur",
+    "loadFailed": "Impossible de charger ce dépôt",
+    "retry": "Réessayer"
+  },
+  "sync": {
+    "fetch": "Fetch",
+    "pull": "Pull",
+    "push": "Push"
+  },
+  "actions": {
+    "refresh": "Actualiser",
+    "openRepo": "Ouvrir un dépôt",
+    "closeRepo": "Fermer le dépôt"
+  },
+  "theme": {
+    "toggle": "Changer de thème"
+  },
+  "command": {
+    "open": "Palette de commandes",
+    "placeholder": "Tapez une commande ou recherchez…",
+    "empty": "Aucun résultat.",
+    "actions": "Actions",
+    "branches": "Changer de branche",
+    "recent": "Dépôts récents",
+    "current": "actuel",
+    "openFiles": "Ouvrir dans le gestionnaire de fichiers",
+    "openTerminal": "Ouvrir dans le terminal",
+    "openEditor": "Ouvrir dans l'éditeur",
+    "toggleSidebar": "Basculer la barre latérale"
+  },
+  "start": {
+    "title": "Aucun dépôt ouvert",
+    "subtitle": "Ouvrez un dossier pour explorer son historique, ou choisissez-en un récent.",
+    "recent": "Récents",
+    "clear": "Effacer"
+  }
+}

@@ -94,6 +94,74 @@ pub fn resolve(repo_path: &str) -> GitTarget {
     GitTarget::native(repo_path)
 }
 
+/// Launch an external app rooted at the repo `path`. `app` is one of "files"
+/// (file manager), "terminal", or "editor". Tries platform-appropriate
+/// candidates in order and succeeds on the first that spawns; best-effort, so a
+/// machine without (say) a terminal emulator just gets an error toast.
+pub fn open_in(path: &str, app: &str) -> Result<(), String> {
+    let candidates = open_candidates(app, path);
+    if candidates.is_empty() {
+        return Err(format!("unknown target: {app}"));
+    }
+    for argv in &candidates {
+        let (program, args) = argv.split_first().expect("non-empty argv");
+        if Command::new(program).args(args).spawn().is_ok() {
+            return Ok(());
+        }
+    }
+    Err(format!("could not open {app}"))
+}
+
+/// Per-OS list of full argv vectors to try for an open-in target.
+fn open_candidates(app: &str, path: &str) -> Vec<Vec<String>> {
+    let p = path.to_string();
+    #[cfg(target_os = "macos")]
+    {
+        match app {
+            "files" => vec![vec!["open".into(), p]],
+            "terminal" => vec![vec!["open".into(), "-a".into(), "Terminal".into(), p]],
+            "editor" => vec![vec!["code".into(), p.clone()], vec!["open".into(), p]],
+            _ => vec![],
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        match app {
+            "files" => vec![vec!["explorer".into(), p]],
+            "terminal" => vec![
+                vec!["wt".into(), "-d".into(), p.clone()],
+                vec!["cmd".into(), "/c".into(), "start".into(), "cmd".into(), "/k".into(),
+                     "cd".into(), "/d".into(), p],
+            ],
+            "editor" => vec![vec!["code".into(), p]],
+            _ => vec![],
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        match app {
+            // wslview/explorer.exe land first under WSL; xdg-open on plain Linux.
+            "files" => vec![
+                vec!["xdg-open".into(), p.clone()],
+                vec!["wslview".into(), p.clone()],
+                vec!["explorer.exe".into(), p],
+            ],
+            "terminal" => vec![
+                vec!["x-terminal-emulator".into(), "--working-directory".into(), p.clone()],
+                vec!["gnome-terminal".into(), format!("--working-directory={p}")],
+                vec!["konsole".into(), "--workdir".into(), p.clone()],
+                vec!["xfce4-terminal".into(), format!("--working-directory={p}")],
+            ],
+            "editor" => vec![
+                vec!["code".into(), p.clone()],
+                vec!["codium".into(), p.clone()],
+                vec!["xdg-open".into(), p],
+            ],
+            _ => vec![],
+        }
+    }
+}
+
 const fn native_flavor() -> Flavor {
     #[cfg(target_os = "windows")]
     {
@@ -167,5 +235,25 @@ mod tests {
         assert!(parse_wsl_path("C:\\dev\\repo").is_none());
         assert!(parse_wsl_path("/home/u/repo").is_none());
         assert!(parse_wsl_path("\\\\server\\share").is_none());
+    }
+
+    #[test]
+    fn open_candidates_unknown_is_empty() {
+        assert!(super::open_candidates("nope", "/x").is_empty());
+    }
+
+    #[test]
+    fn open_candidates_passes_path_through() {
+        // Every candidate for a known app must reference the target path.
+        for app in ["files", "terminal", "editor"] {
+            let cands = super::open_candidates(app, "/repo/x");
+            assert!(!cands.is_empty(), "no candidates for {app}");
+            for argv in cands {
+                assert!(
+                    argv.iter().any(|a| a.contains("/repo/x")),
+                    "{app} candidate missing path: {argv:?}"
+                );
+            }
+        }
     }
 }

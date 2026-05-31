@@ -1,0 +1,18 @@
+{
+  "changes": {
+    "title": "Modifications",
+    "staged": "Indexé",
+    "unstaged": "Modifications",
+    "stage": "Indexer",
+    "unstage": "Désindexer",
+    "discard": "Annuler les modifications",
+    "commit": {
+      "label": "Valider",
+      "placeholder": "Message de validation"
+    },
+    "amend": "Modifier",
+    "amendCommit": "Modifier le commit",
+    "clean": "Arbre de travail propre",
+    "cleanHint": "Aucune modification à valider."
+  }
+}

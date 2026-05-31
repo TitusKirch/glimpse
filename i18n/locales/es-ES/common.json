@@ -1,0 +1,42 @@
+{
+  "app": {
+    "name": "glimpse"
+  },
+  "error": {
+    "title": "Error",
+    "loadFailed": "No se pudo cargar este repositorio",
+    "retry": "Reintentar"
+  },
+  "sync": {
+    "fetch": "Fetch",
+    "pull": "Pull",
+    "push": "Push"
+  },
+  "actions": {
+    "refresh": "Actualizar",
+    "openRepo": "Abrir repositorio",
+    "closeRepo": "Cerrar repositorio"
+  },
+  "theme": {
+    "toggle": "Cambiar tema"
+  },
+  "command": {
+    "open": "Paleta de comandos",
+    "placeholder": "Escribe un comando o busca…",
+    "empty": "Sin resultados.",
+    "actions": "Acciones",
+    "branches": "Cambiar de rama",
+    "recent": "Repositorios recientes",
+    "current": "actual",
+    "openFiles": "Abrir en el explorador de archivos",
+    "openTerminal": "Abrir en la terminal",
+    "openEditor": "Abrir en el editor",
+    "toggleSidebar": "Alternar barra lateral"
+  },
+  "start": {
+    "title": "Ningún repositorio abierto",
+    "subtitle": "Abre una carpeta para explorar su historial, o elige uno reciente.",
+    "recent": "Recientes",
+    "clear": "Borrar"
+  }
+}

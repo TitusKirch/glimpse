@@ -3,7 +3,16 @@
     "title": "Diff",
     "sideBySide": "Nebeneinander",
     "unified": "Vereinheitlicht",
-    "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen"
+    "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen",
+    "noTextDiff": "Kein Text-Diff darstellbar (binär, leer oder unverändert).",
+    "ignoreWhitespace": "Whitespace ignorieren",
+    "blame": "Blame",
+    "blameEmpty": "Keine Blame-Info",
+    "blameEmptyHint": "Diese Datei ist noch nicht committet.",
+    "blameViewCommit": "Diesen Commit ansehen",
+    "fileHistory": "Datei-Verlauf",
+    "copyPath": "Pfad kopieren",
+    "copyDiff": "Diff kopieren"
   },
   "fileView": {
     "list": "Listenansicht",

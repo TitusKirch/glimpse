@@ -5,6 +5,28 @@
     "remoteBranches": "Remote-Branches",
     "tags": "Tags",
     "newBranch": "Neuer Branch",
-    "branchName": "Branch-Name…"
+    "branchName": "Branch-Name…",
+    "newTag": "Neuer Tag",
+    "tagName": "Tag-Name…",
+    "stashes": "Stashes",
+    "stashPush": "Änderungen stashen",
+    "stashPop": "Pop",
+    "stashApply": "Anwenden",
+    "stashDrop": "Verwerfen",
+    "noStashes": "Keine Stashes",
+    "addRemote": "Remote hinzufügen",
+    "remoteName": "Name (z. B. origin)",
+    "remoteUrl": "Remote-URL",
+    "renameBranch": "Branch umbenennen",
+    "renameRemote": "Remote umbenennen",
+    "rename": "Umbenennen",
+    "showMore": "{n} weitere anzeigen",
+    "showLess": "Weniger anzeigen",
+    "localOnly": "lokal",
+    "localOnlyHint": "Nur lokal — noch nicht auf einem Remote",
+    "noRepo": {
+      "title": "Kein Repository geöffnet",
+      "hint": "Öffne ein Repository, um Branches und Verlauf zu sehen."
+    }
   }
 }

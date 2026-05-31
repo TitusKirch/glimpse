@@ -3,7 +3,9 @@
     "name": "glimpse"
   },
   "error": {
-    "title": "Error"
+    "title": "Error",
+    "loadFailed": "Could not load this repository",
+    "retry": "Retry"
   },
   "sync": {
     "fetch": "Fetch",
@@ -12,9 +14,142 @@
   },
   "actions": {
     "refresh": "Refresh",
-    "openRepo": "Open repository"
+    "openRepo": "Open repository",
+    "closeRepo": "Close repository"
   },
   "theme": {
     "toggle": "Toggle theme"
+  },
+  "updater": {
+    "available": "Update {version} available",
+    "installing": "Downloading and installing…",
+    "installed": "Update installed — restart to apply",
+    "upToDate": "You're on the latest version",
+    "failed": "Update check failed"
+  },
+  "copied": "Copied to clipboard",
+  "help": {
+    "title": "Keyboard shortcuts",
+    "contextHint": "Tip: right-click a commit for more actions."
+  },
+  "common": {
+    "cancel": "Cancel"
+  },
+  "form": {
+    "create": "Create",
+    "rename": "Rename",
+    "validation": {
+      "required": "Required.",
+      "invalidRef": "No spaces or special characters.",
+      "invalidRemoteName": "Letters, numbers, dots, dashes and underscores only.",
+      "invalidUrl": "Enter a valid git URL or path."
+    },
+    "branch": {
+      "label": "Branch name",
+      "description": "e.g. feature/my-change.",
+      "placeholder": "feature/my-change"
+    },
+    "tag": {
+      "label": "Tag name",
+      "placeholder": "v1.0.0"
+    },
+    "remoteName": {
+      "label": "Name",
+      "placeholder": "origin"
+    },
+    "remoteUrl": {
+      "label": "URL",
+      "description": "HTTPS or SSH, e.g. git{'@'}github.com:user/repo.git",
+      "placeholder": "https://github.com/user/repo.git"
+    }
+  },
+  "confirm": {
+    "dirtySwitch": {
+      "title": "Uncommitted changes",
+      "description": "You have uncommitted changes. Stash them and switch branch?",
+      "confirm": "Stash & switch"
+    },
+    "resetHard": {
+      "title": "Hard reset",
+      "description": "This discards all uncommitted changes and moves the branch. Continue?",
+      "confirm": "Hard reset"
+    },
+    "discardAll": {
+      "title": "Discard all changes",
+      "description": "This permanently discards every uncommitted change, including untracked files. Continue?",
+      "confirm": "Discard all"
+    },
+    "publishBranch": {
+      "title": "Publish branch",
+      "description": "This branch has no upstream yet. Push it to origin and set it as the upstream?",
+      "confirm": "Publish"
+    },
+    "setUpstream": {
+      "title": "No upstream branch",
+      "description": "This branch isn't tracking a remote. Set its upstream to origin and pull?",
+      "confirm": "Set upstream & pull"
+    },
+    "deleteBranch": {
+      "title": "Delete branch",
+      "description": "Delete branch “{name}”? This can't be undone."
+    },
+    "deleteTag": {
+      "title": "Delete tag",
+      "description": "Delete tag “{name}”?"
+    },
+    "removeRemote": {
+      "title": "Remove remote",
+      "description": "Remove remote “{name}”?"
+    },
+    "dropStash": {
+      "title": "Drop stash",
+      "description": "Drop this stash? Its changes will be lost."
+    },
+    "checkoutRemote": {
+      "title": "Check out remote branch",
+      "description": "Create a local branch tracking “{name}” and switch to it?",
+      "confirm": "Checkout"
+    }
+  },
+  "branch": {
+    "switch": "Switch to branch",
+    "rename": "Rename",
+    "delete": "Delete",
+    "merge": "Merge into current"
+  },
+  "commit": {
+    "checkout": "Check out this commit",
+    "copyHash": "Copy hash",
+    "branchHere": "Branch from here",
+    "tagHere": "Tag this commit",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "reset": "Reset to here",
+    "resetSoft": "Soft (keep changes staged)",
+    "resetMixed": "Mixed (keep changes)",
+    "resetHard": "Hard (discard changes)"
+  },
+  "command": {
+    "open": "Command palette",
+    "placeholder": "Type a command or search…",
+    "empty": "No results found.",
+    "actions": "Actions",
+    "branches": "Switch branch",
+    "recent": "Recent repositories",
+    "current": "current",
+    "openFiles": "Open in file manager",
+    "openTerminal": "Open in terminal",
+    "openEditor": "Open in editor",
+    "toggleSidebar": "Toggle sidebar",
+    "pushUpstream": "Push and set upstream",
+    "pushForce": "Force push (with lease)",
+    "stash": "Stash changes",
+    "pushTags": "Push tags"
+  },
+  "start": {
+    "title": "No repository open",
+    "subtitle": "Open a folder to start exploring its history, or pick a recent one.",
+    "recent": "Recent",
+    "clear": "Clear"
   }
 }

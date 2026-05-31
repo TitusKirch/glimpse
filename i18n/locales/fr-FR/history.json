@@ -1,0 +1,11 @@
+{
+  "graph": {
+    "title": "Graphe des commits",
+    "uncommitted": "Modifications non validées"
+  },
+  "history": {
+    "title": "Historique",
+    "empty": "Aucun commit",
+    "emptyHint": "Cette branche n'a pas d'historique."
+  }
+}

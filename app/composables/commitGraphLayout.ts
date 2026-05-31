@@ -87,16 +87,32 @@ export function commitGraphLayout(
     return `M ${x1} ${y1} L ${x1} ${y2 - r} C ${x1} ${y2}, ${x2} ${y2 - r}, ${x2} ${y2}`;
   };
 
+  const height = commits.length * rowHeight;
+
   const edges: GraphEdge[] = [];
   commits.forEach((c, i) => {
-    for (const parent of c.parents) {
+    c.parents.forEach((parent, pi) => {
       const j = indexByHash.get(parent);
-      if (j === undefined) continue;
+      if (j === undefined) {
+        // The parent is beyond the loaded window (older history). Continue this
+        // commit's lane straight down to the bottom edge so a truncated branch
+        // reads as "history continues below" instead of looking like a root.
+        // Only the first parent owns this lane; a merge's extra parent that left
+        // the window gets no phantom line (and the backend reserves it no lane).
+        if (pi === 0) {
+          const x = laneX(c.lane);
+          edges.push({
+            d: `M ${x} ${nodeY(i)} L ${x} ${height}`,
+            color: laneColor(c.lane)
+          });
+        }
+        return;
+      }
       edges.push({
         d: edgePath(laneX(c.lane), nodeY(i), laneX(commits[j]!.lane), nodeY(j)),
         color: laneColor(Math.max(c.lane, commits[j]!.lane))
       });
-    }
+    });
   });
 
   const maxLane = commits.reduce((m, c) => Math.max(m, c.lane), 0);
@@ -104,7 +120,7 @@ export function commitGraphLayout(
     nodes,
     edges,
     width: laneX(maxLane) + originX,
-    height: commits.length * rowHeight,
+    height,
     rowHeight
   };
 }

@@ -3,19 +3,27 @@
 //! lives here so it is testable through a string interface. See
 //! `docs/ARCHITECTURE.md` §9.
 
-use super::{lines, Branch, Commit, CommitFile, DiffData, StatusEntry, US};
+use super::{
+    lines, BlameLine, Branch, Commit, CommitFile, DiffData, StatusEntry, US,
+};
+use std::collections::HashMap;
 
-/// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)`.
+/// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)␟%(upstream)`.
 pub fn branches(raw: &str) -> Vec<Branch> {
     lines(raw)
         .map(|line| {
             let mut f = line.split(US);
             let name = f.next().unwrap_or("").to_string();
             let track = f.next().unwrap_or("");
+            let upstream = f.next().unwrap_or("");
             Branch {
                 name,
                 ahead: count_after(track, "ahead "),
                 behind: count_after(track, "behind "),
+                // Published = a configured upstream that still exists. An empty
+                // upstream means "never pushed"; "[gone]" means the remote ref
+                // was deleted — both read as local-only.
+                published: !upstream.is_empty() && track != "[gone]",
             }
         })
         .collect()
@@ -49,13 +57,17 @@ pub fn status(raw: &str) -> Vec<StatusEntry> {
             i += 1;
         }
         let untracked = x == '?';
+        // Unmerged entries: a 'U' on either side, or matching A/A or D/D.
+        let conflicted =
+            x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D');
         entries.push(StatusEntry {
             path,
             x: x.to_string(),
             y: y.to_string(),
-            staged: !untracked && x != ' ',
-            unstaged: !untracked && y != ' ',
+            staged: !conflicted && !untracked && x != ' ',
+            unstaged: !conflicted && !untracked && y != ' ',
             untracked,
+            conflicted,
         });
     }
     entries
@@ -107,6 +119,16 @@ pub fn log(raw: &str) -> Vec<Commit> {
 fn assign_lanes(commits: &mut [Commit]) {
     let mut lanes: Vec<Option<String>> = Vec::new();
 
+    // Hashes present in this window. A `git log -n LIMIT` cuts history, so some
+    // parents fall outside it. Reserving a lane for such a parent would hold a
+    // column that never gets a node — the lane stays blank forever while later
+    // branches are pushed to higher lanes, leaving an unused gap. We only keep
+    // lanes for parents that actually appear (the first-parent continuation is
+    // an exception: the renderer draws it as a "continues below" stub in its own
+    // lane, so it must stay reserved to avoid a collision).
+    let known: std::collections::HashSet<String> =
+        commits.iter().map(|c| c.hash.clone()).collect();
+
     let free_lane = |lanes: &mut Vec<Option<String>>| -> usize {
         match lanes.iter().position(Option::is_none) {
             Some(i) => i,
@@ -141,9 +163,14 @@ fn assign_lanes(commits: &mut [Commit]) {
         // First parent continues this lane; clear it otherwise.
         lanes[lane] = commit.parents.first().cloned();
 
-        // Extra parents (merge) reserve their own lanes if not already tracked.
+        // Extra parents (merge) reserve their own lanes if not already tracked
+        // — but only when the parent is in this window. An off-window merge
+        // parent's edge is rendered from the merge's own lane, so reserving a
+        // column for it would just waste a lane.
         for parent in commit.parents.iter().skip(1) {
-            if !lanes.iter().any(|l| l.as_deref() == Some(parent.as_str())) {
+            if known.contains(parent)
+                && !lanes.iter().any(|l| l.as_deref() == Some(parent.as_str()))
+            {
                 let i = free_lane(&mut lanes);
                 lanes[i] = Some(parent.clone());
             }
@@ -209,6 +236,70 @@ pub fn diff(raw: &str) -> Option<DiffData> {
         })
 }
 
+/// Convert a Unix timestamp to `YYYY-MM-DD` (UTC) without pulling in a date
+/// crate — Howard Hinnant's civil-from-days algorithm.
+fn epoch_to_date(secs: i64) -> String {
+    let days = secs.div_euclid(86_400);
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Decode `git blame --porcelain`. Commit metadata (author, time) is emitted
+/// once per commit and cached by hash for that commit's later lines, so we keep
+/// a hash → (author, date) map and reuse it.
+pub fn blame(raw: &str) -> Vec<BlameLine> {
+    let mut out = Vec::new();
+    let mut meta: HashMap<String, (String, String)> = HashMap::new();
+    let mut hash = String::new();
+    let mut line_no = 0u32;
+    let mut author = String::new();
+    let mut date = String::new();
+
+    for l in raw.lines() {
+        let bytes = l.as_bytes();
+        // Header: "<40-hex> <orig> <final> [<count>]".
+        if bytes.len() >= 41
+            && bytes[40] == b' '
+            && bytes[..40].iter().all(u8::is_ascii_hexdigit)
+        {
+            let mut parts = l.split(' ');
+            hash = parts.next().unwrap_or("").to_string();
+            // orig line, then final line number.
+            parts.next();
+            line_no = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0);
+            // Reuse cached metadata; fresh commits fill it from the lines below.
+            if let Some((a, d)) = meta.get(&hash) {
+                author = a.clone();
+                date = d.clone();
+            }
+        } else if let Some(name) = l.strip_prefix("author ") {
+            author = name.to_string();
+        } else if let Some(t) = l.strip_prefix("author-time ") {
+            date = t.parse::<i64>().map(epoch_to_date).unwrap_or_default();
+        } else if let Some(content) = l.strip_prefix('\t') {
+            meta.entry(hash.clone())
+                .or_insert_with(|| (author.clone(), date.clone()));
+            out.push(BlameLine {
+                line: line_no,
+                hash: hash.chars().take(7).collect(),
+                author: author.clone(),
+                date: date.clone(),
+                content: content.to_string(),
+            });
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,6 +316,17 @@ mod tests {
         assert!(e[0].staged && !e[0].unstaged);
         assert!(!e[1].staged && e[1].unstaged);
         assert!(e[2].untracked && !e[2].staged && !e[2].unstaged);
+    }
+
+    #[test]
+    fn status_flags_merge_conflicts() {
+        // Unmerged entries ('U' on either side, or AA/DD) are conflicted and
+        // excluded from the staged/unstaged buckets.
+        let raw = z(&["UU both.rs", "AA added.rs", " M plain.rs"]);
+        let e = status(&raw);
+        assert!(e[0].conflicted && !e[0].staged && !e[0].unstaged);
+        assert!(e[1].conflicted);
+        assert!(!e[2].conflicted && e[2].unstaged);
     }
 
     #[test]
@@ -282,15 +384,21 @@ mod tests {
 
     #[test]
     fn branches_parse_ahead_behind() {
+        // Fields: name ␟ upstream:track ␟ upstream. main tracks origin/main;
+        // local has no upstream; feat is behind; gone's remote ref was deleted.
         let raw = format!(
-            "main{US}[ahead 2, behind 1]\ndev{US}\nfeat{US}[behind 3]\ngone{US}[gone]"
+            "main{US}[ahead 2, behind 1]{US}origin/main\n\
+             local{US}{US}\n\
+             feat{US}[behind 3]{US}origin/feat\n\
+             gone{US}[gone]{US}origin/gone"
         );
         let b = branches(&raw);
         assert_eq!(b.len(), 4);
-        assert_eq!((b[0].ahead, b[0].behind), (2, 1));
-        assert_eq!((b[1].ahead, b[1].behind), (0, 0));
-        assert_eq!((b[2].ahead, b[2].behind), (0, 3));
-        assert_eq!((b[3].ahead, b[3].behind), (0, 0));
+        assert_eq!((b[0].ahead, b[0].behind, b[0].published), (2, 1, true));
+        assert_eq!((b[1].ahead, b[1].behind, b[1].published), (0, 0, false));
+        assert_eq!((b[2].ahead, b[2].behind, b[2].published), (0, 3, true));
+        // Upstream configured but the remote ref is gone -> read as local-only.
+        assert_eq!((b[3].ahead, b[3].behind, b[3].published), (0, 0, false));
     }
 
     #[test]
@@ -299,6 +407,22 @@ mod tests {
         assert!(log("").is_empty());
         assert!(commit_files("").is_empty());
         assert!(diff("").is_none());
+    }
+
+    #[test]
+    fn offwindow_merge_parent_does_not_waste_a_lane() {
+        // M merges a branch whose tip OFFWIN fell outside the window (never
+        // appears). That parent must NOT hold a lane — otherwise the later,
+        // unrelated tip T is pushed past an unused column. T should reuse lane 1.
+        let raw = format!(
+            "M{US}P OFFWIN{US}a{US}d{US}{US}merge\n\
+             P{US}Q{US}a{US}d{US}{US}p\n\
+             T{US}Q{US}a{US}d{US}{US}tip\n\
+             Q{US}{US}a{US}d{US}{US}base"
+        );
+        let c = log(&raw);
+        let max_lane = c.iter().map(|k| k.lane).max().unwrap();
+        assert_eq!(max_lane, 1, "off-window merge parent must not reserve a lane");
     }
 
     #[test]
@@ -341,5 +465,31 @@ mod tests {
     #[test]
     fn diff_without_hunks_is_none() {
         assert!(diff("diff --git a/x b/x\n").is_none());
+    }
+
+    #[test]
+    fn blame_parses_porcelain_and_caches_meta() {
+        let raw = "abc123def4567890000000000000000000000000 1 1 2\n\
+                   author Alice\n\
+                   author-time 1700000000\n\
+                   summary first\n\
+                   \tline one\n\
+                   abc123def4567890000000000000000000000000 2 2\n\
+                   \tline two\n";
+        let b = blame(raw);
+        assert_eq!(b.len(), 2);
+        assert_eq!(b[0].line, 1);
+        assert_eq!(b[0].hash, "abc123d");
+        assert_eq!(b[0].author, "Alice");
+        assert_eq!(b[0].content, "line one");
+        // Second line reuses the cached author (metadata not repeated).
+        assert_eq!(b[1].line, 2);
+        assert_eq!(b[1].author, "Alice");
+        assert_eq!(b[1].content, "line two");
+    }
+
+    #[test]
+    fn epoch_to_date_known_value() {
+        assert_eq!(epoch_to_date(1_700_000_000), "2023-11-14");
     }
 }

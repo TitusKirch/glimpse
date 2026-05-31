@@ -1,14 +1,28 @@
 <script setup lang="ts">
 // Lightweight unified/split diff renderer driven by git unified-diff hunks.
 // Rows fill the full scroll width (so highlights span it), line-number gutters
-// are sticky-left, and code is syntax-highlighted via highlight.js.
+// are sticky-left, and code is syntax-highlighted via highlight.js. In split
+// mode, paired -/+ lines additionally get word-level highlighting. When a hunk
+// action is enabled, each hunk header carries a stage/unstage button.
+//
+// Rows are virtualized (TanStack Virtual) so a 10k-line file only mounts the
+// handful of rows on screen. We use the *padding* technique — real rows stay in
+// normal flow between a top/bottom spacer — rather than absolute positioning,
+// because absolute rows can't push a `w-max` track wider than the viewport and
+// would kill horizontal scrolling of long lines. Heights are measured per row
+// (measureElement), so the estimate only needs to be roughly right.
 import hljs from 'highlight.js';
+import { useVirtualizer } from '@tanstack/vue-virtual';
 
 const props = defineProps<{
   hunks: string[];
   mode: 'split' | 'unified';
   fileName: string;
+  // When set, each hunk gets a stage/unstage button emitting `stageHunk`.
+  hunkAction?: 'stage' | 'unstage' | null;
 }>();
+
+const emit = defineEmits<{ stageHunk: [hunk: string] }>();
 
 type RowType = 'hunk' | 'context' | 'add' | 'del';
 
@@ -17,6 +31,10 @@ interface URow {
   oldNo?: number;
   newNo?: number;
   html: string;
+  // Raw line text (for word-level diffing); undefined for hunk headers.
+  text?: string;
+  // Index into props.hunks for hunk-header rows.
+  hunkIndex?: number;
 }
 
 type CellType = 'context' | 'add' | 'del' | 'empty';
@@ -27,6 +45,7 @@ interface SCell {
 }
 interface SRow {
   hunk?: string;
+  hunkIndex?: number;
   left?: SCell;
   right?: SCell;
 }
@@ -98,25 +117,93 @@ function hl(text: string): string {
   }
 }
 
+// Word-level diff of a removed/added line pair: highlight the changed middle
+// (common prefix/suffix trimmed by the pure wordDiffRanges helper). Cheap and
+// effective for the common single-edit line.
+function wordDiff(a: string, b: string): { oldHtml: string; newHtml: string } {
+  const { start, aEnd, bEnd } = wordDiffRanges(a, b);
+  const wrap = (s: string, cls: string) =>
+    s ? `<span class="${cls}">${escapeHtml(s)}</span>` : '';
+  return {
+    oldHtml:
+      escapeHtml(a.slice(0, start)) +
+      wrap(a.slice(start, aEnd), 'wd-del') +
+      escapeHtml(a.slice(aEnd)),
+    newHtml:
+      escapeHtml(b.slice(0, start)) +
+      wrap(b.slice(start, bEnd), 'wd-add') +
+      escapeHtml(b.slice(bEnd))
+  };
+}
+
 const unified = computed<URow[]>(() => {
   const out: URow[] = [];
-  for (const hunk of props.hunks) {
+  props.hunks.forEach((hunk, hunkIndex) => {
     const lines = hunk.split('\n');
     const header = lines[0] ?? '';
     const m = header.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
     let oldNo = m ? Number(m[1]) : 1;
     let newNo = m ? Number(m[2]) : 1;
-    out.push({ type: 'hunk', html: escapeHtml(header) });
+    out.push({ type: 'hunk', html: escapeHtml(header), hunkIndex });
+
+    // Buffer consecutive removals/additions so a modified line (a -/+ pair) can
+    // be word-diffed — the changed substring gets emphasised like in split mode.
+    let dels: { text: string; oldNo: number }[] = [];
+    let adds: { text: string; newNo: number }[] = [];
+    const flush = () => {
+      const n = Math.max(dels.length, adds.length);
+      const delHtml: string[] = [];
+      const addHtml: string[] = [];
+      for (let i = 0; i < n; i++) {
+        const d = dels[i];
+        const a = adds[i];
+        if (d && a) {
+          const wd = wordDiff(d.text, a.text);
+          delHtml.push(wd.oldHtml);
+          addHtml.push(wd.newHtml);
+        } else if (d) delHtml.push(hl(d.text));
+        else if (a) addHtml.push(hl(a.text));
+      }
+      dels.forEach((d, i) =>
+        out.push({
+          type: 'del',
+          oldNo: d.oldNo,
+          html: delHtml[i]!,
+          text: d.text
+        })
+      );
+      adds.forEach((a, i) =>
+        out.push({
+          type: 'add',
+          newNo: a.newNo,
+          html: addHtml[i]!,
+          text: a.text
+        })
+      );
+      dels = [];
+      adds = [];
+    };
+
     for (let i = 1; i < lines.length; i++) {
       const l = lines[i] ?? '';
       const c = l[0];
-      const html = hl(l.slice(1));
+      const text = l.slice(1);
       if (c === '\\') continue;
-      if (c === '+') out.push({ type: 'add', newNo: newNo++, html });
-      else if (c === '-') out.push({ type: 'del', oldNo: oldNo++, html });
-      else out.push({ type: 'context', oldNo: oldNo++, newNo: newNo++, html });
+      if (c === '+') adds.push({ text, newNo: newNo++ });
+      else if (c === '-') dels.push({ text, oldNo: oldNo++ });
+      else {
+        flush();
+        out.push({
+          type: 'context',
+          oldNo: oldNo++,
+          newNo: newNo++,
+          html: hl(text),
+          text
+        });
+      }
     }
-  }
+    flush();
+  });
   return out;
 });
 
@@ -129,12 +216,20 @@ const split = computed<SRow[]>(() => {
     for (let i = 0; i < n; i++) {
       const d = dels[i];
       const a = adds[i];
+      // When a line was both removed and re-added, word-diff the pair.
+      let leftHtml = d?.html ?? '';
+      let rightHtml = a?.html ?? '';
+      if (d && a && d.text !== undefined && a.text !== undefined) {
+        const wd = wordDiff(d.text, a.text);
+        leftHtml = wd.oldHtml;
+        rightHtml = wd.newHtml;
+      }
       out.push({
         left: d
-          ? { no: d.oldNo, html: d.html, type: 'del' }
+          ? { no: d.oldNo, html: leftHtml, type: 'del' }
           : { html: '', type: 'empty' },
         right: a
-          ? { no: a.newNo, html: a.html, type: 'add' }
+          ? { no: a.newNo, html: rightHtml, type: 'add' }
           : { html: '', type: 'empty' }
       });
     }
@@ -146,7 +241,7 @@ const split = computed<SRow[]>(() => {
     else if (r.type === 'add') adds.push(r);
     else {
       flush();
-      if (r.type === 'hunk') out.push({ hunk: r.html });
+      if (r.type === 'hunk') out.push({ hunk: r.html, hunkIndex: r.hunkIndex });
       else
         out.push({
           left: { no: r.oldNo, html: r.html, type: 'context' },
@@ -183,34 +278,109 @@ function sync(src: 'l' | 'r') {
 
 const gutter =
   'sticky z-10 shrink-0 bg-background px-2 text-right text-muted-foreground select-none';
+
+// --- Virtualization ---------------------------------------------------------
+// Every row is a single line pinned to an exact 20px box (`h-5 leading-5`), so
+// we use a fixed size and skip per-row measurement. Measuring would re-round the
+// 12px×1.6 line box to 19/20px frame-by-frame while scrolling, nudging paddingTop
+// and making the row backgrounds flicker — a fixed height keeps it rock steady.
+const ROW_H = 20;
+
+// Only the active mode feeds rows to its virtualizer (the hidden one stays at
+// count 0 and does no work).
+const unifiedRows = computed(() =>
+  props.mode === 'unified' ? unified.value : []
+);
+const splitRows = computed(() => (props.mode === 'split' ? split.value : []));
+
+const unifiedScroll = ref<HTMLElement | null>(null);
+
+function makeVirtualizer(count: Ref<number>, getEl: () => HTMLElement | null) {
+  const virt = useVirtualizer(
+    computed(() => ({
+      count: count.value,
+      getScrollElement: getEl,
+      estimateSize: () => ROW_H,
+      overscan: 24
+    }))
+  );
+  const items = computed(() => virt.value.getVirtualItems());
+  const padTop = computed(() => items.value[0]?.start ?? 0);
+  const padBottom = computed(() => {
+    const last = items.value[items.value.length - 1];
+    return last ? virt.value.getTotalSize() - last.end : 0;
+  });
+  return reactive({ items, padTop, padBottom });
+}
+
+const unifiedCount = computed(() => unifiedRows.value.length);
+const splitCount = computed(() => splitRows.value.length);
+
+const uv = makeVirtualizer(unifiedCount, () => unifiedScroll.value);
+const lv = makeVirtualizer(splitCount, () => leftPane.value);
+const rv = makeVirtualizer(splitCount, () => rightPane.value);
+
+// Pair each on-screen virtual item with its row data for the template.
+const uVisible = computed(() =>
+  uv.items.map((vi) => ({ vi, row: unified.value[vi.index]! }))
+);
+const lVisible = computed(() =>
+  lv.items.map((vi) => ({ vi, row: split.value[vi.index]! }))
+);
+const rVisible = computed(() =>
+  rv.items.map((vi) => ({ vi, row: split.value[vi.index]! }))
+);
 </script>
 
 <template>
   <!-- unified -->
   <div
     v-if="mode === 'unified'"
+    ref="unifiedScroll"
     class="hljs-diff h-full overflow-auto font-mono text-xs leading-[1.6]"
   >
-    <div class="w-max min-w-full">
+    <div
+      class="w-max min-w-full"
+      :style="{
+        paddingTop: `${uv.padTop}px`,
+        paddingBottom: `${uv.padBottom}px`
+      }"
+    >
       <div
-        v-for="(r, i) in unified"
-        :key="i"
-        class="flex"
-        :class="rowBg[r.type]"
+        v-for="{ vi, row } in uVisible"
+        :key="vi.key"
+        class="flex h-5 leading-5"
       >
-        <span
-          v-if="r.type === 'hunk'"
-          class="sticky left-0 bg-accent px-2 whitespace-pre text-muted-foreground"
-          v-html="r.html"
-        />
+        <div
+          v-if="row.type === 'hunk'"
+          class="sticky left-0 flex w-full items-center bg-accent"
+        >
+          <span
+            class="px-2 whitespace-pre text-muted-foreground"
+            v-html="row.html"
+          />
+          <button
+            v-if="hunkAction"
+            class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+            @click="emit('stageHunk', hunks[row.hunkIndex!]!)"
+          >
+            {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+          </button>
+        </div>
         <template v-else>
-          <span :class="[gutter, 'left-0 w-12']">{{ r.oldNo ?? '' }}</span>
-          <span :class="[gutter, 'left-12 w-12']">{{ r.newNo ?? '' }}</span>
+          <span :class="[gutter, 'left-0 w-12']">{{ row.oldNo ?? '' }}</span>
+          <span :class="[gutter, 'left-12 w-12']">{{ row.newNo ?? '' }}</span>
           <span
             class="sticky left-24 z-10 w-4 shrink-0 bg-background text-center text-muted-foreground select-none"
-            >{{ r.type === 'add' ? '+' : r.type === 'del' ? '-' : '' }}</span
+            >{{
+              row.type === 'add' ? '+' : row.type === 'del' ? '-' : ''
+            }}</span
           >
-          <span class="grow px-1 whitespace-pre" v-html="r.html" />
+          <span
+            class="grow px-1 whitespace-pre"
+            :class="rowBg[row.type]"
+            v-html="row.html"
+          />
         </template>
       </div>
     </div>
@@ -228,23 +398,43 @@ const gutter =
         class="diff-no-vscroll h-full overflow-auto"
         @scroll="sync('l')"
       >
-        <div class="w-max min-w-full">
+        <div
+          class="w-max min-w-full"
+          :style="{
+            paddingTop: `${lv.padTop}px`,
+            paddingBottom: `${lv.padBottom}px`
+          }"
+        >
           <div
-            v-for="(r, i) in split"
-            :key="i"
-            class="flex"
-            :class="r.left ? rowBg[r.left.type] : ''"
+            v-for="{ vi, row: r } in lVisible"
+            :key="vi.key"
+            class="flex h-5 leading-5"
           >
-            <span
+            <div
               v-if="r.hunk !== undefined"
-              class="sticky left-0 bg-accent px-2 whitespace-pre text-muted-foreground"
-              v-html="r.hunk"
-            />
+              class="sticky left-0 flex w-full items-center bg-accent"
+            >
+              <span
+                class="px-2 whitespace-pre text-muted-foreground"
+                v-html="r.hunk"
+              />
+              <button
+                v-if="hunkAction"
+                class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                @click="emit('stageHunk', hunks[r.hunkIndex!]!)"
+              >
+                {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+              </button>
+            </div>
             <template v-else>
               <span :class="[gutter, 'left-0 w-12']">{{
                 r.left!.no ?? ''
               }}</span>
-              <span class="grow px-1 whitespace-pre" v-html="r.left!.html" />
+              <span
+                class="grow px-1 whitespace-pre"
+                :class="rowBg[r.left!.type]"
+                v-html="r.left!.html"
+              />
             </template>
           </div>
         </div>
@@ -253,12 +443,17 @@ const gutter =
     <UiResizableHandle class="z-20" />
     <UiResizablePanel :default-size="50" :min-size="15">
       <div ref="rightPane" class="h-full overflow-auto" @scroll="sync('r')">
-        <div class="w-max min-w-full">
+        <div
+          class="w-max min-w-full"
+          :style="{
+            paddingTop: `${rv.padTop}px`,
+            paddingBottom: `${rv.padBottom}px`
+          }"
+        >
           <div
-            v-for="(r, i) in split"
-            :key="i"
-            class="flex"
-            :class="r.right ? rowBg[r.right.type] : ''"
+            v-for="{ vi, row: r } in rVisible"
+            :key="vi.key"
+            class="flex h-5 leading-5"
           >
             <span
               v-if="r.hunk !== undefined"
@@ -269,7 +464,11 @@ const gutter =
               <span :class="[gutter, 'left-0 w-12']">{{
                 r.right!.no ?? ''
               }}</span>
-              <span class="grow px-1 whitespace-pre" v-html="r.right!.html" />
+              <span
+                class="grow px-1 whitespace-pre"
+                :class="rowBg[r.right!.type]"
+                v-html="r.right!.html"
+              />
             </template>
           </div>
         </div>

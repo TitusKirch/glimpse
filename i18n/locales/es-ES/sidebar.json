@@ -1,0 +1,10 @@
+{
+  "sidebar": {
+    "branches": "Ramas",
+    "remotes": "Remotos",
+    "remoteBranches": "Ramas remotas",
+    "tags": "Etiquetas",
+    "newBranch": "Nueva rama",
+    "branchName": "nombre de la rama…"
+  }
+}

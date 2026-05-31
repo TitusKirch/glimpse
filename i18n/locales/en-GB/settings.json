@@ -3,6 +3,33 @@
     "title": "Settings",
     "general": {
       "title": "General",
+      "gitSection": "Git",
+      "autoFetch": {
+        "label": "Auto-fetch",
+        "hint": "Periodically fetch from remotes in the background."
+      },
+      "autoFetchInterval": {
+        "label": "Interval (minutes)",
+        "hint": "How often to fetch automatically."
+      },
+      "pullStrategy": {
+        "label": "Pull strategy",
+        "hint": "Merge or rebase when pulling.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
+      "updatesSection": "Updates",
+      "autoUpdate": {
+        "label": "Automatic updates",
+        "hint": "Check for updates on launch and install them automatically."
+      },
+      "releaseChannel": {
+        "label": "Release channel",
+        "hint": "Stable, or opt in to earlier beta builds.",
+        "stable": "Stable",
+        "beta": "Beta"
+      },
+      "checkUpdatesHint": "Check for an update right now.",
       "developer": "Developer",
       "devMode": {
         "label": "Developer settings",
@@ -48,6 +75,10 @@
       "system": "System",
       "light": "Light",
       "dark": "Dark",
+      "accent": {
+        "label": "Accent colour",
+        "hint": "The primary highlight colour."
+      },
       "diffSection": "Diff & files",
       "diffMode": {
         "label": "Default diff view",
@@ -56,6 +87,14 @@
       "fileView": {
         "label": "File list view",
         "hint": "Flat list or grouped folder tree."
+      },
+      "diffFont": {
+        "label": "Diff font size",
+        "hint": "Text size in the diff viewer.",
+        "small": "Small",
+        "default": "Default",
+        "large": "Large",
+        "xlarge": "Extra large"
       }
     },
     "language": {
@@ -64,8 +103,15 @@
       "hint": "The display language of glimpse.",
       "name": {
         "de-DE": "Deutsch",
-        "en-GB": "English"
+        "en-GB": "English",
+        "fr-FR": "Français",
+        "es-ES": "Español"
       }
+    },
+    "about": {
+      "title": "About",
+      "description": "A lightweight, git-native desktop Git client with first-class WSL support.",
+      "checkUpdates": "Check for updates"
     }
   }
 }

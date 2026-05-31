@@ -1,21 +1,24 @@
 <script setup lang="ts">
+import { useSidebar } from '@/components/ui/sidebar';
+
 const repo = useRepoStore();
+const settings = useSettingsDialog();
+const remoteDialog = useRemoteDialog();
+const openRepoDialog = useOpenRepoDialog();
+const help = useHelpDialog();
 const { t } = useI18n();
 
-const creating = ref(false);
-const newBranch = ref('');
-const settingsOpen = ref(false);
+// Collapsed (icon-only) sidebar: items open a dropdown instead of acting
+// directly, so their actions stay reachable.
+const { state, isMobile } = useSidebar();
+const isCollapsed = computed(
+  () => state.value === 'collapsed' && !isMobile.value
+);
 
-function cancel() {
-  creating.value = false;
-  newBranch.value = '';
-}
-
-async function submitBranch() {
-  if (!newBranch.value.trim()) return;
-  await repo.createBranch(newBranch.value);
-  cancel();
-}
+// Capped lists with gildstone-style "show N more / show less".
+const branchesMore = useSidebarMore(() => repo.branches);
+const remoteBranchesMore = useSidebarMore(() => repo.remoteBranches);
+const tagsMore = useSidebarMore(() => repo.tags);
 
 // "origin/dev" -> "dev"; checking it out lets git create a tracking branch.
 function shortName(remoteBranch: string): string {
@@ -55,13 +58,31 @@ const links = [
     </UiSidebarHeader>
 
     <UiSidebarContent>
-      <UiSidebarGroup>
+      <!-- no repo open: prompt to open one instead of empty branch lists -->
+      <div
+        v-if="!repo.hasRepos"
+        class="p-2 group-data-[collapsible=icon]:hidden"
+      >
+        <UiAlert>
+          <NuxtIcon name="lucide:folder-open" mode="svg" class="size-4" />
+          <UiAlertTitle>{{ t('sidebar.noRepo.title') }}</UiAlertTitle>
+          <UiAlertDescription>{{
+            t('sidebar.noRepo.hint')
+          }}</UiAlertDescription>
+        </UiAlert>
+        <UiButton size="sm" class="mt-2 w-full" @click="openRepoDialog.show()">
+          <NuxtIcon name="lucide:folder-open" class="size-4" />
+          {{ t('actions.openRepo') }}
+        </UiButton>
+      </div>
+
+      <UiSidebarGroup v-if="repo.hasRepos">
         <UiSidebarGroupLabel>{{ t('sidebar.branches') }}</UiSidebarGroupLabel>
         <UiTooltip>
           <UiTooltipTrigger as-child>
             <UiSidebarGroupAction
               class="size-6 cursor-pointer"
-              @click="creating = !creating"
+              @click="repo.createBranchPrompt()"
             >
               <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />
             </UiSidebarGroupAction>
@@ -69,62 +90,36 @@ const links = [
           <UiTooltipContent>{{ t('sidebar.newBranch') }}</UiTooltipContent>
         </UiTooltip>
         <UiSidebarGroupContent>
-          <div
-            v-if="creating"
-            class="flex items-center gap-1 px-2 pb-1 group-data-[collapsible=icon]:hidden"
-          >
-            <UiSidebarInput
-              v-model="newBranch"
-              :placeholder="t('sidebar.branchName')"
-              autofocus
-              @keydown.enter="submitBranch"
-              @keydown.esc="cancel"
-            />
-            <UiButton
-              variant="ghost"
-              size="icon"
-              class="size-7 shrink-0"
-              @click="cancel"
-            >
-              <NuxtIcon name="lucide:x" class="size-4" />
-            </UiButton>
-          </div>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="b in repo.branches" :key="b.name">
-              <UiSidebarMenuButton
-                :is-active="b.name === repo.currentBranch"
-                :tooltip="b.name"
-                @click="repo.checkout(b.name)"
-              >
-                <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-                <span>{{ b.name }}</span>
-                <span
-                  v-if="b.ahead || b.behind"
-                  class="ml-auto flex items-center gap-1 text-[11px] font-medium"
-                >
-                  <span
-                    v-if="b.ahead"
-                    class="flex items-center gap-0.5 rounded-md bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400"
-                    ><NuxtIcon name="lucide:arrow-up" class="size-3.5" />{{
-                      b.ahead
-                    }}</span
-                  >
-                  <span
-                    v-if="b.behind"
-                    class="flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
-                    ><NuxtIcon name="lucide:arrow-down" class="size-3.5" />{{
-                      b.behind
-                    }}</span
-                  >
-                </span>
-              </UiSidebarMenuButton>
-            </UiSidebarMenuItem>
+            <SidebarBranchItem
+              v-for="b in branchesMore.visible.value"
+              :key="b.name"
+              :branch="b"
+              :collapsed="isCollapsed"
+            />
+            <SidebarMoreButton
+              :hidden-count="branchesMore.hiddenCount.value"
+              :expanded="branchesMore.isExpanded.value"
+              :can-collapse="branchesMore.canCollapse.value"
+              @toggle="branchesMore.toggle()"
+            />
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
-      <UiSidebarGroup>
+      <UiSidebarGroup v-if="repo.hasRepos">
         <UiSidebarGroupLabel>{{ t('sidebar.remotes') }}</UiSidebarGroupLabel>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="remoteDialog.show()"
+            >
+              <NuxtIcon name="lucide:plus" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.addRemote') }}</UiTooltipContent>
+        </UiTooltip>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
@@ -132,6 +127,27 @@ const links = [
                 <NuxtIcon name="lucide:cloud" class="shrink-0" />
                 <span>{{ r }}</span>
               </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem @click="repo.renameRemote(r)">
+                    <NuxtIcon name="lucide:pencil" />
+                    {{ t('branch.rename') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuSeparator />
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="repo.removeRemote(r)"
+                  >
+                    <NuxtIcon name="lucide:trash-2" />
+                    {{ t('branch.delete') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
         </UiSidebarGroupContent>
@@ -143,11 +159,14 @@ const links = [
         }}</UiSidebarGroupLabel>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="rb in repo.remoteBranches" :key="rb">
+            <UiSidebarMenuItem
+              v-for="rb in remoteBranchesMore.visible.value"
+              :key="rb"
+            >
               <UiSidebarMenuButton
                 :is-active="shortName(rb) === repo.currentBranch"
                 :tooltip="rb"
-                @click="repo.checkout(shortName(rb))"
+                @click="repo.checkoutRemote(rb)"
               >
                 <NuxtIcon
                   :name="
@@ -160,56 +179,158 @@ const links = [
                 <span>{{ rb }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
+            <SidebarMoreButton
+              :hidden-count="remoteBranchesMore.hiddenCount.value"
+              :expanded="remoteBranchesMore.isExpanded.value"
+              :can-collapse="remoteBranchesMore.canCollapse.value"
+              @toggle="remoteBranchesMore.toggle()"
+            />
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
-      <UiSidebarGroup v-if="repo.tags.length">
+      <UiSidebarGroup v-if="repo.hasRepos">
         <UiSidebarGroupLabel>{{ t('sidebar.tags') }}</UiSidebarGroupLabel>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="repo.createTagPrompt()"
+            >
+              <NuxtIcon name="lucide:tag" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.newTag') }}</UiTooltipContent>
+        </UiTooltip>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="tag in repo.tags" :key="tag">
+            <UiSidebarMenuItem v-for="tag in tagsMore.visible.value" :key="tag">
               <UiSidebarMenuButton :tooltip="tag">
                 <NuxtIcon name="lucide:tag" class="shrink-0" />
                 <span>{{ tag }}</span>
               </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="repo.deleteTag(tag)"
+                  >
+                    <NuxtIcon name="lucide:trash-2" />
+                    {{ t('branch.delete') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
             </UiSidebarMenuItem>
+            <SidebarMoreButton
+              :hidden-count="tagsMore.hiddenCount.value"
+              :expanded="tagsMore.isExpanded.value"
+              :can-collapse="tagsMore.canCollapse.value"
+              @toggle="tagsMore.toggle()"
+            />
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
-      <UiSidebarGroup class="mt-auto">
+      <UiSidebarGroup v-if="repo.hasRepos">
+        <UiSidebarGroupLabel>{{ t('sidebar.stashes') }}</UiSidebarGroupLabel>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="repo.stashSave()"
+            >
+              <NuxtIcon name="lucide:archive" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.stashPush') }}</UiTooltipContent>
+        </UiTooltip>
         <UiSidebarGroupContent>
+          <p
+            v-if="!repo.stashes.length"
+            class="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+          >
+            {{ t('sidebar.noStashes') }}
+          </p>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="item in links" :key="item.title">
-              <UiSidebarMenuButton as-child :tooltip="item.title">
-                <a
-                  :href="item.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  @click.prevent="openExternal(item.url)"
-                >
-                  <NuxtIcon :name="item.icon" class="shrink-0" />
-                  <span>{{ item.title }}</span>
-                </a>
+            <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
+              <UiSidebarMenuButton :tooltip="s.message">
+                <NuxtIcon name="lucide:archive" class="shrink-0" />
+                <span class="truncate">{{ s.message }}</span>
               </UiSidebarMenuButton>
-            </UiSidebarMenuItem>
-            <UiSidebarMenuItem>
-              <UiSidebarMenuButton
-                :tooltip="t('settings.title')"
-                @click="settingsOpen = true"
-              >
-                <NuxtIcon name="lucide:settings" class="shrink-0" />
-                <span>{{ t('settings.title') }}</span>
-              </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem
+                    @click="repo.stashAction('pop', s.reference)"
+                  >
+                    <NuxtIcon name="lucide:archive-restore" />
+                    {{ t('sidebar.stashPop') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuItem
+                    @click="repo.stashAction('apply', s.reference)"
+                  >
+                    <NuxtIcon name="lucide:copy-plus" />
+                    {{ t('sidebar.stashApply') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuSeparator />
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="repo.stashAction('drop', s.reference)"
+                  >
+                    <NuxtIcon name="lucide:trash-2" />
+                    {{ t('sidebar.stashDrop') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
     </UiSidebarContent>
 
+    <!-- static footer: stays put while the content above scrolls -->
+    <UiSidebarFooter>
+      <UiSidebarMenu>
+        <UiSidebarMenuItem v-for="item in links" :key="item.title">
+          <UiSidebarMenuButton as-child :tooltip="item.title">
+            <a
+              :href="item.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              @click.prevent="openExternal(item.url)"
+            >
+              <NuxtIcon :name="item.icon" class="shrink-0" />
+              <span>{{ item.title }}</span>
+            </a>
+          </UiSidebarMenuButton>
+        </UiSidebarMenuItem>
+        <UiSidebarMenuItem>
+          <UiSidebarMenuButton :tooltip="t('help.title')" @click="help.show()">
+            <NuxtIcon name="lucide:keyboard" class="shrink-0" />
+            <span>{{ t('help.title') }}</span>
+          </UiSidebarMenuButton>
+        </UiSidebarMenuItem>
+        <UiSidebarMenuItem>
+          <UiSidebarMenuButton
+            :tooltip="t('settings.title')"
+            @click="settings.show()"
+          >
+            <NuxtIcon name="lucide:settings" class="shrink-0" />
+            <span>{{ t('settings.title') }}</span>
+          </UiSidebarMenuButton>
+        </UiSidebarMenuItem>
+      </UiSidebarMenu>
+    </UiSidebarFooter>
+
     <UiSidebarRail />
   </UiSidebar>
-
-  <SettingsDialog v-model:open="settingsOpen" />
 </template>

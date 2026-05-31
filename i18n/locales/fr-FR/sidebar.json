@@ -1,0 +1,10 @@
+{
+  "sidebar": {
+    "branches": "Branches",
+    "remotes": "Dépôts distants",
+    "remoteBranches": "Branches distantes",
+    "tags": "Étiquettes",
+    "newBranch": "Nouvelle branche",
+    "branchName": "nom de la branche…"
+  }
+}
