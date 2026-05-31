@@ -81,11 +81,37 @@ function demoRepo(): RepoState {
   };
 }
 
+// A freshly opened repository before its git data is loaded.
+function blankRepo(id: string, path: string): RepoState {
+  return {
+    id,
+    name: path.split(/[\\/]/).pop() || 'repo',
+    path,
+    flavor: 'linux',
+    distro: undefined,
+    branches: [],
+    remoteBranches: [],
+    currentBranch: '',
+    remotes: [],
+    tags: [],
+    commits: [],
+    status: [],
+    selectedHash: null,
+    selectedBody: '',
+    selectedFile: null,
+    selectedFileStaged: false,
+    commitFiles: [],
+    diff: null
+  };
+}
+
 export const useRepoStore = defineStore('repo', {
   state: () => ({
     repos: { r1: demoRepo() } as Record<string, RepoState>,
     order: ['r1'] as string[],
     activeId: 'r1',
+    // Monotonic counter for unique tab ids.
+    seq: 1,
     commitMessage: '',
     lastRefresh: 'just now',
     lastError: null as string | null,
@@ -307,12 +333,34 @@ export const useRepoStore = defineStore('repo', {
       }
     },
 
-    // When running inside Tauri, replace the active repo's mock data with real
-    // git output.
-    async loadFromBackend() {
+    // Open a folder as an additional repository tab and activate it. Re-opening
+    // an already-open repo just focuses its tab.
+    async openRepo(path: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        const top = (await gitClient.info(path)).toplevel || path;
+        const existing = this.order
+          .map((id) => this.repos[id]!)
+          .find((r) => r.path === top);
+        if (existing) {
+          this.activeId = existing.id;
+          return;
+        }
+        this.seq += 1;
+        const id = `r${this.seq}`;
+        this.repos[id] = blankRepo(id, top);
+        this.order.push(id);
+        this.activeId = id;
+        await this.loadFromBackend(top);
+      });
+    },
+
+    // Load real git output into the active repo. Without a path it resolves the
+    // process CWD (initial open); with one it (re)loads that repo's tab.
+    async loadFromBackend(path?: string) {
       if (!isTauri()) return;
       try {
-        const start = await gitClient.defaultRepo();
+        const start = path ?? (await gitClient.defaultRepo());
         const info = await gitClient.info(start);
         const top = info.toplevel || start;
 
