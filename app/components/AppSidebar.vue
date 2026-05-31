@@ -158,7 +158,12 @@ const links = [
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="item in links" :key="item.title">
               <UiSidebarMenuButton as-child size="sm">
-                <a :href="item.url" target="_blank" rel="noopener noreferrer">
+                <a
+                  :href="item.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  @click.prevent="openExternal(item.url)"
+                >
                   <NuxtIcon :name="item.icon" class="shrink-0" />
                   <span>{{ item.title }}</span>
                 </a>

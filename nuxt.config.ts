@@ -35,6 +35,7 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         '@tauri-apps/api/core',
+        '@tauri-apps/plugin-opener',
         '@vueuse/core',
         'class-variance-authority',
         'clsx',
