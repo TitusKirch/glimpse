@@ -18,6 +18,8 @@
     "remoteName": "name (e.g. origin)",
     "remoteUrl": "remote URL",
     "renameRemote": "Rename remote",
-    "rename": "Rename"
+    "rename": "Rename",
+    "showMore": "Show {n} more",
+    "showLess": "Show less"
   }
 }

@@ -198,5 +198,19 @@ function refClass(ref: string): string {
         </ul>
       </div>
     </div>
+
+    <!-- load more history -->
+    <div v-if="!query && repo.hasMoreHistory" class="shrink-0 border-t p-1.5">
+      <UiButton
+        variant="ghost"
+        size="sm"
+        class="w-full gap-1.5 text-xs text-muted-foreground"
+        :loading="repo.loadingMore"
+        @click="repo.loadMoreHistory()"
+      >
+        <NuxtIcon name="lucide:chevron-down" class="size-3.5" />
+        {{ t('history.loadMore') }}
+      </UiButton>
+    </div>
   </div>
 </template>

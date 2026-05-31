@@ -139,7 +139,10 @@ export const useRepoStore = defineStore('repo', {
     loadError: null as string | null,
     // Which remote sync (if any) is in flight — drives the button spinner.
     syncing: null as 'fetch' | 'pull' | 'push' | null,
-    refreshing: false
+    refreshing: false,
+    // How many commits to load; raised by "load more history".
+    logLimit: 200,
+    loadingMore: false
   }),
   getters: {
     // The active repository and the tab strip over all open ones. `active` is
@@ -215,6 +218,10 @@ export const useRepoStore = defineStore('repo', {
     behind(): number {
       const b = this.branches.find((x) => x.name === this.currentBranch);
       return b?.behind ?? 0;
+    },
+    // The log was truncated at the limit, so more history can be loaded.
+    hasMoreHistory(): boolean {
+      return this.commits.length >= this.logLimit;
     }
   },
   actions: {
@@ -706,8 +713,20 @@ export const useRepoStore = defineStore('repo', {
 
     async loadLog() {
       if (!isTauri()) return;
-      const commits = await gitClient.log(this.repoPath);
+      const commits = await gitClient.log(this.repoPath, this.logLimit);
       if (commits.length) this.active.commits = commits;
+    },
+
+    // Load another page of history (raise the log limit and reload).
+    async loadMoreHistory() {
+      if (!isTauri()) return;
+      this.logLimit += 200;
+      this.loadingMore = true;
+      try {
+        await this.loadLog();
+      } finally {
+        this.loadingMore = false;
+      }
     },
 
     async refresh() {

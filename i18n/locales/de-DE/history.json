@@ -8,6 +8,7 @@
     "empty": "Noch keine Commits",
     "emptyHint": "Dieser Branch hat keinen Verlauf.",
     "search": "Commits durchsuchen…",
-    "noMatches": "Keine passenden Commits"
+    "noMatches": "Keine passenden Commits",
+    "loadMore": "Mehr Verlauf laden"
   }
 }

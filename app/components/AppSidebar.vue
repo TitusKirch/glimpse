@@ -3,6 +3,21 @@ const repo = useRepoStore();
 const settings = useSettingsDialog();
 const { t } = useI18n();
 
+// Cap long lists; "show more" reveals the rest per group.
+const LIMIT = 5;
+const branchesExpanded = ref(false);
+const remoteBranchesExpanded = ref(false);
+const tagsExpanded = ref(false);
+const cap = <T>(items: T[], expanded: boolean): T[] =>
+  expanded ? items : items.slice(0, LIMIT);
+const visibleBranches = computed(() =>
+  cap(repo.branches, branchesExpanded.value)
+);
+const visibleRemoteBranches = computed(() =>
+  cap(repo.remoteBranches, remoteBranchesExpanded.value)
+);
+const visibleTags = computed(() => cap(repo.tags, tagsExpanded.value));
+
 const creating = ref(false);
 const newBranch = ref('');
 
@@ -135,7 +150,7 @@ const links = [
             </UiButton>
           </div>
           <UiSidebarMenu>
-            <template v-for="b in repo.branches" :key="b.name">
+            <template v-for="b in visibleBranches" :key="b.name">
               <UiSidebarMenuItem v-if="renaming === b.name">
                 <div
                   class="flex items-center gap-1 px-2 py-1 group-data-[collapsible=icon]:hidden"
@@ -223,6 +238,11 @@ const links = [
               </UiSidebarMenuItem>
             </template>
           </UiSidebarMenu>
+          <SidebarMore
+            v-model:expanded="branchesExpanded"
+            :total="repo.branches.length"
+            :limit="LIMIT"
+          />
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
@@ -303,7 +323,7 @@ const links = [
         }}</UiSidebarGroupLabel>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="rb in repo.remoteBranches" :key="rb">
+            <UiSidebarMenuItem v-for="rb in visibleRemoteBranches" :key="rb">
               <UiSidebarMenuButton
                 :is-active="shortName(rb) === repo.currentBranch"
                 :tooltip="rb"
@@ -321,6 +341,11 @@ const links = [
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
+          <SidebarMore
+            v-model:expanded="remoteBranchesExpanded"
+            :total="repo.remoteBranches.length"
+            :limit="LIMIT"
+          />
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
@@ -359,7 +384,7 @@ const links = [
             </UiButton>
           </div>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="tag in repo.tags" :key="tag">
+            <UiSidebarMenuItem v-for="tag in visibleTags" :key="tag">
               <UiSidebarMenuButton :tooltip="tag">
                 <NuxtIcon name="lucide:tag" class="shrink-0" />
                 <span>{{ tag }}</span>
@@ -382,6 +407,11 @@ const links = [
               </UiDropdownMenu>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
+          <SidebarMore
+            v-model:expanded="tagsExpanded"
+            :total="repo.tags.length"
+            :limit="LIMIT"
+          />
         </UiSidebarGroupContent>
       </UiSidebarGroup>
 
