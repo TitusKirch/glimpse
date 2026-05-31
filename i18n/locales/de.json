@@ -62,6 +62,15 @@
       "system": "System",
       "light": "Hell",
       "dark": "Dunkel"
+    },
+    "language": {
+      "title": "Sprache",
+      "label": "Sprache",
+      "hint": "Die Anzeigesprache von glimpse.",
+      "name": {
+        "de": "Deutsch",
+        "en": "English"
+      }
     }
   }
 }

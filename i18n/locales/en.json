@@ -62,6 +62,15 @@
       "system": "System",
       "light": "Light",
       "dark": "Dark"
+    },
+    "language": {
+      "title": "Language",
+      "label": "Language",
+      "hint": "The display language of glimpse.",
+      "name": {
+        "de": "Deutsch",
+        "en": "English"
+      }
     }
   }
 }
