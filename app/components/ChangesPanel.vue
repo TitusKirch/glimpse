@@ -42,6 +42,23 @@ const canCommit = computed(
   () =>
     !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
 );
+
+// Auto-grow the commit box with its content: reset to 'auto' then snap to the
+// scroll height. A CSS min/max-height keeps it between ~3 rows and a cap (then
+// it scrolls internally), so a long body never swallows the file list.
+const commitBox = ref<HTMLTextAreaElement | null>(null);
+function autoResize() {
+  const el = commitBox.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+// Re-fit on programmatic changes too (amend prefill, post-commit clear).
+watch(
+  () => repo.commitMessage,
+  () => nextTick(autoResize)
+);
+onMounted(autoResize);
 </script>
 
 <template>
@@ -204,10 +221,11 @@ const canCommit = computed(
     <div class="border-t p-2">
       <div class="relative">
         <textarea
+          ref="commitBox"
           v-model="repo.commitMessage"
-          rows="3"
           :placeholder="t('changes.commit.placeholder')"
-          class="w-full resize-none rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          class="max-h-48 min-h-[4.5rem] w-full resize-none overflow-y-auto rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          @input="autoResize"
         />
         <span
           class="pointer-events-none absolute right-2 bottom-1.5 font-mono text-[10px]"
