@@ -8,7 +8,6 @@ import { useEventListener } from '@vueuse/core';
 
 export function useShortcuts() {
   const repo = useRepoStore();
-  const layout = useLayoutStore();
   const palette = useCommandPalette();
   const settings = useSettingsDialog();
   const help = useHelpDialog();
@@ -41,11 +40,9 @@ export function useShortcuts() {
       settings.show();
       return;
     }
-    if (k === 'b') {
-      e.preventDefault();
-      layout.setSidebarOpen(!layout.sidebarOpen);
-      return;
-    }
+    // Ctrl/Cmd+B (toggle sidebar) is handled by the sidebar provider itself,
+    // which also syncs our persisted state — handling it here too would double-
+    // toggle and cancel out.
     if (k === '/') {
       e.preventDefault();
       help.toggle();
