@@ -5,6 +5,10 @@ const repo = useRepoStore();
 const layout = useLayoutStore();
 const { t } = useI18n();
 
+const modLabel = navigator.platform.toLowerCase().includes('mac')
+  ? '⌘'
+  : 'Ctrl';
+
 // Single, consistent letter per file: A = new/untracked, M = modified,
 // D = deleted, R = renamed. (git's literal "?"/"U" codes are not user-facing.)
 function letter(f: StatusEntry, staged: boolean): string {
@@ -20,6 +24,24 @@ const stagedItems = computed(() =>
 const unstagedItems = computed(() =>
   repo.unstagedFiles.map((f) => ({ ...f, status: letter(f, false) }))
 );
+
+// Subject is the first line; git convention favours <= 50 chars (warn), and
+// hard-wraps the eye at 72 (over). Drives the live counter colour.
+const subjectLen = computed(
+  () => repo.commitMessage.split('\n')[0]?.length ?? 0
+);
+const subjectClass = computed(() =>
+  subjectLen.value > 72
+    ? 'text-destructive'
+    : subjectLen.value > 50
+      ? 'text-warning'
+      : 'text-muted-foreground'
+);
+
+const canCommit = computed(
+  () =>
+    !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
+);
 </script>
 
 <template>
@@ -27,6 +49,11 @@ const unstagedItems = computed(() =>
     <FileViewToggle class="border-b" />
 
     <div class="min-h-0 flex-1 overflow-auto">
+      <!-- loading skeleton -->
+      <div v-if="repo.loading && !repo.status.length" class="space-y-2 p-3">
+        <UiSkeleton v-for="n in 6" :key="n" class="h-6 w-full" />
+      </div>
+
       <!-- staged -->
       <section v-if="repo.stagedFiles.length" class="px-1">
         <h3
@@ -102,26 +129,51 @@ const unstagedItems = computed(() =>
         </FileTree>
       </section>
 
-      <p v-if="!repo.status.length" class="p-4 text-muted-foreground">
-        {{ t('changes.clean') }}
-      </p>
+      <EmptyState
+        v-if="!repo.loading && !repo.status.length"
+        icon="lucide:check"
+        :title="t('changes.clean')"
+        :description="t('changes.cleanHint')"
+      />
     </div>
 
     <!-- commit box -->
     <div class="border-t p-2">
-      <textarea
-        v-model="repo.commitMessage"
-        rows="3"
-        :placeholder="t('changes.commit.placeholder')"
-        class="w-full resize-none rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      />
+      <div class="relative">
+        <textarea
+          v-model="repo.commitMessage"
+          rows="3"
+          :placeholder="t('changes.commit.placeholder')"
+          class="w-full resize-none rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+        <span
+          class="pointer-events-none absolute right-2 bottom-1.5 font-mono text-[10px]"
+          :class="subjectClass"
+          >{{ subjectLen }}</span
+        >
+      </div>
+
+      <div class="mt-2 flex items-center justify-between gap-2">
+        <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+          <UiSwitch
+            :model-value="repo.amend"
+            @update:model-value="repo.setAmend($event)"
+          />
+          <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
+        </label>
+        <UiKbd>{{ modLabel }}+↵</UiKbd>
+      </div>
+
       <UiButton
         class="mt-2 w-full"
         size="sm"
-        :disabled="!repo.stagedFiles.length || !repo.commitMessage.trim()"
+        :disabled="!canCommit"
         @click="repo.commit()"
       >
-        {{ t('changes.commit.label') }} ({{ repo.stagedFiles.length }})
+        {{ repo.amend ? t('changes.amendCommit') : t('changes.commit.label') }}
+        <span v-if="!repo.amend && repo.stagedFiles.length"
+          >({{ repo.stagedFiles.length }})</span
+        >
       </UiButton>
     </div>
   </div>

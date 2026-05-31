@@ -226,8 +226,19 @@ impl Repo {
         self.run(&["restore", "--staged", "--", file]).map(|_| ())
     }
 
-    pub fn commit(&self, message: &str) -> Result<String, String> {
-        self.run(&["commit", "-m", message])
+    /// Create a commit, or rewrite the previous one (`--amend`) keeping its
+    /// author. Amend lets the user fix the last message/contents before pushing.
+    pub fn commit(&self, message: &str, amend: bool) -> Result<String, String> {
+        let mut args = vec!["commit", "-m", message];
+        if amend {
+            args.push("--amend");
+        }
+        self.run(&args)
+    }
+
+    /// Subject + body of the most recent commit, to prefill an amend.
+    pub fn head_message(&self) -> Result<String, String> {
+        Ok(self.run(&["show", "-s", "--format=%B", "HEAD"])?.trim().to_string())
     }
 
     /// Discard a file's working-tree changes. Untracked files are deleted

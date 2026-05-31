@@ -37,6 +37,7 @@ export default defineNuxtConfig({
     // (which can leave the Tauri webview on a blank/black screen).
     optimizeDeps: {
       include: [
+        '@tauri-apps/api/app',
         '@tauri-apps/api/core',
         '@tauri-apps/api/event',
         '@tauri-apps/plugin-dialog',
@@ -97,6 +98,30 @@ export default defineNuxtConfig({
           'de-DE/history.json',
           'de-DE/diff.json',
           'de-DE/settings.json'
+        ]
+      },
+      {
+        code: 'fr-FR',
+        language: 'fr-FR',
+        files: [
+          'fr-FR/common.json',
+          'fr-FR/sidebar.json',
+          'fr-FR/changes.json',
+          'fr-FR/history.json',
+          'fr-FR/diff.json',
+          'fr-FR/settings.json'
+        ]
+      },
+      {
+        code: 'es-ES',
+        language: 'es-ES',
+        files: [
+          'es-ES/common.json',
+          'es-ES/sidebar.json',
+          'es-ES/changes.json',
+          'es-ES/history.json',
+          'es-ES/diff.json',
+          'es-ES/settings.json'
         ]
       }
     ]

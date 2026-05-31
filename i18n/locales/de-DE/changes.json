@@ -10,6 +10,9 @@
       "label": "Committen",
       "placeholder": "Commit-Nachricht"
     },
-    "clean": "Arbeitsverzeichnis sauber — nichts zu committen"
+    "amend": "Ändern",
+    "amendCommit": "Commit ändern",
+    "clean": "Arbeitsverzeichnis sauber",
+    "cleanHint": "Es gibt keine Änderungen zum Committen."
   }
 }

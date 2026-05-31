@@ -1,0 +1,98 @@
+{
+  "settings": {
+    "title": "Paramètres",
+    "general": {
+      "title": "Général",
+      "gitSection": "Git",
+      "autoFetch": {
+        "label": "Fetch automatique",
+        "hint": "Récupérer périodiquement depuis les dépôts distants en arrière-plan."
+      },
+      "autoFetchInterval": {
+        "label": "Intervalle (minutes)",
+        "hint": "Fréquence du fetch automatique."
+      },
+      "developer": "Développeur",
+      "devMode": {
+        "label": "Paramètres développeur",
+        "hint": "Afficher des outils de débogage supplémentaires."
+      }
+    },
+    "developer": {
+      "title": "Développeur"
+    },
+    "dev": {
+      "toasts": {
+        "label": "Tester les toasts",
+        "hint": "Déclencher un toast de chaque type."
+      },
+      "info": {
+        "label": "Info",
+        "title": "Info",
+        "description": "Ceci est un message d'information."
+      },
+      "success": {
+        "label": "Succès",
+        "title": "Succès",
+        "description": "Vos modifications ont été enregistrées."
+      },
+      "warning": {
+        "label": "Avertissement",
+        "title": "Avertissement",
+        "description": "Veuillez vérifier avant de continuer."
+      },
+      "error": {
+        "label": "Erreur",
+        "title": "Erreur",
+        "description": "Une erreur s'est produite."
+      }
+    },
+    "appearance": {
+      "title": "Apparence",
+      "themeSection": "Thème",
+      "theme": {
+        "label": "Thème",
+        "hint": "Choisissez l'apparence de glimpse. « Système » suit votre OS."
+      },
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre",
+      "accent": {
+        "label": "Couleur d'accent",
+        "hint": "La couleur de surbrillance principale."
+      },
+      "diffSection": "Diff et fichiers",
+      "diffMode": {
+        "label": "Vue de diff par défaut",
+        "hint": "Comment les diffs s'ouvrent par défaut."
+      },
+      "fileView": {
+        "label": "Vue de la liste de fichiers",
+        "hint": "Liste plate ou arborescence groupée."
+      },
+      "diffFont": {
+        "label": "Taille de police du diff",
+        "hint": "Taille du texte dans le visualiseur de diff.",
+        "small": "Petite",
+        "default": "Par défaut",
+        "large": "Grande",
+        "xlarge": "Très grande"
+      }
+    },
+    "language": {
+      "title": "Langue",
+      "label": "Langue",
+      "hint": "La langue d'affichage de glimpse.",
+      "name": {
+        "de-DE": "Deutsch",
+        "en-GB": "English",
+        "fr-FR": "Français",
+        "es-ES": "Español"
+      }
+    },
+    "about": {
+      "title": "À propos",
+      "description": "Un client Git de bureau léger et git-natif avec une prise en charge de WSL de premier ordre."
+    }
+  }
+}

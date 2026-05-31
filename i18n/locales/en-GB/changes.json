@@ -10,6 +10,9 @@
       "label": "Commit",
       "placeholder": "Commit message"
     },
-    "clean": "Working tree clean — nothing to commit"
+    "amend": "Amend",
+    "amendCommit": "Amend commit",
+    "clean": "Working tree clean",
+    "cleanHint": "There are no changes to commit."
   }
 }

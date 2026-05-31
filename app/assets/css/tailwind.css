@@ -153,6 +153,11 @@
   display: none;
 }
 
+/* Diff font size follows the appearance setting (--mono-scale, 1 = default). */
+.hljs-diff {
+  font-size: calc(0.75rem * var(--mono-scale, 1));
+}
+
 /* Syntax highlighting (highlight.js tokens) inside the diff viewer. */
 .hljs-diff .hljs-comment,
 .hljs-diff .hljs-quote {

@@ -4,6 +4,7 @@
 import type { DiffMode } from '@/stores/repo';
 
 export type FileView = 'list' | 'tree';
+export type Accent = 'default' | 'blue' | 'violet' | 'green' | 'amber' | 'rose';
 
 export const useLayoutStore = defineStore('layout', {
   state: () => ({
@@ -16,6 +17,13 @@ export const useLayoutStore = defineStore('layout', {
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
     fileView: 'tree' as FileView,
+    // Theme accent colour (overrides the neutral --primary token).
+    accent: 'default' as Accent,
+    // Diff font scale (1 = default); applied to the diff via --mono-scale.
+    monoScale: 1,
+    // Periodically fetch in the background and flag new upstream commits.
+    autoFetch: false,
+    autoFetchMinutes: 5,
     // Developer settings (extra debug tools in the settings dialog).
     devMode: false
   }),

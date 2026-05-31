@@ -113,71 +113,87 @@ export const useRepoStore = defineStore('repo', {
     // Monotonic counter for unique tab ids.
     seq: 1,
     commitMessage: '',
+    // Rewrite the previous commit instead of creating a new one.
+    amend: false,
     lastRefresh: 'just now',
     lastError: null as string | null,
     busy: false,
+    // True while the active repo's git data loads — drives loading skeletons.
+    loading: false,
+    // Set when a load fails outright — drives the inline error + retry state.
+    loadError: null as string | null,
     // Which remote sync (if any) is in flight — drives the button spinner.
     syncing: null as 'fetch' | 'pull' | 'push' | null,
     refreshing: false
   }),
   getters: {
-    // The active repository and the tab strip over all open ones.
-    active: (s): RepoState => s.repos[s.activeId]!,
+    // The active repository and the tab strip over all open ones. `active` is
+    // undefined when every tab is closed (the start screen shows instead), so
+    // the projections below all fall back to safe empties.
+    active: (s): RepoState | undefined => s.repos[s.activeId],
     tabs: (s): RepoState[] => s.order.map((id) => s.repos[id]!),
     activeTabId: (s): string => s.activeId,
+    hasRepos: (s): boolean => s.order.length > 0,
 
     // Projections of the active repo — keep the panel-facing API flat.
     repoPath(): string {
       return this.active?.path ?? '.';
     },
     branches(): Branch[] {
-      return this.active.branches;
+      return this.active?.branches ?? [];
     },
     remoteBranches(): string[] {
-      return this.active.remoteBranches;
+      return this.active?.remoteBranches ?? [];
     },
     currentBranch(): string {
-      return this.active.currentBranch;
+      return this.active?.currentBranch ?? '';
     },
     remotes(): string[] {
-      return this.active.remotes;
+      return this.active?.remotes ?? [];
     },
     tags(): string[] {
-      return this.active.tags;
+      return this.active?.tags ?? [];
     },
     commits(): Commit[] {
-      return this.active.commits;
+      return this.active?.commits ?? [];
     },
     status(): StatusEntry[] {
-      return this.active.status;
+      return this.active?.status ?? [];
     },
     selectedHash(): string | null {
-      return this.active.selectedHash;
+      return this.active?.selectedHash ?? null;
     },
     selectedBody(): string {
-      return this.active.selectedBody;
+      return this.active?.selectedBody ?? '';
     },
     selectedFile(): string | null {
-      return this.active.selectedFile;
+      return this.active?.selectedFile ?? null;
     },
     selectedFileStaged(): boolean {
-      return this.active.selectedFileStaged;
+      return this.active?.selectedFileStaged ?? false;
     },
     commitFiles(): CommitFile[] {
-      return this.active.commitFiles;
+      return this.active?.commitFiles ?? [];
     },
     diff(): DiffData | null {
-      return this.active.diff;
+      return this.active?.diff ?? null;
     },
     selectedCommit(): Commit | null {
       const r = this.active;
+      if (!r) return null;
       return r.commits.find((c) => c.hash === r.selectedHash) ?? null;
     },
     stagedFiles(): StatusEntry[] {
-      return this.active.status.filter((f) => f.staged);
+      return this.status.filter((f) => f.staged);
     },
     unstagedFiles(): StatusEntry[] {
-      return this.active.status.filter((f) => f.unstaged || f.untracked);
+      return this.status.filter((f) => f.unstaged || f.untracked);
+    },
+    // How far the current branch is behind its upstream — drives the "new
+    // commits" indicator on the pull button after a (manual or auto) fetch.
+    behind(): number {
+      const b = this.branches.find((x) => x.name === this.currentBranch);
+      return b?.behind ?? 0;
     }
   },
   actions: {
@@ -189,7 +205,7 @@ export const useRepoStore = defineStore('repo', {
 
     // Point the backend FS watcher at the active repo (live-refresh source).
     watchActive() {
-      if (isTauri()) void gitClient.watchRepo(this.active.path);
+      if (isTauri() && this.active) void gitClient.watchRepo(this.active.path);
     },
 
     // Light refresh used by the watcher: reload status + log, keep selection.
@@ -245,12 +261,30 @@ export const useRepoStore = defineStore('repo', {
 
     async commit() {
       const message = this.commitMessage.trim();
-      if (!message || !this.stagedFiles.length || !isTauri()) return;
+      // Amend can rewrite the last commit with no newly staged files; a normal
+      // commit needs something staged.
+      if (!message || !isTauri()) return;
+      if (!this.amend && !this.stagedFiles.length) return;
+      const amend = this.amend;
       await this.guarded(async () => {
-        await gitClient.commit(this.repoPath, message);
+        await gitClient.commit(this.repoPath, message, amend);
         this.commitMessage = '';
+        this.amend = false;
         await Promise.all([this.loadStatus(), this.loadLog()]);
       });
+    },
+
+    // Toggle amend mode. Turning it on prefills the editor with the previous
+    // commit's message; turning it off clears it again.
+    async setAmend(on: boolean) {
+      this.amend = on;
+      if (on) {
+        if (!this.commitMessage.trim()) {
+          this.commitMessage = await gitClient.headMessage(this.repoPath);
+        }
+      } else {
+        this.commitMessage = '';
+      }
     },
 
     async discard(file: string, untracked: boolean) {
@@ -301,6 +335,34 @@ export const useRepoStore = defineStore('repo', {
       } finally {
         this.syncing = null;
       }
+    },
+
+    // Open the active repo's folder in an external app.
+    async openIn(app: 'files' | 'terminal' | 'editor') {
+      if (!isTauri() || !this.active) return;
+      const path = this.active.path;
+      await this.guarded(async () => {
+        await gitClient.openIn(path, app);
+      });
+    },
+
+    // Close a repo tab. Activates a neighbour; leaves activeId pointing at a
+    // closed id only when nothing remains (the start screen then shows).
+    closeRepo(id: string) {
+      if (!this.repos[id]) return;
+      const idx = this.order.indexOf(id);
+      delete this.repos[id];
+      this.order = this.order.filter((x) => x !== id);
+      if (this.activeId === id) {
+        const next = this.order[idx] ?? this.order[idx - 1] ?? '';
+        this.activeId = next;
+        if (next) this.watchActive();
+      }
+    },
+
+    // Persist a new tab order after a drag-and-drop reorder.
+    reorderTabs(order: string[]) {
+      this.order = order;
     },
 
     // Runs an action with a busy flag and surfaces failures via lastError.
@@ -370,10 +432,17 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Retry the active repo's load after a failure (inline error → retry).
+    async retryLoad() {
+      await this.loadFromBackend(this.active?.path);
+    },
+
     // Load real git output into the active repo. Without a path it resolves the
     // process CWD (initial open); with one it (re)loads that repo's tab.
     async loadFromBackend(path?: string) {
-      if (!isTauri()) return;
+      if (!isTauri() || !this.active) return;
+      this.loading = true;
+      this.loadError = null;
       try {
         const start = path ?? (await gitClient.defaultRepo());
         const info = await gitClient.info(start);
@@ -405,9 +474,14 @@ export const useRepoStore = defineStore('repo', {
           r.diff = null;
         }
 
+        useRecentStore().push(top, r.name);
         this.watchActive();
       } catch (err) {
+        const raw = typeof err === 'string' ? err : String(err);
+        this.loadError = cleanGitError(raw);
         console.error('loadFromBackend failed:', err);
+      } finally {
+        this.loading = false;
       }
     }
   }

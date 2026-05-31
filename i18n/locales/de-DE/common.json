@@ -3,7 +3,9 @@
     "name": "glimpse"
   },
   "error": {
-    "title": "Fehler"
+    "title": "Fehler",
+    "loadFailed": "Repository konnte nicht geladen werden",
+    "retry": "Erneut versuchen"
   },
   "sync": {
     "fetch": "Fetch",
@@ -12,9 +14,29 @@
   },
   "actions": {
     "refresh": "Aktualisieren",
-    "openRepo": "Repository öffnen"
+    "openRepo": "Repository öffnen",
+    "closeRepo": "Repository schließen"
   },
   "theme": {
     "toggle": "Theme umschalten"
+  },
+  "command": {
+    "open": "Befehlspalette",
+    "placeholder": "Befehl eingeben oder suchen…",
+    "empty": "Keine Treffer.",
+    "actions": "Aktionen",
+    "branches": "Branch wechseln",
+    "recent": "Zuletzt geöffnet",
+    "current": "aktuell",
+    "openFiles": "Im Dateimanager öffnen",
+    "openTerminal": "Im Terminal öffnen",
+    "openEditor": "Im Editor öffnen",
+    "toggleSidebar": "Seitenleiste umschalten"
+  },
+  "start": {
+    "title": "Kein Repository geöffnet",
+    "subtitle": "Öffne einen Ordner, um seinen Verlauf zu erkunden, oder wähle ein zuletzt geöffnetes.",
+    "recent": "Zuletzt",
+    "clear": "Leeren"
   }
 }

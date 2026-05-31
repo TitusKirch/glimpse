@@ -151,8 +151,12 @@ export const gitClient = {
   unstage: (path: string, file: string) =>
     gitInvoke<null>('unstage', { path, file }, null),
 
-  commit: (path: string, message: string) =>
-    gitInvoke<string>('commit', { path, message }, ''),
+  commit: (path: string, message: string, amend = false) =>
+    gitInvoke<string>('commit', { path, message, amend }, ''),
+
+  // Subject + body of HEAD, used to prefill an amend.
+  headMessage: (path: string) =>
+    gitInvoke<string>('head_message', { path }, ''),
 
   discard: (path: string, file: string, untracked: boolean) =>
     gitInvoke<null>('discard', { path, file, untracked }, null),
@@ -168,5 +172,9 @@ export const gitClient = {
 
   fetch: (path: string) => gitInvoke<string>('fetch', { path }, ''),
   pull: (path: string) => gitInvoke<string>('pull', { path }, ''),
-  push: (path: string) => gitInvoke<string>('push', { path }, '')
+  push: (path: string) => gitInvoke<string>('push', { path }, ''),
+
+  // Open the repo folder in an external app ("files" | "terminal" | "editor").
+  openIn: (path: string, app: 'files' | 'terminal' | 'editor') =>
+    gitInvoke<null>('open_in', { path, app }, null)
 };

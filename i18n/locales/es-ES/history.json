@@ -1,0 +1,11 @@
+{
+  "graph": {
+    "title": "Grafo de commits",
+    "uncommitted": "Cambios sin confirmar"
+  },
+  "history": {
+    "title": "Historial",
+    "empty": "Aún no hay commits",
+    "emptyHint": "Esta rama no tiene historial."
+  }
+}

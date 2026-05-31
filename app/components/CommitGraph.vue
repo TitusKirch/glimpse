@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const repo = useRepoStore();
+const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
 const layout = computed(() => commitGraphLayout(repo.commits));
@@ -19,7 +20,23 @@ function refClass(ref: string): string {
 </script>
 
 <template>
-  <div class="relative h-full overflow-auto">
+  <!-- loading skeleton -->
+  <div v-if="repo.loading && !repo.commits.length" class="space-y-3 p-4">
+    <div v-for="n in 8" :key="n" class="flex items-center gap-3">
+      <UiSkeleton class="size-2.5 rounded-full" />
+      <UiSkeleton class="h-4" :style="{ width: 40 + ((n * 7) % 50) + '%' }" />
+    </div>
+  </div>
+
+  <!-- no history -->
+  <EmptyState
+    v-else-if="!repo.commits.length"
+    icon="lucide:git-commit-horizontal"
+    :title="t('history.empty')"
+    :description="t('history.emptyHint')"
+  />
+
+  <div v-else class="relative h-full overflow-auto">
     <div class="relative" :style="{ minHeight: layout.height + 'px' }">
       <!-- lane lines + nodes -->
       <svg

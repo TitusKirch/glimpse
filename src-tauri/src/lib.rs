@@ -103,8 +103,13 @@ async fn unstage(path: String, file: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn commit(path: String, message: String) -> Result<String, String> {
-    git::Repo::open(&path).commit(&message)
+async fn commit(path: String, message: String, amend: bool) -> Result<String, String> {
+    git::Repo::open(&path).commit(&message, amend)
+}
+
+#[tauri::command]
+async fn head_message(path: String) -> Result<String, String> {
+    git::Repo::open(&path).head_message()
 }
 
 #[tauri::command]
@@ -142,6 +147,13 @@ async fn push(path: String) -> Result<String, String> {
     git::Repo::open(&path).push()
 }
 
+/// Open the repo folder in an external app: "files", "terminal", or "editor".
+/// Best-effort and platform-specific; errors surface as a toast in the UI.
+#[tauri::command]
+async fn open_in(path: String, app: String) -> Result<(), String> {
+    platform::open_in(&path, &app)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -174,13 +186,15 @@ pub fn run() {
             stage,
             unstage,
             commit,
+            head_message,
             discard,
             checkout_branch,
             create_branch,
             delete_branch,
             fetch,
             pull,
-            push
+            push,
+            open_in
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

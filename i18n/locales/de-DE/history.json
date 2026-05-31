@@ -4,6 +4,8 @@
     "uncommitted": "Uncommittete Änderungen"
   },
   "history": {
-    "title": "Verlauf"
+    "title": "Verlauf",
+    "empty": "Noch keine Commits",
+    "emptyHint": "Dieser Branch hat keinen Verlauf."
   }
 }

@@ -1,0 +1,98 @@
+{
+  "settings": {
+    "title": "Ajustes",
+    "general": {
+      "title": "General",
+      "gitSection": "Git",
+      "autoFetch": {
+        "label": "Fetch automático",
+        "hint": "Hacer fetch de los remotos periódicamente en segundo plano."
+      },
+      "autoFetchInterval": {
+        "label": "Intervalo (minutos)",
+        "hint": "Con qué frecuencia hacer fetch automáticamente."
+      },
+      "developer": "Desarrollador",
+      "devMode": {
+        "label": "Ajustes de desarrollador",
+        "hint": "Mostrar herramientas de depuración adicionales."
+      }
+    },
+    "developer": {
+      "title": "Desarrollador"
+    },
+    "dev": {
+      "toasts": {
+        "label": "Probar toasts",
+        "hint": "Lanzar un toast de cada tipo."
+      },
+      "info": {
+        "label": "Información",
+        "title": "Información",
+        "description": "Este es un mensaje informativo."
+      },
+      "success": {
+        "label": "Éxito",
+        "title": "Éxito",
+        "description": "Tus cambios se guardaron."
+      },
+      "warning": {
+        "label": "Advertencia",
+        "title": "Advertencia",
+        "description": "Por favor, verifica esto antes de continuar."
+      },
+      "error": {
+        "label": "Error",
+        "title": "Error",
+        "description": "Algo salió mal."
+      }
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "themeSection": "Tema",
+      "theme": {
+        "label": "Tema",
+        "hint": "Elige cómo se ve glimpse. «Sistema» sigue tu SO."
+      },
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "accent": {
+        "label": "Color de acento",
+        "hint": "El color de resaltado principal."
+      },
+      "diffSection": "Diff y archivos",
+      "diffMode": {
+        "label": "Vista de diff predeterminada",
+        "hint": "Cómo se abren los diffs por defecto."
+      },
+      "fileView": {
+        "label": "Vista de lista de archivos",
+        "hint": "Lista plana o árbol de carpetas agrupado."
+      },
+      "diffFont": {
+        "label": "Tamaño de fuente del diff",
+        "hint": "Tamaño del texto en el visor de diff.",
+        "small": "Pequeño",
+        "default": "Predeterminado",
+        "large": "Grande",
+        "xlarge": "Muy grande"
+      }
+    },
+    "language": {
+      "title": "Idioma",
+      "label": "Idioma",
+      "hint": "El idioma de glimpse.",
+      "name": {
+        "de-DE": "Deutsch",
+        "en-GB": "English",
+        "fr-FR": "Français",
+        "es-ES": "Español"
+      }
+    },
+    "about": {
+      "title": "Acerca de",
+      "description": "Un cliente Git de escritorio ligero y git-nativo con soporte de WSL de primera clase."
+    }
+  }
+}

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 const repo = useRepoStore();
+const settings = useSettingsDialog();
 const { t } = useI18n();
 
 const creating = ref(false);
 const newBranch = ref('');
-const settingsOpen = ref(false);
 
 function cancel() {
   creating.value = false;
@@ -197,7 +197,7 @@ const links = [
             <UiSidebarMenuItem>
               <UiSidebarMenuButton
                 :tooltip="t('settings.title')"
-                @click="settingsOpen = true"
+                @click="settings.show()"
               >
                 <NuxtIcon name="lucide:settings" class="shrink-0" />
                 <span>{{ t('settings.title') }}</span>
@@ -210,6 +210,4 @@ const links = [
 
     <UiSidebarRail />
   </UiSidebar>
-
-  <SettingsDialog v-model:open="settingsOpen" />
 </template>

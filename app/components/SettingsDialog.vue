@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
+import { getVersion } from '@tauri-apps/api/app';
 
 const open = defineModel<boolean>('open', { required: true });
 const { t, locale, locales, setLocale } = useI18n();
@@ -29,6 +30,7 @@ const pages = computed(() => {
   if (layout.devMode) {
     base.push({ key: 'developer', icon: 'lucide:flask-conical' });
   }
+  base.push({ key: 'about', icon: 'lucide:info' });
   return base;
 });
 const page = ref('general');
@@ -44,12 +46,48 @@ watch(
 const themeOptions = ['system', 'light', 'dark'] as const;
 const diffModeOptions = ['split', 'unified'] as const;
 const fileViewOptions = ['list', 'tree'] as const;
+// Diff font scale presets (multipliers applied via --mono-scale).
+const fontScales = [
+  { value: 0.85, key: 'small' },
+  { value: 1, key: 'default' },
+  { value: 1.15, key: 'large' },
+  { value: 1.3, key: 'xlarge' }
+] as const;
 
-// Language: bind the select straight to the active i18n locale.
-// Derive the flag from the locale's region subtag via Intl.Locale, which
-// handles script/3-part tags (zh-Hant-TW -> TW). The Iconify flag set uses ISO
-// country codes, so only two-letter regions map; anything else (language-only
-// like "en", numeric M.49 like "es-419") falls back to a globe.
+// App version (Tauri only); shown on the About page.
+const version = ref('dev');
+onMounted(async () => {
+  if (isTauri()) {
+    try {
+      version.value = await getVersion();
+    } catch {
+      version.value = 'dev';
+    }
+  }
+});
+
+const aboutLinks = [
+  {
+    title: 'GitHub',
+    url: 'https://github.com/TitusKirch/glimpse',
+    icon: 'simple-icons:github'
+  },
+  {
+    title: 'Discord',
+    url: 'https://discord.gg/cwFp2nx',
+    icon: 'simple-icons:discord'
+  },
+  {
+    title: 'Report a bug',
+    url: 'https://github.com/TitusKirch/glimpse/issues',
+    icon: 'lucide:bug'
+  }
+];
+
+// Language: bind the select straight to the active i18n locale. Derive the flag
+// from the locale's region subtag via Intl.Locale, which handles script/3-part
+// tags (zh-Hant-TW -> TW). The Iconify flag set uses ISO country codes, so only
+// two-letter regions map; anything else falls back to a globe.
 function flagFor(code: string): string {
   let region: string | undefined;
   try {
@@ -110,20 +148,59 @@ const lang = computed({
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
-                {{ t('settings.general.developer') }}
+                {{ t('settings.general.gitSection') }}
               </h3>
               <div class="space-y-4">
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="text-sm font-medium">
-                      {{ t('settings.general.devMode.label') }}
+                      {{ t('settings.general.autoFetch.label') }}
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.devMode.hint') }}
+                      {{ t('settings.general.autoFetch.hint') }}
                     </p>
                   </div>
-                  <UiSwitch v-model="layout.devMode" class="shrink-0" />
+                  <UiSwitch v-model="layout.autoFetch" class="shrink-0" />
                 </div>
+                <div
+                  v-if="layout.autoFetch"
+                  class="flex items-center justify-between gap-4"
+                >
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.autoFetchInterval.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.autoFetchInterval.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.autoFetchMinutes"
+                    type="number"
+                    min="1"
+                    max="120"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.general.developer') }}
+              </h3>
+              <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    {{ t('settings.general.devMode.label') }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ t('settings.general.devMode.hint') }}
+                  </p>
+                </div>
+                <UiSwitch v-model="layout.devMode" class="shrink-0" />
               </div>
             </div>
           </section>
@@ -166,25 +243,63 @@ const lang = computed({
               >
                 {{ t('settings.appearance.themeSection') }}
               </h3>
-              <div class="flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium">
-                    {{ t('settings.appearance.theme.label') }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ t('settings.appearance.theme.hint') }}
-                  </p>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.theme.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.theme.hint') }}
+                    </p>
+                  </div>
+                  <UiSelect v-model="colorMode.preference">
+                    <UiSelectTrigger class="w-44 shrink-0">
+                      <UiSelectValue />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      <UiSelectItem
+                        v-for="o in themeOptions"
+                        :key="o"
+                        :value="o"
+                      >
+                        {{ t(`settings.appearance.${o}`) }}
+                      </UiSelectItem>
+                    </UiSelectContent>
+                  </UiSelect>
                 </div>
-                <UiSelect v-model="colorMode.preference">
-                  <UiSelectTrigger class="w-44 shrink-0">
-                    <UiSelectValue />
-                  </UiSelectTrigger>
-                  <UiSelectContent>
-                    <UiSelectItem v-for="o in themeOptions" :key="o" :value="o">
-                      {{ t(`settings.appearance.${o}`) }}
-                    </UiSelectItem>
-                  </UiSelectContent>
-                </UiSelect>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.accent.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.accent.hint') }}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 gap-1.5">
+                    <button
+                      v-for="a in accentOptions"
+                      :key="a"
+                      class="flex size-7 cursor-pointer items-center justify-center rounded-full border transition-transform hover:scale-110"
+                      :class="
+                        layout.accent === a
+                          ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+                          : ''
+                      "
+                      :style="{ backgroundColor: accentSwatch(a) }"
+                      :aria-label="a"
+                      @click="layout.accent = a"
+                    >
+                      <NuxtIcon
+                        v-if="layout.accent === a"
+                        name="lucide:check"
+                        class="size-3.5 text-white"
+                      />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -248,6 +363,31 @@ const lang = computed({
                     </UiSelectContent>
                   </UiSelect>
                 </div>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.diffFont.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.diffFont.hint') }}
+                    </p>
+                  </div>
+                  <UiSelect v-model.number="layout.monoScale">
+                    <UiSelectTrigger class="w-44 shrink-0">
+                      <UiSelectValue />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      <UiSelectItem
+                        v-for="f in fontScales"
+                        :key="f.key"
+                        :value="f.value"
+                      >
+                        {{ t(`settings.appearance.diffFont.${f.key}`) }}
+                      </UiSelectItem>
+                    </UiSelectContent>
+                  </UiSelect>
+                </div>
               </div>
             </div>
           </section>
@@ -280,6 +420,33 @@ const lang = computed({
                   </UiSelectItem>
                 </UiSelectContent>
               </UiSelect>
+            </div>
+          </section>
+
+          <section v-else-if="page === 'about'" class="w-full space-y-6">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">👀</span>
+              <div>
+                <p class="text-base font-semibold">{{ t('app.name') }}</p>
+                <p class="font-mono text-xs text-muted-foreground">
+                  v{{ version }}
+                </p>
+              </div>
+            </div>
+            <p class="max-w-md text-sm text-muted-foreground">
+              {{ t('settings.about.description') }}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <UiButton
+                v-for="l in aboutLinks"
+                :key="l.title"
+                variant="outline"
+                size="sm"
+                @click="openExternal(l.url)"
+              >
+                <NuxtIcon :name="l.icon" class="size-4" />
+                {{ l.title }}
+              </UiButton>
             </div>
           </section>
         </div>

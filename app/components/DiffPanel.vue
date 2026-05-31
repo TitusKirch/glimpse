@@ -108,9 +108,19 @@ const { t } = useI18n();
         :mode="layout.diffMode"
         :file-name="repo.diff.fileName"
       />
-      <p v-else class="p-6 text-sm text-muted-foreground">
-        {{ t('diff.noSelection') }}
-      </p>
+      <div v-else-if="repo.loading" class="space-y-2 p-4">
+        <UiSkeleton
+          v-for="n in 12"
+          :key="n"
+          class="h-4"
+          :style="{ width: 30 + ((n * 13) % 65) + '%' }"
+        />
+      </div>
+      <EmptyState
+        v-else
+        icon="lucide:file-diff"
+        :title="t('diff.noSelection')"
+      />
     </div>
   </div>
 </template>

@@ -4,6 +4,8 @@
     "uncommitted": "Uncommitted changes"
   },
   "history": {
-    "title": "History"
+    "title": "History",
+    "empty": "No commits yet",
+    "emptyHint": "This branch has no history to show."
   }
 }
