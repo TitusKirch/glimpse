@@ -41,7 +41,8 @@ export default defineNuxtConfig({
         'clsx',
         'highlight.js',
         'reka-ui',
-        'tailwind-merge'
+        'tailwind-merge',
+        'vue-sonner'
       ]
     }
   },

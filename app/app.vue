@@ -1,7 +1,19 @@
 <script setup lang="ts">
+import { toast } from 'vue-sonner';
+
 const repo = useRepoStore();
 const layout = useLayoutStore();
 const { t } = useI18n();
+
+// Surface git failures as a toast instead of a persistent banner.
+watch(
+  () => repo.lastError,
+  (err) => {
+    if (!err) return;
+    toast.error(t('error.title'), { description: err });
+    repo.clearError();
+  }
+);
 
 // Load real git data when running inside the desktop shell (mock in browser).
 // Refresh-on-focus fallback (the best-effort FS watcher may miss WSL events).
@@ -67,27 +79,6 @@ const syncButtons = [
         </div>
       </header>
 
-      <div v-if="repo.lastError" class="shrink-0 px-3 pt-2">
-        <UiAlert
-          variant="destructive"
-          class="grid-cols-[1rem_1fr] gap-x-3 pr-9"
-        >
-          <NuxtIcon name="lucide:circle-alert" class="size-4 translate-y-0.5" />
-          <UiAlertTitle>{{ t('error.title') }}</UiAlertTitle>
-          <UiAlertDescription class="break-words whitespace-pre-wrap">
-            {{ repo.lastError }}
-          </UiAlertDescription>
-          <UiButton
-            variant="ghost"
-            size="icon"
-            class="absolute top-2 right-2 size-6 text-destructive hover:bg-destructive/10"
-            @click="repo.clearError()"
-          >
-            <NuxtIcon name="lucide:x" class="size-4" />
-          </UiButton>
-        </UiAlert>
-      </div>
-
       <UiResizablePanelGroup
         direction="horizontal"
         class="min-h-0 flex-1"
@@ -126,4 +117,6 @@ const syncButtons = [
       </UiResizablePanelGroup>
     </UiSidebarInset>
   </UiSidebarProvider>
+
+  <UiSonner position="bottom-right" rich-colors close-button />
 </template>
