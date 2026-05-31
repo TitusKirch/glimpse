@@ -52,6 +52,12 @@ export default defineNuxtConfig({
     }
   },
 
+  // Persist Pinia stores in localStorage (the module defaults to cookies,
+  // which the Tauri webview doesn't keep across restarts).
+  piniaPluginPersistedstate: {
+    storage: 'localStorage'
+  },
+
   // class-based dark mode driven by the `.dark` / `.light` class on <html>.
   colorMode: {
     classSuffix: '',
