@@ -2,6 +2,7 @@
 const repo = useRepoStore();
 const layout = useLayoutStore();
 const { t } = useI18n();
+const copyText = useCopy();
 </script>
 
 <template>
@@ -63,6 +64,27 @@ const { t } = useI18n();
             <code class="ml-auto font-mono">{{
               repo.selectedCommit.hash.slice(0, 7)
             }}</code>
+            <UiDropdownMenu>
+              <UiDropdownMenuTrigger as-child>
+                <UiButton variant="ghost" size="icon" class="size-6">
+                  <NuxtIcon name="lucide:ellipsis" class="size-4" />
+                </UiButton>
+              </UiDropdownMenuTrigger>
+              <UiDropdownMenuContent align="end">
+                <UiDropdownMenuItem
+                  @click="repo.checkoutCommit(repo.selectedCommit!.hash)"
+                >
+                  <NuxtIcon name="lucide:git-commit-horizontal" />
+                  {{ t('commit.checkout') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuItem
+                  @click="copyText(repo.selectedCommit!.hash)"
+                >
+                  <NuxtIcon name="lucide:copy" />
+                  {{ t('commit.copyHash') }}
+                </UiDropdownMenuItem>
+              </UiDropdownMenuContent>
+            </UiDropdownMenu>
           </div>
         </div>
       </UiResizablePanel>

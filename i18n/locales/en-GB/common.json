@@ -20,6 +20,16 @@
   "theme": {
     "toggle": "Toggle theme"
   },
+  "copied": "Copied to clipboard",
+  "branch": {
+    "switch": "Switch to branch",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
+  "commit": {
+    "checkout": "Check out this commit",
+    "copyHash": "Copy hash"
+  },
   "command": {
     "open": "Command palette",
     "placeholder": "Type a command or search…",
@@ -31,7 +41,9 @@
     "openFiles": "Open in file manager",
     "openTerminal": "Open in terminal",
     "openEditor": "Open in editor",
-    "toggleSidebar": "Toggle sidebar"
+    "toggleSidebar": "Toggle sidebar",
+    "pushUpstream": "Push and set upstream",
+    "pushForce": "Force push (with lease)"
   },
   "start": {
     "title": "No repository open",

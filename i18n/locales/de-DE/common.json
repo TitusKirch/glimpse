@@ -20,6 +20,16 @@
   "theme": {
     "toggle": "Theme umschalten"
   },
+  "copied": "In die Zwischenablage kopiert",
+  "branch": {
+    "switch": "Zu Branch wechseln",
+    "rename": "Umbenennen",
+    "delete": "Löschen"
+  },
+  "commit": {
+    "checkout": "Diesen Commit auschecken",
+    "copyHash": "Hash kopieren"
+  },
   "command": {
     "open": "Befehlspalette",
     "placeholder": "Befehl eingeben oder suchen…",
@@ -31,7 +41,9 @@
     "openFiles": "Im Dateimanager öffnen",
     "openTerminal": "Im Terminal öffnen",
     "openEditor": "Im Editor öffnen",
-    "toggleSidebar": "Seitenleiste umschalten"
+    "toggleSidebar": "Seitenleiste umschalten",
+    "pushUpstream": "Push & Upstream setzen",
+    "pushForce": "Force-Push (mit Lease)"
   },
   "start": {
     "title": "Kein Repository geöffnet",

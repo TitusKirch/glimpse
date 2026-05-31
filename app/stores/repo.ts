@@ -321,6 +321,24 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    async renameBranch(oldName: string, newName: string) {
+      const trimmed = newName.trim();
+      if (!trimmed || trimmed === oldName || !isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.renameBranch(this.repoPath, oldName, trimmed);
+        await this.loadFromBackend();
+      });
+    },
+
+    // Check out a commit directly (detached HEAD) to inspect or branch off it.
+    async checkoutCommit(hash: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.checkoutCommit(this.repoPath, hash);
+        await this.loadFromBackend();
+      });
+    },
+
     async sync(command: 'fetch' | 'pull' | 'push') {
       if (!isTauri()) return;
       this.syncing = command;
@@ -328,6 +346,24 @@ export const useRepoStore = defineStore('repo', {
         await Promise.all([
           this.guarded(async () => {
             await gitClient[command](this.repoPath);
+            await this.loadFromBackend();
+          }),
+          promiseTimeout(MIN_SPINNER_MS)
+        ]);
+      } finally {
+        this.syncing = null;
+      }
+    },
+
+    // Push with options: publish a new branch (set upstream) and/or force with
+    // lease. Shares the push spinner/guard with the plain sync('push').
+    async push(setUpstream: boolean, force: boolean) {
+      if (!isTauri()) return;
+      this.syncing = 'push';
+      try {
+        await Promise.all([
+          this.guarded(async () => {
+            await gitClient.push(this.repoPath, setUpstream, force);
             await this.loadFromBackend();
           }),
           promiseTimeout(MIN_SPINNER_MS)

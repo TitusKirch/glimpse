@@ -123,6 +123,11 @@ async fn checkout_branch(path: String, branch: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn checkout_commit(path: String, hash: String) -> Result<(), String> {
+    git::Repo::open(&path).checkout_commit(&hash)
+}
+
+#[tauri::command]
 async fn create_branch(path: String, name: String) -> Result<(), String> {
     git::Repo::open(&path).create_branch(&name)
 }
@@ -130,6 +135,11 @@ async fn create_branch(path: String, name: String) -> Result<(), String> {
 #[tauri::command]
 async fn delete_branch(path: String, name: String) -> Result<(), String> {
     git::Repo::open(&path).delete_branch(&name)
+}
+
+#[tauri::command]
+async fn rename_branch(path: String, old: String, new: String) -> Result<(), String> {
+    git::Repo::open(&path).rename_branch(&old, &new)
 }
 
 #[tauri::command]
@@ -143,8 +153,8 @@ async fn pull(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn push(path: String) -> Result<String, String> {
-    git::Repo::open(&path).push()
+async fn push(path: String, set_upstream: bool, force: bool) -> Result<String, String> {
+    git::Repo::open(&path).push(set_upstream, force)
 }
 
 /// Open the repo folder in an external app: "files", "terminal", or "editor".
@@ -189,8 +199,10 @@ pub fn run() {
             head_message,
             discard,
             checkout_branch,
+            checkout_commit,
             create_branch,
             delete_branch,
+            rename_branch,
             fetch,
             pull,
             push,

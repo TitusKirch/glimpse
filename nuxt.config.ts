@@ -73,6 +73,7 @@ export default defineNuxtConfig({
 
   i18n: {
     defaultLocale: 'en-GB',
+    fallbackLocale: 'en-GB',
     strategy: 'no_prefix',
     // One directory per locale with namespaced files; i18n deep-merges them.
     locales: [

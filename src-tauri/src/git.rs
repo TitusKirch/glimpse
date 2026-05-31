@@ -255,12 +255,22 @@ impl Repo {
         self.run(&["switch", branch]).map(|_| ())
     }
 
+    /// Check out a commit directly, leaving HEAD detached so the user can
+    /// inspect or branch off it.
+    pub fn checkout_commit(&self, hash: &str) -> Result<(), String> {
+        self.run(&["checkout", hash]).map(|_| ())
+    }
+
     pub fn create_branch(&self, name: &str) -> Result<(), String> {
         self.run(&["switch", "-c", name]).map(|_| ())
     }
 
     pub fn delete_branch(&self, name: &str) -> Result<(), String> {
         self.run(&["branch", "-d", name]).map(|_| ())
+    }
+
+    pub fn rename_branch(&self, old: &str, new: &str) -> Result<(), String> {
+        self.run(&["branch", "-m", old, new]).map(|_| ())
     }
 
     pub fn fetch(&self) -> Result<String, String> {
@@ -271,8 +281,18 @@ impl Repo {
         self.run(&["pull"])
     }
 
-    pub fn push(&self) -> Result<String, String> {
-        self.run(&["push"])
+    /// Push the current branch. `set_upstream` publishes a new branch and
+    /// records its upstream (`-u origin HEAD`); `force` uses the safe
+    /// `--force-with-lease` (never the unconditional `--force`).
+    pub fn push(&self, set_upstream: bool, force: bool) -> Result<String, String> {
+        let mut args = vec!["push"];
+        if force {
+            args.push("--force-with-lease");
+        }
+        if set_upstream {
+            args.extend(["--set-upstream", "origin", "HEAD"]);
+        }
+        self.run(&args)
     }
 }
 

@@ -64,6 +64,20 @@ function toggleTheme() {
             {{ t('sync.push') }}
             <UiCommandShortcut>{{ mod }}+⇧+U</UiCommandShortcut>
           </UiCommandItem>
+          <UiCommandItem
+            value="push set upstream publish"
+            @select="run(() => repo.push(true, false))"
+          >
+            <NuxtIcon name="lucide:cloud-upload" />
+            {{ t('command.pushUpstream') }}
+          </UiCommandItem>
+          <UiCommandItem
+            value="push force with lease"
+            @select="run(() => repo.push(false, true))"
+          >
+            <NuxtIcon name="lucide:triangle-alert" />
+            {{ t('command.pushForce') }}
+          </UiCommandItem>
           <UiCommandItem value="refresh" @select="run(() => repo.refresh())">
             <NuxtIcon name="lucide:refresh-cw" />
             {{ t('actions.refresh') }}

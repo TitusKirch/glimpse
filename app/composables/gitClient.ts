@@ -164,15 +164,26 @@ export const gitClient = {
   checkoutBranch: (path: string, branch: string) =>
     gitInvoke<null>('checkout_branch', { path, branch }, null),
 
+  checkoutCommit: (path: string, hash: string) =>
+    gitInvoke<null>('checkout_commit', { path, hash }, null),
+
   createBranch: (path: string, name: string) =>
     gitInvoke<null>('create_branch', { path, name }, null),
 
   deleteBranch: (path: string, name: string) =>
     gitInvoke<null>('delete_branch', { path, name }, null),
 
+  renameBranch: (path: string, oldName: string, newName: string) =>
+    gitInvoke<null>(
+      'rename_branch',
+      { path, old: oldName, new: newName },
+      null
+    ),
+
   fetch: (path: string) => gitInvoke<string>('fetch', { path }, ''),
   pull: (path: string) => gitInvoke<string>('pull', { path }, ''),
-  push: (path: string) => gitInvoke<string>('push', { path }, ''),
+  push: (path: string, setUpstream = false, force = false) =>
+    gitInvoke<string>('push', { path, setUpstream, force }, ''),
 
   // Open the repo folder in an external app ("files" | "terminal" | "editor").
   openIn: (path: string, app: 'files' | 'terminal' | 'editor') =>

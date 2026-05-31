@@ -6,6 +6,10 @@ const { t } = useI18n();
 const creating = ref(false);
 const newBranch = ref('');
 
+// Inline rename: which branch is being renamed, and its draft name.
+const renaming = ref<string | null>(null);
+const renameDraft = ref('');
+
 function cancel() {
   creating.value = false;
   newBranch.value = '';
@@ -15,6 +19,19 @@ async function submitBranch() {
   if (!newBranch.value.trim()) return;
   await repo.createBranch(newBranch.value);
   cancel();
+}
+
+function startRename(name: string) {
+  renaming.value = name;
+  renameDraft.value = name;
+}
+function cancelRename() {
+  renaming.value = null;
+  renameDraft.value = '';
+}
+async function submitRename(oldName: string) {
+  await repo.renameBranch(oldName, renameDraft.value);
+  cancelRename();
 }
 
 // "origin/dev" -> "dev"; checking it out lets git create a tracking branch.
@@ -90,35 +107,86 @@ const links = [
             </UiButton>
           </div>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="b in repo.branches" :key="b.name">
-              <UiSidebarMenuButton
-                :is-active="b.name === repo.currentBranch"
-                :tooltip="b.name"
-                @click="repo.checkout(b.name)"
-              >
-                <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-                <span>{{ b.name }}</span>
-                <span
-                  v-if="b.ahead || b.behind"
-                  class="ml-auto flex items-center gap-1 text-[11px] font-medium"
+            <template v-for="b in repo.branches" :key="b.name">
+              <UiSidebarMenuItem v-if="renaming === b.name">
+                <div
+                  class="flex items-center gap-1 px-2 py-1 group-data-[collapsible=icon]:hidden"
                 >
-                  <span
-                    v-if="b.ahead"
-                    class="flex items-center gap-0.5 rounded-md bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400"
-                    ><NuxtIcon name="lucide:arrow-up" class="size-3.5" />{{
-                      b.ahead
-                    }}</span
+                  <UiSidebarInput
+                    v-model="renameDraft"
+                    autofocus
+                    @keydown.enter="submitRename(b.name)"
+                    @keydown.esc="cancelRename"
+                  />
+                  <UiButton
+                    variant="ghost"
+                    size="icon"
+                    class="size-7 shrink-0"
+                    @click="cancelRename"
                   >
+                    <NuxtIcon name="lucide:x" class="size-4" />
+                  </UiButton>
+                </div>
+              </UiSidebarMenuItem>
+              <UiSidebarMenuItem v-else>
+                <UiSidebarMenuButton
+                  :is-active="b.name === repo.currentBranch"
+                  :tooltip="b.name"
+                  @click="repo.checkout(b.name)"
+                >
+                  <NuxtIcon name="lucide:git-branch" class="shrink-0" />
+                  <span>{{ b.name }}</span>
                   <span
-                    v-if="b.behind"
-                    class="flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
-                    ><NuxtIcon name="lucide:arrow-down" class="size-3.5" />{{
-                      b.behind
-                    }}</span
+                    v-if="b.ahead || b.behind"
+                    class="ml-auto flex items-center gap-1 text-[11px] font-medium"
                   >
-                </span>
-              </UiSidebarMenuButton>
-            </UiSidebarMenuItem>
+                    <span
+                      v-if="b.ahead"
+                      class="flex items-center gap-0.5 rounded-md bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400"
+                      ><NuxtIcon name="lucide:arrow-up" class="size-3.5" />{{
+                        b.ahead
+                      }}</span
+                    >
+                    <span
+                      v-if="b.behind"
+                      class="flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
+                      ><NuxtIcon name="lucide:arrow-down" class="size-3.5" />{{
+                        b.behind
+                      }}</span
+                    >
+                  </span>
+                </UiSidebarMenuButton>
+                <UiDropdownMenu>
+                  <UiDropdownMenuTrigger as-child>
+                    <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                      <NuxtIcon name="lucide:ellipsis" />
+                    </UiSidebarMenuAction>
+                  </UiDropdownMenuTrigger>
+                  <UiDropdownMenuContent side="right" align="start">
+                    <UiDropdownMenuItem
+                      :disabled="b.name === repo.currentBranch"
+                      @click="repo.checkout(b.name)"
+                    >
+                      <NuxtIcon name="lucide:check" />
+                      {{ t('branch.switch') }}
+                    </UiDropdownMenuItem>
+                    <UiDropdownMenuItem @click="startRename(b.name)">
+                      <NuxtIcon name="lucide:pencil" />
+                      {{ t('branch.rename') }}
+                    </UiDropdownMenuItem>
+                    <UiDropdownMenuSeparator />
+                    <UiDropdownMenuItem
+                      class="text-destructive focus:text-destructive"
+                      :disabled="b.name === repo.currentBranch"
+                      @click="repo.deleteBranch(b.name)"
+                    >
+                      <NuxtIcon name="lucide:trash-2" />
+                      {{ t('branch.delete') }}
+                    </UiDropdownMenuItem>
+                  </UiDropdownMenuContent>
+                </UiDropdownMenu>
+              </UiSidebarMenuItem>
+            </template>
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
