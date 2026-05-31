@@ -36,6 +36,11 @@
       "title": "Uncommittete Änderungen",
       "description": "Du hast uncommittete Änderungen. Stashen und Branch wechseln?",
       "confirm": "Stashen & wechseln"
+    },
+    "resetHard": {
+      "title": "Hard-Reset",
+      "description": "Verwirft alle uncommitteten Änderungen und verschiebt den Branch. Fortfahren?",
+      "confirm": "Hard-Reset"
     }
   },
   "branch": {
@@ -45,7 +50,15 @@
   },
   "commit": {
     "checkout": "Diesen Commit auschecken",
-    "copyHash": "Hash kopieren"
+    "copyHash": "Hash kopieren",
+    "branchHere": "Branch ab hier",
+    "tagHere": "Diesen Commit taggen",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "reset": "Hierhin zurücksetzen",
+    "resetSoft": "Soft (Änderungen vorgemerkt lassen)",
+    "resetMixed": "Mixed (Änderungen behalten)",
+    "resetHard": "Hard (Änderungen verwerfen)"
   },
   "command": {
     "open": "Befehlspalette",

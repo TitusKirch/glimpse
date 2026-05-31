@@ -342,8 +342,34 @@ impl Repo {
         self.run(&["switch", "-c", name]).map(|_| ())
     }
 
+    /// Create a branch at a specific commit and switch to it ("branch here").
+    pub fn create_branch_at(&self, name: &str, hash: &str) -> Result<(), String> {
+        self.run(&["switch", "-c", name, hash]).map(|_| ())
+    }
+
     pub fn delete_branch(&self, name: &str) -> Result<(), String> {
         self.run(&["branch", "-d", name]).map(|_| ())
+    }
+
+    /// Revert a commit (creates a new inverse commit, no editor).
+    pub fn revert(&self, hash: &str) -> Result<(), String> {
+        self.run(&["revert", "--no-edit", hash]).map(|_| ())
+    }
+
+    /// Cherry-pick a commit onto the current branch.
+    pub fn cherry_pick(&self, hash: &str) -> Result<(), String> {
+        self.run(&["cherry-pick", hash]).map(|_| ())
+    }
+
+    /// Move the current branch to `hash`. `mode` is "soft", "mixed", or "hard"
+    /// (hard discards working-tree changes — the UI confirms first).
+    pub fn reset(&self, hash: &str, mode: &str) -> Result<(), String> {
+        let flag = match mode {
+            "soft" => "--soft",
+            "hard" => "--hard",
+            _ => "--mixed",
+        };
+        self.run(&["reset", flag, hash]).map(|_| ())
     }
 
     pub fn rename_branch(&self, old: &str, new: &str) -> Result<(), String> {

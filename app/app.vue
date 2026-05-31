@@ -195,5 +195,6 @@ const syncButtons = [
   <CommandPalette />
   <SettingsDialog v-model:open="settings.open.value" />
   <ConfirmDialog />
+  <PromptDialog />
   <UiSonner />
 </template>

@@ -36,6 +36,11 @@
       "title": "Uncommitted changes",
       "description": "You have uncommitted changes. Stash them and switch branch?",
       "confirm": "Stash & switch"
+    },
+    "resetHard": {
+      "title": "Hard reset",
+      "description": "This discards all uncommitted changes and moves the branch. Continue?",
+      "confirm": "Hard reset"
     }
   },
   "branch": {
@@ -45,7 +50,15 @@
   },
   "commit": {
     "checkout": "Check out this commit",
-    "copyHash": "Copy hash"
+    "copyHash": "Copy hash",
+    "branchHere": "Branch from here",
+    "tagHere": "Tag this commit",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "reset": "Reset to here",
+    "resetSoft": "Soft (keep changes staged)",
+    "resetMixed": "Mixed (keep changes)",
+    "resetHard": "Hard (discard changes)"
   },
   "command": {
     "open": "Command palette",

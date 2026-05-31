@@ -195,8 +195,20 @@ export const gitClient = {
   createBranch: (path: string, name: string) =>
     gitInvoke<null>('create_branch', { path, name }, null),
 
+  createBranchAt: (path: string, name: string, hash: string) =>
+    gitInvoke<null>('create_branch_at', { path, name, hash }, null),
+
   deleteBranch: (path: string, name: string) =>
     gitInvoke<null>('delete_branch', { path, name }, null),
+
+  revert: (path: string, hash: string) =>
+    gitInvoke<null>('revert', { path, hash }, null),
+
+  cherryPick: (path: string, hash: string) =>
+    gitInvoke<null>('cherry_pick', { path, hash }, null),
+
+  reset: (path: string, hash: string, mode: 'soft' | 'mixed' | 'hard') =>
+    gitInvoke<null>('reset', { path, hash, mode }, null),
 
   renameBranch: (path: string, oldName: string, newName: string) =>
     gitInvoke<null>(

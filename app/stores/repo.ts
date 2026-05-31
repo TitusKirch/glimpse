@@ -402,6 +402,67 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Create a branch at a commit and switch to it (prompts for the name).
+    async branchAt(hash: string) {
+      if (!isTauri()) return;
+      const name = await usePrompt().prompt({
+        titleKey: 'commit.branchHere',
+        placeholderKey: 'sidebar.branchName',
+        confirmKey: 'sidebar.newBranch'
+      });
+      if (!name) return;
+      await this.guarded(async () => {
+        await gitClient.createBranchAt(this.repoPath, name, hash);
+        await this.loadFromBackend();
+      });
+    },
+
+    // Tag a commit (prompts for the tag name).
+    async tagAt(hash: string) {
+      if (!isTauri()) return;
+      const name = await usePrompt().prompt({
+        titleKey: 'commit.tagHere',
+        placeholderKey: 'sidebar.tagName',
+        confirmKey: 'sidebar.newTag'
+      });
+      if (!name) return;
+      await this.createTag(name, hash);
+    },
+
+    async revert(hash: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.revert(this.repoPath, hash);
+        await this.loadFromBackend();
+      });
+    },
+
+    async cherryPick(hash: string) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.cherryPick(this.repoPath, hash);
+        await this.loadFromBackend();
+      });
+    },
+
+    // Move the current branch to a commit. A hard reset discards working-tree
+    // changes, so it confirms first.
+    async reset(hash: string, mode: 'soft' | 'mixed' | 'hard') {
+      if (!isTauri()) return;
+      if (mode === 'hard') {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.resetHard.title',
+          descriptionKey: 'confirm.resetHard.description',
+          confirmKey: 'confirm.resetHard.confirm'
+        });
+        if (!ok) return;
+      }
+      await this.guarded(async () => {
+        await gitClient.reset(this.repoPath, hash, mode);
+        await this.loadFromBackend();
+      });
+    },
+
     async createTag(name: string, hash = '') {
       const trimmed = name.trim();
       if (!trimmed || !isTauri()) return;

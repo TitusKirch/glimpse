@@ -150,8 +150,28 @@ async fn create_branch(path: String, name: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn create_branch_at(path: String, name: String, hash: String) -> Result<(), String> {
+    git::Repo::open(&path).create_branch_at(&name, &hash)
+}
+
+#[tauri::command]
 async fn delete_branch(path: String, name: String) -> Result<(), String> {
     git::Repo::open(&path).delete_branch(&name)
+}
+
+#[tauri::command]
+async fn revert(path: String, hash: String) -> Result<(), String> {
+    git::Repo::open(&path).revert(&hash)
+}
+
+#[tauri::command]
+async fn cherry_pick(path: String, hash: String) -> Result<(), String> {
+    git::Repo::open(&path).cherry_pick(&hash)
+}
+
+#[tauri::command]
+async fn reset(path: String, hash: String, mode: String) -> Result<(), String> {
+    git::Repo::open(&path).reset(&hash, &mode)
 }
 
 #[tauri::command]
@@ -336,7 +356,11 @@ pub fn run() {
             checkout_branch,
             checkout_commit,
             create_branch,
+            create_branch_at,
             delete_branch,
+            revert,
+            cherry_pick,
+            reset,
             rename_branch,
             create_tag,
             delete_tag,

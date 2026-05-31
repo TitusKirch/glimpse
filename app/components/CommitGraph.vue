@@ -94,27 +94,28 @@ function refClass(ref: string): string {
         :title="t('history.noMatches')"
       />
       <ul v-else>
-        <li
-          v-for="c in filtered"
-          :key="c.hash"
-          class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
-          :class="
-            c.hash === repo.selectedHash ? 'bg-accent' : 'hover:bg-accent/40'
-          "
-          @click="repo.selectCommit(c.hash)"
-        >
-          <div class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">{{
-              c.subject
-            }}</span>
-            <div class="mt-1 truncate text-xs text-muted-foreground">
-              {{ c.author }} · {{ c.date }}
+        <CommitContextMenu v-for="c in filtered" :key="c.hash" :hash="c.hash">
+          <li
+            class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
+            :class="
+              c.hash === repo.selectedHash ? 'bg-accent' : 'hover:bg-accent/40'
+            "
+            @click="repo.selectCommit(c.hash)"
+          >
+            <div class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-medium">{{
+                c.subject
+              }}</span>
+              <div class="mt-1 truncate text-xs text-muted-foreground">
+                {{ c.author }} · {{ c.date }}
+              </div>
             </div>
-          </div>
-          <code class="shrink-0 font-mono text-[11px] text-muted-foreground">{{
-            c.hash.slice(0, 7)
-          }}</code>
-        </li>
+            <code
+              class="shrink-0 font-mono text-[11px] text-muted-foreground"
+              >{{ c.hash.slice(0, 7) }}</code
+            >
+          </li>
+        </CommitContextMenu>
       </ul>
     </div>
 
@@ -150,46 +151,50 @@ function refClass(ref: string): string {
 
         <!-- commit rows -->
         <ul>
-          <li
+          <CommitContextMenu
             v-for="vr in virtualRows"
             :key="vr.commit.hash"
-            class="absolute right-0 left-0 flex cursor-pointer items-center gap-3 border-l pr-3 pl-3 transition-colors"
-            :style="{
-              height: vr.size + 'px',
-              transform: `translateY(${vr.start}px)`,
-              paddingLeft: layout.width + 'px'
-            }"
-            :class="
-              vr.commit.hash === repo.selectedHash
-                ? 'bg-accent'
-                : 'hover:bg-accent/40'
-            "
-            @click="repo.selectCommit(vr.commit.hash)"
+            :hash="vr.commit.hash"
           >
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-1.5">
-                <UiBadge
-                  v-for="ref in vr.commit.refs"
-                  :key="ref"
-                  variant="outline"
-                  class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
-                  :class="refClass(ref)"
-                >
-                  {{ refLabel(ref) }}
-                </UiBadge>
-                <span class="truncate text-sm font-medium">{{
-                  vr.commit.subject
-                }}</span>
-              </div>
-              <div class="mt-1 truncate text-xs text-muted-foreground">
-                {{ vr.commit.author }} · {{ vr.commit.date }}
-              </div>
-            </div>
-            <code
-              class="shrink-0 font-mono text-[11px] text-muted-foreground"
-              >{{ vr.commit.hash.slice(0, 7) }}</code
+            <li
+              class="absolute right-0 left-0 flex cursor-pointer items-center gap-3 border-l pr-3 pl-3 transition-colors"
+              :style="{
+                height: vr.size + 'px',
+                transform: `translateY(${vr.start}px)`,
+                paddingLeft: layout.width + 'px'
+              }"
+              :class="
+                vr.commit.hash === repo.selectedHash
+                  ? 'bg-accent'
+                  : 'hover:bg-accent/40'
+              "
+              @click="repo.selectCommit(vr.commit.hash)"
             >
-          </li>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <UiBadge
+                    v-for="ref in vr.commit.refs"
+                    :key="ref"
+                    variant="outline"
+                    class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
+                    :class="refClass(ref)"
+                  >
+                    {{ refLabel(ref) }}
+                  </UiBadge>
+                  <span class="truncate text-sm font-medium">{{
+                    vr.commit.subject
+                  }}</span>
+                </div>
+                <div class="mt-1 truncate text-xs text-muted-foreground">
+                  {{ vr.commit.author }} · {{ vr.commit.date }}
+                </div>
+              </div>
+              <code
+                class="shrink-0 font-mono text-[11px] text-muted-foreground"
+                >{{ vr.commit.hash.slice(0, 7) }}</code
+              >
+            </li>
+          </CommitContextMenu>
         </ul>
       </div>
     </div>
