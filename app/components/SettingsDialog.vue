@@ -20,18 +20,21 @@ function fireToast(tk: (typeof toastKinds)[number]) {
   });
 }
 
-// Left navigation pages. The Developer page only appears when dev mode is on.
-const pages = computed(() => {
-  const base = [
-    { key: 'general', icon: 'lucide:sliders-horizontal' },
-    { key: 'appearance', icon: 'lucide:palette' },
-    { key: 'language', icon: 'lucide:languages' }
+// Left navigation, grouped into sections separated by dividers. The Developer
+// section only appears when dev mode is on.
+const navSections = computed(() => {
+  const sections = [
+    [
+      { key: 'general', icon: 'lucide:sliders-horizontal' },
+      { key: 'appearance', icon: 'lucide:palette' },
+      { key: 'language', icon: 'lucide:languages' }
+    ],
+    [{ key: 'about', icon: 'lucide:info' }]
   ];
   if (layout.devMode) {
-    base.push({ key: 'developer', icon: 'lucide:flask-conical' });
+    sections.push([{ key: 'developer', icon: 'lucide:flask-conical' }]);
   }
-  base.push({ key: 'about', icon: 'lucide:info' });
-  return base;
+  return sections;
 });
 const page = ref('general');
 
@@ -125,22 +128,27 @@ const lang = computed({
       </UiDialogHeader>
 
       <div class="flex min-h-0 flex-1">
-        <!-- left navigation (~1/5) -->
-        <nav class="w-56 shrink-0 space-y-1 overflow-auto border-r p-2">
-          <button
-            v-for="p in pages"
-            :key="p.key"
-            class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
-            :class="
-              page === p.key
-                ? 'bg-accent text-accent-foreground'
-                : 'text-muted-foreground hover:bg-accent/50'
-            "
-            @click="page = p.key"
-          >
-            <NuxtIcon :name="p.icon" class="size-4 shrink-0" />
-            {{ t(`settings.${p.key}.title`) }}
-          </button>
+        <!-- left navigation (~1/5), grouped with dividers -->
+        <nav class="w-56 shrink-0 overflow-auto border-r p-2">
+          <template v-for="(section, si) in navSections" :key="si">
+            <UiSeparator v-if="si > 0" class="my-1.5" />
+            <div class="space-y-1">
+              <button
+                v-for="p in section"
+                :key="p.key"
+                class="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors"
+                :class="
+                  page === p.key
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent/50'
+                "
+                @click="page = p.key"
+              >
+                <NuxtIcon :name="p.icon" class="size-4 shrink-0" />
+                {{ t(`settings.${p.key}.title`) }}
+              </button>
+            </div>
+          </template>
         </nav>
 
         <!-- content -->
@@ -252,6 +260,27 @@ const lang = computed({
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
+                </div>
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.about.checkUpdates') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.checkUpdatesHint') }}
+                    </p>
+                  </div>
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    class="shrink-0"
+                    :loading="checking"
+                    @click="checkForUpdates()"
+                  >
+                    <NuxtIcon name="lucide:refresh-cw" class="size-4" />
+                    {{ t('settings.about.checkUpdates') }}
+                  </UiButton>
                 </div>
               </div>
             </div>
@@ -504,20 +533,9 @@ const lang = computed({
                 </p>
               </div>
             </div>
-            <p class="max-w-md text-sm text-muted-foreground">
+            <p class="max-w-lg text-sm leading-relaxed text-muted-foreground">
               {{ t('settings.about.description') }}
             </p>
-            <div>
-              <UiButton
-                variant="outline"
-                size="sm"
-                :loading="checking"
-                @click="checkForUpdates()"
-              >
-                <NuxtIcon name="lucide:refresh-cw" class="size-4" />
-                {{ t('settings.about.checkUpdates') }}
-              </UiButton>
-            </div>
             <div class="flex flex-wrap gap-2">
               <UiButton
                 v-for="l in aboutLinks"

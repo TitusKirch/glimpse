@@ -122,9 +122,10 @@ function refClass(ref: string): string {
     <!-- graph (virtualized rows + full-height SVG lane overlay) -->
     <div ref="scrollEl" v-else class="relative min-h-0 flex-1 overflow-auto">
       <div class="relative" :style="{ height: layout.height + 'px' }">
-        <!-- lane lines + nodes -->
+        <!-- lane lines + nodes — kept above the rows so a selected/hovered
+             row's background never hides the lanes -->
         <svg
-          class="absolute top-0 left-0"
+          class="pointer-events-none absolute top-0 left-0 z-10"
           :width="layout.width"
           :height="layout.height"
           :style="{ height: layout.height + 'px' }"

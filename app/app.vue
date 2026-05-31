@@ -8,6 +8,7 @@ const repo = useRepoStore();
 const layout = useLayoutStore();
 const settings = useSettingsDialog();
 const palette = useCommandPalette();
+const help = useHelpDialog();
 const { checkForUpdates } = useUpdater();
 const { t } = useI18n();
 
@@ -16,6 +17,7 @@ const { t } = useI18n();
 useAppearance();
 useShortcuts();
 useAutoFetch();
+useModalScrollLock();
 
 // Surface git failures as a toast instead of a persistent banner.
 watch(
@@ -95,6 +97,14 @@ const syncButtons = [
               </UiButton>
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('command.open') }}</UiTooltipContent>
+          </UiTooltip>
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton variant="ghost" size="icon" @click="help.show()">
+                <NuxtIcon name="lucide:keyboard" class="size-4" />
+              </UiButton>
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('help.title') }}</UiTooltipContent>
           </UiTooltip>
           <UiTooltip v-for="b in syncButtons" :key="b.command">
             <UiTooltipTrigger as-child>

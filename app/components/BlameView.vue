@@ -40,13 +40,27 @@ function isNewBlock(i: number): boolean {
       <tbody>
         <tr v-for="(l, i) in lines" :key="i" class="hover:bg-accent/30">
           <td
-            class="sticky left-0 max-w-52 min-w-52 truncate border-r bg-background px-2 align-top text-muted-foreground select-none"
-            :title="`${l.hash} · ${l.author} · ${l.date}`"
+            class="sticky left-0 max-w-48 min-w-48 truncate border-r bg-background px-2 align-top text-muted-foreground select-none"
           >
-            <template v-if="isNewBlock(i)">
-              <span class="font-medium text-foreground">{{ l.hash }}</span>
-              {{ l.author }} · {{ l.date }}
-            </template>
+            <UiHoverCard v-if="isNewBlock(i)" :open-delay="200">
+              <UiHoverCardTrigger class="cursor-default truncate">
+                <span class="font-mono font-medium text-foreground">{{
+                  l.hash
+                }}</span>
+                {{ l.author }}
+              </UiHoverCardTrigger>
+              <UiHoverCardContent class="w-auto text-xs" side="right">
+                <div class="flex items-center gap-2">
+                  <NuxtIcon name="lucide:user" class="size-3.5" />
+                  <span class="font-medium">{{ l.author }}</span>
+                </div>
+                <div class="mt-1 flex items-center gap-2 text-muted-foreground">
+                  <NuxtIcon name="lucide:calendar" class="size-3.5" />
+                  <span>{{ l.date }}</span>
+                  <code class="ml-1 font-mono">{{ l.hash }}</code>
+                </div>
+              </UiHoverCardContent>
+            </UiHoverCard>
           </td>
           <td class="w-10 px-2 text-right text-muted-foreground select-none">
             {{ l.line }}

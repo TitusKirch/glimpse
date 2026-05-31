@@ -4,6 +4,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 const repo = useRepoStore();
 const settings = useSettingsDialog();
 const remoteDialog = useRemoteDialog();
+const help = useHelpDialog();
 const { t } = useI18n();
 
 // Collapsed (icon-only) sidebar: items open a dropdown instead of acting
@@ -275,36 +276,41 @@ const links = [
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
-
-      <UiSidebarGroup class="mt-auto">
-        <UiSidebarGroupContent>
-          <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="item in links" :key="item.title">
-              <UiSidebarMenuButton as-child :tooltip="item.title">
-                <a
-                  :href="item.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  @click.prevent="openExternal(item.url)"
-                >
-                  <NuxtIcon :name="item.icon" class="shrink-0" />
-                  <span>{{ item.title }}</span>
-                </a>
-              </UiSidebarMenuButton>
-            </UiSidebarMenuItem>
-            <UiSidebarMenuItem>
-              <UiSidebarMenuButton
-                :tooltip="t('settings.title')"
-                @click="settings.show()"
-              >
-                <NuxtIcon name="lucide:settings" class="shrink-0" />
-                <span>{{ t('settings.title') }}</span>
-              </UiSidebarMenuButton>
-            </UiSidebarMenuItem>
-          </UiSidebarMenu>
-        </UiSidebarGroupContent>
-      </UiSidebarGroup>
     </UiSidebarContent>
+
+    <!-- static footer: stays put while the content above scrolls -->
+    <UiSidebarFooter>
+      <UiSidebarMenu>
+        <UiSidebarMenuItem v-for="item in links" :key="item.title">
+          <UiSidebarMenuButton as-child :tooltip="item.title">
+            <a
+              :href="item.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              @click.prevent="openExternal(item.url)"
+            >
+              <NuxtIcon :name="item.icon" class="shrink-0" />
+              <span>{{ item.title }}</span>
+            </a>
+          </UiSidebarMenuButton>
+        </UiSidebarMenuItem>
+        <UiSidebarMenuItem>
+          <UiSidebarMenuButton :tooltip="t('help.title')" @click="help.show()">
+            <NuxtIcon name="lucide:keyboard" class="shrink-0" />
+            <span>{{ t('help.title') }}</span>
+          </UiSidebarMenuButton>
+        </UiSidebarMenuItem>
+        <UiSidebarMenuItem>
+          <UiSidebarMenuButton
+            :tooltip="t('settings.title')"
+            @click="settings.show()"
+          >
+            <NuxtIcon name="lucide:settings" class="shrink-0" />
+            <span>{{ t('settings.title') }}</span>
+          </UiSidebarMenuButton>
+        </UiSidebarMenuItem>
+      </UiSidebarMenu>
+    </UiSidebarFooter>
 
     <UiSidebarRail />
   </UiSidebar>

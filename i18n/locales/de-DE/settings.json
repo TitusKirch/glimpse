@@ -29,6 +29,7 @@
         "stable": "Stable",
         "beta": "Beta"
       },
+      "checkUpdatesHint": "Jetzt nach einem Update suchen.",
       "developer": "Entwickler",
       "devMode": {
         "label": "Entwickler-Einstellungen",
