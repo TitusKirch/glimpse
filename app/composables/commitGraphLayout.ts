@@ -73,18 +73,27 @@ export function commitGraphLayout(
     color: laneColor(c.lane)
   }));
 
+  // A lane change is drawn as a straight vertical run plus a tight rounded 90°
+  // corner at the divergence/merge node, not a full-height diagonal — so
+  // parallel branches read as straight lines.
+  const edgePath = (x1: number, y1: number, x2: number, y2: number) => {
+    if (x1 === x2) return `M ${x1} ${y1} L ${x2} ${y2}`;
+    const r = Math.min(rowHeight / 2, Math.abs(y2 - y1) / 2);
+    if (x2 > x1) {
+      // Child shifts into a higher lane: corner just below the child (merge).
+      return `M ${x1} ${y1} C ${x1} ${y1 + r}, ${x2} ${y1}, ${x2} ${y1 + r} L ${x2} ${y2}`;
+    }
+    // Child rejoins a lower lane: straight down, corner at the parent (branch).
+    return `M ${x1} ${y1} L ${x1} ${y2 - r} C ${x1} ${y2}, ${x2} ${y2 - r}, ${x2} ${y2}`;
+  };
+
   const edges: GraphEdge[] = [];
   commits.forEach((c, i) => {
     for (const parent of c.parents) {
       const j = indexByHash.get(parent);
       if (j === undefined) continue;
-      const x1 = laneX(c.lane);
-      const y1 = nodeY(i);
-      const x2 = laneX(commits[j]!.lane);
-      const y2 = nodeY(j);
-      const midY = (y1 + y2) / 2;
       edges.push({
-        d: `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`,
+        d: edgePath(laneX(c.lane), nodeY(i), laneX(commits[j]!.lane), nodeY(j)),
         color: laneColor(Math.max(c.lane, commits[j]!.lane))
       });
     }

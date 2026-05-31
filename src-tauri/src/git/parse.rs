@@ -103,6 +103,17 @@ fn assign_lanes(commits: &mut [Commit]) {
         };
         commit.lane = lane as u32;
 
+        // A commit can be awaited by several lanes at once — it is the branch
+        // point where a side branch later merges back into this line. Free
+        // every lane that was waiting for it, otherwise those reservations go
+        // stale and the graph keeps getting wider. The chosen lane carries on
+        // via the first parent below.
+        for slot in lanes.iter_mut() {
+            if slot.as_deref() == Some(&commit.hash) {
+                *slot = None;
+            }
+        }
+
         // First parent continues this lane; clear it otherwise.
         lanes[lane] = commit.parents.first().cloned();
 
@@ -233,6 +244,24 @@ mod tests {
         assert_eq!(c[0].lane, 0);
         assert_eq!(c[1].lane, 0); // p1 continues lane 0
         assert_eq!(c[2].lane, 1); // p2 in the lane the merge reserved
+    }
+
+    #[test]
+    fn lanes_are_reused_after_a_branch_merges_back() {
+        // Two side branches (S2, S1) each branch off the mainline and merge
+        // back (at M2, M1). Once a branch rejoins, its lane must free so the
+        // next branch reuses it — otherwise the graph keeps widening.
+        let raw = format!(
+            "M2{US}C S2{US}a{US}d{US}{US}m2\n\
+             S2{US}C{US}a{US}d{US}{US}s2\n\
+             C{US}M1{US}a{US}d{US}{US}c\n\
+             M1{US}A S1{US}a{US}d{US}{US}m1\n\
+             S1{US}A{US}a{US}d{US}{US}s1\n\
+             A{US}{US}a{US}d{US}{US}a"
+        );
+        let c = log(&raw);
+        let max_lane = c.iter().map(|k| k.lane).max().unwrap();
+        assert_eq!(max_lane, 1, "branch lanes must be reused, not accumulated");
     }
 
     #[test]
