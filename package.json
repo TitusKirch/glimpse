@@ -39,8 +39,10 @@
     "lint:fix": "oxlint . --fix --deny-warnings",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt .",
-    "check": "pnpm lint && pnpm format",
-    "check:fix": "pnpm lint:fix && pnpm format:fix",
+    "cargofmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --all --check",
+    "cargofmt:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml --all",
+    "check": "pnpm lint && pnpm format && pnpm cargofmt",
+    "check:fix": "pnpm lint:fix && pnpm format:fix && pnpm cargofmt:fix",
     "taze": "taze",
     "taze:w": "taze -w",
     "prepare": "husky"
