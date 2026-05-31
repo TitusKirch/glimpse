@@ -35,6 +35,7 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         '@tauri-apps/api/core',
+        '@tauri-apps/api/event',
         '@tauri-apps/plugin-dialog',
         '@tauri-apps/plugin-opener',
         '@vueuse/core',

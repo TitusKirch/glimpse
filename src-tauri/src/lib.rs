@@ -2,6 +2,17 @@ mod git;
 mod platform;
 
 use std::env;
+use std::path::Path;
+use std::sync::Mutex;
+use std::time::Duration;
+
+use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
+use notify_debouncer_mini::{new_debouncer, DebounceEventResult, Debouncer};
+use tauri::{AppHandle, Emitter, State};
+
+/// Holds the active filesystem watcher so it stays alive (dropping it stops
+/// watching). Only the most recently watched repo is tracked.
+struct WatcherState(Mutex<Option<Debouncer<RecommendedWatcher>>>);
 
 /// Current working directory — the frontend uses this as the default repo to open.
 #[tauri::command]
@@ -9,6 +20,33 @@ async fn default_repo() -> Result<String, String> {
     env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string())
+}
+
+/// Watch `path` recursively and emit `repo-changed` (debounced) on any change,
+/// so the frontend can live-refresh. Replaces any previous watcher. Best-effort
+/// over `\\wsl$` shares — the on-focus refresh remains the fallback.
+#[tauri::command]
+async fn watch_repo(
+    app: AppHandle,
+    state: State<'_, WatcherState>,
+    path: String,
+) -> Result<(), String> {
+    let handle = app.clone();
+    let mut debouncer = new_debouncer(
+        Duration::from_millis(400),
+        move |res: DebounceEventResult| {
+            if res.is_ok() {
+                let _ = handle.emit("repo-changed", ());
+            }
+        },
+    )
+    .map_err(|e| e.to_string())?;
+    debouncer
+        .watcher()
+        .watch(Path::new(&path), RecursiveMode::Recursive)
+        .map_err(|e| e.to_string())?;
+    *state.0.lock().unwrap() = Some(debouncer);
+    Ok(())
 }
 
 #[tauri::command]
@@ -107,6 +145,7 @@ async fn push(path: String) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(WatcherState(Mutex::new(None)))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -121,6 +160,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             default_repo,
+            watch_repo,
             repo_info,
             git_log,
             git_status,

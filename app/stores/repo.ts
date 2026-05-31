@@ -182,7 +182,20 @@ export const useRepoStore = defineStore('repo', {
   },
   actions: {
     selectTab(id: string) {
-      if (this.repos[id]) this.activeId = id;
+      if (!this.repos[id]) return;
+      this.activeId = id;
+      this.watchActive();
+    },
+
+    // Point the backend FS watcher at the active repo (live-refresh source).
+    watchActive() {
+      if (isTauri()) void gitClient.watchRepo(this.active.path);
+    },
+
+    // Light refresh used by the watcher: reload status + log, keep selection.
+    async reloadActive() {
+      if (!isTauri()) return;
+      await Promise.all([this.loadStatus(), this.loadLog()]);
     },
 
     async selectCommit(hash: string) {
@@ -389,6 +402,8 @@ export const useRepoStore = defineStore('repo', {
         } else {
           r.diff = null;
         }
+
+        this.watchActive();
       } catch (err) {
         console.error('loadFromBackend failed:', err);
       }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { listen } from '@tauri-apps/api/event';
 import { toast } from 'vue-sonner';
 
 const repo = useRepoStore();
@@ -17,12 +18,18 @@ watch(
 
 // Load real git data when running inside the desktop shell (mock in browser).
 // Refresh-on-focus fallback (the best-effort FS watcher may miss WSL events).
-onMounted(() => {
+let unlisten: (() => void) | undefined;
+onMounted(async () => {
   void repo.loadFromBackend();
   window.addEventListener('focus', repo.refresh);
+  // Live-refresh on filesystem changes emitted by the Rust watcher.
+  if (isTauri()) {
+    unlisten = await listen('repo-changed', () => void repo.reloadActive());
+  }
 });
 onBeforeUnmount(() => {
   window.removeEventListener('focus', repo.refresh);
+  unlisten?.();
 });
 
 const syncButtons = [

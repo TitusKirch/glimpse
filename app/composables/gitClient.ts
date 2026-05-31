@@ -117,6 +117,9 @@ export const mock = {
 export const gitClient = {
   defaultRepo: () => gitInvoke<string>('default_repo', {}, '.'),
 
+  // Start the FS watcher for `path`; the backend emits `repo-changed`.
+  watchRepo: (path: string) => gitInvoke<null>('watch_repo', { path }, null),
+
   // No fallback: in the browser this rejects and the caller keeps mock state.
   info: (path: string) => gitInvoke<RepoInfo>('repo_info', { path }),
 
