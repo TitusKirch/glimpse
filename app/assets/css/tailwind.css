@@ -165,7 +165,6 @@
 .hljs-diff .wd-add {
   display: inline-block;
   line-height: inherit;
-  border-radius: 2px;
 }
 .hljs-diff .wd-del {
   background-color: color-mix(in oklch, red 32%, transparent);
