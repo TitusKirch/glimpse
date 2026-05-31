@@ -55,6 +55,13 @@
   },
   "settings": {
     "title": "Settings",
+    "general": {
+      "title": "General",
+      "diffMode": "Default diff view",
+      "diffModeHint": "How diffs open by default.",
+      "fileView": "File list view",
+      "fileViewHint": "Flat list or grouped folder tree."
+    },
     "appearance": {
       "title": "Appearance",
       "theme": "Theme",

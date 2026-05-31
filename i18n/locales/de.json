@@ -55,6 +55,13 @@
   },
   "settings": {
     "title": "Einstellungen",
+    "general": {
+      "title": "Allgemein",
+      "diffMode": "Standard-Diff-Ansicht",
+      "diffModeHint": "Wie Diffs standardmäßig geöffnet werden.",
+      "fileView": "Dateilisten-Ansicht",
+      "fileViewHint": "Flache Liste oder gruppierter Ordnerbaum."
+    },
     "appearance": {
       "title": "Darstellung",
       "theme": "Theme",

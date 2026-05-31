@@ -2,15 +2,19 @@
 const open = defineModel<boolean>('open', { required: true });
 const { t, locale, locales, setLocale } = useI18n();
 const colorMode = useColorMode();
+const layout = useLayoutStore();
 
 // Left navigation pages. Add entries here to grow settings.
 const pages = [
+  { key: 'general', icon: 'lucide:sliders-horizontal' },
   { key: 'appearance', icon: 'lucide:palette' },
   { key: 'language', icon: 'lucide:languages' }
 ] as const;
-const page = ref<(typeof pages)[number]['key']>('appearance');
+const page = ref<(typeof pages)[number]['key']>('general');
 
 const themeOptions = ['system', 'light', 'dark'] as const;
+const diffModeOptions = ['split', 'unified'] as const;
+const fileViewOptions = ['list', 'tree'] as const;
 
 // Language: bind the select straight to the active i18n locale.
 const FLAG: Record<string, string> = {
@@ -61,7 +65,59 @@ const lang = computed({
 
         <!-- content -->
         <div class="min-w-0 flex-1 overflow-auto p-6">
-          <section v-if="page === 'appearance'" class="w-full space-y-6">
+          <section v-if="page === 'general'" class="w-full space-y-6">
+            <div class="flex items-center justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-sm font-medium">
+                  {{ t('settings.general.diffMode') }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ t('settings.general.diffModeHint') }}
+                </p>
+              </div>
+              <UiSelect v-model="layout.diffMode">
+                <UiSelectTrigger class="w-44 shrink-0">
+                  <UiSelectValue />
+                </UiSelectTrigger>
+                <UiSelectContent>
+                  <UiSelectItem
+                    v-for="m in diffModeOptions"
+                    :key="m"
+                    :value="m"
+                  >
+                    {{ m === 'split' ? t('diff.sideBySide') : t('diff.unified') }}
+                  </UiSelectItem>
+                </UiSelectContent>
+              </UiSelect>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-sm font-medium">
+                  {{ t('settings.general.fileView') }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ t('settings.general.fileViewHint') }}
+                </p>
+              </div>
+              <UiSelect v-model="layout.fileView">
+                <UiSelectTrigger class="w-44 shrink-0">
+                  <UiSelectValue />
+                </UiSelectTrigger>
+                <UiSelectContent>
+                  <UiSelectItem
+                    v-for="v in fileViewOptions"
+                    :key="v"
+                    :value="v"
+                  >
+                    {{ t(`fileView.${v}`) }}
+                  </UiSelectItem>
+                </UiSelectContent>
+              </UiSelect>
+            </div>
+          </section>
+
+          <section v-else-if="page === 'appearance'" class="w-full space-y-6">
             <div class="flex items-center justify-between gap-4">
               <div class="min-w-0">
                 <p class="text-sm font-medium">
