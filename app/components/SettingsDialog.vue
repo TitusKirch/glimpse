@@ -46,10 +46,12 @@ const diffModeOptions = ['split', 'unified'] as const;
 const fileViewOptions = ['list', 'tree'] as const;
 
 // Language: bind the select straight to the active i18n locale.
-const FLAG: Record<string, string> = {
-  'de-DE': 'flag:de-4x3',
-  'en-GB': 'flag:gb-4x3'
-};
+// Derive the flag from the region subtag (de-DE -> de, en-GB -> gb) so a new
+// locale needs no extra config — the Iconify flag set uses ISO country codes.
+function flagFor(code: string): string {
+  const region = (code.split('-')[1] ?? code).toLowerCase();
+  return `flag:${region}-4x3`;
+}
 const localeOptions = computed(() =>
   locales.value.map((l) => (typeof l === 'string' ? { code: l } : l))
 );
@@ -254,7 +256,7 @@ const lang = computed({
               <UiSelect v-model="lang">
                 <UiSelectTrigger class="w-44 shrink-0">
                   <span class="flex items-center gap-2">
-                    <NuxtIcon :name="FLAG[lang]" class="size-4 shrink-0" />
+                    <NuxtIcon :name="flagFor(lang)" class="size-4 shrink-0" />
                     <UiSelectValue />
                   </span>
                 </UiSelectTrigger>
@@ -264,7 +266,7 @@ const lang = computed({
                     :key="l.code"
                     :value="l.code"
                   >
-                    <NuxtIcon :name="FLAG[l.code]" class="size-4 shrink-0" />
+                    <NuxtIcon :name="flagFor(l.code)" class="size-4 shrink-0" />
                     {{ t(`settings.language.name.${l.code}`) }}
                   </UiSelectItem>
                 </UiSelectContent>
