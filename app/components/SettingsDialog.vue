@@ -14,8 +14,8 @@ const toastKinds = [
   { kind: 'error', variant: 'destructive', fn: toast.error }
 ] as const;
 function fireToast(tk: (typeof toastKinds)[number]) {
-  tk.fn(t(`settings.dev.${tk.kind}Title`), {
-    description: t(`settings.dev.${tk.kind}Desc`)
+  tk.fn(t(`settings.dev.${tk.kind}.title`), {
+    description: t(`settings.dev.${tk.kind}.description`)
   });
 }
 
@@ -105,10 +105,10 @@ const lang = computed({
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="text-sm font-medium">
-                      {{ t('settings.general.devMode') }}
+                      {{ t('settings.general.devMode.label') }}
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.devModeHint') }}
+                      {{ t('settings.general.devMode.hint') }}
                     </p>
                   </div>
                   <UiSwitch v-model="layout.devMode" class="shrink-0" />
@@ -122,15 +122,15 @@ const lang = computed({
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
-                {{ t('settings.dev.toasts') }}
+                {{ t('settings.dev.toasts.label') }}
               </h3>
               <div class="flex items-center justify-between gap-4">
                 <div class="min-w-0">
                   <p class="text-sm font-medium">
-                    {{ t('settings.dev.toasts') }}
+                    {{ t('settings.dev.toasts.label') }}
                   </p>
                   <p class="text-xs text-muted-foreground">
-                    {{ t('settings.dev.toastsHint') }}
+                    {{ t('settings.dev.toasts.hint') }}
                   </p>
                 </div>
                 <div class="flex shrink-0 gap-2">
@@ -141,7 +141,7 @@ const lang = computed({
                     size="sm"
                     @click="fireToast(tk)"
                   >
-                    {{ t(`settings.dev.${tk.kind}`) }}
+                    {{ t(`settings.dev.${tk.kind}.label`) }}
                   </UiButton>
                 </div>
               </div>
@@ -158,10 +158,10 @@ const lang = computed({
               <div class="flex items-center justify-between gap-4">
                 <div class="min-w-0">
                   <p class="text-sm font-medium">
-                    {{ t('settings.appearance.theme') }}
+                    {{ t('settings.appearance.theme.label') }}
                   </p>
                   <p class="text-xs text-muted-foreground">
-                    {{ t('settings.appearance.themeHint') }}
+                    {{ t('settings.appearance.theme.hint') }}
                   </p>
                 </div>
                 <UiSelect v-model="colorMode.preference">
@@ -187,10 +187,10 @@ const lang = computed({
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="text-sm font-medium">
-                      {{ t('settings.appearance.diffMode') }}
+                      {{ t('settings.appearance.diffMode.label') }}
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.diffModeHint') }}
+                      {{ t('settings.appearance.diffMode.hint') }}
                     </p>
                   </div>
                   <UiSelect v-model="layout.diffMode">
@@ -216,10 +216,10 @@ const lang = computed({
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="text-sm font-medium">
-                      {{ t('settings.appearance.fileView') }}
+                      {{ t('settings.appearance.fileView.label') }}
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.fileViewHint') }}
+                      {{ t('settings.appearance.fileView.hint') }}
                     </p>
                   </div>
                   <UiSelect v-model="layout.fileView">

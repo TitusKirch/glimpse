@@ -32,8 +32,10 @@
     "stage": "Vormerken",
     "unstage": "Zurücknehmen",
     "discard": "Änderungen verwerfen",
-    "commit": "Committen",
-    "commitPlaceholder": "Commit-Nachricht",
+    "commit": {
+      "label": "Committen",
+      "placeholder": "Commit-Nachricht"
+    },
     "clean": "Arbeitsverzeichnis sauber — nichts zu committen"
   },
   "fileView": {
@@ -58,41 +60,59 @@
     "general": {
       "title": "Allgemein",
       "developer": "Entwickler",
-      "devMode": "Entwickler-Einstellungen",
-      "devModeHint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
+      "devMode": {
+        "label": "Entwickler-Einstellungen",
+        "hint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
+      }
     },
     "developer": {
       "title": "Entwickler"
     },
     "dev": {
-      "toasts": "Toasts testen",
-      "toastsHint": "Je einen Toast pro Art auslösen.",
-      "info": "Info",
-      "success": "Erfolg",
-      "warning": "Warnung",
-      "error": "Fehler",
-      "infoTitle": "Info",
-      "infoDesc": "Dies ist eine Info-Meldung.",
-      "successTitle": "Erfolg",
-      "successDesc": "Deine Änderungen wurden gespeichert.",
-      "warningTitle": "Warnung",
-      "warningDesc": "Bitte prüfe das nochmal, bevor du fortfährst.",
-      "errorTitle": "Fehler",
-      "errorDesc": "Etwas ist schiefgelaufen."
+      "toasts": {
+        "label": "Toasts testen",
+        "hint": "Je einen Toast pro Art auslösen."
+      },
+      "info": {
+        "label": "Info",
+        "title": "Info",
+        "description": "Dies ist eine Info-Meldung."
+      },
+      "success": {
+        "label": "Erfolg",
+        "title": "Erfolg",
+        "description": "Deine Änderungen wurden gespeichert."
+      },
+      "warning": {
+        "label": "Warnung",
+        "title": "Warnung",
+        "description": "Bitte prüfe das nochmal, bevor du fortfährst."
+      },
+      "error": {
+        "label": "Fehler",
+        "title": "Fehler",
+        "description": "Etwas ist schiefgelaufen."
+      }
     },
     "appearance": {
       "title": "Darstellung",
       "themeSection": "Theme",
-      "theme": "Theme",
-      "themeHint": "Wähle, wie glimpse aussieht. „System“ folgt deinem Betriebssystem.",
+      "theme": {
+        "label": "Theme",
+        "hint": "Wähle, wie glimpse aussieht. „System“ folgt deinem Betriebssystem."
+      },
       "system": "System",
       "light": "Hell",
       "dark": "Dunkel",
       "diffSection": "Diff & Dateien",
-      "diffMode": "Standard-Diff-Ansicht",
-      "diffModeHint": "Wie Diffs standardmäßig geöffnet werden.",
-      "fileView": "Dateilisten-Ansicht",
-      "fileViewHint": "Flache Liste oder gruppierter Ordnerbaum."
+      "diffMode": {
+        "label": "Standard-Diff-Ansicht",
+        "hint": "Wie Diffs standardmäßig geöffnet werden."
+      },
+      "fileView": {
+        "label": "Dateilisten-Ansicht",
+        "hint": "Flache Liste oder gruppierter Ordnerbaum."
+      }
     },
     "language": {
       "title": "Sprache",

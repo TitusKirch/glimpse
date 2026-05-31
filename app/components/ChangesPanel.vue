@@ -112,7 +112,7 @@ const unstagedItems = computed(() =>
       <textarea
         v-model="repo.commitMessage"
         rows="3"
-        :placeholder="t('changes.commitPlaceholder')"
+        :placeholder="t('changes.commit.placeholder')"
         class="w-full resize-none rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
       <UiButton
@@ -121,7 +121,7 @@ const unstagedItems = computed(() =>
         :disabled="!repo.stagedFiles.length || !repo.commitMessage.trim()"
         @click="repo.commit()"
       >
-        {{ t('changes.commit') }} ({{ repo.stagedFiles.length }})
+        {{ t('changes.commit.label') }} ({{ repo.stagedFiles.length }})
       </UiButton>
     </div>
   </div>

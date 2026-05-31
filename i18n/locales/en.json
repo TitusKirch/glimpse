@@ -32,8 +32,10 @@
     "stage": "Stage",
     "unstage": "Unstage",
     "discard": "Discard changes",
-    "commit": "Commit",
-    "commitPlaceholder": "Commit message",
+    "commit": {
+      "label": "Commit",
+      "placeholder": "Commit message"
+    },
     "clean": "Working tree clean — nothing to commit"
   },
   "fileView": {
@@ -58,41 +60,59 @@
     "general": {
       "title": "General",
       "developer": "Developer",
-      "devMode": "Developer settings",
-      "devModeHint": "Show extra debugging tools in settings."
+      "devMode": {
+        "label": "Developer settings",
+        "hint": "Show extra debugging tools in settings."
+      }
     },
     "developer": {
       "title": "Developer"
     },
     "dev": {
-      "toasts": "Test toasts",
-      "toastsHint": "Fire one of each toast kind.",
-      "info": "Info",
-      "success": "Success",
-      "warning": "Warning",
-      "error": "Error",
-      "infoTitle": "Info",
-      "infoDesc": "This is an informational message.",
-      "successTitle": "Success",
-      "successDesc": "Your changes were saved.",
-      "warningTitle": "Warning",
-      "warningDesc": "Please double-check this before continuing.",
-      "errorTitle": "Error",
-      "errorDesc": "Something went wrong."
+      "toasts": {
+        "label": "Test toasts",
+        "hint": "Fire one of each toast kind."
+      },
+      "info": {
+        "label": "Info",
+        "title": "Info",
+        "description": "This is an informational message."
+      },
+      "success": {
+        "label": "Success",
+        "title": "Success",
+        "description": "Your changes were saved."
+      },
+      "warning": {
+        "label": "Warning",
+        "title": "Warning",
+        "description": "Please double-check this before continuing."
+      },
+      "error": {
+        "label": "Error",
+        "title": "Error",
+        "description": "Something went wrong."
+      }
     },
     "appearance": {
       "title": "Appearance",
       "themeSection": "Theme",
-      "theme": "Theme",
-      "themeHint": "Choose how glimpse looks. System follows your OS.",
+      "theme": {
+        "label": "Theme",
+        "hint": "Choose how glimpse looks. System follows your OS."
+      },
       "system": "System",
       "light": "Light",
       "dark": "Dark",
       "diffSection": "Diff & files",
-      "diffMode": "Default diff view",
-      "diffModeHint": "How diffs open by default.",
-      "fileView": "File list view",
-      "fileViewHint": "Flat list or grouped folder tree."
+      "diffMode": {
+        "label": "Default diff view",
+        "hint": "How diffs open by default."
+      },
+      "fileView": {
+        "label": "File list view",
+        "hint": "Flat list or grouped folder tree."
+      }
     },
     "language": {
       "title": "Language",
