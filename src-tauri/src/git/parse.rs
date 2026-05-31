@@ -114,6 +114,16 @@ pub fn log(raw: &str) -> Vec<Commit> {
 fn assign_lanes(commits: &mut [Commit]) {
     let mut lanes: Vec<Option<String>> = Vec::new();
 
+    // Hashes present in this window. A `git log -n LIMIT` cuts history, so some
+    // parents fall outside it. Reserving a lane for such a parent would hold a
+    // column that never gets a node — the lane stays blank forever while later
+    // branches are pushed to higher lanes, leaving an unused gap. We only keep
+    // lanes for parents that actually appear (the first-parent continuation is
+    // an exception: the renderer draws it as a "continues below" stub in its own
+    // lane, so it must stay reserved to avoid a collision).
+    let known: std::collections::HashSet<String> =
+        commits.iter().map(|c| c.hash.clone()).collect();
+
     let free_lane = |lanes: &mut Vec<Option<String>>| -> usize {
         match lanes.iter().position(Option::is_none) {
             Some(i) => i,
@@ -148,9 +158,14 @@ fn assign_lanes(commits: &mut [Commit]) {
         // First parent continues this lane; clear it otherwise.
         lanes[lane] = commit.parents.first().cloned();
 
-        // Extra parents (merge) reserve their own lanes if not already tracked.
+        // Extra parents (merge) reserve their own lanes if not already tracked
+        // — but only when the parent is in this window. An off-window merge
+        // parent's edge is rendered from the merge's own lane, so reserving a
+        // column for it would just waste a lane.
         for parent in commit.parents.iter().skip(1) {
-            if !lanes.iter().any(|l| l.as_deref() == Some(parent.as_str())) {
+            if known.contains(parent)
+                && !lanes.iter().any(|l| l.as_deref() == Some(parent.as_str()))
+            {
                 let i = free_lane(&mut lanes);
                 lanes[i] = Some(parent.clone());
             }
@@ -381,6 +396,22 @@ mod tests {
         assert!(log("").is_empty());
         assert!(commit_files("").is_empty());
         assert!(diff("").is_none());
+    }
+
+    #[test]
+    fn offwindow_merge_parent_does_not_waste_a_lane() {
+        // M merges a branch whose tip OFFWIN fell outside the window (never
+        // appears). That parent must NOT hold a lane — otherwise the later,
+        // unrelated tip T is pushed past an unused column. T should reuse lane 1.
+        let raw = format!(
+            "M{US}P OFFWIN{US}a{US}d{US}{US}merge\n\
+             P{US}Q{US}a{US}d{US}{US}p\n\
+             T{US}Q{US}a{US}d{US}{US}tip\n\
+             Q{US}{US}a{US}d{US}{US}base"
+        );
+        let c = log(&raw);
+        let max_lane = c.iter().map(|k| k.lane).max().unwrap();
+        assert_eq!(max_lane, 1, "off-window merge parent must not reserve a lane");
     }
 
     #[test]
