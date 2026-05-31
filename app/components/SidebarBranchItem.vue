@@ -42,14 +42,14 @@ const repo = useRepoStore();
       >
         <span
           v-if="branch.ahead"
-          class="flex h-4 items-center gap-0.5 rounded bg-green-500/15 px-1 text-green-600 dark:text-green-400"
+          class="flex h-4 items-center gap-0.5 rounded-full bg-green-500/15 pr-1.5 pl-1 text-green-600 dark:text-green-400"
           ><NuxtIcon name="lucide:arrow-up" class="size-3" />{{
             branch.ahead
           }}</span
         >
         <span
           v-if="branch.behind"
-          class="flex h-4 items-center gap-0.5 rounded bg-amber-500/15 px-1 text-amber-600 dark:text-amber-400"
+          class="flex h-4 items-center gap-0.5 rounded-full bg-amber-500/15 pr-1.5 pl-1 text-amber-600 dark:text-amber-400"
           ><NuxtIcon name="lucide:arrow-down" class="size-3" />{{
             branch.behind
           }}</span

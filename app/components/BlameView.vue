@@ -6,6 +6,7 @@ import type { BlameLine } from '@/stores/repo';
 
 const props = defineProps<{ file: string }>();
 const repo = useRepoStore();
+const { t } = useI18n();
 
 const lines = ref<BlameLine[]>([]);
 const loading = ref(false);
@@ -37,6 +38,12 @@ function isNewBlock(i: number): boolean {
         :style="{ width: 30 + ((n * 11) % 60) + '%' }"
       />
     </div>
+    <EmptyState
+      v-else-if="!lines.length"
+      icon="lucide:file-question"
+      :title="t('diff.blameEmpty')"
+      :description="t('diff.blameEmptyHint')"
+    />
     <table v-else class="w-max min-w-full border-collapse">
       <tbody>
         <tr v-for="(l, i) in lines" :key="i" class="hover:bg-accent/30">
@@ -45,7 +52,7 @@ function isNewBlock(i: number): boolean {
           >
             <UiHoverCard v-if="isNewBlock(i)" :open-delay="200">
               <UiHoverCardTrigger
-                class="flex cursor-default items-baseline gap-1.5 truncate"
+                class="flex w-full cursor-default items-baseline gap-1.5 truncate"
               >
                 <span class="font-semibold text-foreground">{{ l.hash }}</span>
                 <span class="truncate text-muted-foreground">{{

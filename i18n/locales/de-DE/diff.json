@@ -7,6 +7,8 @@
     "noTextDiff": "Kein Text-Diff darstellbar (binär, leer oder unverändert).",
     "ignoreWhitespace": "Whitespace ignorieren",
     "blame": "Blame",
+    "blameEmpty": "Keine Blame-Info",
+    "blameEmptyHint": "Diese Datei ist noch nicht committet.",
     "fileHistory": "Datei-Verlauf",
     "copyPath": "Pfad kopieren",
     "copyDiff": "Diff kopieren"

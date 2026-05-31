@@ -7,6 +7,8 @@
     "noTextDiff": "No text diff to show (binary, empty, or unchanged).",
     "ignoreWhitespace": "Ignore whitespace",
     "blame": "Blame",
+    "blameEmpty": "No blame available",
+    "blameEmptyHint": "This file isn't committed yet.",
     "fileHistory": "File history",
     "copyPath": "Copy path",
     "copyDiff": "Copy diff"
