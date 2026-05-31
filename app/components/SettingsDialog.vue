@@ -46,11 +46,20 @@ const diffModeOptions = ['split', 'unified'] as const;
 const fileViewOptions = ['list', 'tree'] as const;
 
 // Language: bind the select straight to the active i18n locale.
-// Derive the flag from the region subtag (de-DE -> de, en-GB -> gb) so a new
-// locale needs no extra config — the Iconify flag set uses ISO country codes.
+// Derive the flag from the locale's region subtag via Intl.Locale, which
+// handles script/3-part tags (zh-Hant-TW -> TW). The Iconify flag set uses ISO
+// country codes, so only two-letter regions map; anything else (language-only
+// like "en", numeric M.49 like "es-419") falls back to a globe.
 function flagFor(code: string): string {
-  const region = (code.split('-')[1] ?? code).toLowerCase();
-  return `flag:${region}-4x3`;
+  let region: string | undefined;
+  try {
+    region = new Intl.Locale(code).region?.toLowerCase();
+  } catch {
+    region = undefined;
+  }
+  return region && /^[a-z]{2}$/.test(region)
+    ? `flag:${region}-4x3`
+    : 'lucide:globe';
 }
 const localeOptions = computed(() =>
   locales.value.map((l) => (typeof l === 'string' ? { code: l } : l))
