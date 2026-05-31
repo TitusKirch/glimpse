@@ -55,6 +55,17 @@ export type CommitFile = {
   status: string;
 };
 
+export type BlameLine = {
+  line: number;
+  /**
+   * Abbreviated commit hash that last touched this line.
+   */
+  hash: string;
+  author: string;
+  date: string;
+  content: string;
+};
+
 export type StatusEntry = {
   path: string;
   /**

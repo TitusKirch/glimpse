@@ -80,6 +80,11 @@ async fn file_history(path: String, file: String) -> Result<Vec<git::Commit>, St
 }
 
 #[tauri::command]
+async fn blame(path: String, file: String) -> Result<Vec<git::BlameLine>, String> {
+    git::Repo::open(&path).blame(&file)
+}
+
+#[tauri::command]
 async fn apply_hunk(
     path: String,
     file: String,
@@ -377,6 +382,7 @@ pub fn run() {
             commit_files,
             commit_file_diff,
             file_history,
+            blame,
             apply_hunk,
             stage,
             unstage,

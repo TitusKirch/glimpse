@@ -78,6 +78,17 @@ pub struct CommitFile {
 
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct BlameLine {
+    pub line: u32,
+    /// Abbreviated commit hash that last touched this line.
+    pub hash: String,
+    pub author: String,
+    pub date: String,
+    pub content: String,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct StatusEntry {
     pub path: String,
     /// Index (staged) status char, e.g. "M", "A", "D", "?".
@@ -303,6 +314,12 @@ impl Repo {
         Ok(parse::log(&out))
     }
 
+    /// Per-line authorship for a file (`git blame --porcelain`).
+    pub fn blame(&self, file: &str) -> Result<Vec<BlameLine>, String> {
+        let raw = self.run(&["blame", "--porcelain", "--", file])?;
+        Ok(parse::blame(&raw))
+    }
+
     /// Create a commit, or rewrite the previous one (`--amend`) keeping its
     /// author. Amend lets the user fix the last message/contents before pushing.
     pub fn commit(&self, message: &str, amend: bool) -> Result<String, String> {
@@ -510,6 +527,7 @@ fn export_bindings() {
         RepoInfo::decl(),
         DiffData::decl(),
         CommitFile::decl(),
+        BlameLine::decl(),
         StatusEntry::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();

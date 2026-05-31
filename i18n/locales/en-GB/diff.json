@@ -5,6 +5,7 @@
     "unified": "Unified",
     "noSelection": "Select a commit or file to see its diff",
     "ignoreWhitespace": "Ignore whitespace",
+    "blame": "Blame",
     "fileHistory": "File history",
     "copyPath": "Copy path",
     "copyDiff": "Copy diff"

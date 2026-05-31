@@ -5,6 +5,7 @@
 // (see app/types/bindings.ts), so the contract has one source of truth.
 
 import type {
+  BlameLine,
   Commit,
   CommitFile,
   DiffData,
@@ -147,6 +148,10 @@ export const gitClient = {
   // Commits that touched a file (follows renames).
   fileHistory: (path: string, file: string) =>
     gitInvoke<Commit[]>('file_history', { path, file }, []),
+
+  // Per-line authorship for a file.
+  blame: (path: string, file: string) =>
+    gitInvoke<BlameLine[]>('blame', { path, file }, []),
 
   // Stage (or unstage with reverse) a single hunk.
   applyHunk: (path: string, file: string, hunk: string, reverse: boolean) =>

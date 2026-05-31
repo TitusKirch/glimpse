@@ -5,6 +5,14 @@ const { t } = useI18n();
 const copyText = useCopy();
 
 const historyOpen = ref(false);
+const blame = ref(false);
+
+// Blame only applies to a working file (not a commit diff). Reset when the
+// selection changes to a commit.
+const canBlame = computed(() => !!repo.selectedFile && !repo.selectedHash);
+watch(canBlame, (ok) => {
+  if (!ok) blame.value = false;
+});
 
 function toggleWhitespace() {
   layout.ignoreWhitespace = !layout.ignoreWhitespace;
@@ -40,6 +48,19 @@ function onStageHunk(hunk: string) {
       </div>
       <div class="flex shrink-0 items-center gap-1">
         <template v-if="repo.diff">
+          <UiTooltip v-if="canBlame">
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon-sm"
+                :class="blame && 'text-primary'"
+                @click="blame = !blame"
+              >
+                <NuxtIcon name="lucide:user-round-search" class="size-4" />
+              </UiButton>
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('diff.blame') }}</UiTooltipContent>
+          </UiTooltip>
           <UiTooltip>
             <UiTooltipTrigger as-child>
               <UiButton
@@ -190,10 +211,14 @@ function onStageHunk(hunk: string) {
       </UiResizablePanel>
     </UiResizablePanelGroup>
 
-    <!-- working file: just the diff -->
+    <!-- working file: blame or diff -->
     <div v-else class="min-h-0 flex-1">
+      <BlameView
+        v-if="blame && canBlame && repo.selectedFile"
+        :file="repo.selectedFile"
+      />
       <CodeDiff
-        v-if="repo.diff && repo.diff.hunks.length"
+        v-else-if="repo.diff && repo.diff.hunks.length"
         :hunks="repo.diff.hunks"
         :mode="layout.diffMode"
         :file-name="repo.diff.fileName"

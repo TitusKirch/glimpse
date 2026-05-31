@@ -5,6 +5,7 @@
     "unified": "Vereinheitlicht",
     "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen",
     "ignoreWhitespace": "Whitespace ignorieren",
+    "blame": "Blame",
     "fileHistory": "Datei-Verlauf",
     "copyPath": "Pfad kopieren",
     "copyDiff": "Diff kopieren"

@@ -3,7 +3,10 @@
 //! lives here so it is testable through a string interface. See
 //! `docs/ARCHITECTURE.md` §9.
 
-use super::{lines, Branch, Commit, CommitFile, DiffData, StatusEntry, US};
+use super::{
+    lines, BlameLine, Branch, Commit, CommitFile, DiffData, StatusEntry, US,
+};
+use std::collections::HashMap;
 
 /// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)`.
 pub fn branches(raw: &str) -> Vec<Branch> {
@@ -213,6 +216,70 @@ pub fn diff(raw: &str) -> Option<DiffData> {
         })
 }
 
+/// Convert a Unix timestamp to `YYYY-MM-DD` (UTC) without pulling in a date
+/// crate — Howard Hinnant's civil-from-days algorithm.
+fn epoch_to_date(secs: i64) -> String {
+    let days = secs.div_euclid(86_400);
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Decode `git blame --porcelain`. Commit metadata (author, time) is emitted
+/// once per commit and cached by hash for that commit's later lines, so we keep
+/// a hash → (author, date) map and reuse it.
+pub fn blame(raw: &str) -> Vec<BlameLine> {
+    let mut out = Vec::new();
+    let mut meta: HashMap<String, (String, String)> = HashMap::new();
+    let mut hash = String::new();
+    let mut line_no = 0u32;
+    let mut author = String::new();
+    let mut date = String::new();
+
+    for l in raw.lines() {
+        let bytes = l.as_bytes();
+        // Header: "<40-hex> <orig> <final> [<count>]".
+        if bytes.len() >= 41
+            && bytes[40] == b' '
+            && bytes[..40].iter().all(u8::is_ascii_hexdigit)
+        {
+            let mut parts = l.split(' ');
+            hash = parts.next().unwrap_or("").to_string();
+            // orig line, then final line number.
+            parts.next();
+            line_no = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0);
+            // Reuse cached metadata; fresh commits fill it from the lines below.
+            if let Some((a, d)) = meta.get(&hash) {
+                author = a.clone();
+                date = d.clone();
+            }
+        } else if let Some(name) = l.strip_prefix("author ") {
+            author = name.to_string();
+        } else if let Some(t) = l.strip_prefix("author-time ") {
+            date = t.parse::<i64>().map(epoch_to_date).unwrap_or_default();
+        } else if let Some(content) = l.strip_prefix('\t') {
+            meta.entry(hash.clone())
+                .or_insert_with(|| (author.clone(), date.clone()));
+            out.push(BlameLine {
+                line: line_no,
+                hash: hash.chars().take(7).collect(),
+                author: author.clone(),
+                date: date.clone(),
+                content: content.to_string(),
+            });
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -356,5 +423,31 @@ mod tests {
     #[test]
     fn diff_without_hunks_is_none() {
         assert!(diff("diff --git a/x b/x\n").is_none());
+    }
+
+    #[test]
+    fn blame_parses_porcelain_and_caches_meta() {
+        let raw = "abc123def4567890000000000000000000000000 1 1 2\n\
+                   author Alice\n\
+                   author-time 1700000000\n\
+                   summary first\n\
+                   \tline one\n\
+                   abc123def4567890000000000000000000000000 2 2\n\
+                   \tline two\n";
+        let b = blame(raw);
+        assert_eq!(b.len(), 2);
+        assert_eq!(b[0].line, 1);
+        assert_eq!(b[0].hash, "abc123d");
+        assert_eq!(b[0].author, "Alice");
+        assert_eq!(b[0].content, "line one");
+        // Second line reuses the cached author (metadata not repeated).
+        assert_eq!(b[1].line, 2);
+        assert_eq!(b[1].author, "Alice");
+        assert_eq!(b[1].content, "line two");
+    }
+
+    #[test]
+    fn epoch_to_date_known_value() {
+        assert_eq!(epoch_to_date(1_700_000_000), "2023-11-14");
     }
 }

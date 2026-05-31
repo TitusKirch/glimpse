@@ -13,6 +13,7 @@
 import { promiseTimeout } from '@vueuse/core';
 import { acceptHMRUpdate } from 'pinia';
 import type {
+  BlameLine,
   Branch,
   Commit,
   CommitFile,
@@ -27,6 +28,7 @@ import type {
 const MIN_SPINNER_MS = 300;
 
 export type {
+  BlameLine,
   Branch,
   Commit,
   CommitFile,
