@@ -2,17 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { cleanGitError } from './cleanGitError';
 
 describe('cleanGitError', () => {
-  it('drops indented file lists and the trailing Aborting line', () => {
+  it('drops indented file lists, the trailing Aborting line and the error prefix', () => {
     const raw =
       'error: Your local changes to the following files would be overwritten by checkout:\n\tapp/foo.ts\n\tapp/bar.ts\nPlease commit your changes or stash them.\nAborting';
     expect(cleanGitError(raw)).toBe(
-      'error: Your local changes to the following files would be overwritten by checkout:\nPlease commit your changes or stash them.'
+      'Your local changes to the following files would be overwritten by checkout:\nPlease commit your changes or stash them.'
     );
   });
 
-  it('trims surrounding whitespace', () => {
+  it('strips the leading severity prefix and trims', () => {
     expect(cleanGitError('  fatal: not a git repository  ')).toBe(
-      'fatal: not a git repository'
+      'not a git repository'
     );
   });
 
