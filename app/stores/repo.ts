@@ -441,8 +441,11 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const name = await usePrompt().prompt({
         titleKey: 'sidebar.newBranch',
-        placeholderKey: 'sidebar.branchName',
-        confirmKey: 'sidebar.newBranch'
+        labelKey: 'form.branch.label',
+        descriptionKey: 'form.branch.description',
+        placeholderKey: 'form.branch.placeholder',
+        submitKey: 'form.create',
+        schema: branchNameSchema
       });
       if (name) await this.createBranch(name);
     },
@@ -452,9 +455,11 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const name = await usePrompt().prompt({
         titleKey: 'sidebar.renameBranch',
-        placeholderKey: 'sidebar.branchName',
-        confirmKey: 'sidebar.rename',
-        initial: oldName
+        labelKey: 'form.branch.label',
+        placeholderKey: 'form.branch.placeholder',
+        submitKey: 'form.rename',
+        initial: oldName,
+        schema: branchNameSchema
       });
       if (name) await this.renameBranch(oldName, name);
     },
@@ -547,9 +552,11 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const name = await usePrompt().prompt({
         titleKey: 'sidebar.renameRemote',
-        placeholderKey: 'sidebar.remoteName',
-        confirmKey: 'sidebar.rename',
-        initial: oldName
+        labelKey: 'form.remoteName.label',
+        placeholderKey: 'form.remoteName.placeholder',
+        submitKey: 'form.rename',
+        initial: oldName,
+        schema: remoteNameSchema
       });
       if (!name || name === oldName) return;
       await this.guarded(async () => {
@@ -572,8 +579,11 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const name = await usePrompt().prompt({
         titleKey: 'commit.branchHere',
-        placeholderKey: 'sidebar.branchName',
-        confirmKey: 'sidebar.newBranch'
+        labelKey: 'form.branch.label',
+        descriptionKey: 'form.branch.description',
+        placeholderKey: 'form.branch.placeholder',
+        submitKey: 'form.create',
+        schema: branchNameSchema
       });
       if (!name) return;
       await this.guarded(async () => {
@@ -587,8 +597,10 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const name = await usePrompt().prompt({
         titleKey: 'commit.tagHere',
-        placeholderKey: 'sidebar.tagName',
-        confirmKey: 'sidebar.newTag'
+        labelKey: 'form.tag.label',
+        placeholderKey: 'form.tag.placeholder',
+        submitKey: 'form.create',
+        schema: tagNameSchema
       });
       if (!name) return;
       await this.createTag(name, hash);
@@ -633,8 +645,10 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const name = await usePrompt().prompt({
         titleKey: 'sidebar.newTag',
-        placeholderKey: 'sidebar.tagName',
-        confirmKey: 'sidebar.newTag'
+        labelKey: 'form.tag.label',
+        placeholderKey: 'form.tag.placeholder',
+        submitKey: 'form.create',
+        schema: tagNameSchema
       });
       if (name) await this.createTag(name);
     },

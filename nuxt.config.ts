@@ -45,6 +45,8 @@ export default defineNuxtConfig({
         '@tauri-apps/plugin-deep-link',
         '@tauri-apps/plugin-updater',
         '@tanstack/vue-virtual',
+        '@tanstack/vue-form',
+        'zod',
         '@vueuse/core',
         'class-variance-authority',
         'clsx',

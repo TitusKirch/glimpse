@@ -1,14 +1,8 @@
 <script setup lang="ts">
-// Renders the shared text-input prompt (see usePrompt). Mounted once in app.vue.
+// Renders the shared single-field prompt (see usePrompt) as a TanStack Form.
+// Mounted once in app.vue.
 const { request, answer } = usePrompt();
 const { t } = useI18n();
-
-const value = ref('');
-
-// Seed the field whenever a new prompt opens.
-watch(request, (r) => {
-  value.value = r?.initial ?? '';
-});
 
 const open = computed({
   get: () => !!request.value,
@@ -16,11 +10,6 @@ const open = computed({
     if (!v) answer(null);
   }
 });
-
-function submit() {
-  const v = value.value.trim();
-  answer(v || null);
-}
 </script>
 
 <template>
@@ -32,20 +21,17 @@ function submit() {
           {{ t(request.titleKey) }}
         </UiDialogDescription>
       </UiDialogHeader>
-      <UiInput
-        v-model="value"
-        :placeholder="t(request.placeholderKey)"
-        autofocus
-        @keydown.enter="submit"
+      <PromptForm
+        :key="request.id"
+        :label-key="request.labelKey"
+        :description-key="request.descriptionKey"
+        :placeholder-key="request.placeholderKey"
+        :submit-key="request.submitKey"
+        :initial="request.initial"
+        :schema="request.schema"
+        @submit="answer($event)"
+        @cancel="answer(null)"
       />
-      <div class="flex justify-end gap-2">
-        <UiButton variant="outline" @click="answer(null)">
-          {{ t('common.cancel') }}
-        </UiButton>
-        <UiButton :disabled="!value.trim()" @click="submit">
-          {{ t(request.confirmKey) }}
-        </UiButton>
-      </div>
     </UiDialogContent>
   </UiDialog>
 </template>

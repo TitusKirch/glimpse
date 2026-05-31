@@ -35,6 +35,34 @@
   "common": {
     "cancel": "Cancel"
   },
+  "form": {
+    "create": "Create",
+    "rename": "Rename",
+    "validation": {
+      "required": "Required.",
+      "invalidRef": "No spaces or special characters.",
+      "invalidRemoteName": "Letters, numbers, dots, dashes and underscores only.",
+      "invalidUrl": "Enter a valid git URL or path."
+    },
+    "branch": {
+      "label": "Branch name",
+      "description": "e.g. feature/my-change.",
+      "placeholder": "feature/my-change"
+    },
+    "tag": {
+      "label": "Tag name",
+      "placeholder": "v1.0.0"
+    },
+    "remoteName": {
+      "label": "Name",
+      "placeholder": "origin"
+    },
+    "remoteUrl": {
+      "label": "URL",
+      "description": "HTTPS or SSH, e.g. git@github.com:user/repo.git",
+      "placeholder": "https://github.com/user/repo.git"
+    }
+  },
   "confirm": {
     "dirtySwitch": {
       "title": "Uncommitted changes",

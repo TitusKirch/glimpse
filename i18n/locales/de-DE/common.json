@@ -35,6 +35,34 @@
   "common": {
     "cancel": "Abbrechen"
   },
+  "form": {
+    "create": "Erstellen",
+    "rename": "Umbenennen",
+    "validation": {
+      "required": "Pflichtfeld.",
+      "invalidRef": "Keine Leerzeichen oder Sonderzeichen.",
+      "invalidRemoteName": "Nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche.",
+      "invalidUrl": "Gib eine gültige Git-URL oder einen Pfad ein."
+    },
+    "branch": {
+      "label": "Branch-Name",
+      "description": "z. B. feature/meine-aenderung.",
+      "placeholder": "feature/meine-aenderung"
+    },
+    "tag": {
+      "label": "Tag-Name",
+      "placeholder": "v1.0.0"
+    },
+    "remoteName": {
+      "label": "Name",
+      "placeholder": "origin"
+    },
+    "remoteUrl": {
+      "label": "URL",
+      "description": "HTTPS oder SSH, z. B. git@github.com:user/repo.git",
+      "placeholder": "https://github.com/user/repo.git"
+    }
+  },
   "confirm": {
     "dirtySwitch": {
       "title": "Uncommittete Änderungen",
