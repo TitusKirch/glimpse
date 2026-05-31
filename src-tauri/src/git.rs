@@ -5,6 +5,8 @@
 
 use crate::platform::{self, GitTarget};
 use serde::Serialize;
+use std::io::Write;
+use std::process::Stdio;
 use ts_rs::TS;
 
 mod parse;
@@ -114,6 +116,30 @@ impl Repo {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
+    /// Run `git <args>` feeding `input` on stdin (used to pipe a patch into
+    /// `git apply`). Returns stdout, or trimmed stderr on failure.
+    fn run_stdin(&self, args: &[&str], input: &str) -> Result<String, String> {
+        let mut child = self
+            .target
+            .command(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("failed to run git: {e}"))?;
+        child
+            .stdin
+            .as_mut()
+            .ok_or("failed to open git stdin")?
+            .write_all(input.as_bytes())
+            .map_err(|e| e.to_string())?;
+        let output = child.wait_with_output().map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    }
+
     /// Full content of a git object (`git show <spec>`); empty on error (e.g.
     /// the file did not exist on that side of the diff).
     fn content(&self, spec: &str) -> String {
@@ -176,10 +202,18 @@ impl Repo {
 
     /// Diff of a single file, either the staged version or the working-tree
     /// change. Both file contents are included so the viewer has full context.
-    pub fn file_diff(&self, file: &str, staged: bool) -> Result<Option<DiffData>, String> {
+    pub fn file_diff(
+        &self,
+        file: &str,
+        staged: bool,
+        ignore_whitespace: bool,
+    ) -> Result<Option<DiffData>, String> {
         let mut args = vec!["diff", "--no-color"];
         if staged {
             args.push("--staged");
+        }
+        if ignore_whitespace {
+            args.push("-w");
         }
         args.push("--");
         args.push(file);
@@ -219,8 +253,18 @@ impl Repo {
     }
 
     /// Diff of a single file as introduced by a commit, with both contents.
-    pub fn commit_file_diff(&self, hash: &str, file: &str) -> Result<Option<DiffData>, String> {
-        let raw = self.run(&["show", "--no-color", "--format=", hash, "--", file])?;
+    pub fn commit_file_diff(
+        &self,
+        hash: &str,
+        file: &str,
+        ignore_whitespace: bool,
+    ) -> Result<Option<DiffData>, String> {
+        let mut args = vec!["show", "--no-color", "--format="];
+        if ignore_whitespace {
+            args.push("-w");
+        }
+        args.extend([hash, "--", file]);
+        let raw = self.run(&args)?;
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
@@ -235,6 +279,26 @@ impl Repo {
 
     pub fn unstage(&self, file: &str) -> Result<(), String> {
         self.run(&["restore", "--staged", "--", file]).map(|_| ())
+    }
+
+    /// Stage (or, with `reverse`, unstage) a single hunk by piping a minimal
+    /// one-file patch into `git apply --cached`. `--recount` lets git fix the
+    /// `@@` line counts, so the rendered hunk text doesn't need to be exact.
+    pub fn apply_hunk(&self, file: &str, hunk: &str, reverse: bool) -> Result<(), String> {
+        let patch =
+            format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{hunk}\n");
+        let mut args = vec!["apply", "--cached", "--recount", "--whitespace=nowarn"];
+        if reverse {
+            args.push("--reverse");
+        }
+        self.run_stdin(&args, &patch).map(|_| ())
+    }
+
+    /// Commits that touched a file, following renames (`git log --follow`).
+    pub fn file_history(&self, file: &str) -> Result<Vec<Commit>, String> {
+        let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
+        let out = self.run(&["log", "--follow", "--date=short", &fmt, "--", file])?;
+        Ok(parse::log(&out))
     }
 
     /// Create a commit, or rewrite the previous one (`--amend`) keeping its

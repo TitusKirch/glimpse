@@ -14,6 +14,8 @@ export const useLayoutStore = defineStore('layout', {
     // Vertical split inside a commit's diff view (detail / file list / diff).
     commitPanelSizes: [20, 25, 55] as number[],
     diffMode: 'split' as DiffMode,
+    // Ignore whitespace-only changes in diffs (git -w).
+    ignoreWhitespace: false,
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
     fileView: 'tree' as FileView,

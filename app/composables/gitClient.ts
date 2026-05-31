@@ -129,8 +129,25 @@ export const gitClient = {
   status: (path: string) =>
     gitInvoke<StatusEntry[]>('git_status', { path }, []),
 
-  fileDiff: (path: string, file: string, staged: boolean) =>
-    gitInvoke<DiffData | null>('file_diff', { path, file, staged }, mock.diff),
+  fileDiff: (
+    path: string,
+    file: string,
+    staged: boolean,
+    ignoreWhitespace = false
+  ) =>
+    gitInvoke<DiffData | null>(
+      'file_diff',
+      { path, file, staged, ignoreWhitespace },
+      mock.diff
+    ),
+
+  // Commits that touched a file (follows renames).
+  fileHistory: (path: string, file: string) =>
+    gitInvoke<Commit[]>('file_history', { path, file }, []),
+
+  // Stage (or unstage with reverse) a single hunk.
+  applyHunk: (path: string, file: string, hunk: string, reverse: boolean) =>
+    gitInvoke<null>('apply_hunk', { path, file, hunk, reverse }, null),
 
   commitBody: (path: string, hash: string) =>
     gitInvoke<string>('commit_body', { path, hash }, ''),
@@ -138,10 +155,15 @@ export const gitClient = {
   commitFiles: (path: string, hash: string) =>
     gitInvoke<CommitFile[]>('commit_files', { path, hash }, []),
 
-  commitFileDiff: (path: string, hash: string, file: string) =>
+  commitFileDiff: (
+    path: string,
+    hash: string,
+    file: string,
+    ignoreWhitespace = false
+  ) =>
     gitInvoke<DiffData | null>(
       'commit_file_diff',
-      { path, hash, file },
+      { path, hash, file, ignoreWhitespace },
       mock.diff
     ),
 

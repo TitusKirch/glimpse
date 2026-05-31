@@ -3,7 +3,11 @@
     "title": "Diff",
     "sideBySide": "Side by side",
     "unified": "Unified",
-    "noSelection": "Select a commit or file to see its diff"
+    "noSelection": "Select a commit or file to see its diff",
+    "ignoreWhitespace": "Ignore whitespace",
+    "fileHistory": "File history",
+    "copyPath": "Copy path",
+    "copyDiff": "Copy diff"
   },
   "fileView": {
     "list": "List view",

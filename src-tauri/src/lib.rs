@@ -69,8 +69,24 @@ async fn file_diff(
     path: String,
     file: String,
     staged: bool,
+    ignore_whitespace: bool,
 ) -> Result<Option<git::DiffData>, String> {
-    git::Repo::open(&path).file_diff(&file, staged)
+    git::Repo::open(&path).file_diff(&file, staged, ignore_whitespace)
+}
+
+#[tauri::command]
+async fn file_history(path: String, file: String) -> Result<Vec<git::Commit>, String> {
+    git::Repo::open(&path).file_history(&file)
+}
+
+#[tauri::command]
+async fn apply_hunk(
+    path: String,
+    file: String,
+    hunk: String,
+    reverse: bool,
+) -> Result<(), String> {
+    git::Repo::open(&path).apply_hunk(&file, &hunk, reverse)
 }
 
 #[tauri::command]
@@ -88,8 +104,9 @@ async fn commit_file_diff(
     path: String,
     hash: String,
     file: String,
+    ignore_whitespace: bool,
 ) -> Result<Option<git::DiffData>, String> {
-    git::Repo::open(&path).commit_file_diff(&hash, &file)
+    git::Repo::open(&path).commit_file_diff(&hash, &file, ignore_whitespace)
 }
 
 #[tauri::command]
@@ -223,6 +240,8 @@ pub fn run() {
             commit_body,
             commit_files,
             commit_file_diff,
+            file_history,
+            apply_hunk,
             stage,
             unstage,
             commit,

@@ -3,6 +3,26 @@ const repo = useRepoStore();
 const layout = useLayoutStore();
 const { t } = useI18n();
 const copyText = useCopy();
+
+const historyOpen = ref(false);
+
+function toggleWhitespace() {
+  layout.ignoreWhitespace = !layout.ignoreWhitespace;
+  void repo.reDiff();
+}
+function copyDiff() {
+  if (repo.diff) void copyText(repo.diff.hunks.join('\n'));
+}
+function copyPath() {
+  if (repo.diff) void copyText(repo.diff.fileName);
+}
+// Stage the hunk from an unstaged file, or unstage it from a staged file
+// (reverse patch).
+function onStageHunk(hunk: string) {
+  if (repo.selectedFile) {
+    void repo.applyHunk(repo.selectedFile, hunk, repo.selectedFileStaged);
+  }
+}
 </script>
 
 <template>
@@ -18,23 +38,71 @@ const copyText = useCopy();
           t('diff.title')
         }}</span>
       </div>
-      <!-- diff mode toggle — same segmented style as Changes/History -->
-      <UiTabs
-        :model-value="layout.diffMode"
-        class="shrink-0"
-        @update:model-value="
-          (v) => layout.setDiffMode(v as 'split' | 'unified')
-        "
-      >
-        <UiTabsList class="h-8">
-          <UiTabsTrigger value="split" class="text-xs">{{
-            t('diff.sideBySide')
-          }}</UiTabsTrigger>
-          <UiTabsTrigger value="unified" class="text-xs">{{
-            t('diff.unified')
-          }}</UiTabsTrigger>
-        </UiTabsList>
-      </UiTabs>
+      <div class="flex shrink-0 items-center gap-1">
+        <template v-if="repo.diff">
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon-sm"
+                :class="layout.ignoreWhitespace && 'text-primary'"
+                @click="toggleWhitespace"
+              >
+                <NuxtIcon name="lucide:pilcrow" class="size-4" />
+              </UiButton>
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{
+              t('diff.ignoreWhitespace')
+            }}</UiTooltipContent>
+          </UiTooltip>
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon-sm"
+                @click="historyOpen = true"
+              >
+                <NuxtIcon name="lucide:history" class="size-4" />
+              </UiButton>
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('diff.fileHistory') }}</UiTooltipContent>
+          </UiTooltip>
+          <UiDropdownMenu>
+            <UiDropdownMenuTrigger as-child>
+              <UiButton variant="ghost" size="icon-sm">
+                <NuxtIcon name="lucide:copy" class="size-4" />
+              </UiButton>
+            </UiDropdownMenuTrigger>
+            <UiDropdownMenuContent align="end">
+              <UiDropdownMenuItem @click="copyPath">
+                <NuxtIcon name="lucide:file" />
+                {{ t('diff.copyPath') }}
+              </UiDropdownMenuItem>
+              <UiDropdownMenuItem @click="copyDiff">
+                <NuxtIcon name="lucide:file-diff" />
+                {{ t('diff.copyDiff') }}
+              </UiDropdownMenuItem>
+            </UiDropdownMenuContent>
+          </UiDropdownMenu>
+        </template>
+
+        <!-- diff mode toggle — same segmented style as Changes/History -->
+        <UiTabs
+          :model-value="layout.diffMode"
+          @update:model-value="
+            (v) => layout.setDiffMode(v as 'split' | 'unified')
+          "
+        >
+          <UiTabsList class="h-8">
+            <UiTabsTrigger value="split" class="text-xs">{{
+              t('diff.sideBySide')
+            }}</UiTabsTrigger>
+            <UiTabsTrigger value="unified" class="text-xs">{{
+              t('diff.unified')
+            }}</UiTabsTrigger>
+          </UiTabsList>
+        </UiTabs>
+      </div>
     </header>
 
     <!-- commit: resizable detail / file list / diff -->
@@ -129,6 +197,8 @@ const copyText = useCopy();
         :hunks="repo.diff.hunks"
         :mode="layout.diffMode"
         :file-name="repo.diff.fileName"
+        :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
+        @stage-hunk="onStageHunk"
       />
       <div v-else-if="repo.loading" class="space-y-2 p-4">
         <UiSkeleton
@@ -145,4 +215,6 @@ const copyText = useCopy();
       />
     </div>
   </div>
+
+  <FileHistoryDialog v-model:open="historyOpen" :file="repo.selectedFile" />
 </template>

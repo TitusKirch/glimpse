@@ -1,14 +1,20 @@
 <script setup lang="ts">
 // Lightweight unified/split diff renderer driven by git unified-diff hunks.
 // Rows fill the full scroll width (so highlights span it), line-number gutters
-// are sticky-left, and code is syntax-highlighted via highlight.js.
+// are sticky-left, and code is syntax-highlighted via highlight.js. In split
+// mode, paired -/+ lines additionally get word-level highlighting. When a hunk
+// action is enabled, each hunk header carries a stage/unstage button.
 import hljs from 'highlight.js';
 
 const props = defineProps<{
   hunks: string[];
   mode: 'split' | 'unified';
   fileName: string;
+  // When set, each hunk gets a stage/unstage button emitting `stageHunk`.
+  hunkAction?: 'stage' | 'unstage' | null;
 }>();
+
+const emit = defineEmits<{ stageHunk: [hunk: string] }>();
 
 type RowType = 'hunk' | 'context' | 'add' | 'del';
 
@@ -17,6 +23,10 @@ interface URow {
   oldNo?: number;
   newNo?: number;
   html: string;
+  // Raw line text (for word-level diffing); undefined for hunk headers.
+  text?: string;
+  // Index into props.hunks for hunk-header rows.
+  hunkIndex?: number;
 }
 
 type CellType = 'context' | 'add' | 'del' | 'empty';
@@ -27,6 +37,7 @@ interface SCell {
 }
 interface SRow {
   hunk?: string;
+  hunkIndex?: number;
   left?: SCell;
   right?: SCell;
 }
@@ -98,25 +109,60 @@ function hl(text: string): string {
   }
 }
 
+// Word-level diff of a removed/added line pair: trim the common prefix and
+// suffix and wrap the differing middle on each side. Cheap and effective for
+// the common single-edit line; falls back to plain escaped text otherwise.
+function wordDiff(a: string, b: string): { oldHtml: string; newHtml: string } {
+  let start = 0;
+  const min = Math.min(a.length, b.length);
+  while (start < min && a[start] === b[start]) start++;
+  let aEnd = a.length;
+  let bEnd = b.length;
+  while (aEnd > start && bEnd > start && a[aEnd - 1] === b[bEnd - 1]) {
+    aEnd--;
+    bEnd--;
+  }
+  const wrap = (s: string, cls: string) =>
+    s ? `<span class="${cls}">${escapeHtml(s)}</span>` : '';
+  return {
+    oldHtml:
+      escapeHtml(a.slice(0, start)) +
+      wrap(a.slice(start, aEnd), 'wd-del') +
+      escapeHtml(a.slice(aEnd)),
+    newHtml:
+      escapeHtml(b.slice(0, start)) +
+      wrap(b.slice(start, bEnd), 'wd-add') +
+      escapeHtml(b.slice(bEnd))
+  };
+}
+
 const unified = computed<URow[]>(() => {
   const out: URow[] = [];
-  for (const hunk of props.hunks) {
+  props.hunks.forEach((hunk, hunkIndex) => {
     const lines = hunk.split('\n');
     const header = lines[0] ?? '';
     const m = header.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
     let oldNo = m ? Number(m[1]) : 1;
     let newNo = m ? Number(m[2]) : 1;
-    out.push({ type: 'hunk', html: escapeHtml(header) });
+    out.push({ type: 'hunk', html: escapeHtml(header), hunkIndex });
     for (let i = 1; i < lines.length; i++) {
       const l = lines[i] ?? '';
       const c = l[0];
-      const html = hl(l.slice(1));
+      const text = l.slice(1);
+      const html = hl(text);
       if (c === '\\') continue;
-      if (c === '+') out.push({ type: 'add', newNo: newNo++, html });
-      else if (c === '-') out.push({ type: 'del', oldNo: oldNo++, html });
-      else out.push({ type: 'context', oldNo: oldNo++, newNo: newNo++, html });
+      if (c === '+') out.push({ type: 'add', newNo: newNo++, html, text });
+      else if (c === '-') out.push({ type: 'del', oldNo: oldNo++, html, text });
+      else
+        out.push({
+          type: 'context',
+          oldNo: oldNo++,
+          newNo: newNo++,
+          html,
+          text
+        });
     }
-  }
+  });
   return out;
 });
 
@@ -129,12 +175,20 @@ const split = computed<SRow[]>(() => {
     for (let i = 0; i < n; i++) {
       const d = dels[i];
       const a = adds[i];
+      // When a line was both removed and re-added, word-diff the pair.
+      let leftHtml = d?.html ?? '';
+      let rightHtml = a?.html ?? '';
+      if (d && a && d.text !== undefined && a.text !== undefined) {
+        const wd = wordDiff(d.text, a.text);
+        leftHtml = wd.oldHtml;
+        rightHtml = wd.newHtml;
+      }
       out.push({
         left: d
-          ? { no: d.oldNo, html: d.html, type: 'del' }
+          ? { no: d.oldNo, html: leftHtml, type: 'del' }
           : { html: '', type: 'empty' },
         right: a
-          ? { no: a.newNo, html: a.html, type: 'add' }
+          ? { no: a.newNo, html: rightHtml, type: 'add' }
           : { html: '', type: 'empty' }
       });
     }
@@ -146,7 +200,7 @@ const split = computed<SRow[]>(() => {
     else if (r.type === 'add') adds.push(r);
     else {
       flush();
-      if (r.type === 'hunk') out.push({ hunk: r.html });
+      if (r.type === 'hunk') out.push({ hunk: r.html, hunkIndex: r.hunkIndex });
       else
         out.push({
           left: { no: r.oldNo, html: r.html, type: 'context' },
@@ -198,11 +252,22 @@ const gutter =
         class="flex"
         :class="rowBg[r.type]"
       >
-        <span
+        <div
           v-if="r.type === 'hunk'"
-          class="sticky left-0 bg-accent px-2 whitespace-pre text-muted-foreground"
-          v-html="r.html"
-        />
+          class="sticky left-0 flex w-full items-center bg-accent"
+        >
+          <span
+            class="px-2 whitespace-pre text-muted-foreground"
+            v-html="r.html"
+          />
+          <button
+            v-if="hunkAction"
+            class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+            @click="emit('stageHunk', hunks[r.hunkIndex!]!)"
+          >
+            {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+          </button>
+        </div>
         <template v-else>
           <span :class="[gutter, 'left-0 w-12']">{{ r.oldNo ?? '' }}</span>
           <span :class="[gutter, 'left-12 w-12']">{{ r.newNo ?? '' }}</span>
@@ -235,11 +300,22 @@ const gutter =
             class="flex"
             :class="r.left ? rowBg[r.left.type] : ''"
           >
-            <span
+            <div
               v-if="r.hunk !== undefined"
-              class="sticky left-0 bg-accent px-2 whitespace-pre text-muted-foreground"
-              v-html="r.hunk"
-            />
+              class="sticky left-0 flex w-full items-center bg-accent"
+            >
+              <span
+                class="px-2 whitespace-pre text-muted-foreground"
+                v-html="r.hunk"
+              />
+              <button
+                v-if="hunkAction"
+                class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                @click="emit('stageHunk', hunks[r.hunkIndex!]!)"
+              >
+                {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+              </button>
+            </div>
             <template v-else>
               <span :class="[gutter, 'left-0 w-12']">{{
                 r.left!.no ?? ''

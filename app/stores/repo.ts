@@ -245,19 +245,41 @@ export const useRepoStore = defineStore('repo', {
 
     async selectCommitFile(file: string) {
       const r = this.active;
-      if (!r.selectedHash) return;
+      if (!r?.selectedHash) return;
       r.selectedFile = file;
-      r.diff = await gitClient.commitFileDiff(r.path, r.selectedHash, file);
+      const ws = useLayoutStore().ignoreWhitespace;
+      r.diff = await gitClient.commitFileDiff(r.path, r.selectedHash, file, ws);
     },
 
     async selectFile(file: string, staged: boolean) {
       const r = this.active;
+      if (!r) return;
       r.selectedFile = file;
       r.selectedFileStaged = staged;
       r.selectedHash = null;
       r.selectedBody = '';
       r.commitFiles = [];
-      r.diff = await gitClient.fileDiff(r.path, file, staged);
+      const ws = useLayoutStore().ignoreWhitespace;
+      r.diff = await gitClient.fileDiff(r.path, file, staged, ws);
+    },
+
+    // Re-run the diff for the current selection (commit file or working file),
+    // e.g. after toggling the whitespace option.
+    async reDiff() {
+      const r = this.active;
+      if (!r?.selectedFile) return;
+      if (r.selectedHash) await this.selectCommitFile(r.selectedFile);
+      else await this.selectFile(r.selectedFile, r.selectedFileStaged);
+    },
+
+    // Stage or unstage a single hunk, then refresh status and the diff.
+    async applyHunk(file: string, hunk: string, reverse: boolean) {
+      if (!isTauri()) return;
+      await this.guarded(async () => {
+        await gitClient.applyHunk(this.repoPath, file, hunk, reverse);
+        await this.loadStatus();
+        await this.reDiff();
+      });
     },
 
     async stage(file: string) {
