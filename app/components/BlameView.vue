@@ -6,7 +6,15 @@ import type { BlameLine } from '@/stores/repo';
 
 const props = defineProps<{ file: string }>();
 const repo = useRepoStore();
+const layout = useLayoutStore();
 const { t } = useI18n();
+const copyText = useCopy();
+
+// Open the blamed commit in the history/diff view.
+function viewCommit(hash: string) {
+  layout.setLeftTab('history');
+  void repo.selectCommit(hash);
+}
 
 const lines = ref<BlameLine[]>([]);
 const loading = ref(false);
@@ -50,25 +58,53 @@ function isNewBlock(i: number): boolean {
           <td
             class="sticky left-0 max-w-48 min-w-48 truncate border-r bg-background px-2 align-top text-muted-foreground select-none"
           >
-            <UiHoverCard v-if="isNewBlock(i)" :open-delay="200">
+            <UiHoverCard v-if="isNewBlock(i)" :open-delay="150">
               <UiHoverCardTrigger
-                class="flex w-full cursor-default items-baseline gap-1.5 truncate"
+                class="flex w-fit max-w-full cursor-pointer items-baseline gap-1.5 truncate decoration-dotted hover:underline"
               >
                 <span class="font-semibold text-foreground">{{ l.hash }}</span>
                 <span class="truncate text-muted-foreground">{{
                   l.author
                 }}</span>
               </UiHoverCardTrigger>
-              <UiHoverCardContent class="w-auto text-xs" side="right">
-                <div class="flex items-center gap-2">
-                  <NuxtIcon name="lucide:user" class="size-3.5" />
-                  <span class="font-medium">{{ l.author }}</span>
+              <UiHoverCardContent class="w-72 space-y-2 text-xs" side="right">
+                <div class="flex items-center gap-2 font-medium">
+                  <NuxtIcon
+                    name="lucide:user"
+                    class="size-3.5 text-muted-foreground"
+                  />
+                  <span>{{ l.author }}</span>
                 </div>
-                <div class="mt-1 flex items-center gap-2 text-muted-foreground">
+                <div class="flex items-center gap-2 text-muted-foreground">
                   <NuxtIcon name="lucide:calendar" class="size-3.5" />
                   <span>{{ l.date }}</span>
-                  <code class="ml-1 font-mono">{{ l.hash }}</code>
                 </div>
+                <div class="flex items-center gap-2 text-muted-foreground">
+                  <NuxtIcon
+                    name="lucide:git-commit-horizontal"
+                    class="size-3.5"
+                  />
+                  <code class="font-mono text-foreground">{{ l.hash }}</code>
+                  <UiButton
+                    variant="ghost"
+                    size="icon"
+                    class="ml-auto size-6"
+                    :aria-label="t('commit.copyHash')"
+                    @click="copyText(l.hash)"
+                  >
+                    <NuxtIcon name="lucide:copy" class="size-3.5" />
+                  </UiButton>
+                </div>
+                <UiSeparator />
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  class="w-full"
+                  @click="viewCommit(l.hash)"
+                >
+                  <NuxtIcon name="lucide:eye" class="size-3.5" />
+                  {{ t('diff.blameViewCommit') }}
+                </UiButton>
               </UiHoverCardContent>
             </UiHoverCard>
           </td>

@@ -9,6 +9,7 @@
     "blame": "Blame",
     "blameEmpty": "No blame available",
     "blameEmptyHint": "This file isn't committed yet.",
+    "blameViewCommit": "View this commit",
     "fileHistory": "File history",
     "copyPath": "Copy path",
     "copyDiff": "Copy diff"

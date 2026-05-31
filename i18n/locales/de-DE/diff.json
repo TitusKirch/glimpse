@@ -9,6 +9,7 @@
     "blame": "Blame",
     "blameEmpty": "Keine Blame-Info",
     "blameEmptyHint": "Diese Datei ist noch nicht committet.",
+    "blameViewCommit": "Diesen Commit ansehen",
     "fileHistory": "Datei-Verlauf",
     "copyPath": "Pfad kopieren",
     "copyDiff": "Diff kopieren"
