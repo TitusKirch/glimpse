@@ -35,7 +35,7 @@
       "endpoints": [
         "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json"
       ],
-      "pubkey": "REPLACE_WITH_MINISIGN_PUBLIC_KEY"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEIwREM4QkY2RTgzOEJBOTAKUldTUXVqam85b3Zjc0VwQWdRbU9zb0l0b3JYTEpzL1RzSEU0UmlqejBwZkZBVnNWbGtHNVRaSTUK"
     }
   },
   "bundle": {
