@@ -71,10 +71,14 @@
       "success": "Success",
       "warning": "Warning",
       "error": "Error",
-      "toastInfo": "This is an info toast",
-      "toastSuccess": "Saved successfully",
-      "toastWarning": "Heads up — check this",
-      "toastError": "Something went wrong"
+      "infoTitle": "Info",
+      "infoDesc": "This is an informational message.",
+      "successTitle": "Success",
+      "successDesc": "Your changes were saved.",
+      "warningTitle": "Warning",
+      "warningDesc": "Please double-check this before continuing.",
+      "errorTitle": "Error",
+      "errorDesc": "Something went wrong."
     },
     "appearance": {
       "title": "Appearance",

@@ -6,13 +6,18 @@ const { t, locale, locales, setLocale } = useI18n();
 const colorMode = useColorMode();
 const layout = useLayoutStore();
 
-// Dev-only: fire one of each toast kind to preview styling.
+// Dev-only: fire one of each toast kind (with title + description) to preview.
 const toastKinds = [
-  { kind: 'info', fn: () => toast.info(t('settings.dev.toastInfo')) },
-  { kind: 'success', fn: () => toast.success(t('settings.dev.toastSuccess')) },
-  { kind: 'warning', fn: () => toast.warning(t('settings.dev.toastWarning')) },
-  { kind: 'error', fn: () => toast.error(t('settings.dev.toastError')) }
+  { kind: 'info', variant: 'info', fn: toast.info },
+  { kind: 'success', variant: 'success', fn: toast.success },
+  { kind: 'warning', variant: 'warning', fn: toast.warning },
+  { kind: 'error', variant: 'destructive', fn: toast.error }
 ] as const;
+function fireToast(tk: (typeof toastKinds)[number]) {
+  tk.fn(t(`settings.dev.${tk.kind}Title`), {
+    description: t(`settings.dev.${tk.kind}Desc`)
+  });
+}
 
 // Left navigation pages. The Developer page only appears when dev mode is on.
 const pages = computed(() => {
@@ -132,9 +137,9 @@ const lang = computed({
                   <UiButton
                     v-for="tk in toastKinds"
                     :key="tk.kind"
-                    variant="outline"
+                    :variant="tk.variant"
                     size="sm"
-                    @click="tk.fn()"
+                    @click="fireToast(tk)"
                   >
                     {{ t(`settings.dev.${tk.kind}`) }}
                   </UiButton>

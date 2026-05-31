@@ -10,7 +10,12 @@ export const buttonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
         destructive:
-          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+          'border border-destructive/25 bg-destructive/10 text-destructive shadow-xs hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:bg-destructive/15 dark:focus-visible:ring-destructive/40',
+        success:
+          'border border-success/25 bg-success/10 text-success shadow-xs hover:bg-success/20 dark:bg-success/15',
+        warning:
+          'border border-warning/25 bg-warning/10 text-warning shadow-xs hover:bg-warning/20 dark:bg-warning/15',
+        info: 'border border-info/25 bg-info/10 text-info shadow-xs hover:bg-info/20 dark:bg-info/15',
         outline:
           'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary:

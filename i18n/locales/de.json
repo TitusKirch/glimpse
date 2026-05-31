@@ -71,10 +71,14 @@
       "success": "Erfolg",
       "warning": "Warnung",
       "error": "Fehler",
-      "toastInfo": "Dies ist ein Info-Toast",
-      "toastSuccess": "Erfolgreich gespeichert",
-      "toastWarning": "Achtung — prüfe das",
-      "toastError": "Etwas ist schiefgelaufen"
+      "infoTitle": "Info",
+      "infoDesc": "Dies ist eine Info-Meldung.",
+      "successTitle": "Erfolg",
+      "successDesc": "Deine Änderungen wurden gespeichert.",
+      "warningTitle": "Warnung",
+      "warningDesc": "Bitte prüfe das nochmal, bevor du fortfährst.",
+      "errorTitle": "Fehler",
+      "errorDesc": "Etwas ist schiefgelaufen."
     },
     "appearance": {
       "title": "Darstellung",
