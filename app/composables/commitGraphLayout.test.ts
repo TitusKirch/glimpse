@@ -32,8 +32,16 @@ describe('commitGraphLayout', () => {
     expect(layout.height).toBe(2 * 60); // 120
   });
 
-  it('skips edges to parents outside the loaded range', () => {
-    const { edges } = commitGraphLayout([commit('a', 0, ['missing'])]);
+  it('continues a lane to the bottom when the parent is outside the range', () => {
+    // Parent not loaded (truncated history): draw the lane down to the bottom
+    // edge so it doesn't look like a root commit.
+    const { edges, height } = commitGraphLayout([commit('a', 0, ['missing'])]);
+    expect(edges).toHaveLength(1);
+    expect(edges[0]!.d).toBe(`M 18 30 L 18 ${height}`);
+  });
+
+  it('draws no edge for a real root commit (no parents)', () => {
+    const { edges } = commitGraphLayout([commit('a', 0, [])]);
     expect(edges).toHaveLength(0);
   });
 });
