@@ -42,9 +42,7 @@ const lang = computed({
 
       <div class="flex min-h-0 flex-1">
         <!-- left navigation (~1/5) -->
-        <nav
-          class="w-1/5 min-w-[160px] shrink-0 space-y-1 overflow-auto border-r p-2"
-        >
+        <nav class="w-56 shrink-0 space-y-1 overflow-auto border-r p-2">
           <button
             v-for="p in pages"
             :key="p.key"
@@ -63,9 +61,9 @@ const lang = computed({
 
         <!-- content -->
         <div class="min-w-0 flex-1 overflow-auto p-6">
-          <section v-if="page === 'appearance'" class="max-w-2xl space-y-6">
+          <section v-if="page === 'appearance'" class="w-full space-y-6">
             <div class="flex items-center justify-between gap-4">
-              <div>
+              <div class="min-w-0">
                 <p class="text-sm font-medium">
                   {{ t('settings.appearance.theme') }}
                 </p>
@@ -74,7 +72,7 @@ const lang = computed({
                 </p>
               </div>
               <UiSelect v-model="colorMode.preference">
-                <UiSelectTrigger class="w-44">
+                <UiSelectTrigger class="w-44 shrink-0">
                   <UiSelectValue />
                 </UiSelectTrigger>
                 <UiSelectContent>
@@ -86,9 +84,9 @@ const lang = computed({
             </div>
           </section>
 
-          <section v-else-if="page === 'language'" class="max-w-2xl space-y-6">
+          <section v-else-if="page === 'language'" class="w-full space-y-6">
             <div class="flex items-center justify-between gap-4">
-              <div>
+              <div class="min-w-0">
                 <p class="text-sm font-medium">
                   {{ t('settings.language.label') }}
                 </p>
@@ -97,7 +95,7 @@ const lang = computed({
                 </p>
               </div>
               <UiSelect v-model="lang">
-                <UiSelectTrigger class="w-44">
+                <UiSelectTrigger class="w-44 shrink-0">
                   <span class="flex items-center gap-2">
                     <NuxtIcon :name="FLAG[lang]" class="size-4 shrink-0" />
                     <UiSelectValue />
