@@ -130,8 +130,16 @@ fn open_candidates(app: &str, path: &str) -> Vec<Vec<String>> {
             "files" => vec![vec!["explorer".into(), p]],
             "terminal" => vec![
                 vec!["wt".into(), "-d".into(), p.clone()],
-                vec!["cmd".into(), "/c".into(), "start".into(), "cmd".into(), "/k".into(),
-                     "cd".into(), "/d".into(), p],
+                vec![
+                    "cmd".into(),
+                    "/c".into(),
+                    "start".into(),
+                    "cmd".into(),
+                    "/k".into(),
+                    "cd".into(),
+                    "/d".into(),
+                    p,
+                ],
             ],
             "editor" => vec![vec!["code".into(), p]],
             _ => vec![],
@@ -147,7 +155,11 @@ fn open_candidates(app: &str, path: &str) -> Vec<Vec<String>> {
                 vec!["explorer.exe".into(), p],
             ],
             "terminal" => vec![
-                vec!["x-terminal-emulator".into(), "--working-directory".into(), p.clone()],
+                vec![
+                    "x-terminal-emulator".into(),
+                    "--working-directory".into(),
+                    p.clone(),
+                ],
                 vec!["gnome-terminal".into(), format!("--working-directory={p}")],
                 vec!["konsole".into(), "--workdir".into(), p.clone()],
                 vec!["xfce4-terminal".into(), format!("--working-directory={p}")],

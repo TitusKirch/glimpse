@@ -185,8 +185,7 @@ impl Repo {
             .to_string();
         // Per-branch ahead/behind comes from %(upstream:track), e.g.
         // "[ahead 2, behind 1]".
-        let branch_fmt =
-            format!("--format=%(refname:short){US}%(upstream:track){US}%(upstream)");
+        let branch_fmt = format!("--format=%(refname:short){US}%(upstream:track){US}%(upstream)");
         let branches = parse::branches(&self.run(&["for-each-ref", &branch_fmt, "refs/heads"])?);
         // Remote-tracking branches (e.g. `origin/main`), minus the `origin/HEAD`
         // symbolic pointer.
@@ -271,7 +270,10 @@ impl Repo {
 
     /// Full commit message (subject + body) for the detail panel.
     pub fn commit_body(&self, hash: &str) -> Result<String, String> {
-        Ok(self.run(&["show", "-s", "--format=%B", hash])?.trim().to_string())
+        Ok(self
+            .run(&["show", "-s", "--format=%B", hash])?
+            .trim()
+            .to_string())
     }
 
     /// List of files changed by a commit (path + single-letter status).
@@ -313,8 +315,7 @@ impl Repo {
     /// one-file patch into `git apply --cached`. `--recount` lets git fix the
     /// `@@` line counts, so the rendered hunk text doesn't need to be exact.
     pub fn apply_hunk(&self, file: &str, hunk: &str, reverse: bool) -> Result<(), String> {
-        let patch =
-            format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{hunk}\n");
+        let patch = format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{hunk}\n");
         let mut args = vec!["apply", "--cached", "--recount", "--whitespace=nowarn"];
         if reverse {
             args.push("--reverse");
@@ -347,7 +348,10 @@ impl Repo {
 
     /// Subject + body of the most recent commit, to prefill an amend.
     pub fn head_message(&self) -> Result<String, String> {
-        Ok(self.run(&["show", "-s", "--format=%B", "HEAD"])?.trim().to_string())
+        Ok(self
+            .run(&["show", "-s", "--format=%B", "HEAD"])?
+            .trim()
+            .to_string())
     }
 
     /// Discard a file's working-tree changes. Untracked files are deleted

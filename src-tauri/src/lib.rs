@@ -85,12 +85,7 @@ async fn blame(path: String, file: String) -> Result<Vec<git::BlameLine>, String
 }
 
 #[tauri::command]
-async fn apply_hunk(
-    path: String,
-    file: String,
-    hunk: String,
-    reverse: bool,
-) -> Result<(), String> {
+async fn apply_hunk(path: String, file: String, hunk: String, reverse: bool) -> Result<(), String> {
     git::Repo::open(&path).apply_hunk(&file, &hunk, reverse)
 }
 

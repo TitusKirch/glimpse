@@ -3,9 +3,7 @@
 //! lives here so it is testable through a string interface. See
 //! `docs/ARCHITECTURE.md` §9.
 
-use super::{
-    lines, BlameLine, Branch, Commit, CommitFile, DiffData, StatusEntry, US,
-};
+use super::{lines, BlameLine, Branch, Commit, CommitFile, DiffData, StatusEntry, US};
 use std::collections::HashMap;
 
 /// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)␟%(upstream)`.
@@ -32,7 +30,11 @@ pub fn branches(raw: &str) -> Vec<Branch> {
 /// First integer following `key` in `s` (e.g. the 2 in "[ahead 2, behind 1]").
 fn count_after(s: &str, key: &str) -> u32 {
     s.find(key)
-        .and_then(|i| s[i + key.len()..].split(|c: char| !c.is_ascii_digit()).next())
+        .and_then(|i| {
+            s[i + key.len()..]
+                .split(|c: char| !c.is_ascii_digit())
+                .next()
+        })
         .and_then(|n| n.parse().ok())
         .unwrap_or(0)
 }
@@ -58,8 +60,7 @@ pub fn status(raw: &str) -> Vec<StatusEntry> {
         }
         let untracked = x == '?';
         // Unmerged entries: a 'U' on either side, or matching A/A or D/D.
-        let conflicted =
-            x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D');
+        let conflicted = x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D');
         entries.push(StatusEntry {
             path,
             x: x.to_string(),
@@ -126,8 +127,7 @@ fn assign_lanes(commits: &mut [Commit]) {
     // lanes for parents that actually appear (the first-parent continuation is
     // an exception: the renderer draws it as a "continues below" stub in its own
     // lane, so it must stay reserved to avoid a collision).
-    let known: std::collections::HashSet<String> =
-        commits.iter().map(|c| c.hash.clone()).collect();
+    let known: std::collections::HashSet<String> = commits.iter().map(|c| c.hash.clone()).collect();
 
     let free_lane = |lanes: &mut Vec<Option<String>>| -> usize {
         match lanes.iter().position(Option::is_none) {
@@ -267,10 +267,7 @@ pub fn blame(raw: &str) -> Vec<BlameLine> {
     for l in raw.lines() {
         let bytes = l.as_bytes();
         // Header: "<40-hex> <orig> <final> [<count>]".
-        if bytes.len() >= 41
-            && bytes[40] == b' '
-            && bytes[..40].iter().all(u8::is_ascii_hexdigit)
-        {
+        if bytes.len() >= 41 && bytes[40] == b' ' && bytes[..40].iter().all(u8::is_ascii_hexdigit) {
             let mut parts = l.split(' ');
             hash = parts.next().unwrap_or("").to_string();
             // orig line, then final line number.
@@ -422,7 +419,10 @@ mod tests {
         );
         let c = log(&raw);
         let max_lane = c.iter().map(|k| k.lane).max().unwrap();
-        assert_eq!(max_lane, 1, "off-window merge parent must not reserve a lane");
+        assert_eq!(
+            max_lane, 1,
+            "off-window merge parent must not reserve a lane"
+        );
     }
 
     #[test]
