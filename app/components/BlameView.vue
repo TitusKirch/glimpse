@@ -10,10 +10,13 @@ const layout = useLayoutStore();
 const { t } = useI18n();
 const copyText = useCopy();
 
-// Open the blamed commit in the history/diff view.
+// Open the blamed commit in the history/diff view. blame hashes are
+// abbreviated, so resolve to the loaded commit's full hash where possible —
+// the graph highlights by exact hash.
 function viewCommit(hash: string) {
+  const full = repo.commits.find((c) => c.hash.startsWith(hash))?.hash ?? hash;
   layout.setLeftTab('history');
-  void repo.selectCommit(hash);
+  void repo.selectCommit(full);
 }
 
 const lines = ref<BlameLine[]>([]);

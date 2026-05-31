@@ -26,6 +26,21 @@ const virtualRows = computed(() =>
   }))
 );
 
+// Scroll the selected commit into view (e.g. when opened from blame), so the
+// highlighted row is actually visible.
+watch(
+  () => repo.selectedHash,
+  (hash) => {
+    if (!hash) return;
+    const i = repo.commits.findIndex((c) => c.hash === hash);
+    if (i >= 0) {
+      void nextTick(() =>
+        rowVirtualizer.value.scrollToIndex(i, { align: 'center' })
+      );
+    }
+  }
+);
+
 // Client-side commit search over the loaded log. While a query is active the
 // SVG graph is replaced by a flat filtered list (lane geometry can't follow an
 // arbitrary subset), which is exactly what a search wants anyway.
