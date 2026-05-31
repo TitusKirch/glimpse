@@ -22,6 +22,8 @@
     "rename": "Rename",
     "showMore": "Show {n} more",
     "showLess": "Show less",
+    "localOnly": "local",
+    "localOnlyHint": "Local only — not on a remote yet",
     "noRepo": {
       "title": "No repository open",
       "hint": "Open a repository to see its branches and history."

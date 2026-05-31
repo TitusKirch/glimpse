@@ -6,6 +6,7 @@ import type { Branch } from '@/stores/repo';
 
 defineProps<{ branch: Branch; collapsed: boolean }>();
 const repo = useRepoStore();
+const { t } = useI18n();
 </script>
 
 <template>
@@ -37,7 +38,15 @@ const repo = useRepoStore();
       <NuxtIcon name="lucide:git-branch" class="shrink-0" />
       <span class="truncate">{{ branch.name }}</span>
       <span
-        v-if="branch.ahead || branch.behind"
+        v-if="!branch.published"
+        :title="t('sidebar.localOnlyHint')"
+        class="ml-auto flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-muted pr-1.5 pl-1 text-[10px] font-medium text-muted-foreground"
+        ><NuxtIcon name="lucide:cloud-off" class="size-3" />{{
+          t('sidebar.localOnly')
+        }}</span
+      >
+      <span
+        v-else-if="branch.ahead || branch.behind"
         class="ml-auto flex shrink-0 items-center gap-1 pl-1 text-[10px] font-medium"
       >
         <span

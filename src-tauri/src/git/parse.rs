@@ -8,17 +8,22 @@ use super::{
 };
 use std::collections::HashMap;
 
-/// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)`.
+/// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)␟%(upstream)`.
 pub fn branches(raw: &str) -> Vec<Branch> {
     lines(raw)
         .map(|line| {
             let mut f = line.split(US);
             let name = f.next().unwrap_or("").to_string();
             let track = f.next().unwrap_or("");
+            let upstream = f.next().unwrap_or("");
             Branch {
                 name,
                 ahead: count_after(track, "ahead "),
                 behind: count_after(track, "behind "),
+                // Published = a configured upstream that still exists. An empty
+                // upstream means "never pushed"; "[gone]" means the remote ref
+                // was deleted — both read as local-only.
+                published: !upstream.is_empty() && track != "[gone]",
             }
         })
         .collect()
@@ -379,15 +384,21 @@ mod tests {
 
     #[test]
     fn branches_parse_ahead_behind() {
+        // Fields: name ␟ upstream:track ␟ upstream. main tracks origin/main;
+        // local has no upstream; feat is behind; gone's remote ref was deleted.
         let raw = format!(
-            "main{US}[ahead 2, behind 1]\ndev{US}\nfeat{US}[behind 3]\ngone{US}[gone]"
+            "main{US}[ahead 2, behind 1]{US}origin/main\n\
+             local{US}{US}\n\
+             feat{US}[behind 3]{US}origin/feat\n\
+             gone{US}[gone]{US}origin/gone"
         );
         let b = branches(&raw);
         assert_eq!(b.len(), 4);
-        assert_eq!((b[0].ahead, b[0].behind), (2, 1));
-        assert_eq!((b[1].ahead, b[1].behind), (0, 0));
-        assert_eq!((b[2].ahead, b[2].behind), (0, 3));
-        assert_eq!((b[3].ahead, b[3].behind), (0, 0));
+        assert_eq!((b[0].ahead, b[0].behind, b[0].published), (2, 1, true));
+        assert_eq!((b[1].ahead, b[1].behind, b[1].published), (0, 0, false));
+        assert_eq!((b[2].ahead, b[2].behind, b[2].published), (0, 3, true));
+        // Upstream configured but the remote ref is gone -> read as local-only.
+        assert_eq!((b[3].ahead, b[3].behind, b[3].published), (0, 0, false));
     }
 
     #[test]

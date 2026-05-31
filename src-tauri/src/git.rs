@@ -35,6 +35,9 @@ pub struct Branch {
     /// Commits ahead of / behind the configured upstream (0 if none).
     pub ahead: u32,
     pub behind: u32,
+    /// True when the branch has a live upstream (it exists on a remote). False
+    /// for a purely local branch — never pushed, or its remote ref is `gone`.
+    pub published: bool,
 }
 
 #[derive(Serialize, TS)]
@@ -182,7 +185,8 @@ impl Repo {
             .to_string();
         // Per-branch ahead/behind comes from %(upstream:track), e.g.
         // "[ahead 2, behind 1]".
-        let branch_fmt = format!("--format=%(refname:short){US}%(upstream:track)");
+        let branch_fmt =
+            format!("--format=%(refname:short){US}%(upstream:track){US}%(upstream)");
         let branches = parse::branches(&self.run(&["for-each-ref", &branch_fmt, "refs/heads"])?);
         // Remote-tracking branches (e.g. `origin/main`), minus the `origin/HEAD`
         // symbolic pointer.

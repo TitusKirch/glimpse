@@ -18,6 +18,11 @@ export type Branch = {
    */
   ahead: number;
   behind: number;
+  /**
+   * True when the branch has a live upstream (it exists on a remote). False
+   * for a purely local branch — never pushed, or its remote ref is `gone`.
+   */
+  published: boolean;
 };
 
 export type StashEntry = {
