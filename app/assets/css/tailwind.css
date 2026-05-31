@@ -158,14 +158,20 @@
   font-size: calc(0.75rem * var(--mono-scale, 1));
 }
 
-/* Word-level diff: stronger background on the changed run within a line. */
+/* Word-level diff: stronger background on the changed run within a line.
+   inline-block makes the highlight fill the full line-height (an inline
+   background would only cover the glyph height, leaving a gap top/bottom). */
+.hljs-diff .wd-del,
+.hljs-diff .wd-add {
+  display: inline-block;
+  line-height: inherit;
+  border-radius: 2px;
+}
 .hljs-diff .wd-del {
   background-color: color-mix(in oklch, red 32%, transparent);
-  border-radius: 2px;
 }
 .hljs-diff .wd-add {
   background-color: color-mix(in oklch, green 32%, transparent);
-  border-radius: 2px;
 }
 
 /* Syntax highlighting (highlight.js tokens) inside the diff viewer. */
