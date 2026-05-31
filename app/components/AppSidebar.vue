@@ -90,14 +90,29 @@ const links = [
             </UiButton>
           </div>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="b in repo.branches" :key="b">
+            <UiSidebarMenuItem v-for="b in repo.branches" :key="b.name">
               <UiSidebarMenuButton
-                :is-active="b === repo.currentBranch"
-                :tooltip="b"
-                @click="repo.checkout(b)"
+                :is-active="b.name === repo.currentBranch"
+                :tooltip="b.name"
+                @click="repo.checkout(b.name)"
               >
                 <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-                <span>{{ b }}</span>
+                <span>{{ b.name }}</span>
+                <span
+                  v-if="b.ahead || b.behind"
+                  class="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground"
+                >
+                  <span v-if="b.ahead" class="flex items-center"
+                    ><NuxtIcon name="lucide:arrow-up" class="size-3" />{{
+                      b.ahead
+                    }}</span
+                  >
+                  <span v-if="b.behind" class="flex items-center"
+                    ><NuxtIcon name="lucide:arrow-down" class="size-3" />{{
+                      b.behind
+                    }}</span
+                  >
+                </span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
           </UiSidebarMenu>
@@ -132,7 +147,7 @@ const links = [
               >
                 <NuxtIcon
                   :name="
-                    repo.branches.includes(shortName(rb))
+                    repo.branches.some((b) => b.name === shortName(rb))
                       ? 'lucide:git-branch'
                       : 'lucide:git-branch-plus'
                   "

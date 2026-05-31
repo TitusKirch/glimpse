@@ -11,10 +11,19 @@ export type Commit = {
   lane: number;
 };
 
+export type Branch = {
+  name: string;
+  /**
+   * Commits ahead of / behind the configured upstream (0 if none).
+   */
+  ahead: number;
+  behind: number;
+};
+
 export type RepoInfo = {
   toplevel: string;
   currentBranch: string;
-  branches: Array<string>;
+  branches: Array<Branch>;
   remoteBranches: Array<string>;
   remotes: Array<string>;
   tags: Array<string>;

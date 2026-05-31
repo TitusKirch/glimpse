@@ -12,6 +12,7 @@
 // rest of the app keeps importing these names from the store.
 import { promiseTimeout } from '@vueuse/core';
 import type {
+  Branch,
   Commit,
   CommitFile,
   DiffData,
@@ -23,7 +24,7 @@ import type {
 // flicker.
 const MIN_SPINNER_MS = 300;
 
-export type { Commit, CommitFile, DiffData, RepoInfo, StatusEntry };
+export type { Branch, Commit, CommitFile, DiffData, RepoInfo, StatusEntry };
 
 // Frontend-only types (no backend counterpart).
 export type GitFlavor = 'windows' | 'wsl' | 'linux' | 'macos';
@@ -37,7 +38,7 @@ export interface RepoState {
   path: string;
   flavor: GitFlavor;
   distro?: string;
-  branches: string[];
+  branches: Branch[];
   remoteBranches: string[];
   currentBranch: string;
   remotes: string[];
@@ -59,7 +60,11 @@ function demoRepo(): RepoState {
     path: '\\\\wsl$\\Ubuntu-22.04\\home\\titus\\glimpse',
     flavor: 'wsl',
     distro: 'Ubuntu-22.04',
-    branches: ['main', 'dev', 'feat/wsl'],
+    branches: [
+      { name: 'main', ahead: 0, behind: 0 },
+      { name: 'dev', ahead: 2, behind: 0 },
+      { name: 'feat/wsl', ahead: 1, behind: 3 }
+    ],
     remoteBranches: ['origin/main', 'origin/dev'],
     currentBranch: 'main',
     remotes: ['origin'],
@@ -97,7 +102,7 @@ export const useRepoStore = defineStore('repo', {
     repoPath(): string {
       return this.active?.path ?? '.';
     },
-    branches(): string[] {
+    branches(): Branch[] {
       return this.active.branches;
     },
     remoteBranches(): string[] {

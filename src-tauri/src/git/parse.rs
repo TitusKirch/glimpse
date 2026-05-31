@@ -3,7 +3,31 @@
 //! lives here so it is testable through a string interface. See
 //! `docs/ARCHITECTURE.md` §9.
 
-use super::{lines, Commit, CommitFile, DiffData, StatusEntry, US};
+use super::{lines, Branch, Commit, CommitFile, DiffData, StatusEntry, US};
+
+/// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)`.
+pub fn branches(raw: &str) -> Vec<Branch> {
+    lines(raw)
+        .map(|line| {
+            let mut f = line.split(US);
+            let name = f.next().unwrap_or("").to_string();
+            let track = f.next().unwrap_or("");
+            Branch {
+                name,
+                ahead: count_after(track, "ahead "),
+                behind: count_after(track, "behind "),
+            }
+        })
+        .collect()
+}
+
+/// First integer following `key` in `s` (e.g. the 2 in "[ahead 2, behind 1]").
+fn count_after(s: &str, key: &str) -> u32 {
+    s.find(key)
+        .and_then(|i| s[i + key.len()..].split(|c: char| !c.is_ascii_digit()).next())
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(0)
+}
 
 /// Decode `git status --porcelain=v1 --untracked-files=all -z`.
 pub fn status(raw: &str) -> Vec<StatusEntry> {
@@ -254,6 +278,19 @@ mod tests {
         assert_eq!(e[0].path, "copy.rs");
         assert!(e[0].staged);
         assert_eq!(e[1].path, "other.rs");
+    }
+
+    #[test]
+    fn branches_parse_ahead_behind() {
+        let raw = format!(
+            "main{US}[ahead 2, behind 1]\ndev{US}\nfeat{US}[behind 3]\ngone{US}[gone]"
+        );
+        let b = branches(&raw);
+        assert_eq!(b.len(), 4);
+        assert_eq!((b[0].ahead, b[0].behind), (2, 1));
+        assert_eq!((b[1].ahead, b[1].behind), (0, 0));
+        assert_eq!((b[2].ahead, b[2].behind), (0, 3));
+        assert_eq!((b[3].ahead, b[3].behind), (0, 0));
     }
 
     #[test]

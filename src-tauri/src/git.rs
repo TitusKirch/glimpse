@@ -28,10 +28,19 @@ pub struct Commit {
 
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct Branch {
+    pub name: String,
+    /// Commits ahead of / behind the configured upstream (0 if none).
+    pub ahead: u32,
+    pub behind: u32,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct RepoInfo {
     pub toplevel: String,
     pub current_branch: String,
-    pub branches: Vec<String>,
+    pub branches: Vec<Branch>,
     pub remote_branches: Vec<String>,
     pub remotes: Vec<String>,
     pub tags: Vec<String>,
@@ -111,10 +120,10 @@ impl Repo {
             .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
             .trim()
             .to_string();
-        let branches =
-            lines(&self.run(&["for-each-ref", "--format=%(refname:short)", "refs/heads"])?)
-                .map(str::to_string)
-                .collect();
+        // Per-branch ahead/behind comes from %(upstream:track), e.g.
+        // "[ahead 2, behind 1]".
+        let branch_fmt = format!("--format=%(refname:short){US}%(upstream:track)");
+        let branches = parse::branches(&self.run(&["for-each-ref", &branch_fmt, "refs/heads"])?);
         // Remote-tracking branches (e.g. `origin/main`), minus the `origin/HEAD`
         // symbolic pointer.
         let remote_branches =
@@ -260,6 +269,7 @@ impl Repo {
 fn export_bindings() {
     let decls = [
         Commit::decl(),
+        Branch::decl(),
         RepoInfo::decl(),
         DiffData::decl(),
         CommitFile::decl(),
