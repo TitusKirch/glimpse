@@ -100,19 +100,19 @@ const links = [
                 <span>{{ b.name }}</span>
                 <span
                   v-if="b.ahead || b.behind"
-                  class="ml-auto flex items-center gap-1 text-[10px] font-medium"
+                  class="ml-auto flex items-center gap-1 text-[11px] font-medium"
                 >
                   <span
                     v-if="b.ahead"
-                    class="flex items-center gap-0.5 rounded bg-green-500/15 px-1 text-green-600 dark:text-green-400"
-                    ><NuxtIcon name="lucide:arrow-up" class="size-3" />{{
+                    class="flex items-center gap-0.5 rounded-md bg-green-500/15 px-1.5 py-0.5 text-green-600 dark:text-green-400"
+                    ><NuxtIcon name="lucide:arrow-up" class="size-3.5" />{{
                       b.ahead
                     }}</span
                   >
                   <span
                     v-if="b.behind"
-                    class="flex items-center gap-0.5 rounded bg-amber-500/15 px-1 text-amber-600 dark:text-amber-400"
-                    ><NuxtIcon name="lucide:arrow-down" class="size-3" />{{
+                    class="flex items-center gap-0.5 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-amber-600 dark:text-amber-400"
+                    ><NuxtIcon name="lucide:arrow-down" class="size-3.5" />{{
                       b.behind
                     }}</span
                   >
