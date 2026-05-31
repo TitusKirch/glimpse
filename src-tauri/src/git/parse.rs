@@ -247,6 +247,24 @@ mod tests {
     }
 
     #[test]
+    fn status_copy_skips_source_path() {
+        let raw = z(&["C  copy.rs", "orig.rs", " M other.rs"]);
+        let e = status(&raw);
+        assert_eq!(e.len(), 2);
+        assert_eq!(e[0].path, "copy.rs");
+        assert!(e[0].staged);
+        assert_eq!(e[1].path, "other.rs");
+    }
+
+    #[test]
+    fn empty_inputs_yield_empty_results() {
+        assert!(status("").is_empty());
+        assert!(log("").is_empty());
+        assert!(commit_files("").is_empty());
+        assert!(diff("").is_none());
+    }
+
+    #[test]
     fn lanes_are_reused_after_a_branch_merges_back() {
         // Two side branches (S2, S1) each branch off the mainline and merge
         // back (at M2, M1). Once a branch rejoins, its lane must free so the
