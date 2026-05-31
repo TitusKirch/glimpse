@@ -1,60 +1,4 @@
 {
-  "app": {
-    "name": "glimpse"
-  },
-  "error": {
-    "title": "Fehler"
-  },
-  "sidebar": {
-    "branches": "Branches",
-    "remotes": "Remotes",
-    "remoteBranches": "Remote-Branches",
-    "tags": "Tags",
-    "newBranch": "Neuer Branch",
-    "branchName": "Branch-Name…"
-  },
-  "sync": {
-    "fetch": "Fetch",
-    "pull": "Pull",
-    "push": "Push"
-  },
-  "graph": {
-    "title": "Commit-Graph",
-    "uncommitted": "Uncommittete Änderungen"
-  },
-  "history": {
-    "title": "Verlauf"
-  },
-  "changes": {
-    "title": "Änderungen",
-    "staged": "Vorgemerkt",
-    "unstaged": "Änderungen",
-    "stage": "Vormerken",
-    "unstage": "Zurücknehmen",
-    "discard": "Änderungen verwerfen",
-    "commit": {
-      "label": "Committen",
-      "placeholder": "Commit-Nachricht"
-    },
-    "clean": "Arbeitsverzeichnis sauber — nichts zu committen"
-  },
-  "fileView": {
-    "list": "Listenansicht",
-    "tree": "Baumansicht"
-  },
-  "diff": {
-    "title": "Diff",
-    "sideBySide": "Nebeneinander",
-    "unified": "Vereinheitlicht",
-    "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen"
-  },
-  "actions": {
-    "refresh": "Aktualisieren",
-    "openRepo": "Repository öffnen"
-  },
-  "theme": {
-    "toggle": "Theme umschalten"
-  },
   "settings": {
     "title": "Einstellungen",
     "general": {
@@ -119,8 +63,8 @@
       "label": "Sprache",
       "hint": "Die Anzeigesprache von glimpse.",
       "name": {
-        "de": "Deutsch",
-        "en": "English"
+        "de-DE": "Deutsch",
+        "en-GB": "English"
       }
     }
   }

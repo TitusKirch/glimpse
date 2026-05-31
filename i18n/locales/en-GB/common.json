@@ -1,0 +1,20 @@
+{
+  "app": {
+    "name": "glimpse"
+  },
+  "error": {
+    "title": "Error"
+  },
+  "sync": {
+    "fetch": "Fetch",
+    "pull": "Pull",
+    "push": "Push"
+  },
+  "actions": {
+    "refresh": "Refresh",
+    "openRepo": "Open repository"
+  },
+  "theme": {
+    "toggle": "Toggle theme"
+  }
+}

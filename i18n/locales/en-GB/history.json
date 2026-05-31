@@ -1,0 +1,9 @@
+{
+  "graph": {
+    "title": "Commit graph",
+    "uncommitted": "Uncommitted changes"
+  },
+  "history": {
+    "title": "History"
+  }
+}

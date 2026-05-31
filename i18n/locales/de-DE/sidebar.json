@@ -1,0 +1,10 @@
+{
+  "sidebar": {
+    "branches": "Branches",
+    "remotes": "Remotes",
+    "remoteBranches": "Remote-Branches",
+    "tags": "Tags",
+    "newBranch": "Neuer Branch",
+    "branchName": "Branch-Name…"
+  }
+}

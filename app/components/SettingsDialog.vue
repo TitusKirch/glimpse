@@ -47,8 +47,8 @@ const fileViewOptions = ['list', 'tree'] as const;
 
 // Language: bind the select straight to the active i18n locale.
 const FLAG: Record<string, string> = {
-  de: 'flag:de-4x3',
-  en: 'flag:gb-4x3'
+  'de-DE': 'flag:de-4x3',
+  'en-GB': 'flag:gb-4x3'
 };
 const localeOptions = computed(() =>
   locales.value.map((l) => (typeof l === 'string' ? { code: l } : l))

@@ -1,60 +1,4 @@
 {
-  "app": {
-    "name": "glimpse"
-  },
-  "error": {
-    "title": "Error"
-  },
-  "sidebar": {
-    "branches": "Branches",
-    "remotes": "Remotes",
-    "remoteBranches": "Remote branches",
-    "tags": "Tags",
-    "newBranch": "New branch",
-    "branchName": "branch name…"
-  },
-  "sync": {
-    "fetch": "Fetch",
-    "pull": "Pull",
-    "push": "Push"
-  },
-  "graph": {
-    "title": "Commit graph",
-    "uncommitted": "Uncommitted changes"
-  },
-  "history": {
-    "title": "History"
-  },
-  "changes": {
-    "title": "Changes",
-    "staged": "Staged",
-    "unstaged": "Changes",
-    "stage": "Stage",
-    "unstage": "Unstage",
-    "discard": "Discard changes",
-    "commit": {
-      "label": "Commit",
-      "placeholder": "Commit message"
-    },
-    "clean": "Working tree clean — nothing to commit"
-  },
-  "fileView": {
-    "list": "List view",
-    "tree": "Tree view"
-  },
-  "diff": {
-    "title": "Diff",
-    "sideBySide": "Side by side",
-    "unified": "Unified",
-    "noSelection": "Select a commit or file to see its diff"
-  },
-  "actions": {
-    "refresh": "Refresh",
-    "openRepo": "Open repository"
-  },
-  "theme": {
-    "toggle": "Toggle theme"
-  },
   "settings": {
     "title": "Settings",
     "general": {
@@ -119,8 +63,8 @@
       "label": "Language",
       "hint": "The display language of glimpse.",
       "name": {
-        "de": "Deutsch",
-        "en": "English"
+        "de-DE": "Deutsch",
+        "en-GB": "English"
       }
     }
   }
