@@ -23,6 +23,12 @@
         "label": "Automatic updates",
         "hint": "Check for updates on launch and install them automatically."
       },
+      "releaseChannel": {
+        "label": "Release channel",
+        "hint": "Stable, or opt in to earlier beta builds.",
+        "stable": "Stable",
+        "beta": "Beta"
+      },
       "developer": "Developer",
       "devMode": {
         "label": "Developer settings",

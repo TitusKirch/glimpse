@@ -23,6 +23,12 @@
         "label": "Automatische Updates",
         "hint": "Beim Start nach Updates suchen und sie automatisch installieren."
       },
+      "releaseChannel": {
+        "label": "Release-Channel",
+        "hint": "Stable oder frühere Beta-Builds aktivieren.",
+        "stable": "Stable",
+        "beta": "Beta"
+      },
       "developer": "Entwickler",
       "devMode": {
         "label": "Entwickler-Einstellungen",

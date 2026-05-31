@@ -216,6 +216,71 @@ async fn open_in(path: String, app: String) -> Result<(), String> {
     platform::open_in(&path, &app)
 }
 
+/// Update manifest URL for a release channel. Stable rides the GitHub `latest`
+/// alias; beta uses a fixed, rolling `beta` release the beta workflow recreates.
+#[cfg(desktop)]
+fn updater_endpoint(channel: &str) -> &'static str {
+    match channel {
+        "beta" => "https://github.com/TitusKirch/glimpse/releases/download/beta/latest.json",
+        _ => "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json",
+    }
+}
+
+/// Build an updater pointed at the given channel's manifest. The runtime
+/// `endpoints` override is why channel switching needs Rust — the JS `check()`
+/// can only read the static config endpoints.
+#[cfg(desktop)]
+fn channel_updater(
+    app: &AppHandle,
+    channel: &str,
+) -> Result<tauri_plugin_updater::Updater, String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let url = updater_endpoint(channel)
+        .parse::<tauri::Url>()
+        .map_err(|e| e.to_string())?;
+    app.updater_builder()
+        .endpoints(vec![url])
+        .map_err(|e| e.to_string())?
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+/// Check the given channel for a newer version; returns its version string.
+#[cfg(desktop)]
+#[tauri::command]
+async fn check_update(app: AppHandle, channel: String) -> Result<Option<String>, String> {
+    let updater = channel_updater(&app, &channel)?;
+    let update = updater.check().await.map_err(|e| e.to_string())?;
+    Ok(update.map(|u| u.version))
+}
+
+/// Re-check the channel and, if an update exists, download and install it.
+#[cfg(desktop)]
+#[tauri::command]
+async fn install_update(app: AppHandle, channel: String) -> Result<(), String> {
+    let updater = channel_updater(&app, &channel)?;
+    let Some(update) = updater.check().await.map_err(|e| e.to_string())? else {
+        return Ok(());
+    };
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// Mobile has no updater; no-op stubs keep the command set identical per target.
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn check_update(_channel: String) -> Result<Option<String>, String> {
+    Ok(None)
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn install_update(_channel: String) -> Result<(), String> {
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -283,7 +348,9 @@ pub fn run() {
             pull,
             push,
             resolve_conflict,
-            open_in
+            open_in,
+            check_update,
+            install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

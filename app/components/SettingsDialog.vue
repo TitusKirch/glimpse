@@ -217,16 +217,42 @@ const lang = computed({
               >
                 {{ t('settings.general.updatesSection') }}
               </h3>
-              <div class="flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium">
-                    {{ t('settings.general.autoUpdate.label') }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ t('settings.general.autoUpdate.hint') }}
-                  </p>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.autoUpdate.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.autoUpdate.hint') }}
+                    </p>
+                  </div>
+                  <UiSwitch v-model="layout.autoUpdate" class="shrink-0" />
                 </div>
-                <UiSwitch v-model="layout.autoUpdate" class="shrink-0" />
+
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.releaseChannel.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.releaseChannel.hint') }}
+                    </p>
+                  </div>
+                  <UiSelect v-model="layout.releaseChannel">
+                    <UiSelectTrigger class="w-44 shrink-0">
+                      <UiSelectValue />
+                    </UiSelectTrigger>
+                    <UiSelectContent>
+                      <UiSelectItem value="stable">
+                        {{ t('settings.general.releaseChannel.stable') }}
+                      </UiSelectItem>
+                      <UiSelectItem value="beta">
+                        {{ t('settings.general.releaseChannel.beta') }}
+                      </UiSelectItem>
+                    </UiSelectContent>
+                  </UiSelect>
+                </div>
               </div>
             </div>
 

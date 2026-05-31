@@ -31,6 +31,8 @@ export const useLayoutStore = defineStore('layout', {
     autoFetchMinutes: 5,
     // Check for app updates on launch (and auto-install when found).
     autoUpdate: true,
+    // Update channel: stable releases or opt-in beta builds.
+    releaseChannel: 'stable' as 'stable' | 'beta',
     // Developer settings (extra debug tools in the settings dialog).
     devMode: false
   }),
