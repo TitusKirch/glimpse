@@ -52,5 +52,16 @@
   },
   "theme": {
     "toggle": "Toggle theme"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "themeHint": "Choose how glimpse looks. System follows your OS.",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    }
   }
 }

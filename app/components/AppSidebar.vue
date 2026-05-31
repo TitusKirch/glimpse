@@ -4,6 +4,7 @@ const { t } = useI18n();
 
 const creating = ref(false);
 const newBranch = ref('');
+const settingsOpen = ref(false);
 
 function cancel() {
   creating.value = false;
@@ -56,13 +57,17 @@ const links = [
     <UiSidebarContent>
       <UiSidebarGroup>
         <UiSidebarGroupLabel>{{ t('sidebar.branches') }}</UiSidebarGroupLabel>
-        <UiSidebarGroupAction
-          class="size-6"
-          :title="t('sidebar.newBranch')"
-          @click="creating = !creating"
-        >
-          <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />
-        </UiSidebarGroupAction>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarGroupAction
+              class="size-6 cursor-pointer"
+              @click="creating = !creating"
+            >
+              <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />
+            </UiSidebarGroupAction>
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('sidebar.newBranch') }}</UiTooltipContent>
+        </UiTooltip>
         <UiSidebarGroupContent>
           <div
             v-if="creating"
@@ -158,7 +163,7 @@ const links = [
         <UiSidebarGroupContent>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="item in links" :key="item.title">
-              <UiSidebarMenuButton as-child size="sm">
+              <UiSidebarMenuButton as-child :tooltip="item.title">
                 <a
                   :href="item.url"
                   target="_blank"
@@ -170,6 +175,15 @@ const links = [
                 </a>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
+            <UiSidebarMenuItem>
+              <UiSidebarMenuButton
+                :tooltip="t('settings.title')"
+                @click="settingsOpen = true"
+              >
+                <NuxtIcon name="lucide:settings" class="shrink-0" />
+                <span>{{ t('settings.title') }}</span>
+              </UiSidebarMenuButton>
+            </UiSidebarMenuItem>
           </UiSidebarMenu>
         </UiSidebarGroupContent>
       </UiSidebarGroup>
@@ -177,4 +191,6 @@ const links = [
 
     <UiSidebarRail />
   </UiSidebar>
+
+  <SettingsDialog v-model:open="settingsOpen" />
 </template>

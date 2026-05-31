@@ -52,5 +52,16 @@
   },
   "theme": {
     "toggle": "Theme umschalten"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "appearance": {
+      "title": "Darstellung",
+      "theme": "Theme",
+      "themeHint": "Wähle, wie glimpse aussieht. „System“ folgt deinem Betriebssystem.",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    }
   }
 }
