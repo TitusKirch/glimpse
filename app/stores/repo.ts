@@ -337,8 +337,10 @@ export const useRepoStore = defineStore('repo', {
       this.lastRefresh = 'just now';
       this.refreshing = true;
       try {
+        // Reload the active repo by its own path — not the process CWD, which
+        // would overwrite another opened repo's tab with glimpse itself.
         await Promise.all([
-          this.loadFromBackend(),
+          this.loadFromBackend(this.active.path),
           promiseTimeout(MIN_SPINNER_MS)
         ]);
       } finally {

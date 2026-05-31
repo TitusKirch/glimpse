@@ -17,51 +17,53 @@ const { t } = useI18n();
           t('diff.title')
         }}</span>
       </div>
-      <div class="flex shrink-0 items-center gap-1">
-        <UiButton
-          :variant="layout.diffMode === 'split' ? 'secondary' : 'ghost'"
-          size="sm"
-          @click="layout.setDiffMode('split')"
-        >
-          {{ t('diff.sideBySide') }}
-        </UiButton>
-        <UiButton
-          :variant="layout.diffMode === 'unified' ? 'secondary' : 'ghost'"
-          size="sm"
-          @click="layout.setDiffMode('unified')"
-        >
-          {{ t('diff.unified') }}
-        </UiButton>
-      </div>
+      <!-- diff mode toggle — same segmented style as Changes/History -->
+      <UiTabs
+        :model-value="layout.diffMode"
+        class="shrink-0"
+        @update:model-value="
+          (v) => layout.setDiffMode(v as 'split' | 'unified')
+        "
+      >
+        <UiTabsList class="h-8">
+          <UiTabsTrigger value="split" class="text-xs">{{
+            t('diff.sideBySide')
+          }}</UiTabsTrigger>
+          <UiTabsTrigger value="unified" class="text-xs">{{
+            t('diff.unified')
+          }}</UiTabsTrigger>
+        </UiTabsList>
+      </UiTabs>
     </header>
 
-    <!-- commit detail: full message + author/date -->
-    <div
-      v-if="repo.selectedHash && repo.selectedCommit"
-      class="shrink-0 border-b px-4 py-3"
-    >
-      <pre
-        class="max-h-40 overflow-auto font-sans text-sm leading-relaxed break-words whitespace-pre-wrap"
-        >{{ repo.selectedBody || repo.selectedCommit.subject }}</pre
-      >
-      <div class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-        <NuxtIcon name="lucide:user" class="size-3.5" />
-        <span>{{ repo.selectedCommit.author }}</span>
-        <span>·</span>
-        <span>{{ repo.selectedCommit.date }}</span>
-        <code class="ml-auto font-mono">{{
-          repo.selectedCommit.hash.slice(0, 7)
-        }}</code>
-      </div>
-    </div>
-
-    <!-- commit: resizable file list (top) / diff (bottom) -->
+    <!-- commit: resizable detail / file list / diff -->
     <UiResizablePanelGroup
       v-if="repo.selectedHash && repo.commitFiles.length"
       direction="vertical"
       class="min-h-0 flex-1"
     >
-      <UiResizablePanel :default-size="30" :min-size="10">
+      <UiResizablePanel :default-size="20" :min-size="8">
+        <div class="h-full overflow-auto px-4 py-3">
+          <pre
+            class="font-sans text-sm leading-relaxed break-words whitespace-pre-wrap"
+            >{{ repo.selectedBody || repo.selectedCommit?.subject }}</pre
+          >
+          <div
+            v-if="repo.selectedCommit"
+            class="mt-2 flex items-center gap-2 text-xs text-muted-foreground"
+          >
+            <NuxtIcon name="lucide:user" class="size-3.5" />
+            <span>{{ repo.selectedCommit.author }}</span>
+            <span>·</span>
+            <span>{{ repo.selectedCommit.date }}</span>
+            <code class="ml-auto font-mono">{{
+              repo.selectedCommit.hash.slice(0, 7)
+            }}</code>
+          </div>
+        </div>
+      </UiResizablePanel>
+      <UiResizableHandle />
+      <UiResizablePanel :default-size="25" :min-size="10">
         <div class="flex h-full flex-col text-sm">
           <FileViewToggle class="border-b" />
           <div class="min-h-0 flex-1 overflow-auto px-1 py-1">
@@ -75,7 +77,7 @@ const { t } = useI18n();
         </div>
       </UiResizablePanel>
       <UiResizableHandle />
-      <UiResizablePanel :default-size="70" :min-size="20">
+      <UiResizablePanel :default-size="55" :min-size="20">
         <CodeDiff
           v-if="repo.diff && repo.diff.hunks.length"
           :hunks="repo.diff.hunks"
