@@ -31,7 +31,7 @@ const lang = computed({
 <template>
   <UiDialog v-model:open="open">
     <UiDialogContent
-      class="flex h-[90vh] w-[98vw] max-w-[98vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[98vw]"
+      class="flex h-[85vh] w-[90vw] max-w-5xl flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
     >
       <UiDialogHeader class="border-b px-6 py-4">
         <UiDialogTitle>{{ t('settings.title') }}</UiDialogTitle>
