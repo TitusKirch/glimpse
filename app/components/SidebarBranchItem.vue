@@ -40,25 +40,25 @@ const { t } = useI18n();
       <span
         v-if="!branch.published"
         :title="t('sidebar.localOnlyHint')"
-        class="ml-auto flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-destructive/15 pr-1.5 pl-1 text-[10px] font-medium text-destructive"
+        class="ml-auto flex shrink-0 items-center gap-0.5 rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] leading-none font-medium text-destructive"
         ><NuxtIcon name="lucide:cloud-off" class="size-3" />{{
           t('sidebar.localOnly')
         }}</span
       >
       <span
         v-else-if="branch.ahead || branch.behind"
-        class="ml-auto flex shrink-0 items-center gap-1 pl-1 text-[10px] font-medium"
+        class="ml-auto flex shrink-0 items-center gap-2 pl-1 text-[11px] font-medium tabular-nums"
       >
         <span
           v-if="branch.ahead"
-          class="flex h-4 items-center gap-0.5 rounded-full bg-green-500/15 pr-1.5 pl-1 text-green-600 dark:text-green-400"
+          class="flex items-center gap-0.5 text-green-600 dark:text-green-400"
           ><NuxtIcon name="lucide:arrow-up" class="size-3" />{{
             branch.ahead
           }}</span
         >
         <span
           v-if="branch.behind"
-          class="flex h-4 items-center gap-0.5 rounded-full bg-amber-500/15 pr-1.5 pl-1 text-amber-600 dark:text-amber-400"
+          class="flex items-center gap-0.5 text-amber-600 dark:text-amber-400"
           ><NuxtIcon name="lucide:arrow-down" class="size-3" />{{
             branch.behind
           }}</span
