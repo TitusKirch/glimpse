@@ -33,11 +33,15 @@ const { t } = useI18n();
   <UiSidebarMenuItem v-else>
     <UiSidebarMenuButton
       :is-active="branch.name === repo.currentBranch"
-      :tooltip="branch.name"
       @click="repo.checkout(branch.name)"
     >
       <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-      <span class="truncate">{{ shortenBranch(branch.name) }}</span>
+      <UiTooltip>
+        <UiTooltipTrigger as-child>
+          <span class="truncate">{{ shortenBranch(branch.name) }}</span>
+        </UiTooltipTrigger>
+        <UiTooltipContent side="right">{{ branch.name }}</UiTooltipContent>
+      </UiTooltip>
       <span
         v-if="!branch.published"
         :title="t('sidebar.localOnlyHint')"

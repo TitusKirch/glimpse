@@ -18,10 +18,14 @@ export function useBranchLabel() {
     return name;
   }
 
-  // Graph refs arrive prefixed (`HEAD -> main`, `tag: v1`); strip those first.
+  // Graph refs arrive prefixed (`HEAD -> main`, `tag: v1`); strip those.
+  function fullRefLabel(ref: string): string {
+    return ref.replace('HEAD -> ', '').replace('tag: ', '');
+  }
+  // The shortened, display version of a graph ref.
   function refLabel(ref: string): string {
-    return shortenBranch(ref.replace('HEAD -> ', '').replace('tag: ', ''));
+    return shortenBranch(fullRefLabel(ref));
   }
 
-  return { shortenBranch, refLabel };
+  return { shortenBranch, refLabel, fullRefLabel };
 }

@@ -2,7 +2,7 @@
 import { useVirtualizer } from '@tanstack/vue-virtual';
 
 const repo = useRepoStore();
-const { refLabel } = useBranchLabel();
+const { refLabel, fullRefLabel } = useBranchLabel();
 const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
@@ -185,14 +185,14 @@ function refVariant(ref: string) {
             >
               <div class="min-w-0 flex-1 overflow-hidden">
                 <div class="flex min-w-0 items-center gap-1.5">
-                  <UiBadge
-                    v-for="ref in vr.commit.refs"
-                    :key="ref"
-                    :variant="refVariant(ref)"
-                    size="sm"
-                  >
-                    {{ refLabel(ref) }}
-                  </UiBadge>
+                  <UiTooltip v-for="ref in vr.commit.refs" :key="ref">
+                    <UiTooltipTrigger as-child>
+                      <UiBadge :variant="refVariant(ref)" size="sm">
+                        {{ refLabel(ref) }}
+                      </UiBadge>
+                    </UiTooltipTrigger>
+                    <UiTooltipContent>{{ fullRefLabel(ref) }}</UiTooltipContent>
+                  </UiTooltip>
                   <span class="truncate text-sm font-medium">{{
                     vr.commit.subject
                   }}</span>
