@@ -175,10 +175,11 @@ impl Repo {
     }
 
     pub fn info(&self) -> Result<RepoInfo, String> {
-        let toplevel = self
-            .run(&["rev-parse", "--show-toplevel"])?
-            .trim()
-            .to_string();
+        // git reports the toplevel in its own environment (a Linux path under
+        // WSL). Map it back to a host path so re-opening it routes the same way
+        // — otherwise the WSL distro is lost and the next call hits native git.
+        let raw_top = self.run(&["rev-parse", "--show-toplevel"])?;
+        let toplevel = self.target.host_path(raw_top.trim());
         let current_branch = self
             .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
             .trim()

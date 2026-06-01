@@ -60,6 +60,21 @@ impl GitTarget {
         cmd
     }
 
+    /// Map a path git reports *inside* its environment back to a host path that
+    /// [`resolve`] routes identically. For WSL the Linux toplevel (`/root/…`)
+    /// becomes the `\\wsl.localhost\<distro>\…` UNC so it round-trips; native
+    /// paths pass through. Without this a WSL repo's toplevel would resolve to
+    /// native git on Windows ("cannot change to '/root/…'").
+    pub fn host_path(&self, inner: &str) -> String {
+        match &self.distro {
+            Some(distro) => {
+                let tail = inner.trim_start_matches('/').replace('/', "\\");
+                format!("\\\\wsl.localhost\\{distro}\\{tail}")
+            }
+            None => inner.to_string(),
+        }
+    }
+
     /// The exact argv [`command`] would run, as a single string — appended to
     /// error messages so a failing invocation (especially the WSL path) is
     /// visible to the user instead of just git's bare stderr.
@@ -290,6 +305,40 @@ mod tests {
     #[test]
     fn open_candidates_unknown_is_empty() {
         assert!(super::open_candidates("nope", "/x").is_empty());
+    }
+
+    #[test]
+    fn wsl_toplevel_round_trips_to_unc() {
+        // A WSL target's git toplevel (a Linux path) must map back to a UNC that
+        // parse_wsl_path routes to the same distro + path — otherwise re-opening
+        // the repo falls through to native git and fails.
+        let target = super::GitTarget {
+            program: "wsl.exe".into(),
+            prefix_args: Vec::new(),
+            repo_arg: "/root/projects/x".into(),
+            flavor: "wsl",
+            distro: Some("Ubuntu-22.04".into()),
+        };
+        let host = target.host_path("/root/projects/comGithub/TitusKirch/glimpse");
+        assert_eq!(
+            host,
+            "\\\\wsl.localhost\\Ubuntu-22.04\\root\\projects\\comGithub\\TitusKirch\\glimpse"
+        );
+        let (distro, path) = parse_wsl_path(&host).unwrap();
+        assert_eq!(distro, "Ubuntu-22.04");
+        assert_eq!(path, "/root/projects/comGithub/TitusKirch/glimpse");
+    }
+
+    #[test]
+    fn native_toplevel_passes_through() {
+        let target = super::GitTarget {
+            program: "git".into(),
+            prefix_args: Vec::new(),
+            repo_arg: "C:\\dev\\x".into(),
+            flavor: "windows",
+            distro: None,
+        };
+        assert_eq!(target.host_path("C:\\dev\\x"), "C:\\dev\\x");
     }
 
     #[test]
