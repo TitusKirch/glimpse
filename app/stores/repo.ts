@@ -142,7 +142,10 @@ export const useRepoStore = defineStore('repo', {
     refreshing: false,
     // How many commits to load; raised by "load more history".
     logLimit: 200,
-    loadingMore: false
+    loadingMore: false,
+    // Whether the last log fetch hit the limit (i.e. more history exists). Stored
+    // rather than derived so it doesn't flip false mid-load and hide the button.
+    hasMore: false
   }),
   getters: {
     // The active repository and the tab strip over all open ones. `active` is
@@ -219,9 +222,9 @@ export const useRepoStore = defineStore('repo', {
       const b = this.branches.find((x) => x.name === this.currentBranch);
       return b?.behind ?? 0;
     },
-    // The log was truncated at the limit, so more history can be loaded.
+    // The last log fetch hit the limit, so more history can be loaded.
     hasMoreHistory(): boolean {
-      return this.commits.length >= this.logLimit;
+      return this.hasMore;
     }
   },
   actions: {
@@ -866,15 +869,23 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const commits = await gitClient.log(this.repoPath, this.logLimit);
       if (commits.length) this.active.commits = commits;
+      // Hitting the limit means git had more to give → another page exists.
+      this.hasMore = commits.length >= this.logLimit;
     },
 
-    // Load another page of history (raise the log limit and reload).
+    // Load another page of history (raise the log limit and reload). The button
+    // stays put and shows a spinner; `hasMore` only flips after the reload, so it
+    // hides only when there is genuinely nothing left. A 300ms floor keeps the
+    // spinner from flashing on fast local loads.
     async loadMoreHistory() {
-      if (!isTauri()) return;
-      this.logLimit += 200;
+      if (!isTauri() || this.loadingMore) return;
       this.loadingMore = true;
+      this.logLimit += 200;
       try {
-        await this.loadLog();
+        await Promise.all([
+          this.loadLog(),
+          new Promise((resolve) => setTimeout(resolve, 300))
+        ]);
       } finally {
         this.loadingMore = false;
       }
