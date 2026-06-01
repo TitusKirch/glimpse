@@ -6,6 +6,21 @@ const { t } = useI18n();
 // Native HTML5 drag-and-drop for tab reordering — no extra dependency.
 const dragId = ref<string | null>(null);
 
+// Map a WSL distro name to its brand icon (simple-icons), falling back to the
+// generic Tux penguin when the distro isn't recognised.
+function distroIcon(distro?: string): string {
+  const d = (distro ?? '').toLowerCase();
+  if (d.includes('ubuntu')) return 'simple-icons:ubuntu';
+  if (d.includes('debian')) return 'simple-icons:debian';
+  if (d.includes('arch')) return 'simple-icons:archlinux';
+  if (d.includes('fedora')) return 'simple-icons:fedora';
+  if (d.includes('suse')) return 'simple-icons:opensuse';
+  if (d.includes('kali')) return 'simple-icons:kalilinux';
+  if (d.includes('alpine')) return 'simple-icons:alpinelinux';
+  if (d.includes('mint')) return 'simple-icons:linuxmint';
+  return 'simple-icons:linux';
+}
+
 function onDrop(targetId: string) {
   const from = dragId.value;
   dragId.value = null;
@@ -40,13 +55,15 @@ function onDrop(targetId: string) {
       @drop="onDrop(tab.id)"
     >
       <span>{{ tab.name }}</span>
-      <UiBadge
-        v-if="tab.flavor === 'wsl'"
-        variant="secondary"
-        class="text-[10px] uppercase"
-      >
-        {{ tab.distro || 'WSL' }}
-      </UiBadge>
+      <UiTooltip v-if="tab.flavor === 'wsl'">
+        <UiTooltipTrigger as-child>
+          <NuxtIcon
+            :name="distroIcon(tab.distro)"
+            class="size-3.5 shrink-0 text-muted-foreground"
+          />
+        </UiTooltipTrigger>
+        <UiTooltipContent>{{ tab.distro || 'WSL' }}</UiTooltipContent>
+      </UiTooltip>
       <button
         class="flex size-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-background/60"
         :class="
