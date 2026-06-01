@@ -44,6 +44,10 @@
         "label": "Test toasts",
         "hint": "Fire one of each toast kind."
       },
+      "badges": {
+        "label": "Badges",
+        "hint": "Every badge variant at a glance."
+      },
       "info": {
         "label": "Info",
         "title": "Info",
@@ -95,6 +99,11 @@
         "default": "Default",
         "large": "Large",
         "xlarge": "Extra large"
+      },
+      "graphSection": "Graph",
+      "shortenDependabot": {
+        "label": "Shorten Dependabot branches",
+        "hint": "Collapse long dependabot/… branch names in the history graph."
       }
     },
     "language": {

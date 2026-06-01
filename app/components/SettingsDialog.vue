@@ -20,6 +20,17 @@ function fireToast(tk: (typeof toastKinds)[number]) {
   });
 }
 
+// Dev-only: every badge variant at a glance (the design-system reference).
+const badgeKinds = [
+  'default',
+  'secondary',
+  'outline',
+  'info',
+  'success',
+  'warning',
+  'destructive'
+] as const;
+
 // Left navigation, grouped into sections separated by dividers. The Developer
 // section only appears when dev mode is on.
 const navSections = computed(() => {
@@ -334,6 +345,25 @@ const lang = computed({
                 </div>
               </div>
             </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.dev.badges.label') }}
+              </h3>
+              <p class="mb-3 text-xs text-muted-foreground">
+                {{ t('settings.dev.badges.hint') }}
+              </p>
+              <div class="flex flex-wrap items-center gap-2">
+                <UiBadge v-for="v in badgeKinds" :key="v" :variant="v">
+                  {{ v }}
+                </UiBadge>
+                <UiBadge variant="warning" icon="lucide:flask-round">
+                  with icon
+                </UiBadge>
+              </div>
+            </div>
           </section>
 
           <section v-else-if="page === 'appearance'" class="w-full space-y-8">
@@ -488,6 +518,25 @@ const lang = computed({
                     </UiSelectContent>
                   </UiSelect>
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.appearance.graphSection') }}
+              </h3>
+              <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    {{ t('settings.appearance.shortenDependabot.label') }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ t('settings.appearance.shortenDependabot.hint') }}
+                  </p>
+                </div>
+                <UiSwitch v-model="layout.shortenDependabot" class="shrink-0" />
               </div>
             </div>
           </section>

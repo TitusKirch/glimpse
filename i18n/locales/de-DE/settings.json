@@ -44,6 +44,10 @@
         "label": "Toasts testen",
         "hint": "Je einen Toast pro Art auslösen."
       },
+      "badges": {
+        "label": "Badges",
+        "hint": "Alle Badge-Varianten auf einen Blick."
+      },
       "info": {
         "label": "Info",
         "title": "Info",
@@ -95,6 +99,11 @@
         "default": "Standard",
         "large": "Groß",
         "xlarge": "Sehr groß"
+      },
+      "graphSection": "Graph",
+      "shortenDependabot": {
+        "label": "Dependabot-Branches kürzen",
+        "hint": "Lange dependabot/…-Branchnamen im Verlaufsgraphen kürzen."
       }
     },
     "language": {
