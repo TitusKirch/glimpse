@@ -131,7 +131,7 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "Änderungen unstaged behalten",
     "resetHard": "Hard",
-    "resetHardHint": "alle Änderungen verwerfen"
+    "resetHardHint": "Alle Änderungen verwerfen"
   },
   "command": {
     "open": "Befehlspalette",
