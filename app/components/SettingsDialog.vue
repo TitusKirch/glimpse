@@ -542,9 +542,9 @@ const lang = computed({
                 :key="l.title"
                 variant="outline"
                 size="sm"
+                :icon="l.icon"
                 @click="openExternal(l.url)"
               >
-                <NuxtIcon :name="l.icon" class="size-4" />
                 {{ l.title }}
               </UiButton>
             </div>

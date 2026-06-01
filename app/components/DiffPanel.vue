@@ -53,11 +53,10 @@ function onStageHunk(hunk: string) {
               <UiButton
                 variant="ghost"
                 size="icon-sm"
+                icon="lucide:user-round-search"
                 :class="blame && 'text-primary'"
                 @click="blame = !blame"
-              >
-                <NuxtIcon name="lucide:user-round-search" class="size-4" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('diff.blame') }}</UiTooltipContent>
           </UiTooltip>
@@ -66,11 +65,10 @@ function onStageHunk(hunk: string) {
               <UiButton
                 variant="ghost"
                 size="icon-sm"
+                icon="lucide:pilcrow"
                 :class="layout.ignoreWhitespace && 'text-primary'"
                 @click="toggleWhitespace"
-              >
-                <NuxtIcon name="lucide:pilcrow" class="size-4" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{
               t('diff.ignoreWhitespace')
@@ -81,18 +79,15 @@ function onStageHunk(hunk: string) {
               <UiButton
                 variant="ghost"
                 size="icon-sm"
+                icon="lucide:history"
                 @click="historyOpen = true"
-              >
-                <NuxtIcon name="lucide:history" class="size-4" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('diff.fileHistory') }}</UiTooltipContent>
           </UiTooltip>
           <UiDropdownMenu>
             <UiDropdownMenuTrigger as-child>
-              <UiButton variant="ghost" size="icon-sm">
-                <NuxtIcon name="lucide:copy" class="size-4" />
-              </UiButton>
+              <UiButton variant="ghost" size="icon-sm" icon="lucide:copy" />
             </UiDropdownMenuTrigger>
             <UiDropdownMenuContent align="end">
               <UiDropdownMenuItem @click="copyPath">
@@ -155,9 +150,12 @@ function onStageHunk(hunk: string) {
             }}</code>
             <UiDropdownMenu>
               <UiDropdownMenuTrigger as-child>
-                <UiButton variant="ghost" size="icon" class="size-6">
-                  <NuxtIcon name="lucide:ellipsis" class="size-4" />
-                </UiButton>
+                <UiButton
+                  variant="ghost"
+                  size="icon"
+                  class="size-6"
+                  icon="lucide:ellipsis"
+                />
               </UiDropdownMenuTrigger>
               <UiDropdownMenuContent align="end">
                 <UiDropdownMenuItem

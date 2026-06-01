@@ -90,19 +90,21 @@ const syncButtons = [
               <UiButton
                 variant="ghost"
                 size="icon"
+                icon="lucide:search"
                 :disabled="!repo.hasRepos"
                 @click="palette.show()"
-              >
-                <NuxtIcon name="lucide:search" class="size-4" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('command.open') }}</UiTooltipContent>
           </UiTooltip>
           <UiTooltip>
             <UiTooltipTrigger as-child>
-              <UiButton variant="ghost" size="icon" @click="help.show()">
-                <NuxtIcon name="lucide:keyboard" class="size-4" />
-              </UiButton>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                icon="lucide:keyboard"
+                @click="help.show()"
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('help.title') }}</UiTooltipContent>
           </UiTooltip>
@@ -132,14 +134,12 @@ const syncButtons = [
             variant="ghost"
             size="sm"
             class="gap-1.5"
-            :disabled="repo.busy || repo.refreshing || !repo.hasRepos"
+            icon="lucide:refresh-cw"
+            icon-size="sm"
+            :pending="repo.refreshing"
+            :disabled="repo.busy || !repo.hasRepos"
             @click="repo.refresh"
           >
-            <NuxtIcon
-              name="lucide:refresh-cw"
-              class="size-3.5"
-              :class="repo.refreshing && 'animate-spin'"
-            />
             {{ t('actions.refresh') }}
           </UiButton>
           <ThemeToggle />
@@ -154,8 +154,12 @@ const syncButtons = [
         :description="repo.loadError"
         class="min-h-0 flex-1"
       >
-        <UiButton variant="outline" size="sm" @click="repo.retryLoad()">
-          <NuxtIcon name="lucide:refresh-cw" class="size-4" />
+        <UiButton
+          variant="outline"
+          size="sm"
+          icon="lucide:refresh-cw"
+          @click="repo.retryLoad()"
+        >
           {{ t('error.retry') }}
         </UiButton>
       </EmptyState>

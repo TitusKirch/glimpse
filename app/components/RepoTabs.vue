@@ -84,10 +84,9 @@ function onDrop(targetId: string) {
           variant="ghost"
           size="icon"
           class="size-7"
+          icon="lucide:plus"
           @click="openRepoDialog.show()"
-        >
-          <NuxtIcon name="lucide:plus" class="size-4" />
-        </UiButton>
+        />
       </UiTooltipTrigger>
       <UiTooltipContent>{{ t('actions.openRepo') }}</UiTooltipContent>
     </UiTooltip>

@@ -13,10 +13,10 @@ const { t } = useI18n();
           :variant="layout.fileView === 'list' ? 'secondary' : 'ghost'"
           size="icon"
           class="size-6"
+          icon="lucide:list"
+          icon-size="sm"
           @click="layout.setFileView('list')"
-        >
-          <NuxtIcon name="lucide:list" class="size-3.5" />
-        </UiButton>
+        />
       </UiTooltipTrigger>
       <UiTooltipContent>{{ t('fileView.list') }}</UiTooltipContent>
     </UiTooltip>
@@ -26,10 +26,10 @@ const { t } = useI18n();
           :variant="layout.fileView === 'tree' ? 'secondary' : 'ghost'"
           size="icon"
           class="size-6"
+          icon="lucide:folder-tree"
+          icon-size="sm"
           @click="layout.setFileView('tree')"
-        >
-          <NuxtIcon name="lucide:folder-tree" class="size-3.5" />
-        </UiButton>
+        />
       </UiTooltipTrigger>
       <UiTooltipContent>{{ t('fileView.tree') }}</UiTooltipContent>
     </UiTooltip>

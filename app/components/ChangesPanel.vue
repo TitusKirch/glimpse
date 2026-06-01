@@ -96,10 +96,10 @@ onMounted(autoResize);
                 variant="ghost"
                 size="icon"
                 class="size-5 opacity-0 group-hover:opacity-100"
+                icon="lucide:ellipsis"
+                icon-size="sm"
                 @click.stop
-              >
-                <NuxtIcon name="lucide:ellipsis" class="size-3.5" />
-              </UiButton>
+              />
             </UiDropdownMenuTrigger>
             <UiDropdownMenuContent align="end">
               <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'ours')">
@@ -139,10 +139,10 @@ onMounted(autoResize);
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:minus"
+                  icon-size="sm"
                   @click.stop="repo.unstage(file.path)"
-                >
-                  <NuxtIcon name="lucide:minus" class="size-3.5" />
-                </UiButton>
+                />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.unstage') }}</UiTooltipContent>
             </UiTooltip>
@@ -164,10 +164,10 @@ onMounted(autoResize);
                 variant="ghost"
                 size="icon"
                 class="ml-auto size-5 opacity-0 group-hover/sec:opacity-100"
+                icon="lucide:undo-2"
+                icon-size="sm"
                 @click="repo.discardAll()"
-              >
-                <NuxtIcon name="lucide:undo-2" class="size-3.5" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('changes.discardAll') }}</UiTooltipContent>
           </UiTooltip>
@@ -185,10 +185,10 @@ onMounted(autoResize);
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:undo-2"
+                  icon-size="sm"
                   @click.stop="repo.discard(file.path, file.untracked)"
-                >
-                  <NuxtIcon name="lucide:undo-2" class="size-3.5" />
-                </UiButton>
+                />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.discard') }}</UiTooltipContent>
             </UiTooltip>
@@ -198,10 +198,10 @@ onMounted(autoResize);
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:plus"
+                  icon-size="sm"
                   @click.stop="repo.stage(file.path)"
-                >
-                  <NuxtIcon name="lucide:plus" class="size-3.5" />
-                </UiButton>
+                />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.stage') }}</UiTooltipContent>
             </UiTooltip>

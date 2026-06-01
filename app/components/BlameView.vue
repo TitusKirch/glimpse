@@ -92,20 +92,21 @@ function isNewBlock(i: number): boolean {
                     variant="ghost"
                     size="icon"
                     class="ml-auto size-6"
+                    icon="lucide:copy"
+                    icon-size="sm"
                     :aria-label="t('commit.copyHash')"
                     @click="copyText(l.hash)"
-                  >
-                    <NuxtIcon name="lucide:copy" class="size-3.5" />
-                  </UiButton>
+                  />
                 </div>
                 <UiSeparator />
                 <UiButton
                   variant="outline"
                   size="sm"
                   class="w-full"
+                  icon="lucide:eye"
+                  icon-size="sm"
                   @click="viewCommit(l.hash)"
                 >
-                  <NuxtIcon name="lucide:eye" class="size-3.5" />
                   {{ t('diff.blameViewCommit') }}
                 </UiButton>
               </UiHoverCardContent>

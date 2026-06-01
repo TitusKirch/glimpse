@@ -10,14 +10,12 @@ function toggle() {
 <template>
   <UiTooltip>
     <UiTooltipTrigger as-child>
-      <UiButton variant="ghost" size="icon" @click="toggle">
-        <NuxtIcon
-          v-if="colorMode.value === 'dark'"
-          name="lucide:moon"
-          class="size-4"
-        />
-        <NuxtIcon v-else name="lucide:sun" class="size-4" />
-      </UiButton>
+      <UiButton
+        variant="ghost"
+        size="icon"
+        :icon="colorMode.value === 'dark' ? 'lucide:moon' : 'lucide:sun'"
+        @click="toggle"
+      />
     </UiTooltipTrigger>
     <UiTooltipContent>{{ t('theme.toggle') }}</UiTooltipContent>
   </UiTooltip>

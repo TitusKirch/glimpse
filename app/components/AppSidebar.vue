@@ -70,8 +70,12 @@ const links = [
             t('sidebar.noRepo.hint')
           }}</UiAlertDescription>
         </UiAlert>
-        <UiButton size="sm" class="mt-2 w-full" @click="openRepoDialog.show()">
-          <NuxtIcon name="lucide:folder-open" class="size-4" />
+        <UiButton
+          size="sm"
+          class="mt-2 w-full"
+          icon="lucide:folder-open"
+          @click="openRepoDialog.show()"
+        >
           {{ t('actions.openRepo') }}
         </UiButton>
       </div>
