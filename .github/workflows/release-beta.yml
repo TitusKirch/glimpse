@@ -66,19 +66,26 @@ jobs:
           // Base = next stable. Honour release-please's `release-as` if pinned,
           // else bump the latest stable tag from conventional commits.
           const cfg = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
-          const releaseAs = cfg.packages && cfg.packages['.'] && cfg.packages['.']['release-as'];
-          const stable = sh('git tag --list "v*"').split('\n').filter(Boolean)
-            .map((t) => t.replace(/^v/, '')).filter((v) => /^\d+\.\d+\.\d+$/.test(v)).sort(cmp);
-          const lastStable = stable[stable.length - 1] || '0.0.0';
+          const pkg = (cfg.packages && cfg.packages['.']) || {};
           let base;
-          if (releaseAs) {
-            base = releaseAs;
+          if (pkg['release-as']) {
+            // While release-please pins the next version, just use it.
+            base = pkg['release-as'];
           } else {
-            const range = stable.length ? `v${lastStable}..HEAD` : 'HEAD';
+            // Anchor on release-please's authoritative last-released version, then
+            // bump from conventional commits the same way release-please would,
+            // honouring bump-minor-pre-major / bump-patch-for-minor-pre-major.
+            let last = '0.0.0';
+            try { last = JSON.parse(fs.readFileSync('.release-please-manifest.json', 'utf8'))['.'] || '0.0.0'; } catch {}
+            const range = sh(`git tag --list "v${last}"`) ? `v${last}..HEAD` : 'HEAD';
             const log = sh(`git log ${range} --format=%s%n%b`);
-            const [maj, min, pat] = lastStable.split('.').map(Number);
-            if (/(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log)) base = `${maj + 1}.0.0`;
-            else if (/(^|\n)feat(\(.+?\))?:/.test(log)) base = `${maj}.${min + 1}.0`;
+            const [maj, min, pat] = last.split('.').map(Number);
+            const breaking = /(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log);
+            const feat = /(^|\n)feat(\(.+?\))?:/.test(log);
+            const preMajor = maj === 0 && pkg['bump-minor-pre-major'];
+            const patchForMinor = pkg['bump-patch-for-minor-pre-major'];
+            if (breaking) base = preMajor ? `${maj}.${min + 1}.0` : `${maj + 1}.0.0`;
+            else if (feat) base = preMajor && patchForMinor ? `${maj}.${min}.${pat + 1}` : `${maj}.${min + 1}.0`;
             else base = `${maj}.${min}.${pat + 1}`;
           }
           const esc = base.replace(/\./g, '\\.');
