@@ -107,7 +107,7 @@
       },
       "sidebarWidth": {
         "label": "Width (px)",
-        "hint": "Expanded sidebar width, 192–512."
+        "hint": "Expanded sidebar width, 192–512. Default 256px."
       },
       "graphSection": "Graph",
       "shortenDependabot": {

@@ -107,7 +107,7 @@
       },
       "sidebarWidth": {
         "label": "Breite (px)",
-        "hint": "Breite der aufgeklappten Seitenleiste, 192–512."
+        "hint": "Breite der aufgeklappten Seitenleiste, 192–512. Standard 256px."
       },
       "graphSection": "Graph",
       "shortenDependabot": {
