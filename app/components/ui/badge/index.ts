@@ -14,13 +14,16 @@ export const badgeVariants = cva(
           'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
-        // Soft, borderless semantic tints built on the theme tokens (shared with
-        // the toast/button colour set). Tinted background + matching text, no
-        // hard border — readable in both light and dark.
-        info: 'border-transparent bg-info/10 text-info',
-        success: 'border-transparent bg-success/10 text-success',
-        warning: 'border-transparent bg-warning/10 text-warning',
-        destructive: 'border-transparent bg-destructive/10 text-destructive'
+        // Soft, borderless semantic tints: a 10% colour wash + a legible
+        // 600/400 text shade (the theme tokens are tuned as solid fills and
+        // read too light as text on the wash in light mode). No hard border.
+        info: 'border-transparent bg-blue-500/10 text-blue-600 dark:text-blue-400',
+        success:
+          'border-transparent bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+        warning:
+          'border-transparent bg-amber-500/10 text-amber-600 dark:text-amber-400',
+        destructive:
+          'border-transparent bg-red-500/10 text-red-600 dark:text-red-400'
       },
       size: {
         // `sm` is the dense variant for the commit-graph ref badges.
