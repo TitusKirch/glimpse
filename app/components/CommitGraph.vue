@@ -186,16 +186,17 @@ function refClass(ref: string): string {
               "
               @click="repo.selectCommit(vr.commit.hash)"
             >
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5">
+              <div class="min-w-0 flex-1 overflow-hidden">
+                <div class="flex min-w-0 items-center gap-1.5">
                   <UiBadge
                     v-for="ref in vr.commit.refs"
                     :key="ref"
                     variant="outline"
-                    class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
+                    :title="refLabel(ref)"
+                    class="h-[18px] max-w-[12rem] shrink overflow-hidden px-1.5 text-[10px] font-medium"
                     :class="refClass(ref)"
                   >
-                    {{ refLabel(ref) }}
+                    <span class="truncate">{{ refLabel(ref) }}</span>
                   </UiBadge>
                   <span class="truncate text-sm font-medium">{{
                     vr.commit.subject
