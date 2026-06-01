@@ -53,7 +53,11 @@ export default defineNuxtConfig({
         'highlight.js',
         'reka-ui',
         'tailwind-merge',
-        'vue-sonner'
+        'vue-sonner',
+        // vuedraggable + its sortablejs core ship CJS; pre-bundle so Vite
+        // resolves them to ESM up front instead of re-optimizing mid-load.
+        'vuedraggable',
+        'sortablejs'
       ]
     }
   },
