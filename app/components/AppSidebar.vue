@@ -21,6 +21,7 @@ const isCollapsed = computed(
 );
 
 const layout = useLayoutStore();
+const { shortenBranch } = useBranchLabel();
 // Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
 // Width persists in the layout store and feeds --sidebar-width via the
 // provider. Transitions are suppressed (body class) during the drag so it
@@ -221,7 +222,7 @@ const links = [
                   "
                   class="shrink-0"
                 />
-                <span>{{ rb }}</span>
+                <span class="truncate">{{ shortenBranch(rb) }}</span>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
             <SidebarMoreButton

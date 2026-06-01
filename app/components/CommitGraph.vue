@@ -2,7 +2,7 @@
 import { useVirtualizer } from '@tanstack/vue-virtual';
 
 const repo = useRepoStore();
-const prefs = useLayoutStore();
+const { refLabel } = useBranchLabel();
 const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
@@ -57,19 +57,6 @@ const filtered = computed(() => {
   );
 });
 
-function refLabel(ref: string): string {
-  let label = ref.replace('HEAD -> ', '').replace('tag: ', '');
-  // Compact a long bot branch (guarded so normal hyphenated branches are left
-  // alone): collapse the noisy middle *and* drop the trailing version/hash
-  // (everything from the last '-'). e.g.
-  // origin/dependabot/npm_and_yarn/pkg-action-1.2.3 -> origin/dependabot/…/pkg-action
-  if (prefs.shortenDependabot && /dependabot\//.test(label)) {
-    label = label
-      .replace(/(dependabot)\/.+\/([^/]+)$/, '$1/…/$2')
-      .replace(/-[^/-]*$/, '');
-  }
-  return label;
-}
 // Map a ref type to a semantic badge variant (no per-call colour classes):
 // HEAD = success, tag = warning, remote-tracking = outline, local = info.
 function refVariant(ref: string) {
