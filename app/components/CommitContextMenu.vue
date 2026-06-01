@@ -43,7 +43,7 @@ const copyText = useCopy();
       <UiContextMenuSub>
         <UiContextMenuSubTrigger>
           <NuxtIcon name="lucide:rotate-ccw" />
-          <span class="flex-1 whitespace-nowrap">{{ t('commit.reset') }}</span>
+          {{ t('commit.reset') }}
         </UiContextMenuSubTrigger>
         <UiContextMenuSubContent class="w-64">
           <UiContextMenuItem @select="repo.reset(hash, 'soft')">
