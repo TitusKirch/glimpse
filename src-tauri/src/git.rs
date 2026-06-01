@@ -372,7 +372,10 @@ impl Repo {
     /// Merge `branch` into the current branch (no editor). Conflicts surface in
     /// the status as unmerged entries, handled by the conflicts UI.
     pub fn merge(&self, branch: &str) -> Result<String, String> {
-        self.run(&["merge", "--no-edit", branch])
+        // `--no-ff` always records a merge commit, so a merged branch keeps its
+        // own lane + merge point in the graph instead of being fast-forwarded
+        // into a straight line (which erases the branch topology).
+        self.run(&["merge", "--no-ff", "--no-edit", branch])
     }
 
     /// Discard every working-tree change: restore tracked files to HEAD and
