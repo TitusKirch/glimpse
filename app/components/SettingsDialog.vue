@@ -533,7 +533,7 @@ const lang = computed({
                 </p>
               </div>
             </div>
-            <p class="max-w-lg text-sm leading-relaxed text-muted-foreground">
+            <p class="text-sm leading-relaxed text-muted-foreground">
               {{ t('settings.about.description') }}
             </p>
             <div class="flex flex-wrap gap-2">
