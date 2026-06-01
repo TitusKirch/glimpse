@@ -221,10 +221,11 @@ function refClass(ref: string): string {
         variant="ghost"
         size="sm"
         class="w-full gap-1.5 text-xs text-muted-foreground"
-        :loading="repo.loadingMore"
+        icon="lucide:chevron-down"
+        icon-size="sm"
+        :pending="repo.loadingMore"
         @click="repo.loadMoreHistory()"
       >
-        <NuxtIcon name="lucide:chevron-down" class="size-3.5" />
         {{ t('history.loadMore') }}
       </UiButton>
     </div>

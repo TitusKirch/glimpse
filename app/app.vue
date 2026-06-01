@@ -112,11 +112,11 @@ const syncButtons = [
                 variant="ghost"
                 size="icon"
                 class="relative"
+                :icon="b.icon"
                 :disabled="repo.busy || !repo.hasRepos"
-                :loading="repo.syncing === b.command"
+                :pending="repo.syncing === b.command"
                 @click="repo.sync(b.command)"
               >
-                <NuxtIcon :name="b.icon" class="size-4" />
                 <!-- behind-upstream indicator on the pull button -->
                 <span
                   v-if="b.command === 'pull' && repo.behind"

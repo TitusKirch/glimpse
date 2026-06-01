@@ -275,10 +275,10 @@ const lang = computed({
                     variant="outline"
                     size="sm"
                     class="shrink-0"
-                    :loading="checking"
+                    icon="lucide:refresh-cw"
+                    :pending="checking"
                     @click="checkForUpdates()"
                   >
-                    <NuxtIcon name="lucide:refresh-cw" class="size-4" />
                     {{ t('settings.about.checkUpdates') }}
                   </UiButton>
                 </div>
