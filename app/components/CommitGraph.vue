@@ -187,7 +187,12 @@ function refClass(ref: string): string {
               @click="repo.selectCommit(vr.commit.hash)"
             >
               <div class="min-w-0 flex-1 overflow-hidden">
-                <div class="flex min-w-0 items-center gap-1.5">
+                <!-- ref badges get their own line so they never crowd or push
+                     the subject; the row is tall enough for all three lines -->
+                <div
+                  v-if="vr.commit.refs.length"
+                  class="flex min-w-0 items-center gap-1.5 overflow-hidden"
+                >
                   <UiBadge
                     v-for="ref in vr.commit.refs"
                     :key="ref"
@@ -197,10 +202,10 @@ function refClass(ref: string): string {
                   >
                     {{ refLabel(ref) }}
                   </UiBadge>
-                  <span class="truncate text-sm font-medium">{{
-                    vr.commit.subject
-                  }}</span>
                 </div>
+                <span class="block truncate text-sm font-medium">{{
+                  vr.commit.subject
+                }}</span>
                 <div class="mt-1 truncate text-xs text-muted-foreground">
                   {{ vr.commit.author }} · {{ vr.commit.date }}
                 </div>
