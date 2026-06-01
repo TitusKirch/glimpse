@@ -8,13 +8,10 @@ const openRepoDialog = useOpenRepoDialog();
 const help = useHelpDialog();
 const { t } = useI18n();
 
-// BETA tag next to the app name on pre-release builds (the running version
-// carries a `-beta`/`-rc` suffix — not the updater channel setting).
-const { isPrerelease } = useAppVersion();
-// TESTING: forced on so the badge styling is reviewable on any build. Remove
-// `forceBetaBadge ||` to ship the real, version-driven behaviour.
-const forceBetaBadge = true;
-const showBetaBadge = computed(() => forceBetaBadge || isPrerelease.value);
+// BETA tag next to the app name, shown only on an actual pre-release build (the
+// running version carries a `-beta`/`-rc` suffix — not the updater channel
+// setting). In dev / stable builds it stays hidden.
+const { isPrerelease: showBetaBadge } = useAppVersion();
 
 // Collapsed (icon-only) sidebar: items open a dropdown instead of acting
 // directly, so their actions stay reachable.
@@ -71,14 +68,6 @@ const links = [
           class="group-data-[collapsible=icon]:hidden"
         >
           BETA
-        </UiBadge>
-        <UiBadge
-          v-if="showBetaBadge"
-          variant="destructive"
-          icon="lucide:flask-conical"
-          class="group-data-[collapsible=icon]:hidden"
-        >
-          Experiment
         </UiBadge>
       </div>
     </UiSidebarHeader>
