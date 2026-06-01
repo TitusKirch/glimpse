@@ -67,7 +67,7 @@ impl GitTarget {
             let mut cmd = Command::new("wsl.exe");
             no_window(&mut cmd);
             let out = cmd
-                .args(["-d", distro, "--exec", "cat", &path])
+                .args(["-d", distro, "--cd", &self.repo_arg, "--exec", "cat", &path])
                 .output()
                 .ok()?;
             return out
@@ -98,10 +98,19 @@ pub fn resolve(repo_path: &str) -> GitTarget {
     if let Some((distro, linux_path)) = parse_wsl_path(repo_path) {
         return GitTarget {
             program: "wsl.exe".into(),
-            // `--exec` runs git directly instead of through the WSL login shell;
-            // a shell (e.g. zsh) would otherwise glob-expand args like
-            // `--format=%(upstream)` ("missing delimiter for 'u' glob qualifier").
-            prefix_args: vec!["-d".into(), distro.clone(), "--exec".into(), "git".into()],
+            // `--cd` pins the working dir to the repo so wsl.exe doesn't inherit
+            // (and fail on) the untranslatable Windows cwd. `--exec` runs git
+            // directly instead of through the WSL login shell, which would
+            // otherwise glob-expand args like `--format=%(upstream)`
+            // ("missing delimiter for 'u' glob qualifier").
+            prefix_args: vec![
+                "-d".into(),
+                distro.clone(),
+                "--cd".into(),
+                linux_path.clone(),
+                "--exec".into(),
+                "git".into(),
+            ],
             repo_arg: linux_path,
             flavor: "wsl",
             distro: Some(distro),
