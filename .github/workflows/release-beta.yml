@@ -7,6 +7,14 @@
 # Pick a semver-ordered version, e.g. 0.1.0-beta.1 → 0.1.0-beta.2 → … so the
 # updater offers newer betas; a later stable 0.1.0 supersedes them all.
 #
+# Two-phase to keep the rolling release clean and the updater manifest correct:
+#   1. `prepare` wipes and recreates the `beta` release + tag at the current
+#      commit (no stale assets, fresh body/commit), and exports its id.
+#   2. `build` runs the OS matrix SERIALLY (max-parallel: 1) and uploads to that
+#      release. tauri-action merges each platform into the existing latest.json,
+#      so running serially (not in parallel) avoids the read-modify-write race
+#      that previously left latest.json with only one platform.
+#
 # Requires the same signing secrets as the stable bundle job
 # (see UPDATER-SETUP.local.md).
 
@@ -27,12 +35,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  beta:
+  prepare:
+    name: Reset rolling beta release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
+    steps:
+      # Wipe the previous rolling beta (release + tag + all accumulated assets)
+      # so each dispatch starts from a clean release with only this version's
+      # artifacts and an up-to-date target commit.
+      - name: Recreate the beta release
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete beta --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create beta \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title 'Beta' \
+            --notes "Rolling beta channel build ${{ inputs.version }}." \
+            --prerelease
+          id=$(gh release view beta --repo "$GITHUB_REPOSITORY" --json databaseId --jq '.databaseId')
+          echo "release_id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
     name: Beta build (${{ matrix.os }})
+    needs: prepare
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      # Serial: tauri-action merges each platform into the release's latest.json,
+      # so parallel jobs race and lose entries. One at a time → all platforms.
+      max-parallel: 1
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -89,8 +126,9 @@ jobs:
           jq --arg v "${{ inputs.version }}" '.version = $v' \
             src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
 
-      # Builds + signs and (re)publishes the rolling `beta` release with
-      # installers + latest.json. Marked as a prerelease.
+      # Builds + signs and uploads installers to the prepared release, merging
+      # this platform into latest.json. No release creation here — `prepare` owns
+      # the release; `releaseId` targets it.
       - name: Build and upload beta
         uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
         env:
@@ -98,8 +136,5 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: beta
-          releaseName: 'Beta'
-          releaseBody: 'Rolling beta channel build ${{ inputs.version }}.'
-          prerelease: true
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           includeUpdaterJson: true
