@@ -142,7 +142,10 @@ export const useRepoStore = defineStore('repo', {
     refreshing: false,
     // How many commits to load; raised by "load more history".
     logLimit: 200,
-    loadingMore: false
+    loadingMore: false,
+    // Whether the last log fetch hit the limit (i.e. more history exists). Stored
+    // rather than derived so it doesn't flip false mid-load and hide the button.
+    hasMore: false
   }),
   getters: {
     // The active repository and the tab strip over all open ones. `active` is
@@ -213,15 +216,21 @@ export const useRepoStore = defineStore('repo', {
     conflictedFiles(): StatusEntry[] {
       return this.status.filter((f) => f.conflicted);
     },
-    // How far the current branch is behind its upstream — drives the "new
-    // commits" indicator on the pull button after a (manual or auto) fetch.
+    // How far the current branch is behind its upstream — drives the "incoming
+    // commits" badge on the pull button after a (manual or auto) fetch.
     behind(): number {
       const b = this.branches.find((x) => x.name === this.currentBranch);
       return b?.behind ?? 0;
     },
-    // The log was truncated at the limit, so more history can be loaded.
+    // How far the current branch is ahead of its upstream — drives the
+    // "unpushed commits" badge on the push button.
+    ahead(): number {
+      const b = this.branches.find((x) => x.name === this.currentBranch);
+      return b?.ahead ?? 0;
+    },
+    // The last log fetch hit the limit, so more history can be loaded.
     hasMoreHistory(): boolean {
-      return this.commits.length >= this.logLimit;
+      return this.hasMore;
     }
   },
   actions: {
@@ -498,6 +507,21 @@ export const useRepoStore = defineStore('repo', {
         await gitClient.merge(this.repoPath, branch);
         await this.loadFromBackend(this.active?.path);
       });
+    },
+
+    // Merge the CURRENT branch into `branch` (the reverse direction). Git can't
+    // merge into a branch that isn't checked out, so this switches to `branch`
+    // first — reusing checkout()'s dirty-tree guard — then merges the former
+    // current into it. You end up on `branch`, matching the GitKraken
+    // "merge A into B" semantics.
+    async mergeCurrentInto(branch: string) {
+      if (!isTauri() || branch === this.currentBranch) return;
+      const source = this.currentBranch;
+      await this.checkout(branch);
+      // checkout() aborts silently if the user declines the dirty-tree prompt;
+      // only merge once we're actually on the target.
+      if (this.currentBranch !== branch) return;
+      await this.merge(source);
     },
 
     // Discard every working-tree change (confirms first — irreversible).
@@ -851,15 +875,23 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       const commits = await gitClient.log(this.repoPath, this.logLimit);
       if (commits.length) this.active.commits = commits;
+      // Hitting the limit means git had more to give → another page exists.
+      this.hasMore = commits.length >= this.logLimit;
     },
 
-    // Load another page of history (raise the log limit and reload).
+    // Load another page of history (raise the log limit and reload). The button
+    // stays put and shows a spinner; `hasMore` only flips after the reload, so it
+    // hides only when there is genuinely nothing left. A 300ms floor keeps the
+    // spinner from flashing on fast local loads.
     async loadMoreHistory() {
-      if (!isTauri()) return;
-      this.logLimit += 200;
+      if (!isTauri() || this.loadingMore) return;
       this.loadingMore = true;
+      this.logLimit += 200;
       try {
-        await this.loadLog();
+        await Promise.all([
+          this.loadLog(),
+          new Promise((resolve) => setTimeout(resolve, 300))
+        ]);
       } finally {
         this.loadingMore = false;
       }

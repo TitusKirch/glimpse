@@ -92,7 +92,7 @@
     },
     "about": {
       "title": "Acerca de",
-      "description": "Un cliente Git de escritorio ligero y git-nativo con soporte de WSL de primera clase."
+      "description": "Un cliente Git de escritorio ligero y git-nativo: el grafo de ramas completo, diffs y el git del día a día, con soporte de WSL de primera clase."
     }
   }
 }

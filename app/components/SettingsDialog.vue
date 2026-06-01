@@ -275,10 +275,10 @@ const lang = computed({
                     variant="outline"
                     size="sm"
                     class="shrink-0"
-                    :loading="checking"
+                    icon="lucide:refresh-cw"
+                    :pending="checking"
                     @click="checkForUpdates()"
                   >
-                    <NuxtIcon name="lucide:refresh-cw" class="size-4" />
                     {{ t('settings.about.checkUpdates') }}
                   </UiButton>
                 </div>
@@ -525,7 +525,7 @@ const lang = computed({
 
           <section v-else-if="page === 'about'" class="w-full space-y-6">
             <div class="flex items-center gap-3">
-              <span class="text-3xl">👀</span>
+              <img src="/logo_128x128.png" alt="" class="size-10 shrink-0" />
               <div>
                 <p class="text-base font-semibold">{{ t('app.name') }}</p>
                 <p class="font-mono text-xs text-muted-foreground">
@@ -533,7 +533,7 @@ const lang = computed({
                 </p>
               </div>
             </div>
-            <p class="max-w-lg text-sm leading-relaxed text-muted-foreground">
+            <p class="text-sm leading-relaxed text-muted-foreground">
               {{ t('settings.about.description') }}
             </p>
             <div class="flex flex-wrap gap-2">
@@ -542,9 +542,9 @@ const lang = computed({
                 :key="l.title"
                 variant="outline"
                 size="sm"
+                :icon="l.icon"
                 @click="openExternal(l.url)"
               >
-                <NuxtIcon :name="l.icon" class="size-4" />
                 {{ l.title }}
               </UiButton>
             </div>

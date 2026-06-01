@@ -1,0 +1,50 @@
+# cargo-deny policy. Run locally: cargo deny --manifest-path src-tauri/Cargo.toml check
+#
+# Strict where it matters for supply-chain safety (security advisories, crate
+# sources); lenient on the noise an app this size can't avoid (duplicate
+# transitive versions). Mirrors the meta-layer's npm security posture.
+
+[advisories]
+# RustSec advisory database. Security vulnerabilities always fail. We refuse
+# yanked crates too. `unmaintained = "workspace"` scopes the unmaintained check
+# to our own direct deps — the deep transitive gtk3 bindings Tauri pulls on
+# Linux (RUSTSEC-2024-0411..0418) are unmaintained upstream and out of our
+# control, so flagging them would just be permanent noise.
+yanked = "deny"
+unmaintained = "workspace"
+ignore = [
+  # glib VariantStrIter unsoundness, fixed in glib 0.20. Tauri 2's Linux stack
+  # (webkit2gtk-4.1 -> gtk3-rs) pins glib 0.18, so it's unfixable until Tauri
+  # moves to gtk4; not remotely exploitable (a Linux UI lib). Revisit on upgrade.
+  "RUSTSEC-2024-0429"
+]
+
+[licenses]
+# Permissive-only: the project ships under MIT, so copyleft (GPL/AGPL) deps
+# should surface as a failure. Allow the licenses our tree actually uses.
+confidence-threshold = 0.8
+allow = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  "MPL-2.0",
+  "CC0-1.0",
+  "Unicode-3.0",
+  "CDLA-Permissive-2.0"
+]
+
+[bans]
+# Duplicate versions are unavoidable in a tree this large (Tauri alone pulls
+# several windows-sys/bitflags majors) — surface them as a warning, not a gate.
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+# Only the official registry is trusted; any unknown registry or git source fails.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

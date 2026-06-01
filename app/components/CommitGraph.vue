@@ -186,13 +186,13 @@ function refClass(ref: string): string {
               "
               @click="repo.selectCommit(vr.commit.hash)"
             >
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-1.5">
+              <div class="min-w-0 flex-1 overflow-hidden">
+                <div class="flex min-w-0 items-center gap-1.5">
                   <UiBadge
                     v-for="ref in vr.commit.refs"
                     :key="ref"
                     variant="outline"
-                    class="h-[18px] gap-0 px-1.5 text-[10px] font-medium"
+                    class="h-[18px] shrink-0 px-1.5 text-[10px] font-medium whitespace-nowrap"
                     :class="refClass(ref)"
                   >
                     {{ refLabel(ref) }}
@@ -221,10 +221,11 @@ function refClass(ref: string): string {
         variant="ghost"
         size="sm"
         class="w-full gap-1.5 text-xs text-muted-foreground"
-        :loading="repo.loadingMore"
+        icon="lucide:chevron-down"
+        icon-size="sm"
+        :pending="repo.loadingMore"
         @click="repo.loadMoreHistory()"
       >
-        <NuxtIcon name="lucide:chevron-down" class="size-3.5" />
         {{ t('history.loadMore') }}
       </UiButton>
     </div>

@@ -121,13 +121,13 @@ impl Repo {
 
     /// Run `git <args>` against this repo, returning stdout or trimmed stderr.
     fn run(&self, args: &[&str]) -> Result<String, String> {
-        let output = self
-            .target
-            .command(args)
-            .output()
-            .map_err(|e| format!("failed to run git: {e}"))?;
+        let output =
+            self.target.command(args).output().map_err(|e| {
+                format!("failed to run git: {e}\n\n$ {}", self.target.describe(args))
+            })?;
         if !output.status.success() {
-            return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(format!("{stderr}\n\n$ {}", self.target.describe(args)));
         }
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
@@ -175,10 +175,11 @@ impl Repo {
     }
 
     pub fn info(&self) -> Result<RepoInfo, String> {
-        let toplevel = self
-            .run(&["rev-parse", "--show-toplevel"])?
-            .trim()
-            .to_string();
+        // git reports the toplevel in its own environment (a Linux path under
+        // WSL). Map it back to a host path so re-opening it routes the same way
+        // — otherwise the WSL distro is lost and the next call hits native git.
+        let raw_top = self.run(&["rev-parse", "--show-toplevel"])?;
+        let toplevel = self.target.host_path(raw_top.trim());
         let current_branch = self
             .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
             .trim()
@@ -371,7 +372,10 @@ impl Repo {
     /// Merge `branch` into the current branch (no editor). Conflicts surface in
     /// the status as unmerged entries, handled by the conflicts UI.
     pub fn merge(&self, branch: &str) -> Result<String, String> {
-        self.run(&["merge", "--no-edit", branch])
+        // `--no-ff` always records a merge commit, so a merged branch keeps its
+        // own lane + merge point in the graph instead of being fast-forwarded
+        // into a straight line (which erases the branch topology).
+        self.run(&["merge", "--no-ff", "--no-edit", branch])
     }
 
     /// Discard every working-tree change: restore tracked files to HEAD and

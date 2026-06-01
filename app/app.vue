@@ -69,6 +69,13 @@ const syncButtons = [
   { command: 'pull' as const, icon: 'lucide:arrow-down', label: 'sync.pull' },
   { command: 'push' as const, icon: 'lucide:arrow-up', label: 'sync.push' }
 ];
+
+// Count badge on the sync buttons: behind-count on pull, ahead-count on push.
+function syncCount(command: string): number {
+  if (command === 'pull') return repo.behind;
+  if (command === 'push') return repo.ahead;
+  return 0;
+}
 </script>
 
 <template>
@@ -90,19 +97,21 @@ const syncButtons = [
               <UiButton
                 variant="ghost"
                 size="icon"
+                icon="lucide:search"
                 :disabled="!repo.hasRepos"
                 @click="palette.show()"
-              >
-                <NuxtIcon name="lucide:search" class="size-4" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('command.open') }}</UiTooltipContent>
           </UiTooltip>
           <UiTooltip>
             <UiTooltipTrigger as-child>
-              <UiButton variant="ghost" size="icon" @click="help.show()">
-                <NuxtIcon name="lucide:keyboard" class="size-4" />
-              </UiButton>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                icon="lucide:keyboard"
+                @click="help.show()"
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('help.title') }}</UiTooltipContent>
           </UiTooltip>
@@ -110,18 +119,20 @@ const syncButtons = [
             <UiTooltipTrigger as-child>
               <UiButton
                 variant="ghost"
-                size="icon"
-                class="relative"
+                :size="syncCount(b.command) ? 'sm' : 'icon'"
+                :icon="b.icon"
                 :disabled="repo.busy || !repo.hasRepos"
-                :loading="repo.syncing === b.command"
+                :pending="repo.syncing === b.command"
                 @click="repo.sync(b.command)"
               >
-                <NuxtIcon :name="b.icon" class="size-4" />
-                <!-- behind-upstream indicator on the pull button -->
+                <!-- behind-count on pull, ahead-count on push -->
                 <span
-                  v-if="b.command === 'pull' && repo.behind"
-                  class="absolute -top-0.5 -right-0.5 flex min-w-3.5 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] leading-none font-semibold text-white"
-                  >{{ repo.behind }}</span
+                  v-if="syncCount(b.command)"
+                  class="text-xs font-medium tabular-nums"
+                  :class="
+                    b.command === 'push' ? 'text-success' : 'text-warning'
+                  "
+                  >{{ syncCount(b.command) }}</span
                 >
               </UiButton>
             </UiTooltipTrigger>
@@ -132,14 +143,12 @@ const syncButtons = [
             variant="ghost"
             size="sm"
             class="gap-1.5"
-            :disabled="repo.busy || repo.refreshing || !repo.hasRepos"
+            icon="lucide:refresh-cw"
+            icon-size="sm"
+            :pending="repo.refreshing"
+            :disabled="repo.busy || !repo.hasRepos"
             @click="repo.refresh"
           >
-            <NuxtIcon
-              name="lucide:refresh-cw"
-              class="size-3.5"
-              :class="repo.refreshing && 'animate-spin'"
-            />
             {{ t('actions.refresh') }}
           </UiButton>
           <ThemeToggle />
@@ -154,8 +163,12 @@ const syncButtons = [
         :description="repo.loadError"
         class="min-h-0 flex-1"
       >
-        <UiButton variant="outline" size="sm" @click="repo.retryLoad()">
-          <NuxtIcon name="lucide:refresh-cw" class="size-4" />
+        <UiButton
+          variant="outline"
+          size="sm"
+          icon="lucide:refresh-cw"
+          @click="repo.retryLoad()"
+        >
           {{ t('error.retry') }}
         </UiButton>
       </EmptyState>

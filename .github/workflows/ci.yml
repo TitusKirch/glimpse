@@ -20,6 +20,7 @@ jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event.pull_request.draft == false
     steps:
       - uses: actions/checkout@v6
@@ -43,9 +44,28 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+  # Supply-chain gate for the Rust crate: security advisories (RustSec),
+  # license policy, and crate-source allowlist. Config: src-tauri/deny.toml.
+  deny:
+    name: Cargo deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2.0.20
+        with:
+          manifest-path: src-tauri/Cargo.toml
+          command: check
+
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Gate the expensive 3-OS matrix on lint/format/tests: if those fail the
+    # build never starts, saving ~13 min of runner time per failed check.
+    needs: lint
+    timeout-minutes: 30
     if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false

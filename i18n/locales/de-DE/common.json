@@ -115,7 +115,8 @@
     "switch": "Zu Branch wechseln",
     "rename": "Umbenennen",
     "delete": "Löschen",
-    "merge": "In aktuellen mergen"
+    "merge": "In aktuellen mergen",
+    "mergeCurrentInto": "Aktuellen hier hineinmergen"
   },
   "commit": {
     "checkout": "Diesen Commit auschecken",
@@ -125,9 +126,12 @@
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
     "reset": "Hierhin zurücksetzen",
-    "resetSoft": "Soft (Änderungen vorgemerkt lassen)",
-    "resetMixed": "Mixed (Änderungen behalten)",
-    "resetHard": "Hard (Änderungen verwerfen)"
+    "resetSoft": "Soft",
+    "resetSoftHint": "Änderungen vorgemerkt lassen",
+    "resetMixed": "Mixed",
+    "resetMixedHint": "Änderungen unstaged behalten",
+    "resetHard": "Hard",
+    "resetHardHint": "Alle Änderungen verwerfen"
   },
   "command": {
     "open": "Befehlspalette",

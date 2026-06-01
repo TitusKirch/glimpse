@@ -50,7 +50,7 @@ const links = [
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
       <div class="flex h-8 items-center gap-2 px-2 text-sm font-bold">
-        <span>👀</span>
+        <img src="/logo_128x128.png" alt="" class="size-5 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
         }}</span>
@@ -70,8 +70,12 @@ const links = [
             t('sidebar.noRepo.hint')
           }}</UiAlertDescription>
         </UiAlert>
-        <UiButton size="sm" class="mt-2 w-full" @click="openRepoDialog.show()">
-          <NuxtIcon name="lucide:folder-open" class="size-4" />
+        <UiButton
+          size="sm"
+          class="mt-2 w-full"
+          icon="lucide:folder-open"
+          @click="openRepoDialog.show()"
+        >
           {{ t('actions.openRepo') }}
         </UiButton>
       </div>
@@ -258,7 +262,11 @@ const links = [
           </p>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
-              <UiSidebarMenuButton :tooltip="s.message">
+              <UiSidebarMenuButton
+                :tooltip="s.message"
+                :is-active="repo.selectedHash === s.reference"
+                @click="repo.selectCommit(s.reference)"
+              >
                 <NuxtIcon name="lucide:archive" class="shrink-0" />
                 <span class="truncate">{{ s.message }}</span>
               </UiSidebarMenuButton>

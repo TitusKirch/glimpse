@@ -24,6 +24,10 @@ const stagedItems = computed(() =>
 const unstagedItems = computed(() =>
   repo.unstagedFiles.map((f) => ({ ...f, status: letter(f, false) }))
 );
+// Conflicts carry a "U" (unmerged) letter; the section header already flags them.
+const conflictItems = computed(() =>
+  repo.conflictedFiles.map((f) => ({ ...f, status: 'U' }))
+);
 
 // Subject is the first line; git convention favours <= 50 chars (warn), and
 // hard-wraps the eye at 72 (over). Drives the live counter colour.
@@ -42,6 +46,23 @@ const canCommit = computed(
   () =>
     !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
 );
+
+// Auto-grow the commit box with its content: reset to 'auto' then snap to the
+// scroll height. A CSS min/max-height keeps it between ~3 rows and a cap (then
+// it scrolls internally), so a long body never swallows the file list.
+const commitBox = ref<HTMLTextAreaElement | null>(null);
+function autoResize() {
+  const el = commitBox.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+// Re-fit on programmatic changes too (amend prefill, post-commit clear).
+watch(
+  () => repo.commitMessage,
+  () => nextTick(autoResize)
+);
+onMounted(autoResize);
 </script>
 
 <template>
@@ -61,45 +82,45 @@ const canCommit = computed(
         >
           {{ t('changes.conflicts') }} ({{ repo.conflictedFiles.length }})
         </h3>
-        <div
-          v-for="f in repo.conflictedFiles"
-          :key="f.path"
-          class="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
-          :class="repo.selectedFile === f.path ? 'bg-accent' : ''"
-          @click="repo.selectFile(f.path, false)"
+        <FileTree
+          :files="conflictItems"
+          :view="layout.fileView"
+          :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
+          @select="(p) => repo.selectFile(p, false)"
         >
-          <NuxtIcon
-            name="lucide:triangle-alert"
-            class="size-3.5 shrink-0 text-warning"
-          />
-          <span class="min-w-0 flex-1 truncate">{{ f.path }}</span>
-          <UiDropdownMenu>
-            <UiDropdownMenuTrigger as-child>
-              <UiButton
-                variant="ghost"
-                size="icon"
-                class="size-5 opacity-0 group-hover:opacity-100"
-                @click.stop
-              >
-                <NuxtIcon name="lucide:ellipsis" class="size-3.5" />
-              </UiButton>
-            </UiDropdownMenuTrigger>
-            <UiDropdownMenuContent align="end">
-              <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'ours')">
-                {{ t('changes.useOurs') }}
-              </UiDropdownMenuItem>
-              <UiDropdownMenuItem
-                @click="repo.resolveConflict(f.path, 'theirs')"
-              >
-                {{ t('changes.useTheirs') }}
-              </UiDropdownMenuItem>
-              <UiDropdownMenuSeparator />
-              <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'mark')">
-                {{ t('changes.markResolved') }}
-              </UiDropdownMenuItem>
-            </UiDropdownMenuContent>
-          </UiDropdownMenu>
-        </div>
+          <template #actions="{ file }">
+            <UiDropdownMenu>
+              <UiDropdownMenuTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon"
+                  class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:ellipsis"
+                  icon-size="sm"
+                  @click.stop
+                />
+              </UiDropdownMenuTrigger>
+              <UiDropdownMenuContent align="end">
+                <UiDropdownMenuItem
+                  @click="repo.resolveConflict(file.path, 'ours')"
+                >
+                  {{ t('changes.useOurs') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuItem
+                  @click="repo.resolveConflict(file.path, 'theirs')"
+                >
+                  {{ t('changes.useTheirs') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuSeparator />
+                <UiDropdownMenuItem
+                  @click="repo.resolveConflict(file.path, 'mark')"
+                >
+                  {{ t('changes.markResolved') }}
+                </UiDropdownMenuItem>
+              </UiDropdownMenuContent>
+            </UiDropdownMenu>
+          </template>
+        </FileTree>
       </section>
 
       <!-- staged -->
@@ -122,10 +143,10 @@ const canCommit = computed(
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:minus"
+                  icon-size="sm"
                   @click.stop="repo.unstage(file.path)"
-                >
-                  <NuxtIcon name="lucide:minus" class="size-3.5" />
-                </UiButton>
+                />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.unstage') }}</UiTooltipContent>
             </UiTooltip>
@@ -147,10 +168,10 @@ const canCommit = computed(
                 variant="ghost"
                 size="icon"
                 class="ml-auto size-5 opacity-0 group-hover/sec:opacity-100"
+                icon="lucide:undo-2"
+                icon-size="sm"
                 @click="repo.discardAll()"
-              >
-                <NuxtIcon name="lucide:undo-2" class="size-3.5" />
-              </UiButton>
+              />
             </UiTooltipTrigger>
             <UiTooltipContent>{{ t('changes.discardAll') }}</UiTooltipContent>
           </UiTooltip>
@@ -168,10 +189,10 @@ const canCommit = computed(
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:undo-2"
+                  icon-size="sm"
                   @click.stop="repo.discard(file.path, file.untracked)"
-                >
-                  <NuxtIcon name="lucide:undo-2" class="size-3.5" />
-                </UiButton>
+                />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.discard') }}</UiTooltipContent>
             </UiTooltip>
@@ -181,10 +202,10 @@ const canCommit = computed(
                   variant="ghost"
                   size="icon"
                   class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:plus"
+                  icon-size="sm"
                   @click.stop="repo.stage(file.path)"
-                >
-                  <NuxtIcon name="lucide:plus" class="size-3.5" />
-                </UiButton>
+                />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.stage') }}</UiTooltipContent>
             </UiTooltip>
@@ -204,10 +225,11 @@ const canCommit = computed(
     <div class="border-t p-2">
       <div class="relative">
         <textarea
+          ref="commitBox"
           v-model="repo.commitMessage"
-          rows="3"
           :placeholder="t('changes.commit.placeholder')"
-          class="w-full resize-none rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          class="max-h-48 min-h-[4.5rem] w-full resize-none overflow-y-auto rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          @input="autoResize"
         />
         <span
           class="pointer-events-none absolute right-2 bottom-1.5 font-mono text-[10px]"

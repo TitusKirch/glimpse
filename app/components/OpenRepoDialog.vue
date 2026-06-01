@@ -35,8 +35,7 @@ async function reopen(path: string) {
         </UiDialogDescription>
       </UiDialogHeader>
 
-      <UiButton class="w-full" @click="pick">
-        <NuxtIcon name="lucide:folder-open" class="size-4" />
+      <UiButton class="w-full" icon="lucide:folder-open" @click="pick">
         {{ t('actions.openRepo') }}
       </UiButton>
 

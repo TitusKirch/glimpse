@@ -7,12 +7,23 @@
 //! - **Linux / macOS / Windows:** run the native `git` found on `PATH`.
 //! - **Windows + WSL (Windows-only):** a repo that lives in the WSL filesystem
 //!   (`\\wsl$\<distro>\...` or `\\wsl.localhost\<distro>\...`) is driven through
-//!   that distro's git via `wsl.exe -d <distro> -- git -C <linux-path>`.
+//!   that distro's git via `wsl.exe -d <distro> --exec git -C <linux-path>`.
 //!
 //! Adding a new platform means adding its arm to [`resolve`] / [`native_flavor`]
 //! — callers never change.
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::process::Command;
+
+/// Suppress the flashing console window a Windows console subprocess (git.exe,
+/// wsl.exe) would otherwise spawn for every git call. No-op off Windows. Only
+/// for internal commands — `open_in` deliberately shows a window.
+fn no_window(cmd: &mut Command) -> &mut Command {
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd
+}
 
 /// Short platform identifier surfaced to the frontend
 /// (`"linux"`, `"macos"`, `"windows"`, `"wsl"`).
@@ -42,18 +53,55 @@ impl GitTarget {
     /// Build a `Command` running `git <args...>` against this target's repo.
     pub fn command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::new(&self.program);
+        no_window(&mut cmd);
+        // Keep read-only commands (notably the watcher's repeated `git status`)
+        // from grabbing the *optional* index.lock, which would otherwise race a
+        // concurrent write and fail with "Unable to create '…/index.lock':
+        // File exists". Native git reads this from the host env; the WSL target
+        // also injects it inside the distro via `env` (host env doesn't cross
+        // the wsl.exe boundary), so set it here for the native case.
+        cmd.env("GIT_OPTIONAL_LOCKS", "0");
         cmd.args(&self.prefix_args);
         cmd.arg("-C").arg(&self.repo_arg);
         cmd.args(args);
         cmd
     }
 
+    /// Map a path git reports *inside* its environment back to a host path that
+    /// [`resolve`] routes identically. For WSL the Linux toplevel (`/root/…`)
+    /// becomes the `\\wsl.localhost\<distro>\…` UNC so it round-trips; native
+    /// paths pass through. Without this a WSL repo's toplevel would resolve to
+    /// native git on Windows ("cannot change to '/root/…'").
+    pub fn host_path(&self, inner: &str) -> String {
+        match &self.distro {
+            Some(distro) => {
+                let tail = inner.trim_start_matches('/').replace('/', "\\");
+                format!("\\\\wsl.localhost\\{distro}\\{tail}")
+            }
+            None => inner.to_string(),
+        }
+    }
+
+    /// The exact argv [`command`] would run, as a single string — appended to
+    /// error messages so a failing invocation (especially the WSL path) is
+    /// visible to the user instead of just git's bare stderr.
+    pub fn describe(&self, args: &[&str]) -> String {
+        let mut parts = vec![self.program.clone()];
+        parts.extend(self.prefix_args.iter().cloned());
+        parts.push("-C".into());
+        parts.push(self.repo_arg.clone());
+        parts.extend(args.iter().map(|a| a.to_string()));
+        parts.join(" ")
+    }
+
     /// Read a working-tree file's content (native fs, or `cat` inside WSL).
     pub fn read_file(&self, rel: &str) -> Option<String> {
         if let Some(distro) = &self.distro {
             let path = format!("{}/{}", self.repo_arg, rel);
-            let out = Command::new("wsl.exe")
-                .args(["-d", distro, "--", "cat", &path])
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            let out = cmd
+                .args(["-d", distro, "--cd", &self.repo_arg, "--exec", "cat", &path])
                 .output()
                 .ok()?;
             return out
@@ -84,7 +132,24 @@ pub fn resolve(repo_path: &str) -> GitTarget {
     if let Some((distro, linux_path)) = parse_wsl_path(repo_path) {
         return GitTarget {
             program: "wsl.exe".into(),
-            prefix_args: vec!["-d".into(), distro.clone(), "--".into(), "git".into()],
+            // `--cd` pins the working dir to the repo so wsl.exe doesn't inherit
+            // (and fail on) the untranslatable Windows cwd. `--exec` runs git
+            // directly instead of through the WSL login shell, which would
+            // otherwise glob-expand args like `--format=%(upstream)`
+            // ("missing delimiter for 'u' glob qualifier"). `env
+            // GIT_OPTIONAL_LOCKS=0` sets the var inside the distro (host env
+            // doesn't cross wsl.exe) so read commands don't take index.lock;
+            // `env` then execs git — still no login shell.
+            prefix_args: vec![
+                "-d".into(),
+                distro.clone(),
+                "--cd".into(),
+                linux_path.clone(),
+                "--exec".into(),
+                "env".into(),
+                "GIT_OPTIONAL_LOCKS=0".into(),
+                "git".into(),
+            ],
             repo_arg: linux_path,
             flavor: "wsl",
             distro: Some(distro),
@@ -252,6 +317,40 @@ mod tests {
     #[test]
     fn open_candidates_unknown_is_empty() {
         assert!(super::open_candidates("nope", "/x").is_empty());
+    }
+
+    #[test]
+    fn wsl_toplevel_round_trips_to_unc() {
+        // A WSL target's git toplevel (a Linux path) must map back to a UNC that
+        // parse_wsl_path routes to the same distro + path — otherwise re-opening
+        // the repo falls through to native git and fails.
+        let target = super::GitTarget {
+            program: "wsl.exe".into(),
+            prefix_args: Vec::new(),
+            repo_arg: "/root/projects/x".into(),
+            flavor: "wsl",
+            distro: Some("Ubuntu-22.04".into()),
+        };
+        let host = target.host_path("/root/projects/comGithub/TitusKirch/glimpse");
+        assert_eq!(
+            host,
+            "\\\\wsl.localhost\\Ubuntu-22.04\\root\\projects\\comGithub\\TitusKirch\\glimpse"
+        );
+        let (distro, path) = parse_wsl_path(&host).unwrap();
+        assert_eq!(distro, "Ubuntu-22.04");
+        assert_eq!(path, "/root/projects/comGithub/TitusKirch/glimpse");
+    }
+
+    #[test]
+    fn native_toplevel_passes_through() {
+        let target = super::GitTarget {
+            program: "git".into(),
+            prefix_args: Vec::new(),
+            repo_arg: "C:\\dev\\x".into(),
+            flavor: "windows",
+            distro: None,
+        };
+        assert_eq!(target.host_path("C:\\dev\\x"), "C:\\dev\\x");
     }
 
     #[test]

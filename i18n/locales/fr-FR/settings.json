@@ -92,7 +92,7 @@
     },
     "about": {
       "title": "À propos",
-      "description": "Un client Git de bureau léger et git-natif avec une prise en charge de WSL de premier ordre."
+      "description": "Un client Git de bureau léger et git-natif — le graphe de branches complet, les diffs et le git au quotidien, avec une prise en charge de WSL de premier ordre."
     }
   }
 }

@@ -2,7 +2,7 @@
   "$schema": "https://www.schemastore.org/package.json",
   "name": "glimpse",
   "version": "0.0.0",
-  "description": "Lightweight, git-native desktop Git client — branch graph & diffs with first-class WSL support.",
+  "description": "A lightweight, git-native desktop Git client — the full branch graph, diffs, and everyday git, with first-class WSL support.",
   "keywords": [
     "diff-viewer",
     "git",
@@ -39,8 +39,10 @@
     "lint:fix": "oxlint . --fix --deny-warnings",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt .",
-    "check": "pnpm lint && pnpm format",
-    "check:fix": "pnpm lint:fix && pnpm format:fix",
+    "cargofmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --all --check",
+    "cargofmt:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml --all",
+    "check": "pnpm lint && pnpm format && pnpm cargofmt",
+    "check:fix": "pnpm lint:fix && pnpm format:fix && pnpm cargofmt:fix",
     "taze": "taze",
     "taze:w": "taze -w",
     "prepare": "husky"

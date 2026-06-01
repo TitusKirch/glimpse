@@ -28,8 +28,7 @@ async function pick() {
       </p>
     </div>
 
-    <UiButton @click="pick">
-      <NuxtIcon name="lucide:folder-open" class="size-4" />
+    <UiButton icon="lucide:folder-open" @click="pick">
       {{ t('actions.openRepo') }}
     </UiButton>
 

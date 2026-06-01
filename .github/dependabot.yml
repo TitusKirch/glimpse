@@ -4,6 +4,11 @@ updates:
     directory: '/'
     schedule:
       interval: 'weekly'
+    # Mirror the npm `minimumReleaseAge` (3 days): hold updates back until a
+    # release has been public for a few days, dodging just-published malicious
+    # or broken versions. Applies to every ecosystem below too.
+    cooldown:
+      default-days: 3
     labels:
       - 'dependencies'
       - 'area: javascript'
@@ -19,6 +24,8 @@ updates:
     directory: '/'
     schedule:
       interval: 'monthly'
+    cooldown:
+      default-days: 3
     labels:
       - 'dependencies'
       - 'area: github-actions'
@@ -34,6 +41,8 @@ updates:
     directory: '/src-tauri'
     schedule:
       interval: 'weekly'
+    cooldown:
+      default-days: 3
     labels:
       - 'dependencies'
       - 'area: rust'

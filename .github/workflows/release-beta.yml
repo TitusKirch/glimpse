@@ -1,11 +1,24 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
-# Beta channel: manually dispatched build that publishes to a single, rolling
-# `beta` GitHub release. The in-app updater (beta channel) reads
-# `releases/download/beta/latest.json`. Stable stays on release-please.
+# Beta channel. Manually dispatched — just pick the branch and run; the version
+# is computed automatically. Two release surfaces:
+#   • a VERSIONED prerelease `v<version>` holds the real installers + .sig
+#     (proper per-beta history and download page), and
+#   • a static rolling `beta` release holds ONLY `latest.json`, the stable
+#     updater endpoint (`releases/download/beta/latest.json`).
+# latest.json's URLs point at the versioned prerelease's assets — direct tag
+# download URLs work for prereleases, unlike the `releases/latest` alias which
+# skips them. Stable releases stay on release-please.
 #
-# Pick a semver-ordered version, e.g. 0.1.0-beta.1 → 0.1.0-beta.2 → … so the
-# updater offers newer betas; a later stable 0.1.0 supersedes them all.
+# Version = <next stable>-beta.<n>: the base is release-please's `release-as`
+# (or the latest stable tag bumped by conventional commits), and <n> is one past
+# the highest existing beta for that base (and never below the live manifest).
+#
+# Phases:
+#   1. prepare  — compute the version, (re)create the `v<version>` prerelease.
+#   2. build    — OS matrix in parallel, uploads installers + .sig to it.
+#   3. finalize — assemble one latest.json (URLs → the versioned prerelease) and
+#      republish the static `beta` release holding only that manifest.
 #
 # Requires the same signing secrets as the stable bundle job
 # (see UPDATER-SETUP.local.md).
@@ -14,10 +27,6 @@ name: Release Beta
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Beta version (e.g. 0.1.0-beta.1)'
-        required: true
 
 permissions:
   contents: write
@@ -27,9 +36,92 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  beta:
+  prepare:
+    name: Compute version & create prerelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compute next beta version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download beta --repo "$GITHUB_REPOSITORY" -p latest.json -O beta-latest.json 2>/dev/null || echo '{}' > beta-latest.json
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          const sh = (c) => { try { return execSync(c, { encoding: 'utf8' }).trim(); } catch { return ''; } };
+          const cmp = (a, b) => {
+            const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+            for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+            return 0;
+          };
+          // Base = next stable. Honour release-please's `release-as` if pinned,
+          // else bump the latest stable tag from conventional commits.
+          const cfg = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
+          const pkg = (cfg.packages && cfg.packages['.']) || {};
+          let base;
+          if (pkg['release-as']) {
+            // While release-please pins the next version, just use it.
+            base = pkg['release-as'];
+          } else {
+            // Anchor on release-please's authoritative last-released version, then
+            // bump from conventional commits the same way release-please would,
+            // honouring bump-minor-pre-major / bump-patch-for-minor-pre-major.
+            let last = '0.0.0';
+            try { last = JSON.parse(fs.readFileSync('.release-please-manifest.json', 'utf8'))['.'] || '0.0.0'; } catch {}
+            const range = sh(`git tag --list "v${last}"`) ? `v${last}..HEAD` : 'HEAD';
+            const log = sh(`git log ${range} --format=%s%n%b`);
+            const [maj, min, pat] = last.split('.').map(Number);
+            const breaking = /(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log);
+            const feat = /(^|\n)feat(\(.+?\))?:/.test(log);
+            const preMajor = maj === 0 && pkg['bump-minor-pre-major'];
+            const patchForMinor = pkg['bump-patch-for-minor-pre-major'];
+            if (breaking) base = preMajor ? `${maj}.${min + 1}.0` : `${maj + 1}.0.0`;
+            else if (feat) base = preMajor && patchForMinor ? `${maj}.${min}.${pat + 1}` : `${maj}.${min + 1}.0`;
+            else base = `${maj}.${min}.${pat + 1}`;
+          }
+          const esc = base.replace(/\./g, '\\.');
+          const re = new RegExp(`^${esc}-beta\\.(\\d+)$`);
+          const tagNs = sh('git tag --list "v*-beta.*"').split('\n').filter(Boolean)
+            .map((t) => t.replace(/^v/, '')).map((v) => v.match(re)).filter(Boolean).map((m) => +m[1]);
+          let manifestN = 0;
+          try {
+            const m = String(JSON.parse(fs.readFileSync('beta-latest.json', 'utf8')).version || '').match(re);
+            if (m) manifestN = +m[1];
+          } catch {}
+          const n = Math.max(0, manifestN, ...tagNs) + 1;
+          const version = `${base}-beta.${n}`;
+          console.log(`version=${version}`);
+          console.log(`tag=v${version}`);
+          NODE
+
+      - name: Create versioned prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
+            --notes "Beta build $VERSION." \
+            --prerelease
+
+  build:
     name: Beta build (${{ matrix.os }})
+    needs: prepare
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -83,22 +175,79 @@ jobs:
       # tauri-action reads the version from tauri.conf.json; stamp the beta one.
       - name: Stamp beta version
         shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           tmp=$(mktemp)
-          jq --arg v "${{ inputs.version }}" '.version = $v' \
+          jq --arg v "$VERSION" '.version = $v' \
             src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
 
-      # Builds + signs and (re)publishes the rolling `beta` release with
-      # installers + latest.json. Marked as a prerelease.
-      - name: Build and upload beta
+      # Builds + signs and uploads the installers + their .sig to the versioned
+      # prerelease. No latest.json here (finalize builds it once) → parallel jobs
+      # only upload distinct files, so there is no race.
+      - name: Build and upload installers
         uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: beta
-          releaseName: 'Beta'
-          releaseBody: 'Rolling beta channel build ${{ inputs.version }}.'
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseDraft: false
           prerelease: true
-          includeUpdaterJson: true
+          includeUpdaterJson: false
+
+  finalize:
+    name: Publish updater manifest
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build latest.json and republish the static beta release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          mkdir -p sigs
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' --dir sigs
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const ver = process.env.VERSION;
+          const base = process.env.BASE;
+          const files = fs.readdirSync('sigs').filter((f) => f.endsWith('.sig'));
+          const find = (re) => files.find((f) => re.test(f));
+          const entry = (sig) => ({
+            signature: fs.readFileSync(path.join('sigs', sig), 'utf8').trim(),
+            url: `${base}/${sig.replace(/\.sig$/, '')}`
+          });
+          const win = find(/_x64-setup\.exe\.sig$/);
+          const lin = find(/_amd64\.AppImage\.sig$/);
+          const mac = find(/\.app\.tar\.gz\.sig$/);
+          if (!win || !lin || !mac) {
+            console.error('missing platform sig — win:%s lin:%s mac:%s', !!win, !!lin, !!mac);
+            process.exit(1);
+          }
+          const platforms = {
+            'windows-x86_64': entry(win),
+            'windows-x86_64-nsis': entry(win),
+            'linux-x86_64': entry(lin),
+            'linux-x86_64-appimage': entry(lin),
+            'darwin-aarch64': entry(mac),
+            'darwin-aarch64-app': entry(mac)
+          };
+          const out = { version: ver, notes: `Beta build ${ver}.`, pub_date: new Date().toISOString(), platforms };
+          fs.writeFileSync('latest.json', JSON.stringify(out, null, 2));
+          console.log('latest.json platforms:', Object.keys(platforms).join(', '));
+          NODE
+          # The static `beta` release holds ONLY latest.json — recreate it clean
+          # each time so no stale installers linger and the manifest is current.
+          gh release delete beta --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create beta \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title 'Beta (updater manifest)' \
+            --notes "Holds latest.json for the beta auto-updater. Installers live in the versioned \`$TAG\` prerelease." \
+            --prerelease
+          gh release upload beta latest.json --repo "$GITHUB_REPOSITORY" --clobber
