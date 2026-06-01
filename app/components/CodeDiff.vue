@@ -13,6 +13,7 @@
 // (measureElement), so the estimate only needs to be roughly right.
 import hljs from 'highlight.js';
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import { highlightLines } from '@/utils/highlight';
 
 const props = defineProps<{
   hunks: string[];
@@ -23,6 +24,11 @@ const props = defineProps<{
   // Whole-file view: drop the `@@` hunk-header rows (the diff was fetched with
   // full context, so there's a single header — hiding it reads as "the file").
   hideHunkHeader?: boolean;
+  // Full file contents (from DiffData). When present, lines are highlighted from
+  // the whole file (keeping cross-line context, e.g. a Vue SFC's script/style)
+  // and looked up by line number, instead of highlighted in isolation.
+  oldContent?: string;
+  newContent?: string;
 }>();
 
 const emit = defineEmits<{ stageHunk: [hunk: string] }>();
@@ -120,6 +126,21 @@ function hl(text: string): string {
   }
 }
 
+// Whole-file highlight, one entry per line (index = line number - 1). Computed
+// once per diff; falls back per-line via hl() when a line isn't found.
+const oldHi = computed(() =>
+  highlightLines(props.oldContent ?? '', lang.value)
+);
+const newHi = computed(() =>
+  highlightLines(props.newContent ?? '', lang.value)
+);
+function hlOld(no: number, text: string): string {
+  return oldHi.value[no - 1] ?? hl(text);
+}
+function hlNew(no: number, text: string): string {
+  return newHi.value[no - 1] ?? hl(text);
+}
+
 // Word-level diff of a removed/added line pair: highlight the changed middle
 // (common prefix/suffix trimmed by the pure wordDiffRanges helper). Cheap and
 // effective for the common single-edit line.
@@ -164,8 +185,8 @@ const unified = computed<URow[]>(() => {
           const wd = wordDiff(d.text, a.text);
           delHtml.push(wd.oldHtml);
           addHtml.push(wd.newHtml);
-        } else if (d) delHtml.push(hl(d.text));
-        else if (a) addHtml.push(hl(a.text));
+        } else if (d) delHtml.push(hlOld(d.oldNo, d.text));
+        else if (a) addHtml.push(hlNew(a.newNo, a.text));
       }
       dels.forEach((d, i) =>
         out.push({
@@ -196,11 +217,13 @@ const unified = computed<URow[]>(() => {
       else if (c === '-') dels.push({ text, oldNo: oldNo++ });
       else {
         flush();
+        const o = oldNo++;
+        const nn = newNo++;
         out.push({
           type: 'context',
-          oldNo: oldNo++,
-          newNo: newNo++,
-          html: hl(text),
+          oldNo: o,
+          newNo: nn,
+          html: hlNew(nn, text),
           text
         });
       }

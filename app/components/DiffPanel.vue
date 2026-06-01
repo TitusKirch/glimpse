@@ -216,6 +216,8 @@ function onStageHunk(hunk: string) {
           :mode="effectiveMode"
           :hide-hunk-header="hideHunkHeader"
           :file-name="repo.diff.fileName"
+          :old-content="repo.diff.oldContent"
+          :new-content="repo.diff.newContent"
         />
         <p v-else class="p-6 text-sm text-muted-foreground">
           {{ repo.selectedFile ? t('diff.noTextDiff') : t('diff.noSelection') }}
@@ -235,6 +237,8 @@ function onStageHunk(hunk: string) {
         :mode="effectiveMode"
         :hide-hunk-header="hideHunkHeader"
         :file-name="repo.diff.fileName"
+        :old-content="repo.diff.oldContent"
+        :new-content="repo.diff.newContent"
         :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
         @stage-hunk="onStageHunk"
       />
