@@ -59,10 +59,14 @@ const filtered = computed(() => {
 
 function refLabel(ref: string): string {
   let label = ref.replace('HEAD -> ', '').replace('tag: ', '');
-  // Collapse a long bot branch's noisy middle so its badge stays compact:
-  // dependabot/npm_and_yarn/group/pkg-1.2.3 -> dependabot/…/pkg-1.2.3.
-  if (prefs.shortenDependabot) {
-    label = label.replace(/(dependabot)\/.+\/([^/]+)$/, '$1/…/$2');
+  // Compact a long bot branch (guarded so normal hyphenated branches are left
+  // alone): collapse the noisy middle *and* drop the trailing version/hash
+  // (everything from the last '-'). e.g.
+  // origin/dependabot/npm_and_yarn/pkg-action-1.2.3 -> origin/dependabot/…/pkg-action
+  if (prefs.shortenDependabot && /dependabot\//.test(label)) {
+    label = label
+      .replace(/(dependabot)\/.+\/([^/]+)$/, '$1/…/$2')
+      .replace(/-[^/-]*$/, '');
   }
   return label;
 }
