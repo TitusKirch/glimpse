@@ -12,7 +12,12 @@
 # control, so flagging them would just be permanent noise.
 yanked = "deny"
 unmaintained = "workspace"
-ignore = []
+ignore = [
+  # glib VariantStrIter unsoundness, fixed in glib 0.20. Tauri 2's Linux stack
+  # (webkit2gtk-4.1 -> gtk3-rs) pins glib 0.18, so it's unfixable until Tauri
+  # moves to gtk4; not remotely exploitable (a Linux UI lib). Revisit on upgrade.
+  "RUSTSEC-2024-0429",
+]
 
 [licenses]
 # Permissive-only: the project ships under MIT, so copyleft (GPL/AGPL) deps
