@@ -44,6 +44,10 @@
         "label": "Test toasts",
         "hint": "Fire one of each toast kind."
       },
+      "badges": {
+        "label": "Badges",
+        "hint": "Every badge variant at a glance."
+      },
       "info": {
         "label": "Info",
         "title": "Info",
@@ -95,6 +99,20 @@
         "default": "Default",
         "large": "Large",
         "xlarge": "Extra large"
+      },
+      "sidebarSection": "Sidebar",
+      "sidebarResizable": {
+        "label": "Resizable",
+        "hint": "Drag the right edge to resize the sidebar."
+      },
+      "sidebarWidth": {
+        "label": "Width (px)",
+        "hint": "Expanded sidebar width, 192–512. Default 256px."
+      },
+      "graphSection": "Graph",
+      "shortenDependabot": {
+        "label": "Shorten Dependabot branches",
+        "hint": "Collapse long dependabot/… branch names in the history graph."
       }
     },
     "language": {

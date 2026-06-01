@@ -20,6 +20,17 @@ function fireToast(tk: (typeof toastKinds)[number]) {
   });
 }
 
+// Dev-only: every badge variant at a glance (the design-system reference).
+const badgeKinds = [
+  'default',
+  'secondary',
+  'outline',
+  'info',
+  'success',
+  'warning',
+  'destructive'
+] as const;
+
 // Left navigation, grouped into sections separated by dividers. The Developer
 // section only appears when dev mode is on.
 const navSections = computed(() => {
@@ -47,7 +58,12 @@ watch(
 );
 
 const themeOptions = ['system', 'light', 'dark'] as const;
-const diffModeOptions = ['split', 'unified'] as const;
+const diffModeOptions = ['split', 'unified', 'whole'] as const;
+const diffModeLabel: Record<(typeof diffModeOptions)[number], string> = {
+  split: 'diff.sideBySide',
+  unified: 'diff.unified',
+  whole: 'diff.whole'
+};
 const fileViewOptions = ['list', 'tree'] as const;
 // Diff font scale presets (multipliers applied via --mono-scale).
 const fontScales = [
@@ -334,6 +350,28 @@ const lang = computed({
                 </div>
               </div>
             </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.dev.badges.label') }}
+              </h3>
+              <p class="mb-3 text-xs text-muted-foreground">
+                {{ t('settings.dev.badges.hint') }}
+              </p>
+              <div class="flex flex-wrap items-center gap-2">
+                <UiBadge v-for="v in badgeKinds" :key="v" :variant="v">
+                  {{ v }}
+                </UiBadge>
+                <UiBadge variant="warning" icon="lucide:rocket">
+                  with icon
+                </UiBadge>
+                <UiBadge variant="destructive" icon="lucide:flask-conical">
+                  Experiment
+                </UiBadge>
+              </div>
+            </div>
           </section>
 
           <section v-else-if="page === 'appearance'" class="w-full space-y-8">
@@ -429,11 +467,7 @@ const lang = computed({
                         :key="m"
                         :value="m"
                       >
-                        {{
-                          m === 'split'
-                            ? t('diff.sideBySide')
-                            : t('diff.unified')
-                        }}
+                        {{ t(diffModeLabel[m]) }}
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
@@ -488,6 +522,67 @@ const lang = computed({
                     </UiSelectContent>
                   </UiSelect>
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.appearance.sidebarSection') }}
+              </h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.sidebarResizable.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.sidebarResizable.hint') }}
+                    </p>
+                  </div>
+                  <UiSwitch
+                    v-model="layout.sidebarResizable"
+                    class="shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.sidebarWidth.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.sidebarWidth.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.sidebarWidth"
+                    type="number"
+                    min="192"
+                    max="512"
+                    step="8"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.appearance.graphSection') }}
+              </h3>
+              <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">
+                    {{ t('settings.appearance.shortenDependabot.label') }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ t('settings.appearance.shortenDependabot.hint') }}
+                  </p>
+                </div>
+                <UiSwitch v-model="layout.shortenDependabot" class="shrink-0" />
               </div>
             </div>
           </section>

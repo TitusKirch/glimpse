@@ -97,8 +97,9 @@ async fn file_diff(
     file: String,
     staged: bool,
     ignore_whitespace: bool,
+    whole: bool,
 ) -> Result<Option<git::DiffData>, String> {
-    git::Repo::open(&path).file_diff(&file, staged, ignore_whitespace)
+    git::Repo::open(&path).file_diff(&file, staged, ignore_whitespace, whole)
 }
 
 #[tauri::command]
@@ -140,8 +141,9 @@ async fn commit_file_diff(
     hash: String,
     file: String,
     ignore_whitespace: bool,
+    whole: bool,
 ) -> Result<Option<git::DiffData>, String> {
-    git::Repo::open(&path).commit_file_diff(&hash, &file, ignore_whitespace)
+    git::Repo::open(&path).commit_file_diff(&hash, &file, ignore_whitespace, whole)
 }
 
 #[tauri::command]

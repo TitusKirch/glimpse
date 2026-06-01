@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import draggable from 'vuedraggable';
+import type { RepoState } from '@/stores/repo';
+
 const repo = useRepoStore();
 const openRepoDialog = useOpenRepoDialog();
 const { t } = useI18n();
-
-// Native HTML5 drag-and-drop for tab reordering — no extra dependency.
-const dragId = ref<string | null>(null);
 
 // Map a WSL distro name to its brand icon (simple-icons), falling back to the
 // generic Tux penguin when the distro isn't recognised.
@@ -21,62 +21,66 @@ function distroIcon(distro?: string): string {
   return 'simple-icons:linux';
 }
 
-function onDrop(targetId: string) {
-  const from = dragId.value;
-  dragId.value = null;
-  if (!from || from === targetId) return;
-  const order = [...repo.order];
-  const fi = order.indexOf(from);
-  const ti = order.indexOf(targetId);
-  if (fi < 0 || ti < 0) return;
-  order.splice(fi, 1);
-  order.splice(ti, 0, from);
-  repo.reorderTabs(order);
+// Reorder via SortableJS (vuedraggable): it drives the drag with mouse/pointer
+// events, so it works inside the Tauri webview where native HTML5 drag-and-drop
+// is intercepted by the OS drag handler. Persist the new order by its ids.
+function onReorder(tabs: RepoState[]) {
+  repo.reorderTabs(tabs.map((tab) => tab.id));
 }
 </script>
 
 <template>
   <div class="flex items-center gap-1">
-    <div
-      v-for="tab in repo.tabs"
-      :key="tab.id"
-      draggable="true"
-      class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors"
-      :class="[
-        tab.id === repo.activeTabId
-          ? 'bg-accent text-accent-foreground'
-          : 'text-muted-foreground hover:bg-accent/50',
-        dragId === tab.id && 'opacity-50'
-      ]"
-      @click="repo.selectTab(tab.id)"
-      @dragstart="dragId = tab.id"
-      @dragend="dragId = null"
-      @dragover.prevent
-      @drop="onDrop(tab.id)"
+    <draggable
+      :model-value="repo.tabs"
+      item-key="id"
+      tag="div"
+      class="flex items-center gap-1"
+      :animation="150"
+      ghost-class="opacity-50"
+      filter=".tab-close"
+      :prevent-on-filter="false"
+      @update:model-value="onReorder"
     >
-      <span>{{ tab.name }}</span>
-      <UiTooltip v-if="tab.flavor === 'wsl'">
-        <UiTooltipTrigger as-child>
-          <NuxtIcon
-            :name="distroIcon(tab.distro)"
-            class="size-3.5 shrink-0 text-muted-foreground"
-          />
-        </UiTooltipTrigger>
-        <UiTooltipContent>{{ tab.distro || 'WSL' }}</UiTooltipContent>
-      </UiTooltip>
-      <button
-        class="flex size-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-background/60"
-        :class="
-          tab.id === repo.activeTabId
-            ? 'opacity-70 hover:opacity-100'
-            : 'opacity-0 group-hover:opacity-100'
-        "
-        :aria-label="t('actions.closeRepo')"
-        @click.stop="repo.closeRepo(tab.id)"
-      >
-        <NuxtIcon name="lucide:x" class="size-3.5" />
-      </button>
-    </div>
+      <template #item="{ element: tab }">
+        <div
+          class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors"
+          :class="
+            tab.id === repo.activeTabId
+              ? 'bg-accent text-accent-foreground'
+              : 'text-muted-foreground hover:bg-accent/50'
+          "
+          @click="repo.selectTab(tab.id)"
+        >
+          <span>{{ tab.name }}</span>
+          <UiTooltip v-if="tab.flavor === 'wsl'">
+            <UiTooltipTrigger as-child>
+              <NuxtIcon
+                :name="distroIcon(tab.distro)"
+                class="size-3.5 shrink-0 text-muted-foreground"
+              />
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{
+              tab.distro
+                ? `${t('platform.wsl')}: ${tab.distro}`
+                : t('platform.wsl')
+            }}</UiTooltipContent>
+          </UiTooltip>
+          <button
+            class="tab-close flex size-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-background/60"
+            :class="
+              tab.id === repo.activeTabId
+                ? 'opacity-70 hover:opacity-100'
+                : 'opacity-0 group-hover:opacity-100'
+            "
+            :aria-label="t('actions.closeRepo')"
+            @click.stop="repo.closeRepo(tab.id)"
+          >
+            <NuxtIcon name="lucide:x" class="size-3.5" />
+          </button>
+        </div>
+      </template>
+    </draggable>
 
     <UiTooltip>
       <UiTooltipTrigger as-child>

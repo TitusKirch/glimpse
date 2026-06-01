@@ -131,10 +131,22 @@ On Linux and macOS git is simply native — there is no WSL concept. Live refres
 
 </details>
 
-## 🎨 Assets
+## 🎨 Assets & branding
 
 > [!NOTE]
-> The brand logo (`assets/logo.png`) and the app icons in `src-tauri/icons/` are **placeholder artwork, currently AI-generated** with [icongeneratorai.com](https://icongeneratorai.com/). The icon set is regenerated from the source via `pnpm tauri icon assets/logo.png`. They are not final — temporary stand-ins meant to be replaced at some point, with no fixed timeline.
+> The logo and app icons are **placeholder artwork, currently AI-generated** with [icongeneratorai.com](https://icongeneratorai.com/) — not final, temporary stand-ins to be replaced at some point, with no fixed timeline.
+
+- **Source logo:** `assets/logo.png` (643×643). The platform icon set in `src-tauri/icons/` is regenerated from it via `pnpm tauri icon assets/logo.png`.
+- **Display variants:** `assets/logo_256x256.png` (README hero) and `public/logo.png` + `public/logo_128x128.png` (served in-app — sidebar header, About screen).
+
+**Brand colours** — the logo is a deep indigo→violet gradient (hue ≈ 289°) with a white mark, read straight from the artwork:
+
+| Role              | Hex       | OKLCH                     |
+| :---------------- | :-------- | :------------------------ |
+| Gradient (dark)   | `#120A40` | `oklch(0.203 0.096 280)`  |
+| Gradient (base)   | `#202050` | `oklch(0.274 0.086 279)`  |
+| Gradient (violet) | `#403090` | `oklch(0.388 0.151 285)`  |
+| Mark              | `#FFFFFF` | `oklch(1 0 0)`            |
 
 ## 🤝 Contributing
 

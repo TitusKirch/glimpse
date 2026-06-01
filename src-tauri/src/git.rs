@@ -236,6 +236,7 @@ impl Repo {
         file: &str,
         staged: bool,
         ignore_whitespace: bool,
+        whole: bool,
     ) -> Result<Option<DiffData>, String> {
         let mut args = vec!["diff", "--no-color"];
         if staged {
@@ -243,6 +244,11 @@ impl Repo {
         }
         if ignore_whitespace {
             args.push("-w");
+        }
+        // Whole-file view: a huge context turns the diff into one hunk spanning
+        // the entire file (every line shown, changes still marked).
+        if whole {
+            args.push("--unified=100000");
         }
         args.push("--");
         args.push(file);
@@ -289,10 +295,14 @@ impl Repo {
         hash: &str,
         file: &str,
         ignore_whitespace: bool,
+        whole: bool,
     ) -> Result<Option<DiffData>, String> {
         let mut args = vec!["show", "--no-color", "--format="];
         if ignore_whitespace {
             args.push("-w");
+        }
+        if whole {
+            args.push("--unified=100000");
         }
         args.extend([hash, "--", file]);
         let raw = self.run(&args)?;

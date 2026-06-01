@@ -53,7 +53,12 @@ export default defineNuxtConfig({
         'highlight.js',
         'reka-ui',
         'tailwind-merge',
-        'vue-sonner'
+        'vue-sonner',
+        // vuedraggable ships CJS; pre-bundle so Vite resolves it to ESM up
+        // front instead of re-optimizing mid-load. (Its sortablejs core is
+        // pulled in transitively — pnpm's isolated linker keeps it nested, so
+        // it can't be a standalone include entry.)
+        'vuedraggable'
       ]
     }
   },
@@ -78,7 +83,17 @@ export default defineNuxtConfig({
 
   i18n: {
     defaultLocale: 'en-GB',
-    fallbackLocale: 'en-GB',
+    // NOTE: this only decides which message files get *preloaded* so a fallback
+    // locale's catalogue is in memory. The lookup-time fallback that actually
+    // substitutes a missing key lives in i18n/i18n.config.ts (vue-i18n runtime
+    // options) — keep the two chains identical. fr-FR / es-ES are partial today,
+    // so this is what makes them usable; `default` covers locales we don't ship.
+    fallbackLocale: {
+      'de-DE': ['en-GB'],
+      'fr-FR': ['en-GB'],
+      'es-ES': ['en-GB'],
+      default: ['en-GB']
+    },
     strategy: 'no_prefix',
     // One directory per locale with namespaced files; i18n deep-merges them.
     locales: [

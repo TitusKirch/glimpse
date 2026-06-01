@@ -10,6 +10,12 @@ export type Accent = 'default' | 'blue' | 'violet' | 'green' | 'amber' | 'rose';
 export const useLayoutStore = defineStore('layout', {
   state: () => ({
     sidebarOpen: true,
+    // Expanded sidebar width in px, settable directly or by drag within
+    // [192, 512] (12–32rem). Default 256 (16rem).
+    sidebarWidth: 256,
+    // Whether the drag-to-resize handle is active (the width is still settable
+    // numerically when off).
+    sidebarResizable: true,
     // Horizontal split between the commit graph (left) and the diff (right).
     panelSizes: [58, 42] as number[],
     // Vertical split inside a commit's diff view (detail / file list / diff).
@@ -22,6 +28,9 @@ export const useLayoutStore = defineStore('layout', {
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
     fileView: 'tree' as FileView,
+    // Collapse the noisy middle of long bot branch refs (dependabot/…/pkg) in
+    // the graph so their badges don't crowd the commit subjects.
+    shortenDependabot: true,
     // Theme accent colour (overrides the neutral --primary token).
     accent: 'default' as Accent,
     // Diff font scale (1 = default); applied to the diff via --mono-scale.

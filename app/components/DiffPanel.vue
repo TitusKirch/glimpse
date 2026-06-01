@@ -18,6 +18,18 @@ function toggleWhitespace() {
   layout.ignoreWhitespace = !layout.ignoreWhitespace;
   void repo.reDiff();
 }
+
+// Whole-file view reuses the unified layout but is fetched with full context;
+// switching into/out of it changes the context, so it needs a re-diff.
+const effectiveMode = computed(() =>
+  layout.diffMode === 'whole' ? 'unified' : layout.diffMode
+);
+const hideHunkHeader = computed(() => layout.diffMode === 'whole');
+function setMode(v: string) {
+  const crossesWhole = (v === 'whole') !== (layout.diffMode === 'whole');
+  layout.setDiffMode(v as 'split' | 'unified' | 'whole');
+  if (crossesWhole) void repo.reDiff();
+}
 function copyDiff() {
   if (repo.diff) void copyText(repo.diff.hunks.join('\n'));
 }
@@ -105,9 +117,7 @@ function onStageHunk(hunk: string) {
         <!-- diff mode toggle — same segmented style as Changes/History -->
         <UiTabs
           :model-value="layout.diffMode"
-          @update:model-value="
-            (v) => layout.setDiffMode(v as 'split' | 'unified')
-          "
+          @update:model-value="(v) => setMode(v as string)"
         >
           <UiTabsList class="h-8">
             <UiTabsTrigger value="split" class="text-xs">{{
@@ -115,6 +125,9 @@ function onStageHunk(hunk: string) {
             }}</UiTabsTrigger>
             <UiTabsTrigger value="unified" class="text-xs">{{
               t('diff.unified')
+            }}</UiTabsTrigger>
+            <UiTabsTrigger value="whole" class="text-xs">{{
+              t('diff.whole')
             }}</UiTabsTrigger>
           </UiTabsList>
         </UiTabs>
@@ -200,7 +213,8 @@ function onStageHunk(hunk: string) {
         <CodeDiff
           v-if="repo.diff && repo.diff.hunks.length"
           :hunks="repo.diff.hunks"
-          :mode="layout.diffMode"
+          :mode="effectiveMode"
+          :hide-hunk-header="hideHunkHeader"
           :file-name="repo.diff.fileName"
         />
         <p v-else class="p-6 text-sm text-muted-foreground">
@@ -218,7 +232,8 @@ function onStageHunk(hunk: string) {
       <CodeDiff
         v-else-if="repo.diff && repo.diff.hunks.length"
         :hunks="repo.diff.hunks"
-        :mode="layout.diffMode"
+        :mode="effectiveMode"
+        :hide-hunk-header="hideHunkHeader"
         :file-name="repo.diff.fileName"
         :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
         @stage-hunk="onStageHunk"

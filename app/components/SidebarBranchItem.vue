@@ -6,6 +6,7 @@ import type { Branch } from '@/stores/repo';
 
 defineProps<{ branch: Branch; collapsed: boolean }>();
 const repo = useRepoStore();
+const { shortenBranch } = useBranchLabel();
 const { t } = useI18n();
 </script>
 
@@ -19,7 +20,7 @@ const { t } = useI18n();
           :tooltip="branch.name"
         >
           <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-          <span>{{ branch.name }}</span>
+          <span>{{ shortenBranch(branch.name) }}</span>
         </UiSidebarMenuButton>
       </UiDropdownMenuTrigger>
       <UiDropdownMenuContent side="right" align="start" class="w-48">
@@ -32,11 +33,15 @@ const { t } = useI18n();
   <UiSidebarMenuItem v-else>
     <UiSidebarMenuButton
       :is-active="branch.name === repo.currentBranch"
-      :tooltip="branch.name"
       @click="repo.checkout(branch.name)"
     >
       <NuxtIcon name="lucide:git-branch" class="shrink-0" />
-      <span class="truncate">{{ branch.name }}</span>
+      <UiTooltip>
+        <UiTooltipTrigger as-child>
+          <span class="truncate">{{ shortenBranch(branch.name) }}</span>
+        </UiTooltipTrigger>
+        <UiTooltipContent side="right">{{ branch.name }}</UiTooltipContent>
+      </UiTooltip>
       <span
         v-if="!branch.published"
         :title="t('sidebar.localOnlyHint')"

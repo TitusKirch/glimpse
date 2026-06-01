@@ -8,12 +8,46 @@ const openRepoDialog = useOpenRepoDialog();
 const help = useHelpDialog();
 const { t } = useI18n();
 
+// BETA tag next to the app name, shown only on an actual pre-release build (the
+// running version carries a `-beta`/`-rc` suffix — not the updater channel
+// setting). In dev / stable builds it stays hidden.
+const { isPrerelease: showBetaBadge } = useAppVersion();
+
 // Collapsed (icon-only) sidebar: items open a dropdown instead of acting
 // directly, so their actions stay reachable.
 const { state, isMobile } = useSidebar();
 const isCollapsed = computed(
   () => state.value === 'collapsed' && !isMobile.value
 );
+
+const layout = useLayoutStore();
+const { shortenBranch } = useBranchLabel();
+// Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
+// Width persists in the layout store and feeds --sidebar-width via the
+// provider. Transitions are suppressed (body class) during the drag so it
+// tracks the pointer crisply.
+const MIN_WIDTH = 192;
+const MAX_WIDTH = 512;
+const canResize = computed(
+  () => layout.sidebarResizable && state.value === 'expanded' && !isMobile.value
+);
+function startResize(e: PointerEvent) {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = layout.sidebarWidth;
+  document.body.classList.add('resizing-sidebar');
+  const onMove = (ev: PointerEvent) => {
+    const next = startWidth + (ev.clientX - startX);
+    layout.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
+  };
+  const onUp = () => {
+    document.body.classList.remove('resizing-sidebar');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
 
 // Capped lists with gildstone-style "show N more / show less".
 const branchesMore = useSidebarMore(() => repo.branches);
@@ -49,11 +83,21 @@ const links = [
 <template>
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
-      <div class="flex h-8 items-center gap-2 px-2 text-sm font-bold">
+      <div
+        class="flex h-8 items-center gap-2 px-2 text-sm font-bold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+      >
         <img src="/logo_128x128.png" alt="" class="size-5 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
         }}</span>
+        <UiBadge
+          v-if="showBetaBadge"
+          variant="warning"
+          icon="lucide:rocket"
+          class="group-data-[collapsible=icon]:hidden"
+        >
+          BETA
+        </UiBadge>
       </div>
     </UiSidebarHeader>
 
@@ -180,7 +224,12 @@ const links = [
                   "
                   class="shrink-0"
                 />
-                <span>{{ rb }}</span>
+                <UiTooltip>
+                  <UiTooltipTrigger as-child>
+                    <span class="truncate">{{ shortenBranch(rb) }}</span>
+                  </UiTooltipTrigger>
+                  <UiTooltipContent side="right">{{ rb }}</UiTooltipContent>
+                </UiTooltip>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
             <SidebarMoreButton
@@ -340,5 +389,12 @@ const links = [
     </UiSidebarFooter>
 
     <UiSidebarRail />
+
+    <!-- Drag handle on the right edge to resize the expanded sidebar. -->
+    <div
+      v-if="canResize"
+      class="absolute inset-y-0 right-0 z-30 w-1 cursor-col-resize transition-colors hover:bg-sidebar-border"
+      @pointerdown="startResize"
+    />
   </UiSidebar>
 </template>

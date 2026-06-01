@@ -3,6 +3,7 @@
     "title": "Diff",
     "sideBySide": "Nebeneinander",
     "unified": "Vereinheitlicht",
+    "whole": "Ganze Datei",
     "noSelection": "Wähle einen Commit oder eine Datei, um den Diff zu sehen",
     "noTextDiff": "Kein Text-Diff darstellbar (binär, leer oder unverändert).",
     "ignoreWhitespace": "Whitespace ignorieren",

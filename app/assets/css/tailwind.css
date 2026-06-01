@@ -217,3 +217,9 @@
 .hljs-diff .hljs-meta {
   color: var(--muted-foreground);
 }
+
+/* While dragging the sidebar resize handle, suppress width/position transitions
+   so the sidebar tracks the pointer instead of trailing behind by 200ms. */
+body.resizing-sidebar [data-slot='sidebar'] * {
+  transition: none !important;
+}
