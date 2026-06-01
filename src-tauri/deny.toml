@@ -16,7 +16,7 @@ ignore = [
   # glib VariantStrIter unsoundness, fixed in glib 0.20. Tauri 2's Linux stack
   # (webkit2gtk-4.1 -> gtk3-rs) pins glib 0.18, so it's unfixable until Tauri
   # moves to gtk4; not remotely exploitable (a Linux UI lib). Revisit on upgrade.
-  "RUSTSEC-2024-0429",
+  "RUSTSEC-2024-0429"
 ]
 
 [licenses]
@@ -34,7 +34,7 @@ allow = [
   "MPL-2.0",
   "CC0-1.0",
   "Unicode-3.0",
-  "CDLA-Permissive-2.0",
+  "CDLA-Permissive-2.0"
 ]
 
 [bans]
