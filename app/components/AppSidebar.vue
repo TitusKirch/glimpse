@@ -66,8 +66,8 @@ const links = [
         }}</span>
         <UiBadge
           v-if="showBetaBadge"
-          variant="secondary"
-          class="h-[18px] px-1.5 text-[10px] font-semibold tracking-wide text-amber-600 group-data-[collapsible=icon]:hidden dark:text-amber-400"
+          variant="beta"
+          class="group-data-[collapsible=icon]:hidden"
         >
           BETA
         </UiBadge>
