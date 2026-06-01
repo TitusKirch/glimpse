@@ -1,20 +1,21 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
-# Beta channel: manually dispatched build that publishes to a single, rolling
-# `beta` GitHub release. The in-app updater (beta channel) reads
-# `releases/download/beta/latest.json`. Stable stays on release-please.
+# Beta channel. Manually dispatched. Two release surfaces:
+#   • a VERSIONED prerelease `v<version>` holds the real installers + .sig
+#     (proper per-beta history and download page), and
+#   • a static rolling `beta` release holds ONLY `latest.json`, the stable
+#     updater endpoint (`releases/download/beta/latest.json`).
+# latest.json's URLs point at the versioned prerelease's assets — direct tag
+# download URLs work for prereleases, unlike the `releases/latest` alias which
+# skips them. Stable releases stay on release-please.
 #
-# Pick a semver-ordered version, e.g. 0.1.0-beta.1 → 0.1.0-beta.2 → … so the
-# updater offers newer betas; a later stable 0.1.0 supersedes them all.
+# Pick a semver-ordered version, e.g. 0.1.0-beta.1 → 0.1.0-beta.2 → …
 #
-# Three phases:
-#   1. `prepare`  — wipe + recreate the `beta` release+tag at this commit (no
-#      stale assets, fresh body/commit), published as a prerelease.
-#   2. `build`    — OS matrix in PARALLEL, uploads installers + .sig only
-#      (includeUpdaterJson: false). No shared latest.json here, so no race.
-#   3. `finalize` — build ONE latest.json from every platform's signature with
-#      correct `releases/download/beta/…` URLs (not the `releases/latest` alias,
-#      which skips prereleases), upload it, and ensure the release is published.
+# Phases:
+#   1. prepare  — (re)create the versioned `v<version>` prerelease at this commit.
+#   2. build    — OS matrix in parallel, uploads installers + .sig to it.
+#   3. finalize — assemble one latest.json (URLs → the versioned prerelease) and
+#      republish the static `beta` release holding only that manifest.
 #
 # Requires the same signing secrets as the stable bundle job
 # (see UPDATER-SETUP.local.md).
@@ -37,21 +38,27 @@ concurrency:
 
 jobs:
   prepare:
-    name: Reset rolling beta release
+    name: Create versioned prerelease
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.create.outputs.tag }}
     steps:
-      - name: Recreate the beta release
+      - name: Recreate v<version> prerelease
+        id: create
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
         run: |
-          gh release delete beta --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          gh release create beta \
+          TAG="v$VERSION"
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title 'Beta' \
-            --notes "Rolling beta channel build ${{ inputs.version }}." \
+            --title "$VERSION" \
+            --notes "Beta build $VERSION." \
             --prerelease
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build:
     name: Beta build (${{ matrix.os }})
@@ -116,8 +123,8 @@ jobs:
           jq --arg v "${{ inputs.version }}" '.version = $v' \
             src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
 
-      # Builds + signs and uploads the installers + their .sig to the `beta`
-      # release. No latest.json here (finalize builds it once) → parallel jobs
+      # Builds + signs and uploads the installers + their .sig to the versioned
+      # prerelease. No latest.json here (finalize builds it once) → parallel jobs
       # only upload distinct files, so there is no race.
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4 # v0
@@ -126,25 +133,26 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: beta
+          tagName: ${{ needs.prepare.outputs.tag }}
           releaseDraft: false
           prerelease: true
           includeUpdaterJson: false
 
   finalize:
-    name: Build updater manifest
-    needs: build
+    name: Publish updater manifest
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Assemble and upload latest.json
+      - name: Build latest.json and republish the static beta release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           mkdir -p sigs
-          gh release download beta --repo "$GITHUB_REPOSITORY" --pattern '*.sig' --dir sigs
-          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/beta" node <<'NODE'
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' --dir sigs
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" node <<'NODE'
           const fs = require('fs');
           const path = require('path');
           const ver = process.env.VERSION;
@@ -158,17 +166,29 @@ jobs:
           const win = find(/_x64-setup\.exe\.sig$/);
           const lin = find(/_amd64\.AppImage\.sig$/);
           const mac = find(/\.app\.tar\.gz\.sig$/);
-          const platforms = {};
-          if (win) { platforms['windows-x86_64'] = entry(win); platforms['windows-x86_64-nsis'] = entry(win); }
-          if (lin) { platforms['linux-x86_64'] = entry(lin); platforms['linux-x86_64-appimage'] = entry(lin); }
-          if (mac) { platforms['darwin-aarch64'] = entry(mac); platforms['darwin-aarch64-app'] = entry(mac); }
           if (!win || !lin || !mac) {
             console.error('missing platform sig — win:%s lin:%s mac:%s', !!win, !!lin, !!mac);
             process.exit(1);
           }
+          const platforms = {
+            'windows-x86_64': entry(win),
+            'windows-x86_64-nsis': entry(win),
+            'linux-x86_64': entry(lin),
+            'linux-x86_64-appimage': entry(lin),
+            'darwin-aarch64': entry(mac),
+            'darwin-aarch64-app': entry(mac)
+          };
           const out = { version: ver, notes: `Beta build ${ver}.`, pub_date: new Date().toISOString(), platforms };
           fs.writeFileSync('latest.json', JSON.stringify(out, null, 2));
           console.log('latest.json platforms:', Object.keys(platforms).join(', '));
           NODE
+          # The static `beta` release holds ONLY latest.json — recreate it clean
+          # each time so no stale installers linger and the manifest is current.
+          gh release delete beta --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create beta \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title 'Beta (updater manifest)' \
+            --notes "Holds latest.json for the beta auto-updater. Installers live in the versioned \`$TAG\` prerelease." \
+            --prerelease
           gh release upload beta latest.json --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit beta --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
