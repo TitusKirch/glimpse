@@ -72,6 +72,14 @@ const links = [
         >
           BETA
         </UiBadge>
+        <UiBadge
+          v-if="showBetaBadge"
+          variant="destructive"
+          icon="lucide:flask-conical"
+          class="group-data-[collapsible=icon]:hidden"
+        >
+          Experiment
+        </UiBadge>
       </div>
     </UiSidebarHeader>
 
