@@ -262,7 +262,11 @@ const links = [
           </p>
           <UiSidebarMenu>
             <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
-              <UiSidebarMenuButton :tooltip="s.message">
+              <UiSidebarMenuButton
+                :tooltip="s.message"
+                :is-active="repo.selectedHash === s.reference"
+                @click="repo.selectCommit(s.reference)"
+              >
                 <NuxtIcon name="lucide:archive" class="shrink-0" />
                 <span class="truncate">{{ s.message }}</span>
               </UiSidebarMenuButton>
