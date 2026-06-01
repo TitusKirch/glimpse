@@ -24,6 +24,10 @@ const stagedItems = computed(() =>
 const unstagedItems = computed(() =>
   repo.unstagedFiles.map((f) => ({ ...f, status: letter(f, false) }))
 );
+// Conflicts carry a "U" (unmerged) letter; the section header already flags them.
+const conflictItems = computed(() =>
+  repo.conflictedFiles.map((f) => ({ ...f, status: 'U' }))
+);
 
 // Subject is the first line; git convention favours <= 50 chars (warn), and
 // hard-wraps the eye at 72 (over). Drives the live counter colour.
@@ -78,45 +82,45 @@ onMounted(autoResize);
         >
           {{ t('changes.conflicts') }} ({{ repo.conflictedFiles.length }})
         </h3>
-        <div
-          v-for="f in repo.conflictedFiles"
-          :key="f.path"
-          class="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-accent/40"
-          :class="repo.selectedFile === f.path ? 'bg-accent' : ''"
-          @click="repo.selectFile(f.path, false)"
+        <FileTree
+          :files="conflictItems"
+          :view="layout.fileView"
+          :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
+          @select="(p) => repo.selectFile(p, false)"
         >
-          <NuxtIcon
-            name="lucide:triangle-alert"
-            class="size-3.5 shrink-0 text-warning"
-          />
-          <span class="min-w-0 flex-1 truncate">{{ f.path }}</span>
-          <UiDropdownMenu>
-            <UiDropdownMenuTrigger as-child>
-              <UiButton
-                variant="ghost"
-                size="icon"
-                class="size-5 opacity-0 group-hover:opacity-100"
-                icon="lucide:ellipsis"
-                icon-size="sm"
-                @click.stop
-              />
-            </UiDropdownMenuTrigger>
-            <UiDropdownMenuContent align="end">
-              <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'ours')">
-                {{ t('changes.useOurs') }}
-              </UiDropdownMenuItem>
-              <UiDropdownMenuItem
-                @click="repo.resolveConflict(f.path, 'theirs')"
-              >
-                {{ t('changes.useTheirs') }}
-              </UiDropdownMenuItem>
-              <UiDropdownMenuSeparator />
-              <UiDropdownMenuItem @click="repo.resolveConflict(f.path, 'mark')">
-                {{ t('changes.markResolved') }}
-              </UiDropdownMenuItem>
-            </UiDropdownMenuContent>
-          </UiDropdownMenu>
-        </div>
+          <template #actions="{ file }">
+            <UiDropdownMenu>
+              <UiDropdownMenuTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  size="icon"
+                  class="size-5 opacity-0 group-hover:opacity-100"
+                  icon="lucide:ellipsis"
+                  icon-size="sm"
+                  @click.stop
+                />
+              </UiDropdownMenuTrigger>
+              <UiDropdownMenuContent align="end">
+                <UiDropdownMenuItem
+                  @click="repo.resolveConflict(file.path, 'ours')"
+                >
+                  {{ t('changes.useOurs') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuItem
+                  @click="repo.resolveConflict(file.path, 'theirs')"
+                >
+                  {{ t('changes.useTheirs') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuSeparator />
+                <UiDropdownMenuItem
+                  @click="repo.resolveConflict(file.path, 'mark')"
+                >
+                  {{ t('changes.markResolved') }}
+                </UiDropdownMenuItem>
+              </UiDropdownMenuContent>
+            </UiDropdownMenu>
+          </template>
+        </FileTree>
       </section>
 
       <!-- staged -->
