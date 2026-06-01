@@ -362,7 +362,7 @@ const lang = computed({
                 <UiBadge variant="warning" icon="lucide:rocket">
                   with icon
                 </UiBadge>
-                <UiBadge variant="info" icon="lucide:flask-conical">
+                <UiBadge variant="destructive" icon="lucide:flask-conical">
                   Experiment
                 </UiBadge>
               </div>
