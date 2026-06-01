@@ -78,7 +78,15 @@ export default defineNuxtConfig({
 
   i18n: {
     defaultLocale: 'en-GB',
-    fallbackLocale: 'en-GB',
+    // Every locale fills missing keys from en-GB (the only fully-translated
+    // catalogue); fr-FR / es-ES are partial today, so this is what makes them
+    // usable. `default` also covers any browser/OS locale we don't ship.
+    fallbackLocale: {
+      'de-DE': ['en-GB'],
+      'fr-FR': ['en-GB'],
+      'es-ES': ['en-GB'],
+      default: ['en-GB']
+    },
     strategy: 'no_prefix',
     // One directory per locale with namespaced files; i18n deep-merges them.
     locales: [
