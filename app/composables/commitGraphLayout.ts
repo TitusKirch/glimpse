@@ -73,18 +73,23 @@ export function commitGraphLayout(
     color: laneColor(c.lane)
   }));
 
-  // A lane change is drawn as a straight vertical run plus a tight rounded 90°
-  // corner at the divergence/merge node, not a full-height diagonal — so
-  // parallel branches read as straight lines.
+  // A lane change is a straight run plus ONE fixed-radius rounded corner at the
+  // divergence/merge node — never a full-height diagonal. The corner radius is
+  // constant regardless of how many lanes the edge spans, so a 2→3 jump curves
+  // with the same "schwung" as a 2→7 one; the extra horizontal distance is just
+  // a straight segment, not a flatter curve.
+  const r = laneWidth;
   const edgePath = (x1: number, y1: number, x2: number, y2: number) => {
     if (x1 === x2) return `M ${x1} ${y1} L ${x2} ${y2}`;
-    const r = Math.min(rowHeight / 2, Math.abs(y2 - y1) / 2);
+    const rr = Math.min(r, Math.abs(y2 - y1) / 2);
     if (x2 > x1) {
-      // Child shifts into a higher lane: corner just below the child (merge).
-      return `M ${x1} ${y1} C ${x1} ${y1 + r}, ${x2} ${y1}, ${x2} ${y1 + r} L ${x2} ${y2}`;
+      // Merge: sideways out of the child, one rounded corner into the parent's
+      // lane, then straight down.
+      return `M ${x1} ${y1} L ${x2 - rr} ${y1} Q ${x2} ${y1}, ${x2} ${y1 + rr} L ${x2} ${y2}`;
     }
-    // Child rejoins a lower lane: straight down, corner at the parent (branch).
-    return `M ${x1} ${y1} L ${x1} ${y2 - r} C ${x1} ${y2}, ${x2} ${y2 - r}, ${x2} ${y2}`;
+    // Branch: straight down this lane, one rounded corner near the parent, then
+    // sideways into the lower lane.
+    return `M ${x1} ${y1} L ${x1} ${y2 - rr} Q ${x1} ${y2}, ${x1 - rr} ${y2} L ${x2} ${y2}`;
   };
 
   const height = commits.length * rowHeight;
@@ -114,6 +119,11 @@ export function commitGraphLayout(
       });
     });
   });
+
+  // Edges are built newest-first (index 0 = top row). SVG paints later elements
+  // on top, so reverse them: an earlier (upper) row's edge then sits above a
+  // later (lower) row's where they overlap, instead of the other way round.
+  edges.reverse();
 
   const maxLane = commits.reduce((m, c) => Math.max(m, c.lane), 0);
   return {
