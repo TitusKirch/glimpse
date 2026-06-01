@@ -359,7 +359,7 @@ const lang = computed({
                 <UiBadge v-for="v in badgeKinds" :key="v" :variant="v">
                   {{ v }}
                 </UiBadge>
-                <UiBadge variant="warning" icon="lucide:flask-round">
+                <UiBadge variant="warning" icon="lucide:rocket">
                   with icon
                 </UiBadge>
                 <UiBadge variant="info" icon="lucide:flask-conical">
