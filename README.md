@@ -6,6 +6,8 @@
 
 **A lightweight, git-native desktop Git client — the full branch graph, diffs, and everyday git, with first-class WSL support**
 
+[![Release](https://img.shields.io/github/v/release/TitusKirch/glimpse?style=flat-square&label=release&color=10b981)](https://github.com/TitusKirch/glimpse/releases/latest)
+[![Beta](https://img.shields.io/github/v/tag/TitusKirch/glimpse?sort=semver&filter=*-beta*&style=flat-square&label=beta&color=f59e0b)](https://github.com/TitusKirch/glimpse/releases)
 [![Tests](https://img.shields.io/github/actions/workflow/status/TitusKirch/glimpse/ci.yml?branch=main&style=flat-square&label=tests)](https://github.com/TitusKirch/glimpse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/TitusKirch/glimpse?style=flat-square&color=10b981)](LICENSE)
 

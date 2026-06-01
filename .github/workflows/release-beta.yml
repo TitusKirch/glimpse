@@ -1,6 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
-# Beta channel. Manually dispatched. Two release surfaces:
+# Beta channel. Manually dispatched — just pick the branch and run; the version
+# is computed automatically. Two release surfaces:
 #   • a VERSIONED prerelease `v<version>` holds the real installers + .sig
 #     (proper per-beta history and download page), and
 #   • a static rolling `beta` release holds ONLY `latest.json`, the stable
@@ -9,10 +10,12 @@
 # download URLs work for prereleases, unlike the `releases/latest` alias which
 # skips them. Stable releases stay on release-please.
 #
-# Pick a semver-ordered version, e.g. 0.1.0-beta.1 → 0.1.0-beta.2 → …
+# Version = <next stable>-beta.<n>: the base is release-please's `release-as`
+# (or the latest stable tag bumped by conventional commits), and <n> is one past
+# the highest existing beta for that base (and never below the live manifest).
 #
 # Phases:
-#   1. prepare  — (re)create the versioned `v<version>` prerelease at this commit.
+#   1. prepare  — compute the version, (re)create the `v<version>` prerelease.
 #   2. build    — OS matrix in parallel, uploads installers + .sig to it.
 #   3. finalize — assemble one latest.json (URLs → the versioned prerelease) and
 #      republish the static `beta` release holding only that manifest.
@@ -24,10 +27,6 @@ name: Release Beta
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Beta version (e.g. 0.1.0-beta.1)'
-        required: true
 
 permissions:
   contents: write
@@ -38,19 +37,71 @@ concurrency:
 
 jobs:
   prepare:
-    name: Create versioned prerelease
+    name: Compute version & create prerelease
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      tag: ${{ steps.create.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Recreate v<version> prerelease
-        id: create
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compute next beta version
+        id: version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
         run: |
-          TAG="v$VERSION"
+          gh release download beta --repo "$GITHUB_REPOSITORY" -p latest.json -O beta-latest.json 2>/dev/null || echo '{}' > beta-latest.json
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          const sh = (c) => { try { return execSync(c, { encoding: 'utf8' }).trim(); } catch { return ''; } };
+          const cmp = (a, b) => {
+            const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+            for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+            return 0;
+          };
+          // Base = next stable. Honour release-please's `release-as` if pinned,
+          // else bump the latest stable tag from conventional commits.
+          const cfg = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
+          const releaseAs = cfg.packages && cfg.packages['.'] && cfg.packages['.']['release-as'];
+          const stable = sh('git tag --list "v*"').split('\n').filter(Boolean)
+            .map((t) => t.replace(/^v/, '')).filter((v) => /^\d+\.\d+\.\d+$/.test(v)).sort(cmp);
+          const lastStable = stable[stable.length - 1] || '0.0.0';
+          let base;
+          if (releaseAs) {
+            base = releaseAs;
+          } else {
+            const range = stable.length ? `v${lastStable}..HEAD` : 'HEAD';
+            const log = sh(`git log ${range} --format=%s%n%b`);
+            const [maj, min, pat] = lastStable.split('.').map(Number);
+            if (/(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log)) base = `${maj + 1}.0.0`;
+            else if (/(^|\n)feat(\(.+?\))?:/.test(log)) base = `${maj}.${min + 1}.0`;
+            else base = `${maj}.${min}.${pat + 1}`;
+          }
+          const esc = base.replace(/\./g, '\\.');
+          const re = new RegExp(`^${esc}-beta\\.(\\d+)$`);
+          const tagNs = sh('git tag --list "v*-beta.*"').split('\n').filter(Boolean)
+            .map((t) => t.replace(/^v/, '')).map((v) => v.match(re)).filter(Boolean).map((m) => +m[1]);
+          let manifestN = 0;
+          try {
+            const m = String(JSON.parse(fs.readFileSync('beta-latest.json', 'utf8')).version || '').match(re);
+            if (m) manifestN = +m[1];
+          } catch {}
+          const n = Math.max(0, manifestN, ...tagNs) + 1;
+          const version = `${base}-beta.${n}`;
+          console.log(`version=${version}`);
+          console.log(`tag=v${version}`);
+          NODE
+
+      - name: Create versioned prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
@@ -58,7 +109,6 @@ jobs:
             --title "$VERSION" \
             --notes "Beta build $VERSION." \
             --prerelease
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build:
     name: Beta build (${{ matrix.os }})
@@ -118,9 +168,11 @@ jobs:
       # tauri-action reads the version from tauri.conf.json; stamp the beta one.
       - name: Stamp beta version
         shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           tmp=$(mktemp)
-          jq --arg v "${{ inputs.version }}" '.version = $v' \
+          jq --arg v "$VERSION" '.version = $v' \
             src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
 
       # Builds + signs and uploads the installers + their .sig to the versioned
@@ -147,7 +199,7 @@ jobs:
       - name: Build latest.json and republish the static beta release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ needs.prepare.outputs.version }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: |
           mkdir -p sigs
