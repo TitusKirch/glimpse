@@ -119,22 +119,18 @@ function syncCount(command: string): number {
             <UiTooltipTrigger as-child>
               <UiButton
                 variant="ghost"
-                size="icon"
-                class="relative"
+                :size="syncCount(b.command) ? 'sm' : 'icon'"
                 :icon="b.icon"
                 :disabled="repo.busy || !repo.hasRepos"
                 :pending="repo.syncing === b.command"
                 @click="repo.sync(b.command)"
               >
-                <!-- behind-count on pull, ahead-count on push; the
-                     background-coloured ring tucks it neatly onto the button -->
+                <!-- behind-count on pull, ahead-count on push -->
                 <span
                   v-if="syncCount(b.command)"
-                  class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-semibold tabular-nums ring-2 ring-background"
+                  class="text-xs font-medium tabular-nums"
                   :class="
-                    b.command === 'push'
-                      ? 'bg-success text-success-foreground'
-                      : 'bg-warning text-warning-foreground'
+                    b.command === 'push' ? 'text-success' : 'text-warning'
                   "
                   >{{ syncCount(b.command) }}</span
                 >
