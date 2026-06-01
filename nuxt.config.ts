@@ -78,9 +78,11 @@ export default defineNuxtConfig({
 
   i18n: {
     defaultLocale: 'en-GB',
-    // Every locale fills missing keys from en-GB (the only fully-translated
-    // catalogue); fr-FR / es-ES are partial today, so this is what makes them
-    // usable. `default` also covers any browser/OS locale we don't ship.
+    // NOTE: this only decides which message files get *preloaded* so a fallback
+    // locale's catalogue is in memory. The lookup-time fallback that actually
+    // substitutes a missing key lives in i18n/i18n.config.ts (vue-i18n runtime
+    // options) — keep the two chains identical. fr-FR / es-ES are partial today,
+    // so this is what makes them usable; `default` covers locales we don't ship.
     fallbackLocale: {
       'de-DE': ['en-GB'],
       'fr-FR': ['en-GB'],
