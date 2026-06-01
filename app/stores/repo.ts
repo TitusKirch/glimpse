@@ -216,11 +216,17 @@ export const useRepoStore = defineStore('repo', {
     conflictedFiles(): StatusEntry[] {
       return this.status.filter((f) => f.conflicted);
     },
-    // How far the current branch is behind its upstream — drives the "new
-    // commits" indicator on the pull button after a (manual or auto) fetch.
+    // How far the current branch is behind its upstream — drives the "incoming
+    // commits" badge on the pull button after a (manual or auto) fetch.
     behind(): number {
       const b = this.branches.find((x) => x.name === this.currentBranch);
       return b?.behind ?? 0;
+    },
+    // How far the current branch is ahead of its upstream — drives the
+    // "unpushed commits" badge on the push button.
+    ahead(): number {
+      const b = this.branches.find((x) => x.name === this.currentBranch);
+      return b?.ahead ?? 0;
     },
     // The last log fetch hit the limit, so more history can be loaded.
     hasMoreHistory(): boolean {

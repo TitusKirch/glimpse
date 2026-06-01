@@ -69,6 +69,13 @@ const syncButtons = [
   { command: 'pull' as const, icon: 'lucide:arrow-down', label: 'sync.pull' },
   { command: 'push' as const, icon: 'lucide:arrow-up', label: 'sync.push' }
 ];
+
+// Count badge on the sync buttons: behind-count on pull, ahead-count on push.
+function syncCount(command: string): number {
+  if (command === 'pull') return repo.behind;
+  if (command === 'push') return repo.ahead;
+  return 0;
+}
 </script>
 
 <template>
@@ -119,11 +126,17 @@ const syncButtons = [
                 :pending="repo.syncing === b.command"
                 @click="repo.sync(b.command)"
               >
-                <!-- behind-upstream indicator on the pull button -->
+                <!-- behind-count on pull, ahead-count on push; the
+                     background-coloured ring tucks it neatly onto the button -->
                 <span
-                  v-if="b.command === 'pull' && repo.behind"
-                  class="absolute -top-0.5 -right-0.5 flex min-w-3.5 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] leading-none font-semibold text-white"
-                  >{{ repo.behind }}</span
+                  v-if="syncCount(b.command)"
+                  class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-semibold tabular-nums ring-2 ring-background"
+                  :class="
+                    b.command === 'push'
+                      ? 'bg-success text-success-foreground'
+                      : 'bg-warning text-warning-foreground'
+                  "
+                  >{{ syncCount(b.command) }}</span
                 >
               </UiButton>
             </UiTooltipTrigger>
