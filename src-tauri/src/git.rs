@@ -121,13 +121,13 @@ impl Repo {
 
     /// Run `git <args>` against this repo, returning stdout or trimmed stderr.
     fn run(&self, args: &[&str]) -> Result<String, String> {
-        let output = self
-            .target
-            .command(args)
-            .output()
-            .map_err(|e| format!("failed to run git: {e}"))?;
+        let output =
+            self.target.command(args).output().map_err(|e| {
+                format!("failed to run git: {e}\n\n$ {}", self.target.describe(args))
+            })?;
         if !output.status.success() {
-            return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            return Err(format!("{stderr}\n\n$ {}", self.target.describe(args)));
         }
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }

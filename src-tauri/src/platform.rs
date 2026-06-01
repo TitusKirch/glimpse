@@ -60,6 +60,18 @@ impl GitTarget {
         cmd
     }
 
+    /// The exact argv [`command`] would run, as a single string — appended to
+    /// error messages so a failing invocation (especially the WSL path) is
+    /// visible to the user instead of just git's bare stderr.
+    pub fn describe(&self, args: &[&str]) -> String {
+        let mut parts = vec![self.program.clone()];
+        parts.extend(self.prefix_args.iter().cloned());
+        parts.push("-C".into());
+        parts.push(self.repo_arg.clone());
+        parts.extend(args.iter().map(|a| a.to_string()));
+        parts.join(" ")
+    }
+
     /// Read a working-tree file's content (native fs, or `cat` inside WSL).
     pub fn read_file(&self, rel: &str) -> Option<String> {
         if let Some(distro) = &self.distro {
