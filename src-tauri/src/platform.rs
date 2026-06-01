@@ -7,12 +7,23 @@
 //! - **Linux / macOS / Windows:** run the native `git` found on `PATH`.
 //! - **Windows + WSL (Windows-only):** a repo that lives in the WSL filesystem
 //!   (`\\wsl$\<distro>\...` or `\\wsl.localhost\<distro>\...`) is driven through
-//!   that distro's git via `wsl.exe -d <distro> -- git -C <linux-path>`.
+//!   that distro's git via `wsl.exe -d <distro> --exec git -C <linux-path>`.
 //!
 //! Adding a new platform means adding its arm to [`resolve`] / [`native_flavor`]
 //! — callers never change.
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::process::Command;
+
+/// Suppress the flashing console window a Windows console subprocess (git.exe,
+/// wsl.exe) would otherwise spawn for every git call. No-op off Windows. Only
+/// for internal commands — `open_in` deliberately shows a window.
+fn no_window(cmd: &mut Command) -> &mut Command {
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    cmd
+}
 
 /// Short platform identifier surfaced to the frontend
 /// (`"linux"`, `"macos"`, `"windows"`, `"wsl"`).
@@ -42,6 +53,7 @@ impl GitTarget {
     /// Build a `Command` running `git <args...>` against this target's repo.
     pub fn command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::new(&self.program);
+        no_window(&mut cmd);
         cmd.args(&self.prefix_args);
         cmd.arg("-C").arg(&self.repo_arg);
         cmd.args(args);
@@ -52,8 +64,10 @@ impl GitTarget {
     pub fn read_file(&self, rel: &str) -> Option<String> {
         if let Some(distro) = &self.distro {
             let path = format!("{}/{}", self.repo_arg, rel);
-            let out = Command::new("wsl.exe")
-                .args(["-d", distro, "--", "cat", &path])
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            let out = cmd
+                .args(["-d", distro, "--exec", "cat", &path])
                 .output()
                 .ok()?;
             return out
@@ -84,7 +98,10 @@ pub fn resolve(repo_path: &str) -> GitTarget {
     if let Some((distro, linux_path)) = parse_wsl_path(repo_path) {
         return GitTarget {
             program: "wsl.exe".into(),
-            prefix_args: vec!["-d".into(), distro.clone(), "--".into(), "git".into()],
+            // `--exec` runs git directly instead of through the WSL login shell;
+            // a shell (e.g. zsh) would otherwise glob-expand args like
+            // `--format=%(upstream)` ("missing delimiter for 'u' glob qualifier").
+            prefix_args: vec!["-d".into(), distro.clone(), "--exec".into(), "git".into()],
             repo_arg: linux_path,
             flavor: "wsl",
             distro: Some(distro),
