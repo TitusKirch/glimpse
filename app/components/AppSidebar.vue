@@ -8,6 +8,14 @@ const openRepoDialog = useOpenRepoDialog();
 const help = useHelpDialog();
 const { t } = useI18n();
 
+// BETA tag next to the app name on pre-release builds (the running version
+// carries a `-beta`/`-rc` suffix — not the updater channel setting).
+const { isPrerelease } = useAppVersion();
+// TESTING: forced on so the badge styling is reviewable on any build. Remove
+// `forceBetaBadge ||` to ship the real, version-driven behaviour.
+const forceBetaBadge = true;
+const showBetaBadge = computed(() => forceBetaBadge || isPrerelease.value);
+
 // Collapsed (icon-only) sidebar: items open a dropdown instead of acting
 // directly, so their actions stay reachable.
 const { state, isMobile } = useSidebar();
@@ -49,11 +57,20 @@ const links = [
 <template>
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
-      <div class="flex h-8 items-center gap-2 px-2 text-sm font-bold">
+      <div
+        class="flex h-8 items-center gap-2 px-2 text-sm font-bold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+      >
         <img src="/logo_128x128.png" alt="" class="size-5 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
         }}</span>
+        <UiBadge
+          v-if="showBetaBadge"
+          variant="secondary"
+          class="h-[18px] px-1.5 text-[10px] font-semibold tracking-wide text-amber-600 group-data-[collapsible=icon]:hidden dark:text-amber-400"
+        >
+          BETA
+        </UiBadge>
       </div>
     </UiSidebarHeader>
 
