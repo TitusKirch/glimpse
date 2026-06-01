@@ -20,6 +20,9 @@ const props = defineProps<{
   fileName: string;
   // When set, each hunk gets a stage/unstage button emitting `stageHunk`.
   hunkAction?: 'stage' | 'unstage' | null;
+  // Whole-file view: drop the `@@` hunk-header rows (the diff was fetched with
+  // full context, so there's a single header — hiding it reads as "the file").
+  hideHunkHeader?: boolean;
 }>();
 
 const emit = defineEmits<{ stageHunk: [hunk: string] }>();
@@ -288,9 +291,12 @@ const ROW_H = 20;
 
 // Only the active mode feeds rows to its virtualizer (the hidden one stays at
 // count 0 and does no work).
-const unifiedRows = computed(() =>
-  props.mode === 'unified' ? unified.value : []
-);
+const unifiedRows = computed(() => {
+  if (props.mode !== 'unified') return [];
+  return props.hideHunkHeader
+    ? unified.value.filter((r) => r.type !== 'hunk')
+    : unified.value;
+});
 const splitRows = computed(() => (props.mode === 'split' ? split.value : []));
 
 const unifiedScroll = ref<HTMLElement | null>(null);

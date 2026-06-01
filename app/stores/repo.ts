@@ -40,7 +40,7 @@ export type {
 
 // Frontend-only types (no backend counterpart).
 export type GitFlavor = 'windows' | 'wsl' | 'linux' | 'macos';
-export type DiffMode = 'split' | 'unified';
+export type DiffMode = 'split' | 'unified' | 'whole';
 
 // Everything one open repository shows. The tab strip renders id/name/flavor;
 // the panels read the rest of the active repo via projection getters.
@@ -304,8 +304,16 @@ export const useRepoStore = defineStore('repo', {
       const r = this.active;
       if (!r?.selectedHash) return;
       r.selectedFile = file;
-      const ws = useLayoutStore().ignoreWhitespace;
-      r.diff = await gitClient.commitFileDiff(r.path, r.selectedHash, file, ws);
+      const layout = useLayoutStore();
+      const ws = layout.ignoreWhitespace;
+      const whole = layout.diffMode === 'whole';
+      r.diff = await gitClient.commitFileDiff(
+        r.path,
+        r.selectedHash,
+        file,
+        ws,
+        whole
+      );
     },
 
     async selectFile(file: string, staged: boolean) {
@@ -316,8 +324,10 @@ export const useRepoStore = defineStore('repo', {
       r.selectedHash = null;
       r.selectedBody = '';
       r.commitFiles = [];
-      const ws = useLayoutStore().ignoreWhitespace;
-      r.diff = await gitClient.fileDiff(r.path, file, staged, ws);
+      const layout = useLayoutStore();
+      const ws = layout.ignoreWhitespace;
+      const whole = layout.diffMode === 'whole';
+      r.diff = await gitClient.fileDiff(r.path, file, staged, ws, whole);
     },
 
     // Re-run the diff for the current selection (commit file or working file),

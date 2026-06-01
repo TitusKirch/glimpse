@@ -137,11 +137,12 @@ export const gitClient = {
     path: string,
     file: string,
     staged: boolean,
-    ignoreWhitespace = false
+    ignoreWhitespace = false,
+    whole = false
   ) =>
     gitInvoke<DiffData | null>(
       'file_diff',
-      { path, file, staged, ignoreWhitespace },
+      { path, file, staged, ignoreWhitespace, whole },
       mock.diff
     ),
 
@@ -167,11 +168,12 @@ export const gitClient = {
     path: string,
     hash: string,
     file: string,
-    ignoreWhitespace = false
+    ignoreWhitespace = false,
+    whole = false
   ) =>
     gitInvoke<DiffData | null>(
       'commit_file_diff',
-      { path, hash, file, ignoreWhitespace },
+      { path, hash, file, ignoreWhitespace, whole },
       mock.diff
     ),
 

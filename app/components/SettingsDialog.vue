@@ -58,7 +58,12 @@ watch(
 );
 
 const themeOptions = ['system', 'light', 'dark'] as const;
-const diffModeOptions = ['split', 'unified'] as const;
+const diffModeOptions = ['split', 'unified', 'whole'] as const;
+const diffModeLabel: Record<(typeof diffModeOptions)[number], string> = {
+  split: 'diff.sideBySide',
+  unified: 'diff.unified',
+  whole: 'diff.whole'
+};
 const fileViewOptions = ['list', 'tree'] as const;
 // Diff font scale presets (multipliers applied via --mono-scale).
 const fontScales = [
@@ -462,11 +467,7 @@ const lang = computed({
                         :key="m"
                         :value="m"
                       >
-                        {{
-                          m === 'split'
-                            ? t('diff.sideBySide')
-                            : t('diff.unified')
-                        }}
+                        {{ t(diffModeLabel[m]) }}
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
