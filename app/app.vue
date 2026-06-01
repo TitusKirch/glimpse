@@ -102,6 +102,7 @@ function syncCount(command: string): number {
 <template>
   <UiSidebarProvider
     :open="layout.sidebarOpen"
+    :width="`${layout.sidebarWidth}px`"
     class="h-screen"
     @update:open="layout.setSidebarOpen"
   >

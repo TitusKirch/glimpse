@@ -22,13 +22,17 @@ const props = withDefaults(
   defineProps<{
     defaultOpen?: boolean;
     open?: boolean;
+    // Expanded width as a CSS length (drives --sidebar-width). Defaults to the
+    // shadcn constant; the app passes a persisted, drag-resizable value.
+    width?: string;
     class?: HTMLAttributes['class'];
   }>(),
   {
     defaultOpen: !defaultDocument?.cookie.includes(
       `${SIDEBAR_COOKIE_NAME}=false`
     ),
-    open: undefined
+    open: undefined,
+    width: SIDEBAR_WIDTH
   }
 );
 
@@ -92,7 +96,7 @@ provideSidebarContext({
     <div
       data-slot="sidebar-wrapper"
       :style="{
-        '--sidebar-width': SIDEBAR_WIDTH,
+        '--sidebar-width': props.width,
         '--sidebar-width-icon': SIDEBAR_WIDTH_ICON
       }"
       :class="

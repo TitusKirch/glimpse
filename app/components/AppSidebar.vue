@@ -20,6 +20,31 @@ const isCollapsed = computed(
   () => state.value === 'collapsed' && !isMobile.value
 );
 
+const layout = useLayoutStore();
+// Drag-to-resize the expanded sidebar within [16rem, 24rem]. Width persists in
+// the layout store and feeds --sidebar-width via the provider. Transitions are
+// suppressed (body class) during the drag so it tracks the pointer crisply.
+const MIN_WIDTH = 256;
+const MAX_WIDTH = 384;
+const canResize = computed(() => state.value === 'expanded' && !isMobile.value);
+function startResize(e: PointerEvent) {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = layout.sidebarWidth;
+  document.body.classList.add('resizing-sidebar');
+  const onMove = (ev: PointerEvent) => {
+    const next = startWidth + (ev.clientX - startX);
+    layout.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
+  };
+  const onUp = () => {
+    document.body.classList.remove('resizing-sidebar');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
+
 // Capped lists with gildstone-style "show N more / show less".
 const branchesMore = useSidebarMore(() => repo.branches);
 const remoteBranchesMore = useSidebarMore(() => repo.remoteBranches);
@@ -355,5 +380,12 @@ const links = [
     </UiSidebarFooter>
 
     <UiSidebarRail />
+
+    <!-- Drag handle on the right edge to resize the expanded sidebar. -->
+    <div
+      v-if="canResize"
+      class="absolute inset-y-0 right-0 z-30 w-1 cursor-col-resize transition-colors hover:bg-sidebar-border"
+      @pointerdown="startResize"
+    />
   </UiSidebar>
 </template>
