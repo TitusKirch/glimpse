@@ -126,9 +126,12 @@
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
     "reset": "Hierhin zurücksetzen",
-    "resetSoft": "Soft (Änderungen vorgemerkt lassen)",
-    "resetMixed": "Mixed (Änderungen behalten)",
-    "resetHard": "Hard (Änderungen verwerfen)"
+    "resetSoft": "Soft",
+    "resetSoftHint": "Änderungen vorgemerkt lassen",
+    "resetMixed": "Mixed",
+    "resetMixedHint": "Änderungen unstaged behalten",
+    "resetHard": "Hard",
+    "resetHardHint": "alle Änderungen verwerfen"
   },
   "command": {
     "open": "Befehlspalette",

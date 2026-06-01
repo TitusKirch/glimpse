@@ -126,9 +126,12 @@
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
     "reset": "Reset to here",
-    "resetSoft": "Soft (keep changes staged)",
-    "resetMixed": "Mixed (keep changes)",
-    "resetHard": "Hard (discard changes)"
+    "resetSoft": "Soft",
+    "resetSoftHint": "keep changes staged",
+    "resetMixed": "Mixed",
+    "resetMixedHint": "keep changes unstaged",
+    "resetHard": "Hard",
+    "resetHardHint": "discard all changes"
   },
   "command": {
     "open": "Command palette",
