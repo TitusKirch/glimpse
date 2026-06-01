@@ -192,11 +192,10 @@ function refClass(ref: string): string {
                     v-for="ref in vr.commit.refs"
                     :key="ref"
                     variant="outline"
-                    :title="refLabel(ref)"
-                    class="h-[18px] max-w-[12rem] shrink overflow-hidden px-1.5 text-[10px] font-medium"
+                    class="h-[18px] shrink-0 px-1.5 text-[10px] font-medium whitespace-nowrap"
                     :class="refClass(ref)"
                   >
-                    <span class="truncate">{{ refLabel(ref) }}</span>
+                    {{ refLabel(ref) }}
                   </UiBadge>
                   <span class="truncate text-sm font-medium">{{
                     vr.commit.subject
