@@ -22,6 +22,9 @@ export const useLayoutStore = defineStore('layout', {
     leftTab: 'changes' as 'changes' | 'history',
     // Flat list vs. grouped folder tree for file lists.
     fileView: 'tree' as FileView,
+    // Collapse the noisy middle of long bot branch refs (dependabot/…/pkg) in
+    // the graph so their badges don't crowd the commit subjects.
+    shortenDependabot: true,
     // Theme accent colour (overrides the neutral --primary token).
     accent: 'default' as Accent,
     // Diff font scale (1 = default); applied to the diff via --mono-scale.

@@ -2,6 +2,7 @@
 import { useVirtualizer } from '@tanstack/vue-virtual';
 
 const repo = useRepoStore();
+const prefs = useLayoutStore();
 const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
@@ -57,16 +58,21 @@ const filtered = computed(() => {
 });
 
 function refLabel(ref: string): string {
-  return ref.replace('HEAD -> ', '').replace('tag: ', '');
+  let label = ref.replace('HEAD -> ', '').replace('tag: ', '');
+  // Collapse a long bot branch's noisy middle so its badge stays compact:
+  // dependabot/npm_and_yarn/group/pkg-1.2.3 -> dependabot/…/pkg-1.2.3.
+  if (prefs.shortenDependabot) {
+    label = label.replace(/(dependabot)\/.+\/([^/]+)$/, '$1/…/$2');
+  }
+  return label;
 }
-function refClass(ref: string): string {
-  if (ref.startsWith('HEAD'))
-    return 'border-green-500/40 text-green-600 dark:text-green-400';
-  if (ref.startsWith('tag:'))
-    return 'border-amber-500/40 text-amber-600 dark:text-amber-400';
-  if (ref.includes('/'))
-    return 'border-purple-500/40 text-purple-600 dark:text-purple-400';
-  return 'border-blue-500/40 text-blue-600 dark:text-blue-400';
+// Map a ref type to a semantic badge variant (no per-call colour classes):
+// HEAD = success, tag = warning, remote-tracking = outline, local = info.
+function refVariant(ref: string) {
+  if (ref.startsWith('HEAD')) return 'success' as const;
+  if (ref.startsWith('tag:')) return 'warning' as const;
+  if (ref.includes('/')) return 'outline' as const;
+  return 'info' as const;
 }
 </script>
 
@@ -187,25 +193,19 @@ function refClass(ref: string): string {
               @click="repo.selectCommit(vr.commit.hash)"
             >
               <div class="min-w-0 flex-1 overflow-hidden">
-                <!-- ref badges get their own line so they never crowd or push
-                     the subject; the row is tall enough for all three lines -->
-                <div
-                  v-if="vr.commit.refs.length"
-                  class="flex min-w-0 items-center gap-1.5 overflow-hidden"
-                >
+                <div class="flex min-w-0 items-center gap-1.5">
                   <UiBadge
                     v-for="ref in vr.commit.refs"
                     :key="ref"
-                    variant="outline"
-                    class="h-[18px] shrink-0 px-1.5 text-[10px] font-medium whitespace-nowrap"
-                    :class="refClass(ref)"
+                    :variant="refVariant(ref)"
+                    size="sm"
                   >
                     {{ refLabel(ref) }}
                   </UiBadge>
+                  <span class="truncate text-sm font-medium">{{
+                    vr.commit.subject
+                  }}</span>
                 </div>
-                <span class="block truncate text-sm font-medium">{{
-                  vr.commit.subject
-                }}</span>
                 <div class="mt-1 truncate text-xs text-muted-foreground">
                   {{ vr.commit.author }} · {{ vr.commit.date }}
                 </div>

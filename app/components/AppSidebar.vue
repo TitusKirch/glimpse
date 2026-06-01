@@ -66,7 +66,8 @@ const links = [
         }}</span>
         <UiBadge
           v-if="showBetaBadge"
-          variant="beta"
+          variant="warning"
+          icon="lucide:flask-round"
           class="group-data-[collapsible=icon]:hidden"
         >
           BETA
