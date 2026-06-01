@@ -528,6 +528,48 @@ const lang = computed({
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
+                {{ t('settings.appearance.sidebarSection') }}
+              </h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.sidebarResizable.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.sidebarResizable.hint') }}
+                    </p>
+                  </div>
+                  <UiSwitch
+                    v-model="layout.sidebarResizable"
+                    class="shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.appearance.sidebarWidth.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.appearance.sidebarWidth.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.sidebarWidth"
+                    type="number"
+                    min="192"
+                    max="512"
+                    step="8"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
                 {{ t('settings.appearance.graphSection') }}
               </h3>
               <div class="flex items-center justify-between gap-4">

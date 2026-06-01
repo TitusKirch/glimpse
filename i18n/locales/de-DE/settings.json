@@ -100,6 +100,15 @@
         "large": "Groß",
         "xlarge": "Sehr groß"
       },
+      "sidebarSection": "Seitenleiste",
+      "sidebarResizable": {
+        "label": "Größe veränderbar",
+        "hint": "Rechte Kante ziehen, um die Seitenleiste zu verbreitern."
+      },
+      "sidebarWidth": {
+        "label": "Breite (px)",
+        "hint": "Breite der aufgeklappten Seitenleiste, 192–512."
+      },
       "graphSection": "Graph",
       "shortenDependabot": {
         "label": "Dependabot-Branches kürzen",

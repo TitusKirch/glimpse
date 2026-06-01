@@ -28,7 +28,9 @@ const { shortenBranch } = useBranchLabel();
 // tracks the pointer crisply.
 const MIN_WIDTH = 192;
 const MAX_WIDTH = 512;
-const canResize = computed(() => state.value === 'expanded' && !isMobile.value);
+const canResize = computed(
+  () => layout.sidebarResizable && state.value === 'expanded' && !isMobile.value
+);
 function startResize(e: PointerEvent) {
   e.preventDefault();
   const startX = e.clientX;
@@ -222,7 +224,12 @@ const links = [
                   "
                   class="shrink-0"
                 />
-                <span class="truncate">{{ shortenBranch(rb) }}</span>
+                <UiTooltip>
+                  <UiTooltipTrigger as-child>
+                    <span class="truncate">{{ shortenBranch(rb) }}</span>
+                  </UiTooltipTrigger>
+                  <UiTooltipContent side="right">{{ rb }}</UiTooltipContent>
+                </UiTooltip>
               </UiSidebarMenuButton>
             </UiSidebarMenuItem>
             <SidebarMoreButton
