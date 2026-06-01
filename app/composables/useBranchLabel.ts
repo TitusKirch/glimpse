@@ -6,14 +6,14 @@ export function useBranchLabel() {
 
   // Compact a long bot branch when the pref is on — guarded to `dependabot/`
   // refs so normal hyphenated branches (feat/my-thing) are left alone. Collapses
-  // the noisy middle AND drops the trailing version/hash (everything from the
-  // last '-'): origin/dependabot/npm_and_yarn/pkg-action-1.2.3
-  // -> origin/dependabot/…/pkg-action
+  // the noisy middle AND ellipsises the trailing version/hash (everything from
+  // the last '-'), keeping a `-…` marker: origin/dependabot/npm_and_yarn/pkg-action-1.2.3
+  // -> origin/dependabot/…/pkg-action-…
   function shortenBranch(name: string): string {
     if (layout.shortenDependabot && /dependabot\//.test(name)) {
       return name
         .replace(/(dependabot)\/.+\/([^/]+)$/, '$1/…/$2')
-        .replace(/-[^/-]*$/, '');
+        .replace(/-[^/-]*$/, '-…');
     }
     return name;
   }
