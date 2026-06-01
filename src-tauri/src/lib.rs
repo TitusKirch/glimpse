@@ -1,9 +1,10 @@
 mod git;
 mod platform;
 
+use std::collections::HashMap;
 use std::env;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
@@ -13,6 +14,32 @@ use tauri::{AppHandle, Emitter, State};
 /// Holds the active filesystem watcher so it stays alive (dropping it stops
 /// watching). Only the most recently watched repo is tracked.
 struct WatcherState(Mutex<Option<Debouncer<RecommendedWatcher>>>);
+
+/// Per-repository write serialization. Every mutating git command takes its
+/// repo's lock, so two never run at once and can't collide on `index.lock`
+/// (e.g. an auto-refresh-triggered op racing a user merge). Keyed by the repo
+/// path the frontend passes. Reads stay lock-free — `GIT_OPTIONAL_LOCKS=0`
+/// already keeps them from taking the index lock at all.
+#[derive(Default)]
+struct RepoLocks(Mutex<HashMap<String, Arc<Mutex<()>>>>);
+
+/// Run `f` while holding `path`'s write lock, serializing it against other
+/// mutating commands on the same repo.
+fn locked<T>(
+    locks: &RepoLocks,
+    path: &str,
+    f: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let lock = locks
+        .0
+        .lock()
+        .unwrap()
+        .entry(path.to_string())
+        .or_default()
+        .clone();
+    let _guard = lock.lock().unwrap();
+    f()
+}
 
 /// Current working directory — the frontend uses this as the default repo to open.
 #[tauri::command]
@@ -85,8 +112,16 @@ async fn blame(path: String, file: String) -> Result<Vec<git::BlameLine>, String
 }
 
 #[tauri::command]
-async fn apply_hunk(path: String, file: String, hunk: String, reverse: bool) -> Result<(), String> {
-    git::Repo::open(&path).apply_hunk(&file, &hunk, reverse)
+async fn apply_hunk(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    hunk: String,
+    reverse: bool,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).apply_hunk(&file, &hunk, reverse)
+    })
 }
 
 #[tauri::command]
@@ -110,18 +145,25 @@ async fn commit_file_diff(
 }
 
 #[tauri::command]
-async fn stage(path: String, file: String) -> Result<(), String> {
-    git::Repo::open(&path).stage(&file)
+async fn stage(locks: State<'_, RepoLocks>, path: String, file: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).stage(&file))
 }
 
 #[tauri::command]
-async fn unstage(path: String, file: String) -> Result<(), String> {
-    git::Repo::open(&path).unstage(&file)
+async fn unstage(locks: State<'_, RepoLocks>, path: String, file: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).unstage(&file))
 }
 
 #[tauri::command]
-async fn commit(path: String, message: String, amend: bool) -> Result<String, String> {
-    git::Repo::open(&path).commit(&message, amend)
+async fn commit(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    amend: bool,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit(&message, amend)
+    })
 }
 
 #[tauri::command]
@@ -130,118 +172,234 @@ async fn head_message(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn discard(path: String, file: String, untracked: bool) -> Result<(), String> {
-    git::Repo::open(&path).discard(&file, untracked)
+async fn discard(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    untracked: bool,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).discard(&file, untracked)
+    })
 }
 
 #[tauri::command]
-async fn checkout_branch(path: String, branch: String) -> Result<(), String> {
-    git::Repo::open(&path).checkout_branch(&branch)
+async fn checkout_branch(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    branch: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).checkout_branch(&branch)
+    })
 }
 
 #[tauri::command]
-async fn merge(path: String, branch: String) -> Result<String, String> {
-    git::Repo::open(&path).merge(&branch)
+async fn merge(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    branch: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).merge(&branch))
 }
 
 #[tauri::command]
-async fn discard_all(path: String) -> Result<(), String> {
-    git::Repo::open(&path).discard_all()
+async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).discard_all())
 }
 
 #[tauri::command]
-async fn push_tags(path: String) -> Result<String, String> {
-    git::Repo::open(&path).push_tags()
+async fn push_tags(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).push_tags())
 }
 
 #[tauri::command]
-async fn add_remote(path: String, name: String, url: String) -> Result<(), String> {
-    git::Repo::open(&path).add_remote(&name, &url)
+async fn add_remote(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    name: String,
+    url: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).add_remote(&name, &url)
+    })
 }
 
 #[tauri::command]
-async fn remove_remote(path: String, name: String) -> Result<(), String> {
-    git::Repo::open(&path).remove_remote(&name)
+async fn remove_remote(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    name: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).remove_remote(&name)
+    })
 }
 
 #[tauri::command]
-async fn rename_remote(path: String, old: String, new: String) -> Result<(), String> {
-    git::Repo::open(&path).rename_remote(&old, &new)
+async fn rename_remote(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    old: String,
+    new: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).rename_remote(&old, &new)
+    })
 }
 
 #[tauri::command]
-async fn checkout_commit(path: String, hash: String) -> Result<(), String> {
-    git::Repo::open(&path).checkout_commit(&hash)
+async fn checkout_commit(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    hash: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).checkout_commit(&hash)
+    })
 }
 
 #[tauri::command]
-async fn create_branch(path: String, name: String) -> Result<(), String> {
-    git::Repo::open(&path).create_branch(&name)
+async fn create_branch(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    name: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).create_branch(&name)
+    })
 }
 
 #[tauri::command]
-async fn create_branch_at(path: String, name: String, hash: String) -> Result<(), String> {
-    git::Repo::open(&path).create_branch_at(&name, &hash)
+async fn create_branch_at(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    name: String,
+    hash: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).create_branch_at(&name, &hash)
+    })
 }
 
 #[tauri::command]
-async fn delete_branch(path: String, name: String) -> Result<(), String> {
-    git::Repo::open(&path).delete_branch(&name)
+async fn delete_branch(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    name: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).delete_branch(&name)
+    })
 }
 
 #[tauri::command]
-async fn revert(path: String, hash: String) -> Result<(), String> {
-    git::Repo::open(&path).revert(&hash)
+async fn revert(locks: State<'_, RepoLocks>, path: String, hash: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).revert(&hash))
 }
 
 #[tauri::command]
-async fn cherry_pick(path: String, hash: String) -> Result<(), String> {
-    git::Repo::open(&path).cherry_pick(&hash)
+async fn cherry_pick(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    hash: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).cherry_pick(&hash))
 }
 
 #[tauri::command]
-async fn reset(path: String, hash: String, mode: String) -> Result<(), String> {
-    git::Repo::open(&path).reset(&hash, &mode)
+async fn reset(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    hash: String,
+    mode: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).reset(&hash, &mode))
 }
 
 #[tauri::command]
-async fn rename_branch(path: String, old: String, new: String) -> Result<(), String> {
-    git::Repo::open(&path).rename_branch(&old, &new)
+async fn rename_branch(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    old: String,
+    new: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).rename_branch(&old, &new)
+    })
 }
 
 #[tauri::command]
-async fn set_upstream(path: String, remote: String, branch: String) -> Result<(), String> {
-    git::Repo::open(&path).set_upstream(&remote, &branch)
+async fn set_upstream(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    remote: String,
+    branch: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).set_upstream(&remote, &branch)
+    })
 }
 
 #[tauri::command]
-async fn create_tag(path: String, name: String, hash: String) -> Result<(), String> {
-    git::Repo::open(&path).create_tag(&name, &hash)
+async fn create_tag(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    name: String,
+    hash: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).create_tag(&name, &hash)
+    })
 }
 
 #[tauri::command]
-async fn delete_tag(path: String, name: String) -> Result<(), String> {
-    git::Repo::open(&path).delete_tag(&name)
+async fn delete_tag(locks: State<'_, RepoLocks>, path: String, name: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).delete_tag(&name))
 }
 
 #[tauri::command]
-async fn stash_save(path: String, message: String) -> Result<(), String> {
-    git::Repo::open(&path).stash_save(&message)
+async fn stash_save(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).stash_save(&message)
+    })
 }
 
 #[tauri::command]
-async fn stash_pop(path: String, reference: String) -> Result<(), String> {
-    git::Repo::open(&path).stash_pop(&reference)
+async fn stash_pop(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    reference: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).stash_pop(&reference)
+    })
 }
 
 #[tauri::command]
-async fn stash_apply(path: String, reference: String) -> Result<(), String> {
-    git::Repo::open(&path).stash_apply(&reference)
+async fn stash_apply(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    reference: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).stash_apply(&reference)
+    })
 }
 
 #[tauri::command]
-async fn stash_drop(path: String, reference: String) -> Result<(), String> {
-    git::Repo::open(&path).stash_drop(&reference)
+async fn stash_drop(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    reference: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).stash_drop(&reference)
+    })
 }
 
 #[tauri::command]
@@ -250,18 +408,32 @@ async fn fetch(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn pull(path: String, rebase: bool) -> Result<String, String> {
-    git::Repo::open(&path).pull(rebase)
+async fn pull(locks: State<'_, RepoLocks>, path: String, rebase: bool) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).pull(rebase))
 }
 
 #[tauri::command]
-async fn resolve_conflict(path: String, file: String, side: String) -> Result<(), String> {
-    git::Repo::open(&path).resolve_conflict(&file, &side)
+async fn resolve_conflict(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    side: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).resolve_conflict(&file, &side)
+    })
 }
 
 #[tauri::command]
-async fn push(path: String, set_upstream: bool, force: bool) -> Result<String, String> {
-    git::Repo::open(&path).push(set_upstream, force)
+async fn push(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    set_upstream: bool,
+    force: bool,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).push(set_upstream, force)
+    })
 }
 
 /// Open the repo folder in an external app: "files", "terminal", or "editor".
@@ -340,6 +512,7 @@ async fn install_update(_channel: String) -> Result<(), String> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
+        .manage(RepoLocks::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         // Persists window size/position/maximized state across restarts.

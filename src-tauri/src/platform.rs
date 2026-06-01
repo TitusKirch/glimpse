@@ -54,6 +54,13 @@ impl GitTarget {
     pub fn command(&self, args: &[&str]) -> Command {
         let mut cmd = Command::new(&self.program);
         no_window(&mut cmd);
+        // Keep read-only commands (notably the watcher's repeated `git status`)
+        // from grabbing the *optional* index.lock, which would otherwise race a
+        // concurrent write and fail with "Unable to create '…/index.lock':
+        // File exists". Native git reads this from the host env; the WSL target
+        // also injects it inside the distro via `env` (host env doesn't cross
+        // the wsl.exe boundary), so set it here for the native case.
+        cmd.env("GIT_OPTIONAL_LOCKS", "0");
         cmd.args(&self.prefix_args);
         cmd.arg("-C").arg(&self.repo_arg);
         cmd.args(args);
@@ -129,13 +136,18 @@ pub fn resolve(repo_path: &str) -> GitTarget {
             // (and fail on) the untranslatable Windows cwd. `--exec` runs git
             // directly instead of through the WSL login shell, which would
             // otherwise glob-expand args like `--format=%(upstream)`
-            // ("missing delimiter for 'u' glob qualifier").
+            // ("missing delimiter for 'u' glob qualifier"). `env
+            // GIT_OPTIONAL_LOCKS=0` sets the var inside the distro (host env
+            // doesn't cross wsl.exe) so read commands don't take index.lock;
+            // `env` then execs git — still no login shell.
             prefix_args: vec![
                 "-d".into(),
                 distro.clone(),
                 "--cd".into(),
                 linux_path.clone(),
                 "--exec".into(),
+                "env".into(),
+                "GIT_OPTIONAL_LOCKS=0".into(),
                 "git".into(),
             ],
             repo_arg: linux_path,
