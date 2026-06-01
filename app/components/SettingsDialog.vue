@@ -525,7 +525,7 @@ const lang = computed({
 
           <section v-else-if="page === 'about'" class="w-full space-y-6">
             <div class="flex items-center gap-3">
-              <img src="/logo.png" alt="" class="size-10 shrink-0" />
+              <img src="/logo_128x128.png" alt="" class="size-10 shrink-0" />
               <div>
                 <p class="text-base font-semibold">{{ t('app.name') }}</p>
                 <p class="font-mono text-xs text-muted-foreground">
