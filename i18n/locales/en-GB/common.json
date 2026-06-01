@@ -2,6 +2,9 @@
   "app": {
     "name": "glimpse"
   },
+  "platform": {
+    "wsl": "WSL2"
+  },
   "error": {
     "title": "Error",
     "loadFailed": "Could not load this repository",

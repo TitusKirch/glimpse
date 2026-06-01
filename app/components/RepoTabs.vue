@@ -62,7 +62,9 @@ function onDrop(targetId: string) {
             class="size-3.5 shrink-0 text-muted-foreground"
           />
         </UiTooltipTrigger>
-        <UiTooltipContent>{{ tab.distro || 'WSL' }}</UiTooltipContent>
+        <UiTooltipContent>{{
+          tab.distro ? `${t('platform.wsl')}: ${tab.distro}` : t('platform.wsl')
+        }}</UiTooltipContent>
       </UiTooltip>
       <button
         class="flex size-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-background/60"
