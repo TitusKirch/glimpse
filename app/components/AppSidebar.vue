@@ -21,11 +21,12 @@ const isCollapsed = computed(
 );
 
 const layout = useLayoutStore();
-// Drag-to-resize the expanded sidebar within [16rem, 24rem]. Width persists in
-// the layout store and feeds --sidebar-width via the provider. Transitions are
-// suppressed (body class) during the drag so it tracks the pointer crisply.
-const MIN_WIDTH = 256;
-const MAX_WIDTH = 384;
+// Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
+// Width persists in the layout store and feeds --sidebar-width via the
+// provider. Transitions are suppressed (body class) during the drag so it
+// tracks the pointer crisply.
+const MIN_WIDTH = 192;
+const MAX_WIDTH = 512;
 const canResize = computed(() => state.value === 'expanded' && !isMobile.value);
 function startResize(e: PointerEvent) {
   e.preventDefault();

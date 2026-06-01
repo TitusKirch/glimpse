@@ -10,7 +10,7 @@ export type Accent = 'default' | 'blue' | 'violet' | 'green' | 'amber' | 'rose';
 export const useLayoutStore = defineStore('layout', {
   state: () => ({
     sidebarOpen: true,
-    // Expanded sidebar width in px, drag-resizable within [256, 384] (16–24rem).
+    // Expanded sidebar width in px, drag-resizable within [192, 512] (12–32rem).
     sidebarWidth: 256,
     // Horizontal split between the commit graph (left) and the diff (right).
     panelSizes: [58, 42] as number[],
