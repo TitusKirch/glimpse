@@ -64,10 +64,31 @@ onBeforeUnmount(() => {
   unlistenDeepLink?.();
 });
 
+// Platform-correct modifier glyphs for the shortcut hints in tooltips, matching
+// the actual bindings wired in useShortcuts (mod = ⌘ on mac, Ctrl elsewhere).
+const isMac = navigator.platform.toLowerCase().includes('mac');
+const modKey = isMac ? '⌘' : 'Ctrl';
+const shiftKey = isMac ? '⇧' : 'Shift';
+
 const syncButtons = [
-  { command: 'fetch' as const, icon: 'lucide:download', label: 'sync.fetch' },
-  { command: 'pull' as const, icon: 'lucide:arrow-down', label: 'sync.pull' },
-  { command: 'push' as const, icon: 'lucide:arrow-up', label: 'sync.push' }
+  {
+    command: 'fetch' as const,
+    icon: 'lucide:download',
+    label: 'sync.fetch',
+    keys: `${modKey}+${shiftKey}+F`
+  },
+  {
+    command: 'pull' as const,
+    icon: 'lucide:arrow-down',
+    label: 'sync.pull',
+    keys: `${modKey}+${shiftKey}+L`
+  },
+  {
+    command: 'push' as const,
+    icon: 'lucide:arrow-up',
+    label: 'sync.push',
+    keys: `${modKey}+${shiftKey}+U`
+  }
 ];
 
 // Count badge on the sync buttons: behind-count on pull, ahead-count on push.
@@ -88,7 +109,15 @@ function syncCount(command: string): number {
 
     <UiSidebarInset class="flex min-w-0 flex-col overflow-hidden">
       <header class="flex h-12 shrink-0 items-center gap-2 border-b px-3">
-        <UiSidebarTrigger />
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiSidebarTrigger />
+          </UiTooltipTrigger>
+          <UiTooltipContent class="flex items-center gap-2">
+            <span>{{ t('command.toggleSidebar') }}</span>
+            <UiKbd>{{ `${modKey}+B` }}</UiKbd>
+          </UiTooltipContent>
+        </UiTooltip>
         <div class="h-5 w-px bg-border" />
         <RepoTabs />
         <div class="ml-auto flex items-center gap-1">
@@ -102,7 +131,10 @@ function syncCount(command: string): number {
                 @click="palette.show()"
               />
             </UiTooltipTrigger>
-            <UiTooltipContent>{{ t('command.open') }}</UiTooltipContent>
+            <UiTooltipContent class="flex items-center gap-2">
+              <span>{{ t('command.open') }}</span>
+              <UiKbd>{{ `${modKey}+K` }}</UiKbd>
+            </UiTooltipContent>
           </UiTooltip>
           <UiTooltip>
             <UiTooltipTrigger as-child>
@@ -113,7 +145,10 @@ function syncCount(command: string): number {
                 @click="help.show()"
               />
             </UiTooltipTrigger>
-            <UiTooltipContent>{{ t('help.title') }}</UiTooltipContent>
+            <UiTooltipContent class="flex items-center gap-2">
+              <span>{{ t('help.title') }}</span>
+              <UiKbd>{{ `${modKey}+/` }}</UiKbd>
+            </UiTooltipContent>
           </UiTooltip>
           <UiTooltip v-for="b in syncButtons" :key="b.command">
             <UiTooltipTrigger as-child>
@@ -136,21 +171,25 @@ function syncCount(command: string): number {
                 >
               </UiButton>
             </UiTooltipTrigger>
-            <UiTooltipContent>{{ t(b.label) }}</UiTooltipContent>
+            <UiTooltipContent class="flex items-center gap-2">
+              <span>{{ t(b.label) }}</span>
+              <UiKbd>{{ b.keys }}</UiKbd>
+            </UiTooltipContent>
           </UiTooltip>
           <div class="mx-1 h-5 w-px bg-border" />
-          <UiButton
-            variant="ghost"
-            size="sm"
-            class="gap-1.5"
-            icon="lucide:refresh-cw"
-            icon-size="sm"
-            :pending="repo.refreshing"
-            :disabled="repo.busy || !repo.hasRepos"
-            @click="repo.refresh"
-          >
-            {{ t('actions.refresh') }}
-          </UiButton>
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon"
+                icon="lucide:refresh-cw"
+                :pending="repo.refreshing"
+                :disabled="repo.busy || !repo.hasRepos"
+                @click="repo.refresh"
+              />
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('actions.refresh') }}</UiTooltipContent>
+          </UiTooltip>
           <ThemeToggle />
         </div>
       </header>
