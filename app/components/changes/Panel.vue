@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useForm } from '@tanstack/vue-form';
+import { z } from 'zod';
 import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
@@ -57,6 +59,28 @@ const subjectClass = computed(() =>
 const canCommit = computed(
   () =>
     !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
+);
+
+// Commit message form (TanStack Form + Zod). The store still owns
+// repo.commitMessage — the commit action, the amend prefill and the Cmd/Ctrl+↵
+// shortcut all read it — so the field two-way syncs with it.
+const commitForm = useForm({
+  defaultValues: { message: repo.commitMessage },
+  validators: { onChange: z.object({ message: z.string().trim().min(1) }) },
+  onSubmit: () => repo.commit()
+});
+watch(
+  () => commitForm.state.values.message,
+  (m) => {
+    if (repo.commitMessage !== m) repo.commitMessage = m;
+  }
+);
+watch(
+  () => repo.commitMessage,
+  (m) => {
+    if (commitForm.state.values.message !== m)
+      commitForm.setFieldValue('message', m);
+  }
 );
 
 // Auto-grow the commit box with its content: reset to 'auto' then snap to the
@@ -242,15 +266,20 @@ onMounted(autoResize);
     </div>
 
     <!-- commit box -->
-    <div class="border-t p-2">
+    <form class="border-t p-2" @submit.prevent="commitForm.handleSubmit">
       <div class="relative">
-        <textarea
-          ref="commitBox"
-          v-model="repo.commitMessage"
-          :placeholder="t('changes.commit.placeholder')"
-          class="max-h-48 min-h-[4.5rem] w-full resize-none overflow-y-auto rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          @input="autoResize"
-        />
+        <commitForm.Field v-slot="{ field }" name="message">
+          <textarea
+            ref="commitBox"
+            :value="field.state.value"
+            :placeholder="t('changes.commit.placeholder')"
+            class="max-h-48 min-h-[4.5rem] w-full resize-none overflow-y-auto rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            @input="
+              field.handleChange(($event.target as HTMLTextAreaElement).value);
+              autoResize();
+            "
+          />
+        </commitForm.Field>
         <span
           class="pointer-events-none absolute right-2 bottom-1.5 font-mono text-[10px]"
           :class="subjectClass"
@@ -272,14 +301,14 @@ onMounted(autoResize);
       <UiButton
         class="mt-2 w-full"
         size="sm"
+        type="submit"
         :disabled="!canCommit"
-        @click="repo.commit()"
       >
         {{ repo.amend ? t('changes.amendCommit') : t('changes.commit.label') }}
         <span v-if="!repo.amend && repo.stagedFiles.length"
           >({{ repo.stagedFiles.length }})</span
         >
       </UiButton>
-    </div>
+    </form>
   </div>
 </template>
