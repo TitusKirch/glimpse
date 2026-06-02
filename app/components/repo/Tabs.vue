@@ -21,9 +21,13 @@ function distroIcon(distro?: string): string {
   return 'simple-icons:linux';
 }
 
-// Reorder via SortableJS (vuedraggable): it drives the drag with mouse/pointer
-// events, so it works inside the Tauri webview where native HTML5 drag-and-drop
-// is intercepted by the OS drag handler. Persist the new order by its ids.
+// Reorder via SortableJS (vuedraggable). `forceFallback` makes it drive the drag
+// with its own pointer-based fallback instead of the native HTML5 Drag-and-Drop
+// API. SortableJS uses native DnD by default, but the Windows WebView2 release
+// build's OS-level drag handler swallows those events, so reordering silently
+// dies there (it still works in the browser and the WebKitGTK `tauri dev` shell).
+// `fallbackTolerance` keeps a plain click on a tab from registering as a drag.
+// Persist the new order by its ids.
 function onReorder(tabs: RepoState[]) {
   repo.reorderTabs(tabs.map((tab) => tab.id));
 }
@@ -37,6 +41,8 @@ function onReorder(tabs: RepoState[]) {
       tag="div"
       class="flex items-center gap-1"
       :animation="150"
+      :force-fallback="true"
+      :fallback-tolerance="3"
       ghost-class="opacity-50"
       filter=".tab-close"
       :prevent-on-filter="false"
