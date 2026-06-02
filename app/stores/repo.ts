@@ -96,7 +96,7 @@ function demoRepo(): RepoState {
 }
 
 // A freshly opened repository before its git data is loaded.
-function blankRepo(id: string, path: string): RepoState {
+function blankRepo({ id, path }: { id: string; path: string }): RepoState {
   return {
     id,
     name: path.split(/[\\/]/).pop() || 'repo',
@@ -1005,7 +1005,7 @@ export const useRepoStore = defineStore('repo', {
         }
         this.seq += 1;
         const id = `r${this.seq}`;
-        this.repos[id] = blankRepo(id, top);
+        this.repos[id] = blankRepo({ id, path: top });
         this.order.push(id);
         this.activeId = id;
         await this.loadFromBackend(top);

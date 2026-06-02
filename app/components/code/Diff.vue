@@ -134,17 +134,20 @@ const oldHi = computed(() =>
 const newHi = computed(() =>
   highlightLines({ text: props.newContent ?? '', lang: lang.value })
 );
-function hlOld(no: number, text: string): string {
+function hlOld({ no, text }: { no: number; text: string }): string {
   return oldHi.value[no - 1] ?? hl(text);
 }
-function hlNew(no: number, text: string): string {
+function hlNew({ no, text }: { no: number; text: string }): string {
   return newHi.value[no - 1] ?? hl(text);
 }
 
 // Word-level diff of a removed/added line pair: highlight the changed middle
 // (common prefix/suffix trimmed by the pure wordDiffRanges helper). Cheap and
 // effective for the common single-edit line.
-function wordDiff(a: string, b: string): { oldHtml: string; newHtml: string } {
+function wordDiff({ a, b }: { a: string; b: string }): {
+  oldHtml: string;
+  newHtml: string;
+} {
   const { start, aEnd, bEnd } = wordDiffRanges({ a, b });
   const wrap = (s: string, cls: string) =>
     s ? `<span class="${cls}">${escapeHtml(s)}</span>` : '';
@@ -182,11 +185,11 @@ const unified = computed<URow[]>(() => {
         const d = dels[i];
         const a = adds[i];
         if (d && a) {
-          const wd = wordDiff(d.text, a.text);
+          const wd = wordDiff({ a: d.text, b: a.text });
           delHtml.push(wd.oldHtml);
           addHtml.push(wd.newHtml);
-        } else if (d) delHtml.push(hlOld(d.oldNo, d.text));
-        else if (a) addHtml.push(hlNew(a.newNo, a.text));
+        } else if (d) delHtml.push(hlOld({ no: d.oldNo, text: d.text }));
+        else if (a) addHtml.push(hlNew({ no: a.newNo, text: a.text }));
       }
       dels.forEach((d, i) =>
         out.push({
@@ -223,7 +226,7 @@ const unified = computed<URow[]>(() => {
           type: 'context',
           oldNo: o,
           newNo: nn,
-          html: hlNew(nn, text),
+          html: hlNew({ no: nn, text }),
           text
         });
       }
@@ -246,7 +249,7 @@ const split = computed<SRow[]>(() => {
       let leftHtml = d?.html ?? '';
       let rightHtml = a?.html ?? '';
       if (d && a && d.text !== undefined && a.text !== undefined) {
-        const wd = wordDiff(d.text, a.text);
+        const wd = wordDiff({ a: d.text, b: a.text });
         leftHtml = wd.oldHtml;
         rightHtml = wd.newHtml;
       }
@@ -324,7 +327,13 @@ const splitRows = computed(() => (props.mode === 'split' ? split.value : []));
 
 const unifiedScroll = ref<HTMLElement | null>(null);
 
-function makeVirtualizer(count: Ref<number>, getEl: () => HTMLElement | null) {
+function makeVirtualizer({
+  count,
+  getEl
+}: {
+  count: Ref<number>;
+  getEl: () => HTMLElement | null;
+}) {
   const virt = useVirtualizer(
     computed(() => ({
       count: count.value,
@@ -345,9 +354,12 @@ function makeVirtualizer(count: Ref<number>, getEl: () => HTMLElement | null) {
 const unifiedCount = computed(() => unifiedRows.value.length);
 const splitCount = computed(() => splitRows.value.length);
 
-const uv = makeVirtualizer(unifiedCount, () => unifiedScroll.value);
-const lv = makeVirtualizer(splitCount, () => leftPane.value);
-const rv = makeVirtualizer(splitCount, () => rightPane.value);
+const uv = makeVirtualizer({
+  count: unifiedCount,
+  getEl: () => unifiedScroll.value
+});
+const lv = makeVirtualizer({ count: splitCount, getEl: () => leftPane.value });
+const rv = makeVirtualizer({ count: splitCount, getEl: () => rightPane.value });
 
 // Pair each on-screen virtual item with its row data for the template.
 const uVisible = computed(() =>

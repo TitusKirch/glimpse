@@ -11,18 +11,30 @@ const modLabel = navigator.platform.toLowerCase().includes('mac')
 
 // Single, consistent letter per file: A = new/untracked, M = modified,
 // D = deleted, R = renamed. (git's literal "?"/"U" codes are not user-facing.)
-function letter(f: StatusEntry, staged: boolean): string {
-  const c = (staged ? f.x : f.y).trim();
+function letter({
+  entry,
+  staged
+}: {
+  entry: StatusEntry;
+  staged: boolean;
+}): string {
+  const c = (staged ? entry.x : entry.y).trim();
   if (!c || c === '?') return 'A';
   return c;
 }
 
 // FileTree items carry the display letter plus the original entry fields.
 const stagedItems = computed(() =>
-  repo.stagedFiles.map((f) => ({ ...f, status: letter(f, true) }))
+  repo.stagedFiles.map((f) => ({
+    ...f,
+    status: letter({ entry: f, staged: true })
+  }))
 );
 const unstagedItems = computed(() =>
-  repo.unstagedFiles.map((f) => ({ ...f, status: letter(f, false) }))
+  repo.unstagedFiles.map((f) => ({
+    ...f,
+    status: letter({ entry: f, staged: false })
+  }))
 );
 // Conflicts carry a "U" (unmerged) letter; the section header already flags them.
 const conflictItems = computed(() =>

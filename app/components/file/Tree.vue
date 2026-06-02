@@ -31,13 +31,13 @@ interface TreeDir {
 }
 type TreeNode = TreeFile | TreeDir;
 
-function buildDir(name: string, path: string): TreeDir {
+function buildDir({ name, path }: { name: string; path: string }): TreeDir {
   return { type: 'dir', name, path, children: [] };
 }
 
 // Build a nested folder tree from the flat list of file paths.
 function buildTree(files: FileItem[]): TreeDir {
-  const root = buildDir('', '');
+  const root = buildDir({ name: '', path: '' });
   for (const f of files) {
     const parts = f.path.split('/');
     let node = root;
@@ -48,7 +48,7 @@ function buildTree(files: FileItem[]): TreeDir {
         (c): c is TreeDir => c.type === 'dir' && c.path === childPath
       );
       if (!dir) {
-        dir = buildDir(part, childPath);
+        dir = buildDir({ name: part, path: childPath });
         node.children.push(dir);
       }
       node = dir;
