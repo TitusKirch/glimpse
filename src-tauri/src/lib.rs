@@ -500,21 +500,42 @@ fn channel_updater(
     builder.build().map_err(|e| e.to_string())
 }
 
-/// Check the given channel for a newer version; returns its version string.
+/// Resolve the update to offer for a channel. The beta channel *graduates* to
+/// stable: it prefers a newer beta, but falls back to stable so a beta user
+/// moves to the final release once it's out (0.1.0-beta.2 → 0.1.0) instead of
+/// being stranded until the next beta. Stable / experiment channels check only
+/// themselves.
+#[cfg(desktop)]
+async fn resolve_update(
+    app: &AppHandle,
+    channel: &str,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    let chain: &[&str] = if channel == "beta" {
+        &["beta", "stable"]
+    } else {
+        std::slice::from_ref(&channel)
+    };
+    for &ch in chain {
+        let updater = channel_updater(app, ch)?;
+        if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
+            return Ok(Some(update));
+        }
+    }
+    Ok(None)
+}
+
+/// Check the given channel for an available update; returns its version string.
 #[cfg(desktop)]
 #[tauri::command]
 async fn check_update(app: AppHandle, channel: String) -> Result<Option<String>, String> {
-    let updater = channel_updater(&app, &channel)?;
-    let update = updater.check().await.map_err(|e| e.to_string())?;
-    Ok(update.map(|u| u.version))
+    Ok(resolve_update(&app, &channel).await?.map(|u| u.version))
 }
 
-/// Re-check the channel and, if an update exists, download and install it.
+/// Re-resolve the channel and, if an update exists, download and install it.
 #[cfg(desktop)]
 #[tauri::command]
 async fn install_update(app: AppHandle, channel: String) -> Result<(), String> {
-    let updater = channel_updater(&app, &channel)?;
-    let Some(update) = updater.check().await.map_err(|e| e.to_string())? else {
+    let Some(update) = resolve_update(&app, &channel).await? else {
         return Ok(());
     };
     update

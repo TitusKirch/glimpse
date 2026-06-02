@@ -16,16 +16,15 @@ export function useExperiments() {
   const canRefresh = computed(
     () => now.value.getTime() - layout.experimentsFetchedAt >= THROTTLE_MS
   );
-  // Whole seconds left before a refresh is allowed again (0 when ready).
-  const cooldown = computed(() =>
-    Math.max(
-      0,
-      Math.ceil(
-        (THROTTLE_MS - (now.value.getTime() - layout.experimentsFetchedAt)) /
-          1000
-      )
-    )
-  );
+  // Whole seconds left before a refresh is allowed again, clamped to [1, 60] as
+  // a display failsafe (a skewed/zero `experimentsFetchedAt` could otherwise
+  // compute a nonsensical value). Only shown while !canRefresh.
+  const cooldown = computed(() => {
+    const raw = Math.ceil(
+      (THROTTLE_MS - (now.value.getTime() - layout.experimentsFetchedAt)) / 1000
+    );
+    return Math.min(60, Math.max(1, raw));
+  });
 
   // Fetch the experiment slugs from open `experiment-*` releases. Honours the
   // throttle unless `force` (used by the manual button after the cooldown).
