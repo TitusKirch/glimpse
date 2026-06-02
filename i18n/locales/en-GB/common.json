@@ -28,7 +28,8 @@
     "installing": "Downloading and installing…",
     "installed": "Update installed — restart to apply",
     "upToDate": "You're on the latest version",
-    "failed": "Update check failed"
+    "failed": "Update check failed",
+    "noExperiment": "Pick an experiment first"
   },
   "copied": "Copied to clipboard",
   "help": {

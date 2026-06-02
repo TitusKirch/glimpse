@@ -40,8 +40,15 @@ export const useLayoutStore = defineStore('layout', {
     autoFetchMinutes: 5,
     // Check for app updates on launch (and auto-install when found).
     autoUpdate: true,
-    // Update channel: stable releases or opt-in beta builds.
-    releaseChannel: 'stable' as 'stable' | 'beta',
+    // Update channel: stable releases, opt-in beta builds, or a hand-picked
+    // experiment (a per-branch build).
+    releaseChannel: 'stable' as 'stable' | 'beta' | 'experiment',
+    // Experiment channel: the cached list of active experiment slugs, the one
+    // the user picked, and when the list was last fetched (for the throttled
+    // manual refresh — see useExperiments).
+    experiments: [] as string[],
+    selectedExperiment: '',
+    experimentsFetchedAt: 0,
     // Developer settings (extra debug tools in the settings dialog).
     devMode: false
   }),

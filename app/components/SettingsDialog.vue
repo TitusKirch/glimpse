@@ -75,6 +75,29 @@ const fontScales = [
 
 const { checking, checkForUpdates } = useUpdater();
 
+// Experiment channel: the cached list + a throttled manual refresh. Fetch once
+// when the user switches to the experiment channel (refresh() self-throttles).
+const expRefresh = useExperiments();
+const refreshingExp = ref(false);
+async function refreshExperiments() {
+  refreshingExp.value = true;
+  try {
+    await expRefresh.refresh(true);
+  } catch (e) {
+    toast.error(t('settings.general.experiment.refreshFailed'), {
+      description: String(e)
+    });
+  } finally {
+    refreshingExp.value = false;
+  }
+}
+watch(
+  () => layout.releaseChannel,
+  (c) => {
+    if (c === 'experiment') void expRefresh.refresh();
+  }
+);
+
 // App version (Tauri only); shown on the About page.
 const version = ref('dev');
 onMounted(async () => {
@@ -274,17 +297,86 @@ const lang = computed({
                       <UiSelectItem value="beta">
                         {{ t('settings.general.releaseChannel.beta') }}
                       </UiSelectItem>
+                      <UiSelectItem value="experiment">
+                        {{ t('settings.general.releaseChannel.experiment') }}
+                      </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
+                </div>
+
+                <!-- experiment picker — only on the experiment channel -->
+                <div
+                  v-if="layout.releaseChannel === 'experiment'"
+                  class="flex items-center justify-between gap-4"
+                >
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.experiment.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.experiment.hint') }}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <UiSelect v-model="layout.selectedExperiment">
+                      <UiSelectTrigger class="w-44">
+                        <UiSelectValue
+                          :placeholder="
+                            layout.experiments.length
+                              ? t('settings.general.experiment.none')
+                              : t('settings.general.experiment.empty')
+                          "
+                        />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem
+                          v-for="e in layout.experiments"
+                          :key="e"
+                          :value="e"
+                        >
+                          {{ e }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                    <UiTooltip>
+                      <UiTooltipTrigger as-child>
+                        <UiButton
+                          variant="outline"
+                          size="icon"
+                          icon="lucide:refresh-cw"
+                          :disabled="!expRefresh.canRefresh.value"
+                          :pending="refreshingExp"
+                          @click="refreshExperiments"
+                        />
+                      </UiTooltipTrigger>
+                      <UiTooltipContent>
+                        {{
+                          expRefresh.canRefresh.value
+                            ? t('settings.general.experiment.refresh')
+                            : t('settings.general.experiment.cooldown', {
+                                n: expRefresh.cooldown.value
+                              })
+                        }}
+                      </UiTooltipContent>
+                    </UiTooltip>
+                  </div>
                 </div>
 
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">
                     <p class="text-sm font-medium">
-                      {{ t('settings.about.checkUpdates') }}
+                      {{
+                        layout.releaseChannel === 'experiment'
+                          ? t('settings.general.experiment.switch')
+                          : t('settings.about.checkUpdates')
+                      }}
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.checkUpdatesHint') }}
+                      {{
+                        layout.releaseChannel === 'experiment'
+                          ? t('settings.general.experiment.switchHint')
+                          : t('settings.general.checkUpdatesHint')
+                      }}
                     </p>
                   </div>
                   <UiButton
@@ -293,9 +385,17 @@ const lang = computed({
                     class="shrink-0"
                     icon="lucide:refresh-cw"
                     :pending="checking"
+                    :disabled="
+                      layout.releaseChannel === 'experiment' &&
+                      !layout.selectedExperiment
+                    "
                     @click="checkForUpdates()"
                   >
-                    {{ t('settings.about.checkUpdates') }}
+                    {{
+                      layout.releaseChannel === 'experiment'
+                        ? t('settings.general.experiment.install')
+                        : t('settings.about.checkUpdates')
+                    }}
                   </UiButton>
                 </div>
               </div>

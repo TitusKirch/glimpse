@@ -28,7 +28,8 @@
     "installing": "Wird heruntergeladen und installiert…",
     "installed": "Update installiert — zum Anwenden neu starten",
     "upToDate": "Du nutzt die neueste Version",
-    "failed": "Update-Prüfung fehlgeschlagen"
+    "failed": "Update-Prüfung fehlgeschlagen",
+    "noExperiment": "Erst ein Experiment wählen"
   },
   "copied": "In die Zwischenablage kopiert",
   "help": {
