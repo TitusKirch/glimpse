@@ -86,22 +86,34 @@ const { checking, checkForUpdates } = useUpdater();
 // when the user switches to the experiment channel (refresh() self-throttles).
 const expRefresh = useExperiments();
 const refreshingExp = ref(false);
-async function refreshExperiments() {
+// False until the first experiment fetch settles, so the experiment section
+// shows a "checking…" row instead of flashing the empty state before results
+// arrive (e.g. right after switching to the experiment channel).
+const experimentsChecked = ref(layout.experiments.length > 0);
+
+async function loadExperiments(force = false) {
   refreshingExp.value = true;
   try {
-    await expRefresh.refresh(true);
+    await expRefresh.refresh(force);
   } catch (e) {
     toast.error(t('settings.general.experiment.refreshFailed'), {
       description: String(e)
     });
   } finally {
     refreshingExp.value = false;
+    experimentsChecked.value = true;
   }
+}
+function refreshExperiments() {
+  void loadExperiments(true);
 }
 watch(
   () => layout.releaseChannel,
   (c) => {
-    if (c === 'experiment') void expRefresh.refresh();
+    if (c === 'experiment') {
+      experimentsChecked.value = layout.experiments.length > 0;
+      void loadExperiments();
+    }
   }
 );
 
@@ -347,64 +359,76 @@ function toggledLocales({
 
                 <!-- experiment picker — only on the experiment channel -->
                 <template v-if="layout.releaseChannel === 'experiment'">
-                  <!-- has experiments: the picker + throttled refresh -->
+                  <!-- has experiments: the picker; refreshing the list is an
+                       inline link in the hint, with its cooldown counter -->
                   <SettingsRow
                     v-if="layout.experiments.length"
                     label="settings.general.experiment.label"
                     hint="settings.general.experiment.hint"
                   >
-                    <div class="flex shrink-0 items-center gap-2">
-                      <form.Field
-                        v-slot="{ field }"
-                        name="selectedExperiment"
-                        :listeners="persist('selectedExperiment')"
-                      >
-                        <UiSelect
-                          :model-value="field.state.value"
-                          @update:model-value="
-                            (v) => field.handleChange(v as never)
-                          "
-                        >
-                          <UiSelectTrigger class="w-44">
-                            <UiSelectValue
-                              :placeholder="
-                                t('settings.general.experiment.none')
-                              "
-                            />
-                          </UiSelectTrigger>
-                          <UiSelectContent>
-                            <UiSelectItem
-                              v-for="e in layout.experiments"
-                              :key="e"
-                              :value="e"
-                            >
-                              {{ e }}
-                            </UiSelectItem>
-                          </UiSelectContent>
-                        </UiSelect>
-                      </form.Field>
-                      <!-- a visible cooldown counter (the dialog is portalled
-                           outside the TooltipProvider, and a disabled button
-                           can't be hovered for a tooltip anyway) -->
-                      <span
-                        v-if="!expRefresh.canRefresh.value"
-                        class="text-xs text-muted-foreground tabular-nums"
-                      >
-                        {{ expRefresh.cooldown.value }}s
-                      </span>
-                      <UiButton
-                        variant="outline"
-                        size="icon"
-                        icon="lucide:refresh-cw"
-                        :aria-label="t('settings.general.experiment.refresh')"
-                        :disabled="!expRefresh.canRefresh.value"
-                        :pending="refreshingExp"
+                    <template #hint>
+                      {{ ' ' }}
+                      <button
+                        type="button"
+                        class="cursor-pointer underline underline-offset-2 transition-colors hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-70"
+                        :disabled="
+                          !expRefresh.canRefresh.value || refreshingExp
+                        "
                         @click="refreshExperiments"
-                      />
-                    </div>
+                      >
+                        {{
+                          refreshingExp
+                            ? t('settings.general.experiment.refreshing')
+                            : expRefresh.canRefresh.value
+                              ? t('settings.general.experiment.refresh')
+                              : t('settings.general.experiment.refreshIn', {
+                                  n: expRefresh.cooldown.value
+                                })
+                        }}
+                      </button>
+                    </template>
+                    <form.Field
+                      v-slot="{ field }"
+                      name="selectedExperiment"
+                      :listeners="persist('selectedExperiment')"
+                    >
+                      <UiSelect
+                        :model-value="field.state.value"
+                        @update:model-value="
+                          (v) => field.handleChange(v as never)
+                        "
+                      >
+                        <UiSelectTrigger class="w-44 shrink-0">
+                          <UiSelectValue
+                            :placeholder="t('settings.general.experiment.none')"
+                          />
+                        </UiSelectTrigger>
+                        <UiSelectContent>
+                          <UiSelectItem
+                            v-for="e in layout.experiments"
+                            :key="e"
+                            :value="e"
+                          >
+                            {{ e }}
+                          </UiSelectItem>
+                        </UiSelectContent>
+                      </UiSelect>
+                    </form.Field>
                   </SettingsRow>
 
-                  <!-- none yet: info box with a search button -->
+                  <!-- still checking: don't flash the empty state first -->
+                  <div
+                    v-else-if="!experimentsChecked || refreshingExp"
+                    class="flex items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <NuxtIcon
+                      name="lucide:loader-circle"
+                      class="size-4 animate-spin"
+                    />
+                    {{ t('settings.general.experiment.checking') }}
+                  </div>
+
+                  <!-- none found: info box with a search button -->
                   <UiAlert
                     v-else
                     variant="info"
