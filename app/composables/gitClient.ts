@@ -3,6 +3,9 @@
 // fallbacks. The store calls intent-named methods; nothing else restates the
 // stringly-typed `invoke`. Payload types come from the generated bindings
 // (see app/types/bindings.ts), so the contract has one source of truth.
+//
+// Methods that take more than a repo path use a single options object (rather
+// than positional args) so call sites stay readable and order-independent.
 
 import { invoke } from '@tauri-apps/api/core';
 import type {
@@ -18,11 +21,15 @@ import type {
 // commands over IPC; in the browser (Nuxt dev demo) it returns the given
 // fallback so the UI is fully developable without the native shell. Private to
 // the client — nothing else should restate the stringly-typed `invoke`.
-async function gitInvoke<T>(
-  command: string,
-  args?: Record<string, unknown>,
-  fallback?: T
-): Promise<T> {
+async function gitInvoke<T>({
+  command,
+  args,
+  fallback
+}: {
+  command: string;
+  args?: Record<string, unknown>;
+  fallback?: T;
+}): Promise<T> {
   if (isTauri()) {
     return invoke<T>(command, args);
   }
@@ -35,163 +42,415 @@ async function gitInvoke<T>(
 // Each method owns its command name, arg shape, and fallback. Read methods fall
 // back to mock data so the browser demo renders; mutations fall back to a no-op.
 export const gitClient = {
-  defaultRepo: () => gitInvoke<string>('default_repo', {}, '.'),
+  defaultRepo: () =>
+    gitInvoke<string>({ command: 'default_repo', args: {}, fallback: '.' }),
 
   // Start the FS watcher for `path`; the backend emits `repo-changed`.
-  watchRepo: (path: string) => gitInvoke<null>('watch_repo', { path }, null),
+  watchRepo: (path: string) =>
+    gitInvoke<null>({ command: 'watch_repo', args: { path }, fallback: null }),
 
   // No fallback: in the browser this rejects and the caller keeps mock state.
-  info: (path: string) => gitInvoke<RepoInfo>('repo_info', { path }),
+  info: (path: string) =>
+    gitInvoke<RepoInfo>({ command: 'repo_info', args: { path } }),
 
-  log: (path: string, limit = 100) =>
-    gitInvoke<Commit[]>('git_log', { path, limit }, []),
+  log: ({ path, limit = 100 }: { path: string; limit?: number }) =>
+    gitInvoke<Commit[]>({
+      command: 'git_log',
+      args: { path, limit },
+      fallback: []
+    }),
 
   status: (path: string) =>
-    gitInvoke<StatusEntry[]>('git_status', { path }, []),
+    gitInvoke<StatusEntry[]>({
+      command: 'git_status',
+      args: { path },
+      fallback: []
+    }),
 
-  fileDiff: (
-    path: string,
-    file: string,
-    staged: boolean,
+  fileDiff: ({
+    path,
+    file,
+    staged,
     ignoreWhitespace = false,
     whole = false
-  ) =>
-    gitInvoke<DiffData | null>(
-      'file_diff',
-      { path, file, staged, ignoreWhitespace, whole },
-      gitMock.diff
-    ),
+  }: {
+    path: string;
+    file: string;
+    staged: boolean;
+    ignoreWhitespace?: boolean;
+    whole?: boolean;
+  }) =>
+    gitInvoke<DiffData | null>({
+      command: 'file_diff',
+      args: { path, file, staged, ignoreWhitespace, whole },
+      fallback: gitMock.diff
+    }),
 
   // Commits that touched a file (follows renames).
-  fileHistory: (path: string, file: string) =>
-    gitInvoke<Commit[]>('file_history', { path, file }, []),
+  fileHistory: ({ path, file }: { path: string; file: string }) =>
+    gitInvoke<Commit[]>({
+      command: 'file_history',
+      args: { path, file },
+      fallback: []
+    }),
 
   // Per-line authorship for a file.
-  blame: (path: string, file: string) =>
-    gitInvoke<BlameLine[]>('blame', { path, file }, []),
+  blame: ({ path, file }: { path: string; file: string }) =>
+    gitInvoke<BlameLine[]>({
+      command: 'blame',
+      args: { path, file },
+      fallback: []
+    }),
 
   // Stage (or unstage with reverse) a single hunk.
-  applyHunk: (path: string, file: string, hunk: string, reverse: boolean) =>
-    gitInvoke<null>('apply_hunk', { path, file, hunk, reverse }, null),
+  applyHunk: ({
+    path,
+    file,
+    hunk,
+    reverse
+  }: {
+    path: string;
+    file: string;
+    hunk: string;
+    reverse: boolean;
+  }) =>
+    gitInvoke<null>({
+      command: 'apply_hunk',
+      args: { path, file, hunk, reverse },
+      fallback: null
+    }),
 
-  commitBody: (path: string, hash: string) =>
-    gitInvoke<string>('commit_body', { path, hash }, ''),
+  commitBody: ({ path, hash }: { path: string; hash: string }) =>
+    gitInvoke<string>({
+      command: 'commit_body',
+      args: { path, hash },
+      fallback: ''
+    }),
 
-  commitFiles: (path: string, hash: string) =>
-    gitInvoke<CommitFile[]>('commit_files', { path, hash }, []),
+  commitFiles: ({ path, hash }: { path: string; hash: string }) =>
+    gitInvoke<CommitFile[]>({
+      command: 'commit_files',
+      args: { path, hash },
+      fallback: []
+    }),
 
-  commitFileDiff: (
-    path: string,
-    hash: string,
-    file: string,
+  commitFileDiff: ({
+    path,
+    hash,
+    file,
     ignoreWhitespace = false,
     whole = false
-  ) =>
-    gitInvoke<DiffData | null>(
-      'commit_file_diff',
-      { path, hash, file, ignoreWhitespace, whole },
-      gitMock.diff
-    ),
+  }: {
+    path: string;
+    hash: string;
+    file: string;
+    ignoreWhitespace?: boolean;
+    whole?: boolean;
+  }) =>
+    gitInvoke<DiffData | null>({
+      command: 'commit_file_diff',
+      args: { path, hash, file, ignoreWhitespace, whole },
+      fallback: gitMock.diff
+    }),
 
-  stage: (path: string, file: string) =>
-    gitInvoke<null>('stage', { path, file }, null),
+  stage: ({ path, file }: { path: string; file: string }) =>
+    gitInvoke<null>({ command: 'stage', args: { path, file }, fallback: null }),
 
-  unstage: (path: string, file: string) =>
-    gitInvoke<null>('unstage', { path, file }, null),
+  unstage: ({ path, file }: { path: string; file: string }) =>
+    gitInvoke<null>({
+      command: 'unstage',
+      args: { path, file },
+      fallback: null
+    }),
 
-  commit: (path: string, message: string, amend = false) =>
-    gitInvoke<string>('commit', { path, message, amend }, ''),
+  commit: ({
+    path,
+    message,
+    amend = false
+  }: {
+    path: string;
+    message: string;
+    amend?: boolean;
+  }) =>
+    gitInvoke<string>({
+      command: 'commit',
+      args: { path, message, amend },
+      fallback: ''
+    }),
 
   // Subject + body of HEAD, used to prefill an amend.
   headMessage: (path: string) =>
-    gitInvoke<string>('head_message', { path }, ''),
+    gitInvoke<string>({
+      command: 'head_message',
+      args: { path },
+      fallback: ''
+    }),
 
-  discard: (path: string, file: string, untracked: boolean) =>
-    gitInvoke<null>('discard', { path, file, untracked }, null),
+  discard: ({
+    path,
+    file,
+    untracked
+  }: {
+    path: string;
+    file: string;
+    untracked: boolean;
+  }) =>
+    gitInvoke<null>({
+      command: 'discard',
+      args: { path, file, untracked },
+      fallback: null
+    }),
 
-  checkoutBranch: (path: string, branch: string) =>
-    gitInvoke<null>('checkout_branch', { path, branch }, null),
+  checkoutBranch: ({ path, branch }: { path: string; branch: string }) =>
+    gitInvoke<null>({
+      command: 'checkout_branch',
+      args: { path, branch },
+      fallback: null
+    }),
 
-  merge: (path: string, branch: string) =>
-    gitInvoke<string>('merge', { path, branch }, ''),
+  merge: ({ path, branch }: { path: string; branch: string }) =>
+    gitInvoke<string>({
+      command: 'merge',
+      args: { path, branch },
+      fallback: ''
+    }),
 
-  discardAll: (path: string) => gitInvoke<null>('discard_all', { path }, null),
+  discardAll: (path: string) =>
+    gitInvoke<null>({ command: 'discard_all', args: { path }, fallback: null }),
 
-  checkoutCommit: (path: string, hash: string) =>
-    gitInvoke<null>('checkout_commit', { path, hash }, null),
+  checkoutCommit: ({ path, hash }: { path: string; hash: string }) =>
+    gitInvoke<null>({
+      command: 'checkout_commit',
+      args: { path, hash },
+      fallback: null
+    }),
 
-  createBranch: (path: string, name: string) =>
-    gitInvoke<null>('create_branch', { path, name }, null),
+  createBranch: ({ path, name }: { path: string; name: string }) =>
+    gitInvoke<null>({
+      command: 'create_branch',
+      args: { path, name },
+      fallback: null
+    }),
 
-  createBranchAt: (path: string, name: string, hash: string) =>
-    gitInvoke<null>('create_branch_at', { path, name, hash }, null),
+  createBranchAt: ({
+    path,
+    name,
+    hash
+  }: {
+    path: string;
+    name: string;
+    hash: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'create_branch_at',
+      args: { path, name, hash },
+      fallback: null
+    }),
 
-  deleteBranch: (path: string, name: string) =>
-    gitInvoke<null>('delete_branch', { path, name }, null),
+  deleteBranch: ({ path, name }: { path: string; name: string }) =>
+    gitInvoke<null>({
+      command: 'delete_branch',
+      args: { path, name },
+      fallback: null
+    }),
 
-  revert: (path: string, hash: string) =>
-    gitInvoke<null>('revert', { path, hash }, null),
+  revert: ({ path, hash }: { path: string; hash: string }) =>
+    gitInvoke<null>({
+      command: 'revert',
+      args: { path, hash },
+      fallback: null
+    }),
 
-  cherryPick: (path: string, hash: string) =>
-    gitInvoke<null>('cherry_pick', { path, hash }, null),
+  cherryPick: ({ path, hash }: { path: string; hash: string }) =>
+    gitInvoke<null>({
+      command: 'cherry_pick',
+      args: { path, hash },
+      fallback: null
+    }),
 
-  reset: (path: string, hash: string, mode: 'soft' | 'mixed' | 'hard') =>
-    gitInvoke<null>('reset', { path, hash, mode }, null),
+  reset: ({
+    path,
+    hash,
+    mode
+  }: {
+    path: string;
+    hash: string;
+    mode: 'soft' | 'mixed' | 'hard';
+  }) =>
+    gitInvoke<null>({
+      command: 'reset',
+      args: { path, hash, mode },
+      fallback: null
+    }),
 
-  renameBranch: (path: string, oldName: string, newName: string) =>
-    gitInvoke<null>(
-      'rename_branch',
-      { path, old: oldName, new: newName },
-      null
-    ),
+  renameBranch: ({
+    path,
+    oldName,
+    newName
+  }: {
+    path: string;
+    oldName: string;
+    newName: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'rename_branch',
+      args: { path, old: oldName, new: newName },
+      fallback: null
+    }),
 
-  setUpstream: (path: string, remote: string, branch: string) =>
-    gitInvoke<null>('set_upstream', { path, remote, branch }, null),
+  setUpstream: ({
+    path,
+    remote,
+    branch
+  }: {
+    path: string;
+    remote: string;
+    branch: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'set_upstream',
+      args: { path, remote, branch },
+      fallback: null
+    }),
 
-  createTag: (path: string, name: string, hash = '') =>
-    gitInvoke<null>('create_tag', { path, name, hash }, null),
+  createTag: ({
+    path,
+    name,
+    hash = ''
+  }: {
+    path: string;
+    name: string;
+    hash?: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'create_tag',
+      args: { path, name, hash },
+      fallback: null
+    }),
 
-  deleteTag: (path: string, name: string) =>
-    gitInvoke<null>('delete_tag', { path, name }, null),
+  deleteTag: ({ path, name }: { path: string; name: string }) =>
+    gitInvoke<null>({
+      command: 'delete_tag',
+      args: { path, name },
+      fallback: null
+    }),
 
-  pushTags: (path: string) => gitInvoke<string>('push_tags', { path }, ''),
+  pushTags: (path: string) =>
+    gitInvoke<string>({ command: 'push_tags', args: { path }, fallback: '' }),
 
-  addRemote: (path: string, name: string, url: string) =>
-    gitInvoke<null>('add_remote', { path, name, url }, null),
+  addRemote: ({
+    path,
+    name,
+    url
+  }: {
+    path: string;
+    name: string;
+    url: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'add_remote',
+      args: { path, name, url },
+      fallback: null
+    }),
 
-  removeRemote: (path: string, name: string) =>
-    gitInvoke<null>('remove_remote', { path, name }, null),
+  removeRemote: ({ path, name }: { path: string; name: string }) =>
+    gitInvoke<null>({
+      command: 'remove_remote',
+      args: { path, name },
+      fallback: null
+    }),
 
-  renameRemote: (path: string, oldName: string, newName: string) =>
-    gitInvoke<null>(
-      'rename_remote',
-      { path, old: oldName, new: newName },
-      null
-    ),
+  renameRemote: ({
+    path,
+    oldName,
+    newName
+  }: {
+    path: string;
+    oldName: string;
+    newName: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'rename_remote',
+      args: { path, old: oldName, new: newName },
+      fallback: null
+    }),
 
-  stashSave: (path: string, message = '') =>
-    gitInvoke<null>('stash_save', { path, message }, null),
+  stashSave: ({ path, message = '' }: { path: string; message?: string }) =>
+    gitInvoke<null>({
+      command: 'stash_save',
+      args: { path, message },
+      fallback: null
+    }),
 
-  stashPop: (path: string, reference: string) =>
-    gitInvoke<null>('stash_pop', { path, reference }, null),
+  stashPop: ({ path, reference }: { path: string; reference: string }) =>
+    gitInvoke<null>({
+      command: 'stash_pop',
+      args: { path, reference },
+      fallback: null
+    }),
 
-  stashApply: (path: string, reference: string) =>
-    gitInvoke<null>('stash_apply', { path, reference }, null),
+  stashApply: ({ path, reference }: { path: string; reference: string }) =>
+    gitInvoke<null>({
+      command: 'stash_apply',
+      args: { path, reference },
+      fallback: null
+    }),
 
-  stashDrop: (path: string, reference: string) =>
-    gitInvoke<null>('stash_drop', { path, reference }, null),
+  stashDrop: ({ path, reference }: { path: string; reference: string }) =>
+    gitInvoke<null>({
+      command: 'stash_drop',
+      args: { path, reference },
+      fallback: null
+    }),
 
-  fetch: (path: string) => gitInvoke<string>('fetch', { path }, ''),
-  pull: (path: string, rebase = false) =>
-    gitInvoke<string>('pull', { path, rebase }, ''),
-  push: (path: string, setUpstream = false, force = false) =>
-    gitInvoke<string>('push', { path, setUpstream, force }, ''),
+  fetch: (path: string) =>
+    gitInvoke<string>({ command: 'fetch', args: { path }, fallback: '' }),
+
+  pull: ({ path, rebase = false }: { path: string; rebase?: boolean }) =>
+    gitInvoke<string>({
+      command: 'pull',
+      args: { path, rebase },
+      fallback: ''
+    }),
+
+  push: ({
+    path,
+    setUpstream = false,
+    force = false
+  }: {
+    path: string;
+    setUpstream?: boolean;
+    force?: boolean;
+  }) =>
+    gitInvoke<string>({
+      command: 'push',
+      args: { path, setUpstream, force },
+      fallback: ''
+    }),
 
   // Resolve a conflicted file ("ours" | "theirs" | "mark").
-  resolveConflict: (path: string, file: string, side: string) =>
-    gitInvoke<null>('resolve_conflict', { path, file, side }, null),
+  resolveConflict: ({
+    path,
+    file,
+    side
+  }: {
+    path: string;
+    file: string;
+    side: string;
+  }) =>
+    gitInvoke<null>({
+      command: 'resolve_conflict',
+      args: { path, file, side },
+      fallback: null
+    }),
 
   // Open the repo folder in an external app ("files" | "terminal" | "editor").
-  openIn: (path: string, app: 'files' | 'terminal' | 'editor') =>
-    gitInvoke<null>('open_in', { path, app }, null)
+  openIn: ({
+    path,
+    app
+  }: {
+    path: string;
+    app: 'files' | 'terminal' | 'editor';
+  }) =>
+    gitInvoke<null>({ command: 'open_in', args: { path, app }, fallback: null })
 };

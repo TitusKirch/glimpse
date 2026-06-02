@@ -289,8 +289,8 @@ export const useRepoStore = defineStore('repo', {
     async selectCommit(hash: string) {
       const r = this.active;
       r.selectedHash = hash;
-      r.selectedBody = await gitClient.commitBody(r.path, hash);
-      r.commitFiles = await gitClient.commitFiles(r.path, hash);
+      r.selectedBody = await gitClient.commitBody({ path: r.path, hash });
+      r.commitFiles = await gitClient.commitFiles({ path: r.path, hash });
       const first = r.commitFiles[0];
       if (first) {
         await this.selectCommitFile(first.path);
@@ -307,13 +307,13 @@ export const useRepoStore = defineStore('repo', {
       const layout = useLayoutStore();
       const ws = layout.ignoreWhitespace;
       const whole = layout.diffMode === 'whole';
-      r.diff = await gitClient.commitFileDiff(
-        r.path,
-        r.selectedHash,
+      r.diff = await gitClient.commitFileDiff({
+        path: r.path,
+        hash: r.selectedHash,
         file,
-        ws,
+        ignoreWhitespace: ws,
         whole
-      );
+      });
     },
 
     async selectFile(file: string, staged: boolean) {
@@ -327,7 +327,13 @@ export const useRepoStore = defineStore('repo', {
       const layout = useLayoutStore();
       const ws = layout.ignoreWhitespace;
       const whole = layout.diffMode === 'whole';
-      r.diff = await gitClient.fileDiff(r.path, file, staged, ws, whole);
+      r.diff = await gitClient.fileDiff({
+        path: r.path,
+        file,
+        staged,
+        ignoreWhitespace: ws,
+        whole
+      });
     },
 
     // Re-run the diff for the current selection (commit file or working file),
@@ -343,7 +349,7 @@ export const useRepoStore = defineStore('repo', {
     async applyHunk(file: string, hunk: string, reverse: boolean) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.applyHunk(this.repoPath, file, hunk, reverse);
+        await gitClient.applyHunk({ path: this.repoPath, file, hunk, reverse });
         await this.loadStatus();
         await this.reDiff();
       });
@@ -351,14 +357,14 @@ export const useRepoStore = defineStore('repo', {
 
     async stage(file: string) {
       if (!isTauri()) return;
-      await gitClient.stage(this.repoPath, file);
+      await gitClient.stage({ path: this.repoPath, file });
       await this.loadStatus();
       if (this.active.selectedFile === file) await this.selectFile(file, true);
     },
 
     async unstage(file: string) {
       if (!isTauri()) return;
-      await gitClient.unstage(this.repoPath, file);
+      await gitClient.unstage({ path: this.repoPath, file });
       await this.loadStatus();
       if (this.active.selectedFile === file) await this.selectFile(file, false);
     },
@@ -371,7 +377,7 @@ export const useRepoStore = defineStore('repo', {
       if (!this.amend && !this.stagedFiles.length) return;
       const amend = this.amend;
       await this.guarded(async () => {
-        await gitClient.commit(this.repoPath, message, amend);
+        await gitClient.commit({ path: this.repoPath, message, amend });
         this.commitMessage = '';
         this.amend = false;
         await Promise.all([this.loadStatus(), this.loadLog()]);
@@ -394,7 +400,7 @@ export const useRepoStore = defineStore('repo', {
     async discard(file: string, untracked: boolean) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.discard(this.repoPath, file, untracked);
+        await gitClient.discard({ path: this.repoPath, file, untracked });
         await this.loadStatus();
         if (this.active.selectedFile === file) this.active.diff = null;
       });
@@ -415,8 +421,9 @@ export const useRepoStore = defineStore('repo', {
         stashFirst = true;
       }
       await this.guarded(async () => {
-        if (stashFirst) await gitClient.stashSave(this.repoPath, '');
-        await gitClient.checkoutBranch(this.repoPath, branch);
+        if (stashFirst)
+          await gitClient.stashSave({ path: this.repoPath, message: '' });
+        await gitClient.checkoutBranch({ path: this.repoPath, branch });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -424,7 +431,7 @@ export const useRepoStore = defineStore('repo', {
     async resolveConflict(file: string, side: 'ours' | 'theirs' | 'mark') {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.resolveConflict(this.repoPath, file, side);
+        await gitClient.resolveConflict({ path: this.repoPath, file, side });
         await this.loadStatus();
         await this.reDiff();
       });
@@ -434,7 +441,7 @@ export const useRepoStore = defineStore('repo', {
       const trimmed = name.trim();
       if (!trimmed || !isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.createBranch(this.repoPath, trimmed);
+        await gitClient.createBranch({ path: this.repoPath, name: trimmed });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -450,7 +457,7 @@ export const useRepoStore = defineStore('repo', {
       });
       if (!ok) return;
       await this.guarded(async () => {
-        await gitClient.deleteBranch(this.repoPath, name);
+        await gitClient.deleteBranch({ path: this.repoPath, name });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -505,7 +512,11 @@ export const useRepoStore = defineStore('repo', {
       const trimmed = newName.trim();
       if (!trimmed || trimmed === oldName || !isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.renameBranch(this.repoPath, oldName, trimmed);
+        await gitClient.renameBranch({
+          path: this.repoPath,
+          oldName,
+          newName: trimmed
+        });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -514,7 +525,7 @@ export const useRepoStore = defineStore('repo', {
     async merge(branch: string) {
       if (!isTauri() || branch === this.currentBranch) return;
       await this.guarded(async () => {
-        await gitClient.merge(this.repoPath, branch);
+        await gitClient.merge({ path: this.repoPath, branch });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -561,7 +572,7 @@ export const useRepoStore = defineStore('repo', {
     async addRemote(name: string, url: string) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.addRemote(this.repoPath, name, url);
+        await gitClient.addRemote({ path: this.repoPath, name, url });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -577,7 +588,7 @@ export const useRepoStore = defineStore('repo', {
       });
       if (!ok) return;
       await this.guarded(async () => {
-        await gitClient.removeRemote(this.repoPath, name);
+        await gitClient.removeRemote({ path: this.repoPath, name });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -594,7 +605,11 @@ export const useRepoStore = defineStore('repo', {
       });
       if (!name || name === oldName) return;
       await this.guarded(async () => {
-        await gitClient.renameRemote(this.repoPath, oldName, name);
+        await gitClient.renameRemote({
+          path: this.repoPath,
+          oldName,
+          newName: name
+        });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -603,7 +618,7 @@ export const useRepoStore = defineStore('repo', {
     async checkoutCommit(hash: string) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.checkoutCommit(this.repoPath, hash);
+        await gitClient.checkoutCommit({ path: this.repoPath, hash });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -621,7 +636,7 @@ export const useRepoStore = defineStore('repo', {
       });
       if (!name) return;
       await this.guarded(async () => {
-        await gitClient.createBranchAt(this.repoPath, name, hash);
+        await gitClient.createBranchAt({ path: this.repoPath, name, hash });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -643,7 +658,7 @@ export const useRepoStore = defineStore('repo', {
     async revert(hash: string) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.revert(this.repoPath, hash);
+        await gitClient.revert({ path: this.repoPath, hash });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -651,7 +666,7 @@ export const useRepoStore = defineStore('repo', {
     async cherryPick(hash: string) {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.cherryPick(this.repoPath, hash);
+        await gitClient.cherryPick({ path: this.repoPath, hash });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -669,7 +684,7 @@ export const useRepoStore = defineStore('repo', {
         if (!ok) return;
       }
       await this.guarded(async () => {
-        await gitClient.reset(this.repoPath, hash, mode);
+        await gitClient.reset({ path: this.repoPath, hash, mode });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -691,7 +706,7 @@ export const useRepoStore = defineStore('repo', {
       const trimmed = name.trim();
       if (!trimmed || !isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.createTag(this.repoPath, trimmed, hash);
+        await gitClient.createTag({ path: this.repoPath, name: trimmed, hash });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -707,7 +722,7 @@ export const useRepoStore = defineStore('repo', {
       });
       if (!ok) return;
       await this.guarded(async () => {
-        await gitClient.deleteTag(this.repoPath, name);
+        await gitClient.deleteTag({ path: this.repoPath, name });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -715,7 +730,7 @@ export const useRepoStore = defineStore('repo', {
     async stashSave(message = '') {
       if (!isTauri()) return;
       await this.guarded(async () => {
-        await gitClient.stashSave(this.repoPath, message);
+        await gitClient.stashSave({ path: this.repoPath, message });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -733,10 +748,10 @@ export const useRepoStore = defineStore('repo', {
       }
       await this.guarded(async () => {
         if (action === 'pop')
-          await gitClient.stashPop(this.repoPath, reference);
+          await gitClient.stashPop({ path: this.repoPath, reference });
         else if (action === 'apply')
-          await gitClient.stashApply(this.repoPath, reference);
-        else await gitClient.stashDrop(this.repoPath, reference);
+          await gitClient.stashApply({ path: this.repoPath, reference });
+        else await gitClient.stashDrop({ path: this.repoPath, reference });
         await this.loadFromBackend(this.active?.path);
       });
     },
@@ -759,7 +774,7 @@ export const useRepoStore = defineStore('repo', {
 
     async doPull() {
       const rebase = useLayoutStore().pullStrategy === 'rebase';
-      await gitClient.pull(this.repoPath, rebase);
+      await gitClient.pull({ path: this.repoPath, rebase });
     },
 
     // Runs a sync, turning the "no upstream / no tracking" failures into a
@@ -767,7 +782,8 @@ export const useRepoStore = defineStore('repo', {
     async doSync(command: 'fetch' | 'pull' | 'push') {
       try {
         if (command === 'pull') await this.doPull();
-        else if (command === 'push') await gitClient.push(this.repoPath);
+        else if (command === 'push')
+          await gitClient.push({ path: this.repoPath });
         else await gitClient.fetch(this.repoPath);
         await this.loadFromBackend(this.active?.path);
       } catch (err) {
@@ -779,7 +795,11 @@ export const useRepoStore = defineStore('repo', {
             confirmKey: 'confirm.publishBranch.confirm'
           });
           if (ok) {
-            await gitClient.push(this.repoPath, true, false);
+            await gitClient.push({
+              path: this.repoPath,
+              setUpstream: true,
+              force: false
+            });
             await this.loadFromBackend(this.active?.path);
           }
           return;
@@ -794,11 +814,11 @@ export const useRepoStore = defineStore('repo', {
             confirmKey: 'confirm.setUpstream.confirm'
           });
           if (ok) {
-            await gitClient.setUpstream(
-              this.repoPath,
-              'origin',
-              this.currentBranch
-            );
+            await gitClient.setUpstream({
+              path: this.repoPath,
+              remote: 'origin',
+              branch: this.currentBranch
+            });
             await this.doPull();
             await this.loadFromBackend(this.active?.path);
           }
@@ -817,7 +837,7 @@ export const useRepoStore = defineStore('repo', {
       try {
         await Promise.all([
           this.guarded(async () => {
-            await gitClient.push(this.repoPath, setUpstream, force);
+            await gitClient.push({ path: this.repoPath, setUpstream, force });
             await this.loadFromBackend(this.active?.path);
           }),
           promiseTimeout(MIN_SPINNER_MS)
@@ -832,7 +852,7 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri() || !this.active) return;
       const path = this.active.path;
       await this.guarded(async () => {
-        await gitClient.openIn(path, app);
+        await gitClient.openIn({ path, app });
       });
     },
 
@@ -883,7 +903,10 @@ export const useRepoStore = defineStore('repo', {
 
     async loadLog() {
       if (!isTauri()) return;
-      const commits = await gitClient.log(this.repoPath, this.logLimit);
+      const commits = await gitClient.log({
+        path: this.repoPath,
+        limit: this.logLimit
+      });
       if (commits.length) this.active.commits = commits;
       // Hitting the limit means git had more to give → another page exists.
       this.hasMore = commits.length >= this.logLimit;

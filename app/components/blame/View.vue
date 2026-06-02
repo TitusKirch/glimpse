@@ -27,7 +27,10 @@ async function load() {
   loading.value = true;
   lines.value = [];
   try {
-    lines.value = await gitClient.blame(repo.repoPath, props.file);
+    lines.value = await gitClient.blame({
+      path: repo.repoPath,
+      file: props.file
+    });
   } finally {
     loading.value = false;
   }

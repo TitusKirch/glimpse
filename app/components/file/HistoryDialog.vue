@@ -17,7 +17,10 @@ watch(open, async (isOpen) => {
   loading.value = true;
   commits.value = [];
   try {
-    commits.value = await gitClient.fileHistory(repo.repoPath, props.file);
+    commits.value = await gitClient.fileHistory({
+      path: repo.repoPath,
+      file: props.file
+    });
   } finally {
     loading.value = false;
   }
