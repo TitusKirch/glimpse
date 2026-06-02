@@ -48,10 +48,18 @@ function clearSearch() {
   searchForm.setFieldValue('search', '');
 }
 
+// Snapshot the recently-used action ids when the palette opens. Selecting an
+// action re-orders the store immediately, which would make the "recently used"
+// list jump while the dialog is still animating closed — so render from this
+// frozen snapshot and let the new order show on the next open.
+const recentSnapshot = ref<string[]>([]);
+
 // Always return to the root list when the palette closes, so the next open
 // starts fresh.
 watch(open, (isOpen) => {
-  if (!isOpen) {
+  if (isOpen) {
+    recentSnapshot.value = recentActions.actions.map((a) => a.id);
+  } else {
     page.value = null;
     clearSearch();
   }
@@ -303,8 +311,8 @@ const recentlyUsed = computed<PaletteAction[]>(() => {
   const byId = new Map(
     actions.value.filter((a) => a.visible).map((a) => [a.id, a])
   );
-  return recentActions.actions
-    .map((r) => byId.get(r.id))
+  return recentSnapshot.value
+    .map((id) => byId.get(id))
     .filter((a): a is PaletteAction => Boolean(a))
     .slice(0, layout.recentActionsInSearch);
 });
