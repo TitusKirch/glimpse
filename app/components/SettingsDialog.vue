@@ -305,59 +305,104 @@ const lang = computed({
                 </div>
 
                 <!-- experiment picker — only on the experiment channel -->
-                <div
-                  v-if="layout.releaseChannel === 'experiment'"
-                  class="flex items-center justify-between gap-4"
-                >
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.experiment.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.experiment.hint') }}
-                    </p>
+                <template v-if="layout.releaseChannel === 'experiment'">
+                  <!-- has experiments: the picker + throttled refresh -->
+                  <div
+                    v-if="layout.experiments.length"
+                    class="flex items-center justify-between gap-4"
+                  >
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium">
+                        {{ t('settings.general.experiment.label') }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ t('settings.general.experiment.hint') }}
+                      </p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                      <UiSelect v-model="layout.selectedExperiment">
+                        <UiSelectTrigger class="w-44">
+                          <UiSelectValue
+                            :placeholder="t('settings.general.experiment.none')"
+                          />
+                        </UiSelectTrigger>
+                        <UiSelectContent>
+                          <UiSelectItem
+                            v-for="e in layout.experiments"
+                            :key="e"
+                            :value="e"
+                          >
+                            {{ e }}
+                          </UiSelectItem>
+                        </UiSelectContent>
+                      </UiSelect>
+                      <!-- a visible cooldown counter (the dialog is portalled
+                           outside the TooltipProvider, and a disabled button
+                           can't be hovered for a tooltip anyway) -->
+                      <span
+                        v-if="!expRefresh.canRefresh.value"
+                        class="text-xs text-muted-foreground tabular-nums"
+                      >
+                        {{ expRefresh.cooldown.value }}s
+                      </span>
+                      <UiButton
+                        variant="outline"
+                        size="icon"
+                        icon="lucide:refresh-cw"
+                        :aria-label="t('settings.general.experiment.refresh')"
+                        :disabled="!expRefresh.canRefresh.value"
+                        :pending="refreshingExp"
+                        @click="refreshExperiments"
+                      />
+                    </div>
                   </div>
-                  <div class="flex shrink-0 items-center gap-2">
-                    <UiSelect v-model="layout.selectedExperiment">
-                      <UiSelectTrigger class="w-44">
-                        <UiSelectValue
-                          :placeholder="
-                            layout.experiments.length
-                              ? t('settings.general.experiment.none')
-                              : t('settings.general.experiment.empty')
-                          "
-                        />
-                      </UiSelectTrigger>
-                      <UiSelectContent>
-                        <UiSelectItem
-                          v-for="e in layout.experiments"
-                          :key="e"
-                          :value="e"
-                        >
-                          {{ e }}
-                        </UiSelectItem>
-                      </UiSelectContent>
-                    </UiSelect>
-                    <!-- a visible cooldown counter instead of a tooltip: the
-                         dialog is portalled outside the TooltipProvider, and a
-                         disabled button can't be hovered anyway -->
-                    <span
-                      v-if="!expRefresh.canRefresh.value"
-                      class="text-xs text-muted-foreground tabular-nums"
-                    >
-                      {{ expRefresh.cooldown.value }}s
-                    </span>
+
+                  <!-- none yet: info box with a search button -->
+                  <UiAlert
+                    v-else
+                    variant="info"
+                    class="flex items-center justify-between gap-3"
+                  >
+                    <div class="flex min-w-0 items-center gap-2.5">
+                      <NuxtIcon
+                        name="lucide:flask-conical"
+                        mode="svg"
+                        class="size-4 shrink-0"
+                      />
+                      <p class="text-sm">
+                        {{ t('settings.general.experiment.empty') }}
+                      </p>
+                    </div>
                     <UiButton
                       variant="outline"
-                      size="icon"
-                      icon="lucide:refresh-cw"
-                      :aria-label="t('settings.general.experiment.refresh')"
+                      size="sm"
+                      class="shrink-0"
                       :disabled="!expRefresh.canRefresh.value"
                       :pending="refreshingExp"
                       @click="refreshExperiments"
-                    />
-                  </div>
-                </div>
+                    >
+                      <template #leading="{ pending }">
+                        <NuxtIcon
+                          v-if="pending"
+                          name="lucide:loader-circle"
+                          class="size-3.5 animate-spin"
+                        />
+                        <span
+                          v-else-if="!expRefresh.canRefresh.value"
+                          class="text-xs tabular-nums"
+                        >
+                          {{ expRefresh.cooldown.value }}
+                        </span>
+                        <NuxtIcon
+                          v-else
+                          name="lucide:refresh-cw"
+                          class="size-3.5"
+                        />
+                      </template>
+                      {{ t('settings.general.experiment.search') }}
+                    </UiButton>
+                  </UiAlert>
+                </template>
 
                 <div class="flex items-center justify-between gap-4">
                   <div class="min-w-0">

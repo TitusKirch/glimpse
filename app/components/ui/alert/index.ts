@@ -12,7 +12,11 @@ export const alertVariants = cva(
       variant: {
         default: 'bg-card text-card-foreground',
         destructive:
-          'text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90'
+          'text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90',
+        // Soft info box: a 10% blue wash + legible 600/400 text (same palette
+        // shades as the badge `info` variant, which read on the wash in both
+        // light and dark).
+        info: 'border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 [&>svg]:text-current *:data-[slot=alert-description]:text-current/90'
       }
     },
     defaultVariants: {

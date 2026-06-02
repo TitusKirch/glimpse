@@ -35,6 +35,7 @@
         "hint": "A per-branch experimental build. Switching is manual.",
         "none": "Pick an experiment",
         "empty": "No experiments found",
+        "search": "Search for experiments",
         "refresh": "Refresh the list",
         "cooldown": "Wait {n}s before refreshing again",
         "refreshFailed": "Couldn't load experiments",

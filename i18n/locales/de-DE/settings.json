@@ -35,6 +35,7 @@
         "hint": "Ein experimenteller Build pro Branch. Wechsel ist manuell.",
         "none": "Experiment wählen",
         "empty": "Keine Experimente gefunden",
+        "search": "Nach Experimenten suchen",
         "refresh": "Liste aktualisieren",
         "cooldown": "Noch {n}s bis zur nächsten Aktualisierung",
         "refreshFailed": "Experimente konnten nicht geladen werden",
