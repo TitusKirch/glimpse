@@ -4,66 +4,9 @@
 // emphasis happen here so the component is left with binding and virtualization.
 
 import hljs from 'highlight.js';
-import { highlightLines } from '~/utils/highlight';
+import { diffLang, escapeHtml, highlightLines } from '~/utils/highlight';
 import { wordDiffRanges } from '~/utils/wordDiff';
 import type { ParsedDiff, SplitRow, UnifiedRow } from '~/types/diff';
-
-// File extension → highlight.js language id.
-const LANG: Record<string, string> = {
-  ts: 'typescript',
-  tsx: 'typescript',
-  mts: 'typescript',
-  cts: 'typescript',
-  js: 'javascript',
-  jsx: 'javascript',
-  mjs: 'javascript',
-  cjs: 'javascript',
-  vue: 'xml',
-  html: 'xml',
-  xml: 'xml',
-  svg: 'xml',
-  json: 'json',
-  css: 'css',
-  scss: 'scss',
-  less: 'less',
-  rs: 'rust',
-  go: 'go',
-  py: 'python',
-  rb: 'ruby',
-  php: 'php',
-  java: 'java',
-  kt: 'kotlin',
-  swift: 'swift',
-  c: 'c',
-  h: 'c',
-  cpp: 'cpp',
-  cc: 'cpp',
-  hpp: 'cpp',
-  cs: 'csharp',
-  sh: 'bash',
-  bash: 'bash',
-  zsh: 'bash',
-  yml: 'yaml',
-  yaml: 'yaml',
-  toml: 'ini',
-  ini: 'ini',
-  md: 'markdown',
-  sql: 'sql',
-  lua: 'lua'
-};
-
-function langFor(fileName: string): string {
-  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
-  const name = LANG[ext];
-  return name && hljs.getLanguage(name) ? name : '';
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(
-    /[&<>]/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] ?? c
-  );
-}
 
 export function parseDiff({
   hunks,
@@ -76,7 +19,7 @@ export function parseDiff({
   oldContent?: string;
   newContent?: string;
 }): ParsedDiff {
-  const lang = langFor(fileName);
+  const lang = diffLang(fileName);
 
   // Per-line highlight; falls back to escaped text on any failure.
   const hl = (text: string): string => {
