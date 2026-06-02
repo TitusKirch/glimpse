@@ -3,16 +3,22 @@ import type { ListboxItemEmits, ListboxItemProps } from 'reka-ui';
 import type { HTMLAttributes } from 'vue';
 import { reactiveOmit, useCurrentElement } from '@vueuse/core';
 import { ListboxItem, useForwardPropsEmits, useId } from 'reka-ui';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { cn } from '@/lib/utils';
 import { useCommand, useCommandGroup } from '.';
 
 const props = defineProps<
-  ListboxItemProps & { class?: HTMLAttributes['class'] }
+  ListboxItemProps & {
+    class?: HTMLAttributes['class'];
+    // Extra search terms appended to this item's indexed text (e.g. the label
+    // translated into other locales) so the fuzzy filter can match them without
+    // showing them. Not rendered; not forwarded to the DOM.
+    keywords?: string;
+  }
 >();
 const emits = defineEmits<ListboxItemEmits>();
 
-const delegatedProps = reactiveOmit(props, 'class');
+const delegatedProps = reactiveOmit(props, 'class', 'keywords');
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
 
@@ -38,14 +44,17 @@ const isRender = computed(() => {
 
 const itemRef = ref();
 const currentElement = useCurrentElement(itemRef);
-onMounted(() => {
-  if (!(currentElement.value instanceof HTMLElement)) return;
 
-  // textValue to perform filter
-  allItems.value.set(
-    id,
-    currentElement.value.textContent ?? props.value?.toString() ?? ''
-  );
+// textValue to perform filter: the visible label plus any extra `keywords`.
+function indexText() {
+  if (!(currentElement.value instanceof HTMLElement)) return;
+  const base =
+    currentElement.value.textContent ?? props.value?.toString() ?? '';
+  allItems.value.set(id, props.keywords ? `${base} ${props.keywords}` : base);
+}
+
+onMounted(() => {
+  indexText();
 
   const groupId = groupContext?.id;
   if (groupId) {
@@ -56,6 +65,8 @@ onMounted(() => {
     }
   }
 });
+// Re-index if the extra search terms change (e.g. the user adds a search locale).
+watch(() => props.keywords, indexText);
 onUnmounted(() => {
   allItems.value.delete(id);
 });

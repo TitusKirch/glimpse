@@ -44,6 +44,27 @@
         "install": "Switch / install"
       },
       "checkUpdatesHint": "Check for an update right now.",
+      "recentSection": "Recent",
+      "recentReposMax": {
+        "label": "Recent projects kept",
+        "hint": "How many recently opened repositories to remember."
+      },
+      "recentReposOnPage": {
+        "label": "Recent projects on start screen",
+        "hint": "How many to list on the start screen (at most the number kept)."
+      },
+      "recentReposInSearch": {
+        "label": "Recent projects in search",
+        "hint": "How many to list in the command palette (at most the number kept)."
+      },
+      "recentActionsMax": {
+        "label": "Recent actions kept",
+        "hint": "How many recently used commands to remember."
+      },
+      "recentActionsInSearch": {
+        "label": "Recent actions in search",
+        "hint": "How many to show under 'Recently used' (at most the number kept)."
+      },
       "developer": "Developer",
       "devMode": {
         "label": "Developer settings",
@@ -133,6 +154,12 @@
       "title": "Language",
       "label": "Language",
       "hint": "The display language of glimpse.",
+      "searchLanguages": {
+        "label": "Additional search languages",
+        "hint": "Also match command palette entries in these languages, on top of the display language.",
+        "placeholder": "None",
+        "search": "Search languages…"
+      },
       "name": {
         "de-DE": "Deutsch",
         "en-GB": "English",

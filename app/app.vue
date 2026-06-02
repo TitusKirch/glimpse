@@ -11,7 +11,12 @@ const palette = useCommandPalette();
 const help = useHelpDialog();
 const { checkForUpdates } = useUpdater();
 const experiments = useExperiments();
-const { t } = useI18n();
+const { t, locale } = useI18n();
+
+// First-launch default for the command palette's extra search languages, keyed
+// to the startup locale: English UI → none, any other language → also search
+// English. No-op once the user has touched the setting (see initSearchLocales).
+layout.initSearchLocales(locale.value);
 
 // Cross-cutting app behaviour: apply appearance settings, wire global keyboard
 // shortcuts, and run the optional auto-fetch loop.

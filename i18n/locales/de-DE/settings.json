@@ -44,6 +44,27 @@
         "install": "Wechseln / installieren"
       },
       "checkUpdatesHint": "Jetzt nach einem Update suchen.",
+      "recentSection": "Verlauf",
+      "recentReposMax": {
+        "label": "Gespeicherte Projekte",
+        "hint": "Wie viele zuletzt geöffnete Repositorys gemerkt werden."
+      },
+      "recentReposOnPage": {
+        "label": "Projekte auf der Startseite",
+        "hint": "Wie viele auf der Startseite gelistet werden (höchstens so viele wie gespeichert)."
+      },
+      "recentReposInSearch": {
+        "label": "Projekte in der Suche",
+        "hint": "Wie viele in der Befehlspalette gelistet werden (höchstens so viele wie gespeichert)."
+      },
+      "recentActionsMax": {
+        "label": "Gespeicherte Aktionen",
+        "hint": "Wie viele zuletzt verwendete Befehle gemerkt werden."
+      },
+      "recentActionsInSearch": {
+        "label": "Aktionen in der Suche",
+        "hint": "Wie viele unter „Zuletzt verwendet“ erscheinen (höchstens so viele wie gespeichert)."
+      },
       "developer": "Entwickler",
       "devMode": {
         "label": "Entwickler-Einstellungen",
@@ -133,6 +154,12 @@
       "title": "Sprache",
       "label": "Sprache",
       "hint": "Die Anzeigesprache von glimpse.",
+      "searchLanguages": {
+        "label": "Zusätzliche Suchsprachen",
+        "hint": "Einträge der Befehlspalette zusätzlich in diesen Sprachen finden, neben der Anzeigesprache.",
+        "placeholder": "Keine",
+        "search": "Sprache suchen…"
+      },
       "name": {
         "de-DE": "Deutsch",
         "en-GB": "English",

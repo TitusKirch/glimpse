@@ -152,6 +152,29 @@ const lang = computed({
     void setLocale(code as typeof locale.value);
   }
 });
+// UI language combobox (single-select): pick a language and close the popover.
+const langOpen = ref(false);
+function pickLang(code: string) {
+  lang.value = code;
+  langOpen.value = false;
+}
+
+// Additional search languages: a searchable multi-select combobox (Popover +
+// Command). Options are every locale except the active one (already searched via
+// the visible labels). Toggling adds/removes a code; the popover stays open.
+const searchOpen = ref(false);
+const searchLocaleOptions = computed(() =>
+  localeOptions.value.filter((l) => l.code !== locale.value)
+);
+const selectedSearchLocales = computed(() => layout.searchLocales ?? []);
+function toggleSearchLocale(code: string) {
+  const current = selectedSearchLocales.value;
+  layout.setSearchLocales(
+    current.includes(code)
+      ? current.filter((c) => c !== code)
+      : [...current, code]
+  );
+}
 </script>
 
 <template>
@@ -439,6 +462,101 @@ const lang = computed({
                         : t('settings.about.checkUpdates')
                     }}
                   </UiButton>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.general.recentSection') }}
+              </h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentReposMax.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentReposMax.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentReposMax"
+                    type="number"
+                    min="1"
+                    max="50"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentReposOnPage.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentReposOnPage.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentReposOnPage"
+                    type="number"
+                    min="0"
+                    :max="layout.recentReposMax"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentReposInSearch.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentReposInSearch.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentReposInSearch"
+                    type="number"
+                    min="0"
+                    :max="layout.recentReposMax"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentActionsMax.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentActionsMax.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentActionsMax"
+                    type="number"
+                    min="0"
+                    max="50"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentActionsInSearch.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentActionsInSearch.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentActionsInSearch"
+                    type="number"
+                    min="0"
+                    :max="layout.recentActionsMax"
+                    class="w-24 shrink-0"
+                  />
                 </div>
               </div>
             </div>
@@ -739,24 +857,142 @@ const lang = computed({
                   {{ t('settings.language.hint') }}
                 </p>
               </div>
-              <UiSelect v-model="lang">
-                <UiSelectTrigger class="w-44 shrink-0">
-                  <span class="flex items-center gap-2">
-                    <NuxtIcon :name="flagFor(lang)" class="size-4 shrink-0" />
-                    <UiSelectValue />
-                  </span>
-                </UiSelectTrigger>
-                <UiSelectContent>
-                  <UiSelectItem
-                    v-for="l in localeOptions"
-                    :key="l.code"
-                    :value="l.code"
+              <UiPopover v-model:open="langOpen">
+                <UiPopoverTrigger as-child>
+                  <UiButton
+                    variant="outline"
+                    role="combobox"
+                    :aria-expanded="langOpen"
+                    class="w-44 shrink-0 justify-between font-normal"
                   >
-                    <NuxtIcon :name="flagFor(l.code)" class="size-4 shrink-0" />
-                    {{ t(`settings.language.name.${l.code}`) }}
-                  </UiSelectItem>
-                </UiSelectContent>
-              </UiSelect>
+                    <span class="flex items-center gap-2 truncate">
+                      <NuxtIcon :name="flagFor(lang)" class="size-4 shrink-0" />
+                      <span class="truncate">{{
+                        t(`settings.language.name.${lang}`)
+                      }}</span>
+                    </span>
+                    <NuxtIcon
+                      name="lucide:chevrons-up-down"
+                      class="size-4 shrink-0 opacity-50"
+                    />
+                  </UiButton>
+                </UiPopoverTrigger>
+                <UiPopoverContent align="end" class="w-56 p-0">
+                  <UiCommand>
+                    <UiCommandInput
+                      :placeholder="
+                        t('settings.language.searchLanguages.search')
+                      "
+                    />
+                    <UiCommandList>
+                      <UiCommandEmpty>{{ t('command.empty') }}</UiCommandEmpty>
+                      <UiCommandGroup>
+                        <UiCommandItem
+                          v-for="l in localeOptions"
+                          :key="l.code"
+                          :value="l.code"
+                          @select="pickLang(l.code)"
+                        >
+                          <NuxtIcon
+                            :name="flagFor(l.code)"
+                            class="size-4 shrink-0"
+                          />
+                          {{ t(`settings.language.name.${l.code}`) }}
+                          <NuxtIcon
+                            name="lucide:check"
+                            class="ml-auto size-4 shrink-0"
+                            :class="
+                              lang === l.code ? 'opacity-100' : 'opacity-0'
+                            "
+                          />
+                        </UiCommandItem>
+                      </UiCommandGroup>
+                    </UiCommandList>
+                  </UiCommand>
+                </UiPopoverContent>
+              </UiPopover>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+              <div class="min-w-0">
+                <p class="text-sm font-medium">
+                  {{ t('settings.language.searchLanguages.label') }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ t('settings.language.searchLanguages.hint') }}
+                </p>
+              </div>
+              <UiPopover v-model:open="searchOpen">
+                <UiPopoverTrigger as-child>
+                  <UiButton
+                    variant="outline"
+                    role="combobox"
+                    :aria-expanded="searchOpen"
+                    class="w-44 shrink-0 justify-between font-normal"
+                  >
+                    <span
+                      v-if="selectedSearchLocales.length"
+                      class="flex items-center gap-1.5 truncate"
+                    >
+                      <span
+                        v-for="(c, i) in selectedSearchLocales"
+                        :key="c"
+                        class="flex items-center gap-1"
+                      >
+                        <NuxtIcon :name="flagFor(c)" class="size-4 shrink-0" />
+                        <span class="truncate"
+                          >{{ t(`settings.language.name.${c}`)
+                          }}{{
+                            i < selectedSearchLocales.length - 1 ? ',' : ''
+                          }}</span
+                        >
+                      </span>
+                    </span>
+                    <span v-else class="truncate text-muted-foreground">{{
+                      t('settings.language.searchLanguages.placeholder')
+                    }}</span>
+                    <NuxtIcon
+                      name="lucide:chevrons-up-down"
+                      class="size-4 shrink-0 opacity-50"
+                    />
+                  </UiButton>
+                </UiPopoverTrigger>
+                <UiPopoverContent align="end" class="w-56 p-0">
+                  <UiCommand>
+                    <UiCommandInput
+                      :placeholder="
+                        t('settings.language.searchLanguages.search')
+                      "
+                    />
+                    <UiCommandList>
+                      <UiCommandEmpty>{{ t('command.empty') }}</UiCommandEmpty>
+                      <UiCommandGroup>
+                        <UiCommandItem
+                          v-for="l in searchLocaleOptions"
+                          :key="l.code"
+                          :value="l.code"
+                          @select="toggleSearchLocale(l.code)"
+                        >
+                          <NuxtIcon
+                            :name="flagFor(l.code)"
+                            class="size-4 shrink-0"
+                          />
+                          {{ t(`settings.language.name.${l.code}`) }}
+                          <NuxtIcon
+                            name="lucide:check"
+                            class="ml-auto size-4 shrink-0"
+                            :class="
+                              selectedSearchLocales.includes(l.code)
+                                ? 'opacity-100'
+                                : 'opacity-0'
+                            "
+                          />
+                        </UiCommandItem>
+                      </UiCommandGroup>
+                    </UiCommandList>
+                  </UiCommand>
+                </UiPopoverContent>
+              </UiPopover>
             </div>
           </section>
 

@@ -9,19 +9,18 @@ export interface RecentRepo {
   name: string;
 }
 
-const MAX_RECENT = 10;
-
 export const useRecentStore = defineStore('recent', {
   state: () => ({
     repos: [] as RecentRepo[]
   }),
   actions: {
-    // Move/insert `path` to the front (most-recent-first), de-duplicated.
+    // Move/insert `path` to the front (most-recent-first), de-duplicated, then
+    // trim to the user-configured maximum (Settings → General → Recent).
     push(path: string, name: string) {
       this.repos = [
         { path, name },
         ...this.repos.filter((r) => r.path !== path)
-      ].slice(0, MAX_RECENT);
+      ].slice(0, useLayoutStore().recentReposMax);
     },
     remove(path: string) {
       this.repos = this.repos.filter((r) => r.path !== path);
