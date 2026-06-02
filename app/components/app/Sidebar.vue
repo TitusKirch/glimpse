@@ -21,7 +21,6 @@ const isCollapsed = computed(
 );
 
 const layout = useLayoutStore();
-const { shortenBranch } = useBranchLabel();
 // Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
 // Width persists in the layout store and feeds --sidebar-width via the
 // provider. Transitions are suppressed (body class) during the drag so it
@@ -53,12 +52,6 @@ function startResize(e: PointerEvent) {
 const branchesMore = useSidebarMore({ items: () => repo.branches });
 const remoteBranchesMore = useSidebarMore({ items: () => repo.remoteBranches });
 const tagsMore = useSidebarMore({ items: () => repo.tags });
-
-// "origin/dev" -> "dev"; checking it out lets git create a tracking branch.
-function shortName(remoteBranch: string): string {
-  const i = remoteBranch.indexOf('/');
-  return i >= 0 ? remoteBranch.slice(i + 1) : remoteBranch;
-}
 
 // External links pinned to the bottom of the sidebar.
 const links = [
@@ -214,48 +207,12 @@ const links = [
         }}</UiSidebarGroupLabel>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
-            <UiSidebarMenuItem
+            <SidebarRemoteBranchItem
               v-for="rb in remoteBranchesMore.visible.value"
               :key="rb"
-            >
-              <UiSidebarMenuButton
-                :is-active="shortName(rb) === repo.currentBranch"
-                :tooltip="rb"
-                @click="repo.checkoutRemote(rb)"
-              >
-                <NuxtIcon
-                  :name="
-                    repo.branches.some((b) => b.name === shortName(rb))
-                      ? 'lucide:git-branch'
-                      : 'lucide:git-branch-plus'
-                  "
-                  class="shrink-0"
-                />
-                <UiTooltip>
-                  <UiTooltipTrigger as-child>
-                    <span class="truncate">{{ shortenBranch(rb) }}</span>
-                  </UiTooltipTrigger>
-                  <UiTooltipContent side="right">{{ rb }}</UiTooltipContent>
-                </UiTooltip>
-              </UiSidebarMenuButton>
-              <UiDropdownMenu>
-                <UiDropdownMenuTrigger as-child>
-                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
-                    <NuxtIcon name="lucide:ellipsis" />
-                  </UiSidebarMenuAction>
-                </UiDropdownMenuTrigger>
-                <UiDropdownMenuContent side="right" align="start">
-                  <UiDropdownMenuItem @click="repo.checkoutRemote(rb)">
-                    <NuxtIcon name="lucide:git-branch-plus" />
-                    {{ t('branch.checkoutRemote') }}
-                  </UiDropdownMenuItem>
-                  <UiDropdownMenuItem @click="repo.merge(rb)">
-                    <NuxtIcon name="lucide:git-merge" />
-                    {{ t('branch.merge') }}
-                  </UiDropdownMenuItem>
-                </UiDropdownMenuContent>
-              </UiDropdownMenu>
-            </UiSidebarMenuItem>
+              :rb="rb"
+              :collapsed="isCollapsed"
+            />
             <SidebarMoreButton
               :hidden-count="remoteBranchesMore.hiddenCount.value"
               :expanded="remoteBranchesMore.isExpanded.value"
@@ -281,28 +238,12 @@ const links = [
         </UiTooltip>
         <UiSidebarGroupContent>
           <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="tag in tagsMore.visible.value" :key="tag">
-              <UiSidebarMenuButton :tooltip="tag">
-                <NuxtIcon name="lucide:tag" class="shrink-0" />
-                <span>{{ tag }}</span>
-              </UiSidebarMenuButton>
-              <UiDropdownMenu>
-                <UiDropdownMenuTrigger as-child>
-                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
-                    <NuxtIcon name="lucide:ellipsis" />
-                  </UiSidebarMenuAction>
-                </UiDropdownMenuTrigger>
-                <UiDropdownMenuContent side="right" align="start">
-                  <UiDropdownMenuItem
-                    class="text-destructive focus:text-destructive"
-                    @click="repo.deleteTag(tag)"
-                  >
-                    <NuxtIcon name="lucide:trash-2" />
-                    {{ t('branch.delete') }}
-                  </UiDropdownMenuItem>
-                </UiDropdownMenuContent>
-              </UiDropdownMenu>
-            </UiSidebarMenuItem>
+            <SidebarTagItem
+              v-for="tag in tagsMore.visible.value"
+              :key="tag"
+              :tag="tag"
+              :collapsed="isCollapsed"
+            />
             <SidebarMoreButton
               :hidden-count="tagsMore.hiddenCount.value"
               :expanded="tagsMore.isExpanded.value"
