@@ -50,7 +50,7 @@ function onReorder(tabs: RepoState[]) {
     >
       <template #item="{ element: tab }">
         <div
-          class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors"
+          class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors select-none"
           :class="
             tab.id === repo.activeTabId
               ? 'bg-accent text-accent-foreground'

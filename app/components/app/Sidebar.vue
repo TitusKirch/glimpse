@@ -94,7 +94,7 @@ const links = [
 </script>
 
 <template>
-  <UiSidebar collapsible="icon">
+  <UiSidebar collapsible="icon" class="select-none">
     <UiSidebarHeader>
       <div
         class="flex h-8 items-center gap-2 overflow-hidden text-sm font-bold"
