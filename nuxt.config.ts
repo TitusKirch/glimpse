@@ -50,6 +50,7 @@ export default defineNuxtConfig({
         '@vueuse/core',
         'class-variance-authority',
         'clsx',
+        'fuse.js',
         'highlight.js',
         'reka-ui',
         'tailwind-merge',
