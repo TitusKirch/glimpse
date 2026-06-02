@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.2.0](https://github.com/TitusKirch/glimpse/compare/v0.1.0...v0.2.0) (2026-06-02)
+
+
+### Features
+
+* **command:** nested branch actions, grouped commands, multilingual search ([7ca7386](https://github.com/TitusKirch/glimpse/commit/7ca7386a611246494a562b1c2023a2a14be8fbd1))
+* **command:** recently-used actions and configurable recent counts ([fbe8080](https://github.com/TitusKirch/glimpse/commit/fbe808087406115ea3836c560fc1a73641896a1e))
+* **i18n:** bring es-ES and fr-FR to full parity, add new keys ([ff6c404](https://github.com/TitusKirch/glimpse/commit/ff6c404cf4a8cc5336d9d20e06b924560a4a3b81))
+* **search:** add shared fuzzy search via useSearch (Fuse.js) ([69ddfc0](https://github.com/TitusKirch/glimpse/commit/69ddfc0f6521b27eaa4510d4f71b54762c0e09ac))
+* **settings:** searchable language comboboxes and search languages ([8b83e41](https://github.com/TitusKirch/glimpse/commit/8b83e41647f53511f02534f62a5cace943ef60aa))
+* **sidebar:** remote-branch actions menu + generic experiment badge ([46a9660](https://github.com/TitusKirch/glimpse/commit/46a9660defd3a1ecbf2720e89ced2531158b1b4c))
+* **ui:** add popover primitive ([a0fbbd6](https://github.com/TitusKirch/glimpse/commit/a0fbbd6dfc97b9861798f7f454eebda44f7a07b8))
+* **updater:** beta graduates to stable; clamp cooldown; logo box ([9a3aeb3](https://github.com/TitusKirch/glimpse/commit/9a3aeb31bd435c3c12ad415791c9ccf50b8dceea))
+
+
+### Bug Fixes
+
+* **command:** freeze the recently-used list while the palette is open ([cd5328a](https://github.com/TitusKirch/glimpse/commit/cd5328a7a98b749e3a0b89bb1fe9a2619bd1b39c))
+* **command:** give combobox items a hover background and pointer cursor ([9ae8336](https://github.com/TitusKirch/glimpse/commit/9ae83362313f56347eb6173a4f41bc618b529310))
+* **experiment:** drop in-dialog tooltip (no TooltipProvider in portal) ([128d164](https://github.com/TitusKirch/glimpse/commit/128d164b48ea756e0572c56f414bb0552b738aa4))
+* **repo:** avoid stale and duplicate tabs when switching projects ([c483ebf](https://github.com/TitusKirch/glimpse/commit/c483ebf3bbda136f79a087f557ed63f8149e8584))
+* **security:** validate git args, gate deep links, set CSP, confine file reads ([a59e66f](https://github.com/TitusKirch/glimpse/commit/a59e66f2f6a0440a85bea13df11a02ffc97af368))
+* **settings:** drop the display language from search languages ([10729be](https://github.com/TitusKirch/glimpse/commit/10729be35c13031c9519069ae5ec0d8bb511370b))
+* **settings:** smooth out the experiment picker ([ade5e07](https://github.com/TitusKirch/glimpse/commit/ade5e07195fd0c13c9baa8075eea5fd557ac3756))
+* **sidebar:** animate the logo box collapse like the menu icons ([0c9e805](https://github.com/TitusKirch/glimpse/commit/0c9e8056dde737cdbbbb25c5de3853a7b844525d))
+* **sidebar:** clip+reveal the app name on expand like the menu items ([227bb49](https://github.com/TitusKirch/glimpse/commit/227bb4990051f55d5d65ea4a32545b9983717a2a))
+* **sidebar:** drop doubled pl-2 on the logo row (SidebarHeader already pads) ([a312efb](https://github.com/TitusKirch/glimpse/commit/a312efbcf26e055598223d3cce19e6899029898c))
+* **sidebar:** keep logo left on collapse; experiment empty-state alert ([f6403e0](https://github.com/TitusKirch/glimpse/commit/f6403e0e7c5ccb789b9a9bcbb9c5b5fcf964db22))
+* **sidebar:** keep the logo fully static on collapse (only text/badge hide) ([a4592c7](https://github.com/TitusKirch/glimpse/commit/a4592c7a07758f16e7535c5622ad7cfe7c370301))
+* **sidebar:** logo 32px at pl-2, fixed on collapse (only text/badge hide) ([35c3965](https://github.com/TitusKirch/glimpse/commit/35c39657ba383c867d19c8a2c858d37a8f310f01))
+* **sidebar:** open the actions dropdown for remote branches and tags when collapsed ([67a47cd](https://github.com/TitusKirch/glimpse/commit/67a47cdc701cafbc7118360d93074fdb9861c040))
+* **updater:** install a channel's build when switching channels ([10bd09d](https://github.com/TitusKirch/glimpse/commit/10bd09d697905b35f9b0b37193dddaf359b9f62d))
+
 ## 0.1.0 (2026-06-02)
 
 
