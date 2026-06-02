@@ -517,29 +517,62 @@ fn channel_updater(
     builder.build().map_err(|e| e.to_string())
 }
 
+/// True when SemVer version `b` outranks `a`. A release outranks its own
+/// prereleases (0.2.0 > 0.2.0-beta.3) — this is what graduates beta users to a
+/// shipped stable. An unparseable version sorts low, so a well-formed version
+/// always outranks a malformed one; ties (and two unparseable versions) return
+/// false, keeping the incumbent.
+#[cfg(desktop)]
+fn version_outranks(a: &str, b: &str) -> bool {
+    use semver::Version;
+    match (Version::parse(a), Version::parse(b)) {
+        (Ok(va), Ok(vb)) => vb > va,
+        (Err(_), Ok(_)) => true,
+        _ => false,
+    }
+}
+
+/// Pick the higher-versioned of two update candidates.
+#[cfg(desktop)]
+fn higher_update(
+    a: tauri_plugin_updater::Update,
+    b: tauri_plugin_updater::Update,
+) -> tauri_plugin_updater::Update {
+    if version_outranks(&a.version, &b.version) {
+        b
+    } else {
+        a
+    }
+}
+
 /// Resolve the update to offer for a channel. The beta channel *graduates* to
-/// stable: it prefers a newer beta, but falls back to stable so a beta user
-/// moves to the final release once it's out (0.1.0-beta.2 → 0.1.0) instead of
-/// being stranded until the next beta. Stable / experiment channels check only
-/// themselves.
+/// stable: it offers the highest version across *both* the beta and stable
+/// feeds, so a beta user moves to the final release the moment it's out
+/// (0.2.0-beta.3 → 0.2.0) instead of being offered a now-superseded prerelease
+/// first. Checking the feeds in order and taking the first hit was wrong: it
+/// surfaced the stale beta even when stable already carried a higher version.
+/// Stable / experiment channels check only themselves.
 #[cfg(desktop)]
 async fn resolve_update(
     app: &AppHandle,
     channel: &str,
     force: bool,
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
-    let chain: &[&str] = if channel == "beta" {
-        &["beta", "stable"]
-    } else {
-        std::slice::from_ref(&channel)
-    };
-    for &ch in chain {
+    if channel != "beta" {
+        let updater = channel_updater(app, channel, force)?;
+        return updater.check().await.map_err(|e| e.to_string());
+    }
+    let mut best: Option<tauri_plugin_updater::Update> = None;
+    for ch in ["beta", "stable"] {
         let updater = channel_updater(app, ch, force)?;
-        if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
-            return Ok(Some(update));
+        if let Some(candidate) = updater.check().await.map_err(|e| e.to_string())? {
+            best = Some(match best {
+                Some(current) => higher_update(current, candidate),
+                None => candidate,
+            });
         }
     }
-    Ok(None)
+    Ok(best)
 }
 
 /// Check the given channel for an available update; returns its version string.
@@ -668,4 +701,39 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(all(test, desktop))]
+mod tests {
+    use super::version_outranks;
+
+    #[test]
+    fn newer_version_outranks() {
+        assert!(version_outranks("0.2.0", "0.3.0"));
+        assert!(version_outranks("0.2.0-beta.1", "0.2.0-beta.2"));
+        assert!(version_outranks("0.2.0", "0.3.0-beta.1"));
+    }
+
+    #[test]
+    fn release_outranks_its_own_prerelease() {
+        // The bug: a beta user offered the stale 0.2.0-beta.3 even though the
+        // 0.2.0 release already shipped. Stable must win so they graduate to it.
+        assert!(version_outranks("0.2.0-beta.3", "0.2.0"));
+        assert!(!version_outranks("0.2.0", "0.2.0-beta.3"));
+    }
+
+    #[test]
+    fn ties_and_downgrades_keep_incumbent() {
+        assert!(!version_outranks("0.2.0", "0.2.0"));
+        assert!(!version_outranks("0.3.0", "0.2.0"));
+        assert!(!version_outranks("0.2.0-beta.2", "0.2.0-beta.1"));
+    }
+
+    #[test]
+    fn malformed_versions_sort_low() {
+        // A well-formed candidate beats garbage; garbage never beats a real one.
+        assert!(version_outranks("not-a-version", "0.2.0"));
+        assert!(!version_outranks("0.2.0", "not-a-version"));
+        assert!(!version_outranks("nonsense", "also-nonsense"));
+    }
 }

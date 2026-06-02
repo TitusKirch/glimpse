@@ -1549,6 +1549,7 @@ dependencies = [
  "log",
  "notify",
  "notify-debouncer-mini",
+ "semver",
  "serde",
  "serde_json",
  "tauri",
