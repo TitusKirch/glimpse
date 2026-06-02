@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Lists the global keyboard shortcuts (kept in sync with useShortcuts).
-const { open } = useHelpDialog();
+const { open } = useOverlay('help');
 const { t } = useI18n();
 
 const mod = navigator.platform.toLowerCase().includes('mac') ? '⌘' : 'Ctrl';

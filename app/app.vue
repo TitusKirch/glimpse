@@ -6,9 +6,9 @@ import { Toaster as UiSonner } from '@/components/ui/sonner';
 
 const repo = useRepoStore();
 const layout = useLayoutStore();
-const settings = useSettingsDialog();
-const palette = useCommandPalette();
-const help = useHelpDialog();
+const settings = useOverlay('settings');
+const palette = useOverlay('commandPalette');
+const help = useOverlay('help');
 const { checkForUpdates } = useUpdater();
 const experiments = useExperiments();
 const { t, locale } = useI18n();

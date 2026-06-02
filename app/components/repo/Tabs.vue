@@ -3,7 +3,7 @@ import draggable from 'vuedraggable';
 import type { RepoState } from '@/stores/repo';
 
 const repo = useRepoStore();
-const openRepoDialog = useOpenRepoDialog();
+const openRepoDialog = useOverlay('openRepo');
 const { t } = useI18n();
 
 // Map a WSL distro name to its brand icon (simple-icons), falling back to the

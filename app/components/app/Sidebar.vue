@@ -2,10 +2,10 @@
 import { useSidebar } from '@/components/ui/sidebar';
 
 const repo = useRepoStore();
-const settings = useSettingsDialog();
-const remoteDialog = useRemoteDialog();
-const openRepoDialog = useOpenRepoDialog();
-const help = useHelpDialog();
+const settings = useOverlay('settings');
+const remoteDialog = useOverlay('remote');
+const openRepoDialog = useOverlay('openRepo');
+const help = useOverlay('help');
 const { t } = useI18n();
 
 // Build-identity tag next to the app name: the experiment name on an experiment

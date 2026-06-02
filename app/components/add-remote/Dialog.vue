@@ -3,7 +3,7 @@
 import { useForm } from '@tanstack/vue-form';
 import { z } from 'zod';
 
-const { open } = useRemoteDialog();
+const { open } = useOverlay('remote');
 const repo = useRepoStore();
 const { t } = useI18n();
 

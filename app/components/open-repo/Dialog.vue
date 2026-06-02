@@ -3,7 +3,7 @@
 // start screen, for adding a repo while others are already open.
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
-const { open, hide } = useOpenRepoDialog();
+const { open, hide } = useOverlay('openRepo');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const layout = useLayoutStore();

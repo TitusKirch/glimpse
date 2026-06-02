@@ -7,9 +7,9 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { useForm } from '@tanstack/vue-form';
 import { z } from 'zod';
 
-const { open, hide } = useCommandPalette();
-const settings = useSettingsDialog();
-const help = useHelpDialog();
+const { open, hide } = useOverlay('commandPalette');
+const settings = useOverlay('settings');
+const help = useOverlay('help');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
