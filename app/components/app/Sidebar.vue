@@ -50,9 +50,9 @@ function startResize(e: PointerEvent) {
 }
 
 // Capped lists with gildstone-style "show N more / show less".
-const branchesMore = useSidebarMore(() => repo.branches);
-const remoteBranchesMore = useSidebarMore(() => repo.remoteBranches);
-const tagsMore = useSidebarMore(() => repo.tags);
+const branchesMore = useSidebarMore({ items: () => repo.branches });
+const remoteBranchesMore = useSidebarMore({ items: () => repo.remoteBranches });
+const tagsMore = useSidebarMore({ items: () => repo.tags });
 
 // "origin/dev" -> "dev"; checking it out lets git create a tracking branch.
 function shortName(remoteBranch: string): string {

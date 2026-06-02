@@ -224,29 +224,17 @@ function toggleSearchLocale(code: string) {
                 {{ t('settings.general.gitSection') }}
               </h3>
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.autoFetch.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.autoFetch.hint') }}
-                    </p>
-                  </div>
-                  <UiSwitch v-model="layout.autoFetch" class="shrink-0" />
-                </div>
-                <div
-                  v-if="layout.autoFetch"
-                  class="flex items-center justify-between gap-4"
+                <SettingsRow
+                  label="settings.general.autoFetch.label"
+                  hint="settings.general.autoFetch.hint"
                 >
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.autoFetchInterval.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.autoFetchInterval.hint') }}
-                    </p>
-                  </div>
+                  <UiSwitch v-model="layout.autoFetch" class="shrink-0" />
+                </SettingsRow>
+                <SettingsRow
+                  v-if="layout.autoFetch"
+                  label="settings.general.autoFetchInterval.label"
+                  hint="settings.general.autoFetchInterval.hint"
+                >
                   <UiInput
                     v-model.number="layout.autoFetchMinutes"
                     type="number"
@@ -254,17 +242,12 @@ function toggleSearchLocale(code: string) {
                     max="120"
                     class="w-24 shrink-0"
                   />
-                </div>
+                </SettingsRow>
 
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.pullStrategy.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.pullStrategy.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.general.pullStrategy.label"
+                  hint="settings.general.pullStrategy.hint"
+                >
                   <UiSelect v-model="layout.pullStrategy">
                     <UiSelectTrigger class="w-44 shrink-0">
                       <UiSelectValue />
@@ -278,7 +261,7 @@ function toggleSearchLocale(code: string) {
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
-                </div>
+                </SettingsRow>
               </div>
             </div>
 
@@ -289,27 +272,17 @@ function toggleSearchLocale(code: string) {
                 {{ t('settings.general.updatesSection') }}
               </h3>
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.autoUpdate.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.autoUpdate.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.general.autoUpdate.label"
+                  hint="settings.general.autoUpdate.hint"
+                >
                   <UiSwitch v-model="layout.autoUpdate" class="shrink-0" />
-                </div>
+                </SettingsRow>
 
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.releaseChannel.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.releaseChannel.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.general.releaseChannel.label"
+                  hint="settings.general.releaseChannel.hint"
+                >
                   <UiSelect v-model="layout.releaseChannel">
                     <UiSelectTrigger class="w-44 shrink-0">
                       <UiSelectValue />
@@ -326,23 +299,16 @@ function toggleSearchLocale(code: string) {
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
-                </div>
+                </SettingsRow>
 
                 <!-- experiment picker — only on the experiment channel -->
                 <template v-if="layout.releaseChannel === 'experiment'">
                   <!-- has experiments: the picker + throttled refresh -->
-                  <div
+                  <SettingsRow
                     v-if="layout.experiments.length"
-                    class="flex items-center justify-between gap-4"
+                    label="settings.general.experiment.label"
+                    hint="settings.general.experiment.hint"
                   >
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium">
-                        {{ t('settings.general.experiment.label') }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        {{ t('settings.general.experiment.hint') }}
-                      </p>
-                    </div>
                     <div class="flex shrink-0 items-center gap-2">
                       <UiSelect v-model="layout.selectedExperiment">
                         <UiSelectTrigger class="w-44">
@@ -379,7 +345,7 @@ function toggleSearchLocale(code: string) {
                         @click="refreshExperiments"
                       />
                     </div>
-                  </div>
+                  </SettingsRow>
 
                   <!-- none yet: info box with a search button -->
                   <UiAlert
@@ -474,15 +440,10 @@ function toggleSearchLocale(code: string) {
                 {{ t('settings.general.recentSection') }}
               </h3>
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.recentReposMax.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.recentReposMax.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.general.recentReposMax.label"
+                  hint="settings.general.recentReposMax.hint"
+                >
                   <UiInput
                     v-model.number="layout.recentReposMax"
                     type="number"
@@ -490,16 +451,11 @@ function toggleSearchLocale(code: string) {
                     max="50"
                     class="w-24 shrink-0"
                   />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.recentReposOnPage.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.recentReposOnPage.hint') }}
-                    </p>
-                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  label="settings.general.recentReposOnPage.label"
+                  hint="settings.general.recentReposOnPage.hint"
+                >
                   <UiInput
                     v-model.number="layout.recentReposOnPage"
                     type="number"
@@ -507,16 +463,11 @@ function toggleSearchLocale(code: string) {
                     :max="layout.recentReposMax"
                     class="w-24 shrink-0"
                   />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.recentReposInSearch.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.recentReposInSearch.hint') }}
-                    </p>
-                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  label="settings.general.recentReposInSearch.label"
+                  hint="settings.general.recentReposInSearch.hint"
+                >
                   <UiInput
                     v-model.number="layout.recentReposInSearch"
                     type="number"
@@ -524,16 +475,11 @@ function toggleSearchLocale(code: string) {
                     :max="layout.recentReposMax"
                     class="w-24 shrink-0"
                   />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.recentActionsMax.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.recentActionsMax.hint') }}
-                    </p>
-                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  label="settings.general.recentActionsMax.label"
+                  hint="settings.general.recentActionsMax.hint"
+                >
                   <UiInput
                     v-model.number="layout.recentActionsMax"
                     type="number"
@@ -541,16 +487,11 @@ function toggleSearchLocale(code: string) {
                     max="50"
                     class="w-24 shrink-0"
                   />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.general.recentActionsInSearch.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.general.recentActionsInSearch.hint') }}
-                    </p>
-                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  label="settings.general.recentActionsInSearch.label"
+                  hint="settings.general.recentActionsInSearch.hint"
+                >
                   <UiInput
                     v-model.number="layout.recentActionsInSearch"
                     type="number"
@@ -558,7 +499,7 @@ function toggleSearchLocale(code: string) {
                     :max="layout.recentActionsMax"
                     class="w-24 shrink-0"
                   />
-                </div>
+                </SettingsRow>
               </div>
             </div>
 
@@ -568,17 +509,12 @@ function toggleSearchLocale(code: string) {
               >
                 {{ t('settings.general.developer') }}
               </h3>
-              <div class="flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium">
-                    {{ t('settings.general.devMode.label') }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ t('settings.general.devMode.hint') }}
-                  </p>
-                </div>
+              <SettingsRow
+                label="settings.general.devMode.label"
+                hint="settings.general.devMode.hint"
+              >
                 <UiSwitch v-model="layout.devMode" class="shrink-0" />
-              </div>
+              </SettingsRow>
             </div>
           </section>
 
@@ -589,15 +525,10 @@ function toggleSearchLocale(code: string) {
               >
                 {{ t('settings.dev.toasts.label') }}
               </h3>
-              <div class="flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium">
-                    {{ t('settings.dev.toasts.label') }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ t('settings.dev.toasts.hint') }}
-                  </p>
-                </div>
+              <SettingsRow
+                label="settings.dev.toasts.label"
+                hint="settings.dev.toasts.hint"
+              >
                 <div class="flex shrink-0 gap-2">
                   <UiButton
                     v-for="tk in toastKinds"
@@ -609,7 +540,7 @@ function toggleSearchLocale(code: string) {
                     {{ t(`settings.dev.${tk.kind}.label`) }}
                   </UiButton>
                 </div>
-              </div>
+              </SettingsRow>
             </div>
 
             <div>
@@ -643,15 +574,10 @@ function toggleSearchLocale(code: string) {
                 {{ t('settings.appearance.themeSection') }}
               </h3>
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.theme.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.theme.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.appearance.theme.label"
+                  hint="settings.appearance.theme.hint"
+                >
                   <UiSelect v-model="colorMode.preference">
                     <UiSelectTrigger class="w-44 shrink-0">
                       <UiSelectValue />
@@ -666,17 +592,12 @@ function toggleSearchLocale(code: string) {
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
-                </div>
+                </SettingsRow>
 
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.accent.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.accent.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.appearance.accent.label"
+                  hint="settings.appearance.accent.hint"
+                >
                   <div class="flex shrink-0 gap-1.5">
                     <button
                       v-for="a in accentOptions"
@@ -698,7 +619,7 @@ function toggleSearchLocale(code: string) {
                       />
                     </button>
                   </div>
-                </div>
+                </SettingsRow>
               </div>
             </div>
 
@@ -709,15 +630,10 @@ function toggleSearchLocale(code: string) {
                 {{ t('settings.appearance.diffSection') }}
               </h3>
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.diffMode.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.diffMode.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.appearance.diffMode.label"
+                  hint="settings.appearance.diffMode.hint"
+                >
                   <UiSelect v-model="layout.diffMode">
                     <UiSelectTrigger class="w-44 shrink-0">
                       <UiSelectValue />
@@ -732,17 +648,12 @@ function toggleSearchLocale(code: string) {
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
-                </div>
+                </SettingsRow>
 
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.fileView.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.fileView.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.appearance.fileView.label"
+                  hint="settings.appearance.fileView.hint"
+                >
                   <UiSelect v-model="layout.fileView">
                     <UiSelectTrigger class="w-44 shrink-0">
                       <UiSelectValue />
@@ -757,17 +668,12 @@ function toggleSearchLocale(code: string) {
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
-                </div>
+                </SettingsRow>
 
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.diffFont.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.diffFont.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.appearance.diffFont.label"
+                  hint="settings.appearance.diffFont.hint"
+                >
                   <UiSelect v-model.number="layout.monoScale">
                     <UiSelectTrigger class="w-44 shrink-0">
                       <UiSelectValue />
@@ -782,7 +688,7 @@ function toggleSearchLocale(code: string) {
                       </UiSelectItem>
                     </UiSelectContent>
                   </UiSelect>
-                </div>
+                </SettingsRow>
               </div>
             </div>
 
@@ -793,29 +699,19 @@ function toggleSearchLocale(code: string) {
                 {{ t('settings.appearance.sidebarSection') }}
               </h3>
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.sidebarResizable.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.sidebarResizable.hint') }}
-                    </p>
-                  </div>
+                <SettingsRow
+                  label="settings.appearance.sidebarResizable.label"
+                  hint="settings.appearance.sidebarResizable.hint"
+                >
                   <UiSwitch
                     v-model="layout.sidebarResizable"
                     class="shrink-0"
                   />
-                </div>
-                <div class="flex items-center justify-between gap-4">
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium">
-                      {{ t('settings.appearance.sidebarWidth.label') }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ t('settings.appearance.sidebarWidth.hint') }}
-                    </p>
-                  </div>
+                </SettingsRow>
+                <SettingsRow
+                  label="settings.appearance.sidebarWidth.label"
+                  hint="settings.appearance.sidebarWidth.hint"
+                >
                   <UiInput
                     v-model.number="layout.sidebarWidth"
                     type="number"
@@ -824,7 +720,7 @@ function toggleSearchLocale(code: string) {
                     step="8"
                     class="w-24 shrink-0"
                   />
-                </div>
+                </SettingsRow>
               </div>
             </div>
 
@@ -834,30 +730,20 @@ function toggleSearchLocale(code: string) {
               >
                 {{ t('settings.appearance.graphSection') }}
               </h3>
-              <div class="flex items-center justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium">
-                    {{ t('settings.appearance.shortenDependabot.label') }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ t('settings.appearance.shortenDependabot.hint') }}
-                  </p>
-                </div>
+              <SettingsRow
+                label="settings.appearance.shortenDependabot.label"
+                hint="settings.appearance.shortenDependabot.hint"
+              >
                 <UiSwitch v-model="layout.shortenDependabot" class="shrink-0" />
-              </div>
+              </SettingsRow>
             </div>
           </section>
 
           <section v-else-if="page === 'language'" class="w-full space-y-6">
-            <div class="flex items-center justify-between gap-4">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">
-                  {{ t('settings.language.label') }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ t('settings.language.hint') }}
-                </p>
-              </div>
+            <SettingsRow
+              label="settings.language.label"
+              hint="settings.language.hint"
+            >
               <UiPopover v-model:open="langOpen">
                 <UiPopoverTrigger as-child>
                   <UiButton
@@ -912,17 +798,12 @@ function toggleSearchLocale(code: string) {
                   </UiCommand>
                 </UiPopoverContent>
               </UiPopover>
-            </div>
+            </SettingsRow>
 
-            <div class="flex items-center justify-between gap-4">
-              <div class="min-w-0">
-                <p class="text-sm font-medium">
-                  {{ t('settings.language.searchLanguages.label') }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ t('settings.language.searchLanguages.hint') }}
-                </p>
-              </div>
+            <SettingsRow
+              label="settings.language.searchLanguages.label"
+              hint="settings.language.searchLanguages.hint"
+            >
               <UiPopover v-model:open="searchOpen">
                 <UiPopoverTrigger as-child>
                   <UiButton
@@ -994,7 +875,7 @@ function toggleSearchLocale(code: string) {
                   </UiCommand>
                 </UiPopoverContent>
               </UiPopover>
-            </div>
+            </SettingsRow>
           </section>
 
           <section v-else-if="page === 'about'" class="w-full space-y-6">
