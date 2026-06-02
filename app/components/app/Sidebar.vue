@@ -92,9 +92,10 @@ const links = [
           v-if="isExperiment"
           variant="destructive"
           icon="lucide:flask-conical"
-          class="max-w-40 group-data-[collapsible=icon]:hidden"
+          :title="experiment ?? undefined"
+          class="group-data-[collapsible=icon]:hidden"
         >
-          <span class="min-w-0 truncate">{{ experiment }}</span>
+          {{ t('sidebar.experimentBadge') }}
         </UiBadge>
         <UiBadge
           v-else-if="isBeta"
@@ -237,6 +238,23 @@ const links = [
                   <UiTooltipContent side="right">{{ rb }}</UiTooltipContent>
                 </UiTooltip>
               </UiSidebarMenuButton>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
+                    <NuxtIcon name="lucide:ellipsis" />
+                  </UiSidebarMenuAction>
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent side="right" align="start">
+                  <UiDropdownMenuItem @click="repo.checkoutRemote(rb)">
+                    <NuxtIcon name="lucide:git-branch-plus" />
+                    {{ t('branch.checkoutRemote') }}
+                  </UiDropdownMenuItem>
+                  <UiDropdownMenuItem @click="repo.merge(rb)">
+                    <NuxtIcon name="lucide:git-merge" />
+                    {{ t('branch.merge') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
             </UiSidebarMenuItem>
             <SidebarMoreButton
               :hidden-count="remoteBranchesMore.hiddenCount.value"
