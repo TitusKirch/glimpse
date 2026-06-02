@@ -445,13 +445,33 @@ async fn open_in(path: String, app: String) -> Result<(), String> {
     platform::open_in(&path, &app)
 }
 
+/// The experiment slug baked into this build at compile time
+/// (`GLIMPSE_EXPERIMENT`, set by the experiment release workflow), or None for a
+/// normal stable/beta/dev build. Drives the sidebar's experiment badge.
+#[tauri::command]
+fn experiment_name() -> Option<String> {
+    option_env!("GLIMPSE_EXPERIMENT")
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 /// Update manifest URL for a release channel. Stable rides the GitHub `latest`
-/// alias; beta uses a fixed, rolling `beta` release the beta workflow recreates.
+/// alias; beta uses a fixed, rolling `beta` release; an `experiment:<slug>`
+/// channel points at that experiment's own rolling release.
 #[cfg(desktop)]
-fn updater_endpoint(channel: &str) -> &'static str {
+fn updater_endpoint(channel: &str) -> String {
+    if let Some(slug) = channel.strip_prefix("experiment:") {
+        return format!(
+            "https://github.com/TitusKirch/glimpse/releases/download/experiment-{slug}/latest.json"
+        );
+    }
     match channel {
-        "beta" => "https://github.com/TitusKirch/glimpse/releases/download/beta/latest.json",
-        _ => "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json",
+        "beta" => {
+            "https://github.com/TitusKirch/glimpse/releases/download/beta/latest.json".to_string()
+        }
+        _ => {
+            "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json".to_string()
+        }
     }
 }
 
@@ -467,11 +487,17 @@ fn channel_updater(
     let url = updater_endpoint(channel)
         .parse::<tauri::Url>()
         .map_err(|e| e.to_string())?;
-    app.updater_builder()
+    let mut builder = app
+        .updater_builder()
         .endpoints(vec![url])
-        .map_err(|e| e.to_string())?
-        .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // An experiment is chosen explicitly, so install it regardless of whether
+    // its version is "newer" — switching to an experiment is a deliberate
+    // (possibly side/down-grade) move, not an automatic update.
+    if channel.starts_with("experiment:") {
+        builder = builder.version_comparator(|_current, _update| true);
+    }
+    builder.build().map_err(|e| e.to_string())
 }
 
 /// Check the given channel for a newer version; returns its version string.
@@ -591,6 +617,7 @@ pub fn run() {
             push,
             resolve_conflict,
             open_in,
+            experiment_name,
             check_update,
             install_update
         ])
