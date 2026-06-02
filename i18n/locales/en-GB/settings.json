@@ -139,6 +139,10 @@
         "xlarge": "Extra large"
       },
       "sidebarSection": "Sidebar",
+      "sidebarEdit": {
+        "label": "Edit layout",
+        "hint": "Reorder the sidebar sections by dragging. Each one can also be collapsed."
+      },
       "sidebarResizable": {
         "label": "Resizable",
         "hint": "Drag the right edge to resize the sidebar."

@@ -139,6 +139,10 @@
         "xlarge": "Sehr groß"
       },
       "sidebarSection": "Seitenleiste",
+      "sidebarEdit": {
+        "label": "Layout bearbeiten",
+        "hint": "Bereiche per Drag & Drop neu anordnen. Jeder Bereich lässt sich einzeln einklappen."
+      },
       "sidebarResizable": {
         "label": "Größe veränderbar",
         "hint": "Rechte Kante ziehen, um die Seitenleiste zu verbreitern."

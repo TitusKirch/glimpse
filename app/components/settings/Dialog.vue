@@ -894,6 +894,24 @@ function toggledLocales({
               </h3>
               <div class="space-y-4">
                 <SettingsRow
+                  label="settings.appearance.sidebarEdit.label"
+                  hint="settings.appearance.sidebarEdit.hint"
+                >
+                  <form.Field
+                    v-slot="{ field }"
+                    name="sidebarEditMode"
+                    :listeners="persist('sidebarEditMode')"
+                  >
+                    <UiSwitch
+                      :model-value="field.state.value"
+                      class="shrink-0"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    />
+                  </form.Field>
+                </SettingsRow>
+                <SettingsRow
                   label="settings.appearance.sidebarResizable.label"
                   hint="settings.appearance.sidebarResizable.hint"
                 >

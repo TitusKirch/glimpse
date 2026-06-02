@@ -139,6 +139,10 @@
         "xlarge": "Très grande"
       },
       "sidebarSection": "Barre latérale",
+      "sidebarEdit": {
+        "label": "Modifier la disposition",
+        "hint": "Réordonnez les sections de la barre latérale en les faisant glisser. Chaque section peut aussi être réduite."
+      },
       "sidebarResizable": {
         "label": "Redimensionnable",
         "hint": "Faites glisser le bord droit pour redimensionner la barre latérale."
