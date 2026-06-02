@@ -26,6 +26,12 @@ export const useLayoutStore = defineStore('layout', {
     // Pull strategy: plain merge or --rebase.
     pullStrategy: 'merge' as 'merge' | 'rebase',
     leftTab: 'changes' as 'changes' | 'history',
+    // Extra locales whose translations the command palette also indexes for
+    // search, on top of the active UI language (e.g. a German user typing
+    // English command names). `null` = never initialised: the locale-dependent
+    // default is materialised once on first launch (see initSearchLocales).
+    // `[]` = the user deliberately cleared it; we then leave it alone.
+    searchLocales: null as string[] | null,
     // Flat list vs. grouped folder tree for file lists.
     fileView: 'tree' as FileView,
     // Collapse the noisy middle of long bot branch refs (dependabot/…/pkg) in
@@ -73,6 +79,20 @@ export const useLayoutStore = defineStore('layout', {
     },
     toggleFileView() {
       this.fileView = this.fileView === 'list' ? 'tree' : 'list';
+    },
+    // Materialise the locale-dependent default for additional search languages,
+    // but only on first launch (searchLocales still null). English UI → none;
+    // any other language → English added, so non-English users can also type
+    // English command names. Keyed off null so a user who clears the list (→ [])
+    // is not re-defaulted on the next launch.
+    initSearchLocales(activeLocale: string) {
+      if (this.searchLocales !== null) return;
+      this.searchLocales = activeLocale.toLowerCase().startsWith('en')
+        ? []
+        : ['en-GB'];
+    },
+    setSearchLocales(codes: string[]) {
+      this.searchLocales = codes;
     }
   },
   persist: true
