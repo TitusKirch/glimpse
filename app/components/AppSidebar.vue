@@ -83,11 +83,9 @@ const links = [
 <template>
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
-      <div class="flex h-8 items-center gap-2 px-2 text-sm font-bold">
-        <!-- Static, exactly like the menu icons: the logo's left edge stays put
-             (the header padding never changes), so it doesn't jump or drift on
-             collapse — only the label + badge hide. -->
-        <img src="/logo_128x128.png" alt="" class="size-5 shrink-0" />
+      <div class="flex h-8 items-center gap-2 pl-2 text-sm font-bold">
+        <!-- 32px logo at a fixed left edge; collapse only hides label + badge. -->
+        <img src="/logo_128x128.png" alt="" class="size-8 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
         }}</span>
