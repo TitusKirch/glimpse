@@ -83,18 +83,11 @@ const links = [
 <template>
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
-      <div
-        class="flex h-8 items-center gap-2 px-2 text-sm font-bold group-data-[collapsible=icon]:px-0"
-      >
-        <!-- Like a SidebarMenuButton: the logo sits in a left-aligned box that
-             becomes size-8 when collapsed, centering the logo on the sidebar
-             middle exactly like the menu icons — and never swings, because the
-             box's left edge stays put while only the sidebar width animates. -->
-        <div
-          class="flex size-5 shrink-0 items-center justify-center transition-[width,height] group-data-[collapsible=icon]:size-8"
-        >
-          <img src="/logo_128x128.png" alt="" class="size-5" />
-        </div>
+      <div class="flex h-8 items-center gap-2 px-2 text-sm font-bold">
+        <!-- Static, exactly like the menu icons: the logo's left edge stays put
+             (the header padding never changes), so it doesn't jump or drift on
+             collapse — only the label + badge hide. -->
+        <img src="/logo_128x128.png" alt="" class="size-5 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
         }}</span>
