@@ -83,7 +83,7 @@ const links = [
 <template>
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
-      <div class="flex h-8 items-center gap-2 pl-2 text-sm font-bold">
+      <div class="flex h-8 items-center gap-2 text-sm font-bold">
         <img src="/logo_128x128.png" alt="" class="size-8 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
