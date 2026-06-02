@@ -24,6 +24,7 @@
     "showLess": "Show less",
     "localOnly": "local",
     "localOnlyHint": "Local only — not on a remote yet",
+    "experimentBadge": "Experimental",
     "noRepo": {
       "title": "No repository open",
       "hint": "Open a repository to see its branches and history."

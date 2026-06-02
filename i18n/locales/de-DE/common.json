@@ -120,7 +120,8 @@
     "rename": "Umbenennen",
     "delete": "Löschen",
     "merge": "In aktuellen mergen",
-    "mergeCurrentInto": "Aktuellen hier hineinmergen"
+    "mergeCurrentInto": "Aktuellen hier hineinmergen",
+    "checkoutRemote": "Auschecken"
   },
   "commit": {
     "checkout": "Diesen Commit auschecken",

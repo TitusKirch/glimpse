@@ -12,10 +12,66 @@
         "label": "Intervalo (minutos)",
         "hint": "Con qué frecuencia hacer fetch automáticamente."
       },
+      "pullStrategy": {
+        "label": "Estrategia de pull",
+        "hint": "Hacer merge o rebase al hacer pull.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
+      "updatesSection": "Actualizaciones",
+      "autoUpdate": {
+        "label": "Actualizaciones automáticas",
+        "hint": "Buscar actualizaciones al iniciar e instalarlas automáticamente."
+      },
+      "releaseChannel": {
+        "label": "Canal de versiones",
+        "hint": "Usa el canal estable, activa las builds beta o prueba un experimento.",
+        "stable": "Stable",
+        "beta": "Beta",
+        "experiment": "Experimento"
+      },
+      "experiment": {
+        "label": "Experimento",
+        "hint": "Una build experimental por rama. El cambio es manual.",
+        "none": "Elige un experimento",
+        "empty": "No se encontraron experimentos",
+        "search": "Buscar experimentos",
+        "refresh": "Actualizar la lista",
+        "refreshing": "Actualizando…",
+        "refreshIn": "Actualizar en {n}s",
+        "checking": "Buscando experimentos…",
+        "cooldown": "Espera {n}s antes de volver a actualizar",
+        "refreshFailed": "No se pudieron cargar los experimentos",
+        "switch": "Cambiar de experimento",
+        "switchHint": "Instalar la build del experimento seleccionado (forzado, no solo si es más reciente).",
+        "install": "Cambiar / instalar"
+      },
+      "checkUpdatesHint": "Buscar una actualización ahora mismo.",
+      "recentSection": "Recientes",
+      "recentReposMax": {
+        "label": "Proyectos recientes guardados",
+        "hint": "Cuántos repositorios abiertos recientemente recordar."
+      },
+      "recentReposOnPage": {
+        "label": "Proyectos recientes en la pantalla de inicio",
+        "hint": "Cuántos mostrar en la pantalla de inicio (como mucho los que se guardan)."
+      },
+      "recentReposInSearch": {
+        "label": "Proyectos recientes en la búsqueda",
+        "hint": "Cuántos mostrar en la paleta de comandos (como mucho los que se guardan)."
+      },
+      "recentActionsMax": {
+        "label": "Acciones recientes guardadas",
+        "hint": "Cuántos comandos usados recientemente recordar."
+      },
+      "recentActionsInSearch": {
+        "label": "Acciones recientes en la búsqueda",
+        "hint": "Cuántas mostrar en «Usadas recientemente» (como mucho las que se guardan)."
+      },
       "developer": "Desarrollador",
       "devMode": {
         "label": "Ajustes de desarrollador",
-        "hint": "Mostrar herramientas de depuración adicionales."
+        "hint": "Mostrar herramientas de depuración adicionales en los ajustes."
       }
     },
     "developer": {
@@ -25,6 +81,10 @@
       "toasts": {
         "label": "Probar toasts",
         "hint": "Lanzar un toast de cada tipo."
+      },
+      "badges": {
+        "label": "Insignias",
+        "hint": "Todas las variantes de insignia de un vistazo."
       },
       "info": {
         "label": "Información",
@@ -77,12 +137,32 @@
         "default": "Predeterminado",
         "large": "Grande",
         "xlarge": "Muy grande"
+      },
+      "sidebarSection": "Barra lateral",
+      "sidebarResizable": {
+        "label": "Redimensionable",
+        "hint": "Arrastra el borde derecho para redimensionar la barra lateral."
+      },
+      "sidebarWidth": {
+        "label": "Anchura (px)",
+        "hint": "Anchura de la barra lateral expandida, 192–512. Por defecto 256px."
+      },
+      "graphSection": "Grafo",
+      "shortenDependabot": {
+        "label": "Acortar ramas de Dependabot",
+        "hint": "Acortar los nombres largos de ramas dependabot/… en el grafo del historial."
       }
     },
     "language": {
       "title": "Idioma",
       "label": "Idioma",
       "hint": "El idioma de glimpse.",
+      "searchLanguages": {
+        "label": "Idiomas de búsqueda adicionales",
+        "hint": "Buscar también las entradas de la paleta de comandos en estos idiomas, además del idioma de la interfaz.",
+        "placeholder": "Ninguno",
+        "search": "Buscar idiomas…"
+      },
       "name": {
         "de-DE": "Deutsch",
         "en-GB": "English",
@@ -92,7 +172,8 @@
     },
     "about": {
       "title": "Acerca de",
-      "description": "Un cliente Git de escritorio ligero y git-nativo: el grafo de ramas completo, diffs y el git del día a día, con soporte de WSL de primera clase."
+      "description": "Un cliente Git de escritorio ligero y git-nativo: el grafo de ramas completo, diffs y el git del día a día, con soporte de WSL de primera clase.",
+      "checkUpdates": "Buscar actualizaciones"
     }
   }
 }

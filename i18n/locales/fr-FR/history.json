@@ -5,7 +5,10 @@
   },
   "history": {
     "title": "Historique",
-    "empty": "Aucun commit",
-    "emptyHint": "Cette branche n'a pas d'historique."
+    "empty": "Aucun commit pour le moment",
+    "emptyHint": "Cette branche n'a aucun historique à afficher.",
+    "search": "Rechercher des commits…",
+    "noMatches": "Aucun commit correspondant",
+    "loadMore": "Charger plus d'historique"
   }
 }

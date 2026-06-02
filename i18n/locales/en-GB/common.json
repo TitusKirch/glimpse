@@ -120,7 +120,8 @@
     "rename": "Rename",
     "delete": "Delete",
     "merge": "Merge into current",
-    "mergeCurrentInto": "Merge current into this"
+    "mergeCurrentInto": "Merge current into this",
+    "checkoutRemote": "Check out"
   },
   "commit": {
     "checkout": "Check out this commit",
