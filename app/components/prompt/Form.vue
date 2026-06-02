@@ -20,47 +20,20 @@ const form = useForm({
   validators: { onSubmit: z.object({ value: props.schema }) },
   onSubmit: ({ value }) => emit('submit', value.value.trim())
 });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isInvalid(field: any): boolean {
-  return field.state.meta.isTouched && !field.state.meta.isValid;
-}
-// Translate i18n-key validation messages for FieldError.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function tErrors(errors: any[]): Array<{ message: string }> {
-  return errors
-    .filter(Boolean)
-    .map((e) => ({ message: t(typeof e === 'string' ? e : e.message) }));
-}
 </script>
 
 <template>
   <form @submit.prevent="form.handleSubmit">
     <UiFieldGroup>
-      <form.Field v-slot="{ field }" name="value">
-        <UiField :data-invalid="isInvalid(field)">
-          <UiFieldLabel html-for="prompt-value">{{ t(labelKey) }}</UiFieldLabel>
-          <UiInput
-            id="prompt-value"
-            :name="field.name"
-            :model-value="field.state.value"
-            :aria-invalid="isInvalid(field)"
-            :placeholder="t(placeholderKey)"
-            autofocus
-            @blur="field.handleBlur"
-            @input="
-              field.handleChange(($event.target as HTMLInputElement).value)
-            "
-          />
-          <UiFieldDescription v-if="descriptionKey">
-            {{ t(descriptionKey) }}
-          </UiFieldDescription>
-          <UiFieldError
-            v-if="isInvalid(field)"
-            :errors="tErrors(field.state.meta.errors)"
-          />
-        </UiField>
-      </form.Field>
+      <FormTextField
+        :form="form"
+        name="value"
+        input-id="prompt-value"
+        :label-key="labelKey"
+        :placeholder-key="placeholderKey"
+        :description-key="descriptionKey"
+        autofocus
+      />
     </UiFieldGroup>
 
     <div class="mt-5 flex justify-end gap-2">

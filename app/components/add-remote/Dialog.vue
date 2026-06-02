@@ -25,17 +25,6 @@ const form = useForm({
 watch(open, (isOpen) => {
   if (isOpen) form.reset();
 });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isInvalid(field: any): boolean {
-  return field.state.meta.isTouched && !field.state.meta.isValid;
-}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function tErrors(errors: any[]): Array<{ message: string }> {
-  return errors
-    .filter(Boolean)
-    .map((e) => ({ message: t(typeof e === 'string' ? e : e.message) }));
-}
 </script>
 
 <template>
@@ -50,55 +39,22 @@ function tErrors(errors: any[]): Array<{ message: string }> {
 
       <form id="add-remote-form" @submit.prevent="form.handleSubmit">
         <UiFieldGroup>
-          <form.Field v-slot="{ field }" name="name">
-            <UiField :data-invalid="isInvalid(field)">
-              <UiFieldLabel html-for="remote-name">
-                {{ t('form.remoteName.label') }}
-              </UiFieldLabel>
-              <UiInput
-                id="remote-name"
-                :name="field.name"
-                :model-value="field.state.value"
-                :aria-invalid="isInvalid(field)"
-                :placeholder="t('form.remoteName.placeholder')"
-                autofocus
-                @blur="field.handleBlur"
-                @input="
-                  field.handleChange(($event.target as HTMLInputElement).value)
-                "
-              />
-              <UiFieldError
-                v-if="isInvalid(field)"
-                :errors="tErrors(field.state.meta.errors)"
-              />
-            </UiField>
-          </form.Field>
-
-          <form.Field v-slot="{ field }" name="url">
-            <UiField :data-invalid="isInvalid(field)">
-              <UiFieldLabel html-for="remote-url">
-                {{ t('form.remoteUrl.label') }}
-              </UiFieldLabel>
-              <UiInput
-                id="remote-url"
-                :name="field.name"
-                :model-value="field.state.value"
-                :aria-invalid="isInvalid(field)"
-                :placeholder="t('form.remoteUrl.placeholder')"
-                @blur="field.handleBlur"
-                @input="
-                  field.handleChange(($event.target as HTMLInputElement).value)
-                "
-              />
-              <UiFieldDescription>
-                {{ t('form.remoteUrl.description') }}
-              </UiFieldDescription>
-              <UiFieldError
-                v-if="isInvalid(field)"
-                :errors="tErrors(field.state.meta.errors)"
-              />
-            </UiField>
-          </form.Field>
+          <FormTextField
+            :form="form"
+            name="name"
+            input-id="remote-name"
+            label-key="form.remoteName.label"
+            placeholder-key="form.remoteName.placeholder"
+            autofocus
+          />
+          <FormTextField
+            :form="form"
+            name="url"
+            input-id="remote-url"
+            label-key="form.remoteUrl.label"
+            placeholder-key="form.remoteUrl.placeholder"
+            description-key="form.remoteUrl.description"
+          />
         </UiFieldGroup>
       </form>
 
