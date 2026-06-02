@@ -3,15 +3,16 @@ import { toast } from 'vue-sonner';
 import { getVersion } from '@tauri-apps/api/app';
 
 const open = defineModel<boolean>('open', { required: true });
-const { t, locale, locales, setLocale } = useI18n();
-const colorMode = useColorMode();
+const { t, locale, locales } = useI18n();
 const layout = useLayoutStore();
 const { accentOptions, accentSwatch } = useAppearance();
 
-// Clamp the numeric settings back into range when the dialog closes, so a typed
-// out-of-range value is corrected on exit (the store owns the validation).
+// Every setting is a field of one TanStack form (validated by a single Zod
+// schema); a valid change is mirrored straight to its real home. The form is
+// re-seeded from the live settings each time the dialog opens.
+const { form, persist, reset } = useSettingsForm();
 watch(open, (isOpen) => {
-  if (!isOpen) layout.normalizeNumbers();
+  if (isOpen) reset();
 });
 
 // Dev-only: fire one of each toast kind (with title + description) to preview.
@@ -153,34 +154,18 @@ function flagFor(code: string): string {
 const localeOptions = computed(() =>
   locales.value.map((l) => (typeof l === 'string' ? { code: l } : l))
 );
-const lang = computed({
-  get: () => locale.value,
-  set: (code: string) => {
-    void setLocale(code as typeof locale.value);
-  }
-});
-// UI language combobox (single-select): pick a language and close the popover.
+// The language + search-language comboboxes are bound to the `language` and
+// `searchLocales` form fields (see template); these only drive the popovers.
 const langOpen = ref(false);
-function pickLang(code: string) {
-  lang.value = code;
-  langOpen.value = false;
-}
-
-// Additional search languages: a searchable multi-select combobox (Popover +
-// Command). Options are every locale except the active one (already searched via
-// the visible labels). Toggling adds/removes a code; the popover stays open.
 const searchOpen = ref(false);
 const searchLocaleOptions = computed(() =>
   localeOptions.value.filter((l) => l.code !== locale.value)
 );
-const selectedSearchLocales = computed(() => layout.searchLocales ?? []);
-function toggleSearchLocale(code: string) {
-  const current = selectedSearchLocales.value;
-  layout.setSearchLocales(
-    current.includes(code)
-      ? current.filter((c) => c !== code)
-      : [...current, code]
-  );
+// Toggle a code in the multi-select field's array value.
+function toggledLocales(current: string[], code: string): string[] {
+  return current.includes(code)
+    ? current.filter((c) => c !== code)
+    : [...current, code];
 }
 </script>
 
@@ -234,39 +219,73 @@ function toggleSearchLocale(code: string) {
                   label="settings.general.autoFetch.label"
                   hint="settings.general.autoFetch.hint"
                 >
-                  <UiSwitch v-model="layout.autoFetch" class="shrink-0" />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="autoFetch"
+                    :listeners="persist('autoFetch')"
+                  >
+                    <UiSwitch
+                      :model-value="field.state.value"
+                      class="shrink-0"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
                 <SettingsRow
                   v-if="layout.autoFetch"
                   label="settings.general.autoFetchInterval.label"
                   hint="settings.general.autoFetchInterval.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.autoFetchMinutes"
-                    type="number"
-                    min="1"
-                    max="120"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="autoFetchMinutes"
+                    :listeners="persist('autoFetchMinutes')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="1"
+                      max="120"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
 
                 <SettingsRow
                   label="settings.general.pullStrategy.label"
                   hint="settings.general.pullStrategy.hint"
                 >
-                  <UiSelect v-model="layout.pullStrategy">
-                    <UiSelectTrigger class="w-44 shrink-0">
-                      <UiSelectValue />
-                    </UiSelectTrigger>
-                    <UiSelectContent>
-                      <UiSelectItem value="merge">
-                        {{ t('settings.general.pullStrategy.merge') }}
-                      </UiSelectItem>
-                      <UiSelectItem value="rebase">
-                        {{ t('settings.general.pullStrategy.rebase') }}
-                      </UiSelectItem>
-                    </UiSelectContent>
-                  </UiSelect>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="pullStrategy"
+                    :listeners="persist('pullStrategy')"
+                  >
+                    <UiSelect
+                      :model-value="field.state.value"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    >
+                      <UiSelectTrigger class="w-44 shrink-0">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem value="merge">
+                          {{ t('settings.general.pullStrategy.merge') }}
+                        </UiSelectItem>
+                        <UiSelectItem value="rebase">
+                          {{ t('settings.general.pullStrategy.rebase') }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </form.Field>
                 </SettingsRow>
               </div>
             </div>
@@ -282,29 +301,52 @@ function toggleSearchLocale(code: string) {
                   label="settings.general.autoUpdate.label"
                   hint="settings.general.autoUpdate.hint"
                 >
-                  <UiSwitch v-model="layout.autoUpdate" class="shrink-0" />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="autoUpdate"
+                    :listeners="persist('autoUpdate')"
+                  >
+                    <UiSwitch
+                      :model-value="field.state.value"
+                      class="shrink-0"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
 
                 <SettingsRow
                   label="settings.general.releaseChannel.label"
                   hint="settings.general.releaseChannel.hint"
                 >
-                  <UiSelect v-model="layout.releaseChannel">
-                    <UiSelectTrigger class="w-44 shrink-0">
-                      <UiSelectValue />
-                    </UiSelectTrigger>
-                    <UiSelectContent>
-                      <UiSelectItem value="stable">
-                        {{ t('settings.general.releaseChannel.stable') }}
-                      </UiSelectItem>
-                      <UiSelectItem value="beta">
-                        {{ t('settings.general.releaseChannel.beta') }}
-                      </UiSelectItem>
-                      <UiSelectItem value="experiment">
-                        {{ t('settings.general.releaseChannel.experiment') }}
-                      </UiSelectItem>
-                    </UiSelectContent>
-                  </UiSelect>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="releaseChannel"
+                    :listeners="persist('releaseChannel')"
+                  >
+                    <UiSelect
+                      :model-value="field.state.value"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    >
+                      <UiSelectTrigger class="w-44 shrink-0">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem value="stable">
+                          {{ t('settings.general.releaseChannel.stable') }}
+                        </UiSelectItem>
+                        <UiSelectItem value="beta">
+                          {{ t('settings.general.releaseChannel.beta') }}
+                        </UiSelectItem>
+                        <UiSelectItem value="experiment">
+                          {{ t('settings.general.releaseChannel.experiment') }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </form.Field>
                 </SettingsRow>
 
                 <!-- experiment picker — only on the experiment channel -->
@@ -316,22 +358,35 @@ function toggleSearchLocale(code: string) {
                     hint="settings.general.experiment.hint"
                   >
                     <div class="flex shrink-0 items-center gap-2">
-                      <UiSelect v-model="layout.selectedExperiment">
-                        <UiSelectTrigger class="w-44">
-                          <UiSelectValue
-                            :placeholder="t('settings.general.experiment.none')"
-                          />
-                        </UiSelectTrigger>
-                        <UiSelectContent>
-                          <UiSelectItem
-                            v-for="e in layout.experiments"
-                            :key="e"
-                            :value="e"
-                          >
-                            {{ e }}
-                          </UiSelectItem>
-                        </UiSelectContent>
-                      </UiSelect>
+                      <form.Field
+                        v-slot="{ field }"
+                        name="selectedExperiment"
+                        :listeners="persist('selectedExperiment')"
+                      >
+                        <UiSelect
+                          :model-value="field.state.value"
+                          @update:model-value="
+                            (v) => field.handleChange(v as never)
+                          "
+                        >
+                          <UiSelectTrigger class="w-44">
+                            <UiSelectValue
+                              :placeholder="
+                                t('settings.general.experiment.none')
+                              "
+                            />
+                          </UiSelectTrigger>
+                          <UiSelectContent>
+                            <UiSelectItem
+                              v-for="e in layout.experiments"
+                              :key="e"
+                              :value="e"
+                            >
+                              {{ e }}
+                            </UiSelectItem>
+                          </UiSelectContent>
+                        </UiSelect>
+                      </form.Field>
                       <!-- a visible cooldown counter (the dialog is portalled
                            outside the TooltipProvider, and a disabled button
                            can't be hovered for a tooltip anyway) -->
@@ -450,61 +505,116 @@ function toggleSearchLocale(code: string) {
                   label="settings.general.recentReposMax.label"
                   hint="settings.general.recentReposMax.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.recentReposMax"
-                    type="number"
-                    min="1"
-                    max="50"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="recentReposMax"
+                    :listeners="persist('recentReposMax')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="1"
+                      max="50"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
                 <SettingsRow
                   label="settings.general.recentReposOnPage.label"
                   hint="settings.general.recentReposOnPage.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.recentReposOnPage"
-                    type="number"
-                    min="0"
-                    :max="layout.recentReposMax"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="recentReposOnPage"
+                    :listeners="persist('recentReposOnPage')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="0"
+                      :max="layout.recentReposMax"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
                 <SettingsRow
                   label="settings.general.recentReposInSearch.label"
                   hint="settings.general.recentReposInSearch.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.recentReposInSearch"
-                    type="number"
-                    min="0"
-                    :max="layout.recentReposMax"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="recentReposInSearch"
+                    :listeners="persist('recentReposInSearch')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="0"
+                      :max="layout.recentReposMax"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
                 <SettingsRow
                   label="settings.general.recentActionsMax.label"
                   hint="settings.general.recentActionsMax.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.recentActionsMax"
-                    type="number"
-                    min="0"
-                    max="50"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="recentActionsMax"
+                    :listeners="persist('recentActionsMax')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="0"
+                      max="50"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
                 <SettingsRow
                   label="settings.general.recentActionsInSearch.label"
                   hint="settings.general.recentActionsInSearch.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.recentActionsInSearch"
-                    type="number"
-                    min="0"
-                    :max="layout.recentActionsMax"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="recentActionsInSearch"
+                    :listeners="persist('recentActionsInSearch')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="0"
+                      :max="layout.recentActionsMax"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
               </div>
             </div>
@@ -519,7 +629,17 @@ function toggleSearchLocale(code: string) {
                 label="settings.general.devMode.label"
                 hint="settings.general.devMode.hint"
               >
-                <UiSwitch v-model="layout.devMode" class="shrink-0" />
+                <form.Field
+                  v-slot="{ field }"
+                  name="devMode"
+                  :listeners="persist('devMode')"
+                >
+                  <UiSwitch
+                    :model-value="field.state.value"
+                    class="shrink-0"
+                    @update:model-value="(v) => field.handleChange(v as never)"
+                  />
+                </form.Field>
               </SettingsRow>
             </div>
           </section>
@@ -584,47 +704,64 @@ function toggleSearchLocale(code: string) {
                   label="settings.appearance.theme.label"
                   hint="settings.appearance.theme.hint"
                 >
-                  <UiSelect v-model="colorMode.preference">
-                    <UiSelectTrigger class="w-44 shrink-0">
-                      <UiSelectValue />
-                    </UiSelectTrigger>
-                    <UiSelectContent>
-                      <UiSelectItem
-                        v-for="o in themeOptions"
-                        :key="o"
-                        :value="o"
-                      >
-                        {{ t(`settings.appearance.${o}`) }}
-                      </UiSelectItem>
-                    </UiSelectContent>
-                  </UiSelect>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="theme"
+                    :listeners="persist('theme')"
+                  >
+                    <UiSelect
+                      :model-value="field.state.value"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    >
+                      <UiSelectTrigger class="w-44 shrink-0">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem
+                          v-for="o in themeOptions"
+                          :key="o"
+                          :value="o"
+                        >
+                          {{ t(`settings.appearance.${o}`) }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </form.Field>
                 </SettingsRow>
 
                 <SettingsRow
                   label="settings.appearance.accent.label"
                   hint="settings.appearance.accent.hint"
                 >
-                  <div class="flex shrink-0 gap-1.5">
-                    <button
-                      v-for="a in accentOptions"
-                      :key="a"
-                      class="flex size-7 cursor-pointer items-center justify-center rounded-full border transition-transform hover:scale-110"
-                      :class="
-                        layout.accent === a
-                          ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
-                          : ''
-                      "
-                      :style="{ backgroundColor: accentSwatch(a) }"
-                      :aria-label="a"
-                      @click="layout.accent = a"
-                    >
-                      <NuxtIcon
-                        v-if="layout.accent === a"
-                        name="lucide:check"
-                        class="size-3.5 text-white"
-                      />
-                    </button>
-                  </div>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="accent"
+                    :listeners="persist('accent')"
+                  >
+                    <div class="flex shrink-0 gap-1.5">
+                      <button
+                        v-for="a in accentOptions"
+                        :key="a"
+                        class="flex size-7 cursor-pointer items-center justify-center rounded-full border transition-transform hover:scale-110"
+                        :class="
+                          field.state.value === a
+                            ? 'ring-2 ring-ring ring-offset-2 ring-offset-background'
+                            : ''
+                        "
+                        :style="{ backgroundColor: accentSwatch(a) }"
+                        :aria-label="a"
+                        @click="field.handleChange(a)"
+                      >
+                        <NuxtIcon
+                          v-if="field.state.value === a"
+                          name="lucide:check"
+                          class="size-3.5 text-white"
+                        />
+                      </button>
+                    </div>
+                  </form.Field>
                 </SettingsRow>
               </div>
             </div>
@@ -640,60 +777,91 @@ function toggleSearchLocale(code: string) {
                   label="settings.appearance.diffMode.label"
                   hint="settings.appearance.diffMode.hint"
                 >
-                  <UiSelect v-model="layout.diffMode">
-                    <UiSelectTrigger class="w-44 shrink-0">
-                      <UiSelectValue />
-                    </UiSelectTrigger>
-                    <UiSelectContent>
-                      <UiSelectItem
-                        v-for="m in diffModeOptions"
-                        :key="m"
-                        :value="m"
-                      >
-                        {{ t(diffModeLabel[m]) }}
-                      </UiSelectItem>
-                    </UiSelectContent>
-                  </UiSelect>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="diffMode"
+                    :listeners="persist('diffMode')"
+                  >
+                    <UiSelect
+                      :model-value="field.state.value"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    >
+                      <UiSelectTrigger class="w-44 shrink-0">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem
+                          v-for="m in diffModeOptions"
+                          :key="m"
+                          :value="m"
+                        >
+                          {{ t(diffModeLabel[m]) }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </form.Field>
                 </SettingsRow>
 
                 <SettingsRow
                   label="settings.appearance.fileView.label"
                   hint="settings.appearance.fileView.hint"
                 >
-                  <UiSelect v-model="layout.fileView">
-                    <UiSelectTrigger class="w-44 shrink-0">
-                      <UiSelectValue />
-                    </UiSelectTrigger>
-                    <UiSelectContent>
-                      <UiSelectItem
-                        v-for="v in fileViewOptions"
-                        :key="v"
-                        :value="v"
-                      >
-                        {{ t(`fileView.${v}`) }}
-                      </UiSelectItem>
-                    </UiSelectContent>
-                  </UiSelect>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="fileView"
+                    :listeners="persist('fileView')"
+                  >
+                    <UiSelect
+                      :model-value="field.state.value"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    >
+                      <UiSelectTrigger class="w-44 shrink-0">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem
+                          v-for="v in fileViewOptions"
+                          :key="v"
+                          :value="v"
+                        >
+                          {{ t(`fileView.${v}`) }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </form.Field>
                 </SettingsRow>
 
                 <SettingsRow
                   label="settings.appearance.diffFont.label"
                   hint="settings.appearance.diffFont.hint"
                 >
-                  <UiSelect v-model.number="layout.monoScale">
-                    <UiSelectTrigger class="w-44 shrink-0">
-                      <UiSelectValue />
-                    </UiSelectTrigger>
-                    <UiSelectContent>
-                      <UiSelectItem
-                        v-for="f in fontScales"
-                        :key="f.key"
-                        :value="f.value"
-                      >
-                        {{ t(`settings.appearance.diffFont.${f.key}`) }}
-                      </UiSelectItem>
-                    </UiSelectContent>
-                  </UiSelect>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="monoScale"
+                    :listeners="persist('monoScale')"
+                  >
+                    <UiSelect
+                      :model-value="field.state.value"
+                      @update:model-value="(v) => field.handleChange(Number(v))"
+                    >
+                      <UiSelectTrigger class="w-44 shrink-0">
+                        <UiSelectValue />
+                      </UiSelectTrigger>
+                      <UiSelectContent>
+                        <UiSelectItem
+                          v-for="f in fontScales"
+                          :key="f.key"
+                          :value="f.value"
+                        >
+                          {{ t(`settings.appearance.diffFont.${f.key}`) }}
+                        </UiSelectItem>
+                      </UiSelectContent>
+                    </UiSelect>
+                  </form.Field>
                 </SettingsRow>
               </div>
             </div>
@@ -709,23 +877,43 @@ function toggleSearchLocale(code: string) {
                   label="settings.appearance.sidebarResizable.label"
                   hint="settings.appearance.sidebarResizable.hint"
                 >
-                  <UiSwitch
-                    v-model="layout.sidebarResizable"
-                    class="shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="sidebarResizable"
+                    :listeners="persist('sidebarResizable')"
+                  >
+                    <UiSwitch
+                      :model-value="field.state.value"
+                      class="shrink-0"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
                 <SettingsRow
                   label="settings.appearance.sidebarWidth.label"
                   hint="settings.appearance.sidebarWidth.hint"
                 >
-                  <UiInput
-                    v-model.number="layout.sidebarWidth"
-                    type="number"
-                    min="192"
-                    max="512"
-                    step="8"
-                    class="w-24 shrink-0"
-                  />
+                  <form.Field
+                    v-slot="{ field }"
+                    name="sidebarWidth"
+                    :listeners="persist('sidebarWidth')"
+                  >
+                    <UiInput
+                      type="number"
+                      min="192"
+                      max="512"
+                      step="8"
+                      class="w-24 shrink-0"
+                      :model-value="field.state.value"
+                      @input="
+                        field.handleChange(
+                          Number(($event.target as HTMLInputElement).value)
+                        )
+                      "
+                    />
+                  </form.Field>
                 </SettingsRow>
               </div>
             </div>
@@ -740,7 +928,17 @@ function toggleSearchLocale(code: string) {
                 label="settings.appearance.shortenDependabot.label"
                 hint="settings.appearance.shortenDependabot.hint"
               >
-                <UiSwitch v-model="layout.shortenDependabot" class="shrink-0" />
+                <form.Field
+                  v-slot="{ field }"
+                  name="shortenDependabot"
+                  :listeners="persist('shortenDependabot')"
+                >
+                  <UiSwitch
+                    :model-value="field.state.value"
+                    class="shrink-0"
+                    @update:model-value="(v) => field.handleChange(v as never)"
+                  />
+                </form.Field>
               </SettingsRow>
             </div>
           </section>
@@ -750,137 +948,168 @@ function toggleSearchLocale(code: string) {
               label="settings.language.label"
               hint="settings.language.hint"
             >
-              <UiPopover v-model:open="langOpen">
-                <UiPopoverTrigger as-child>
-                  <UiButton
-                    variant="outline"
-                    role="combobox"
-                    :aria-expanded="langOpen"
-                    class="w-44 shrink-0 justify-between font-normal"
-                  >
-                    <span class="flex items-center gap-2 truncate">
-                      <NuxtIcon :name="flagFor(lang)" class="size-4 shrink-0" />
-                      <span class="truncate">{{
-                        t(`settings.language.name.${lang}`)
-                      }}</span>
-                    </span>
-                    <NuxtIcon
-                      name="lucide:chevrons-up-down"
-                      class="size-4 shrink-0 opacity-50"
-                    />
-                  </UiButton>
-                </UiPopoverTrigger>
-                <UiPopoverContent align="end" class="w-56 p-0">
-                  <UiCommand>
-                    <UiCommandInput
-                      :placeholder="
-                        t('settings.language.searchLanguages.search')
-                      "
-                    />
-                    <UiCommandList>
-                      <UiCommandEmpty>{{ t('command.empty') }}</UiCommandEmpty>
-                      <UiCommandGroup>
-                        <UiCommandItem
-                          v-for="l in localeOptions"
-                          :key="l.code"
-                          :value="l.code"
-                          @select="pickLang(l.code)"
-                        >
-                          <NuxtIcon
-                            :name="flagFor(l.code)"
-                            class="size-4 shrink-0"
-                          />
-                          {{ t(`settings.language.name.${l.code}`) }}
-                          <NuxtIcon
-                            name="lucide:check"
-                            class="ml-auto size-4 shrink-0"
-                            :class="
-                              lang === l.code ? 'opacity-100' : 'opacity-0'
+              <form.Field
+                v-slot="{ field }"
+                name="language"
+                :listeners="persist('language')"
+              >
+                <UiPopover v-model:open="langOpen">
+                  <UiPopoverTrigger as-child>
+                    <UiButton
+                      variant="outline"
+                      role="combobox"
+                      :aria-expanded="langOpen"
+                      class="w-44 shrink-0 justify-between font-normal"
+                    >
+                      <span class="flex items-center gap-2 truncate">
+                        <NuxtIcon
+                          :name="flagFor(field.state.value)"
+                          class="size-4 shrink-0"
+                        />
+                        <span class="truncate">{{
+                          t(`settings.language.name.${field.state.value}`)
+                        }}</span>
+                      </span>
+                      <NuxtIcon
+                        name="lucide:chevrons-up-down"
+                        class="size-4 shrink-0 opacity-50"
+                      />
+                    </UiButton>
+                  </UiPopoverTrigger>
+                  <UiPopoverContent align="end" class="w-56 p-0">
+                    <UiCommand>
+                      <UiCommandInput
+                        :placeholder="
+                          t('settings.language.searchLanguages.search')
+                        "
+                      />
+                      <UiCommandList>
+                        <UiCommandEmpty>{{
+                          t('command.empty')
+                        }}</UiCommandEmpty>
+                        <UiCommandGroup>
+                          <UiCommandItem
+                            v-for="l in localeOptions"
+                            :key="l.code"
+                            :value="l.code"
+                            @select="
+                              field.handleChange(l.code);
+                              langOpen = false;
                             "
-                          />
-                        </UiCommandItem>
-                      </UiCommandGroup>
-                    </UiCommandList>
-                  </UiCommand>
-                </UiPopoverContent>
-              </UiPopover>
+                          >
+                            <NuxtIcon
+                              :name="flagFor(l.code)"
+                              class="size-4 shrink-0"
+                            />
+                            {{ t(`settings.language.name.${l.code}`) }}
+                            <NuxtIcon
+                              name="lucide:check"
+                              class="ml-auto size-4 shrink-0"
+                              :class="
+                                field.state.value === l.code
+                                  ? 'opacity-100'
+                                  : 'opacity-0'
+                              "
+                            />
+                          </UiCommandItem>
+                        </UiCommandGroup>
+                      </UiCommandList>
+                    </UiCommand>
+                  </UiPopoverContent>
+                </UiPopover>
+              </form.Field>
             </SettingsRow>
 
             <SettingsRow
               label="settings.language.searchLanguages.label"
               hint="settings.language.searchLanguages.hint"
             >
-              <UiPopover v-model:open="searchOpen">
-                <UiPopoverTrigger as-child>
-                  <UiButton
-                    variant="outline"
-                    role="combobox"
-                    :aria-expanded="searchOpen"
-                    class="w-44 shrink-0 justify-between font-normal"
-                  >
-                    <span
-                      v-if="selectedSearchLocales.length"
-                      class="flex items-center gap-1.5 truncate"
+              <form.Field
+                v-slot="{ field }"
+                name="searchLocales"
+                :listeners="persist('searchLocales')"
+              >
+                <UiPopover v-model:open="searchOpen">
+                  <UiPopoverTrigger as-child>
+                    <UiButton
+                      variant="outline"
+                      role="combobox"
+                      :aria-expanded="searchOpen"
+                      class="w-44 shrink-0 justify-between font-normal"
                     >
                       <span
-                        v-for="(c, i) in selectedSearchLocales"
-                        :key="c"
-                        class="flex items-center gap-1"
+                        v-if="field.state.value.length"
+                        class="flex items-center gap-1.5 truncate"
                       >
-                        <NuxtIcon :name="flagFor(c)" class="size-4 shrink-0" />
-                        <span class="truncate"
-                          >{{ t(`settings.language.name.${c}`)
-                          }}{{
-                            i < selectedSearchLocales.length - 1 ? ',' : ''
-                          }}</span
-                        >
-                      </span>
-                    </span>
-                    <span v-else class="truncate text-muted-foreground">{{
-                      t('settings.language.searchLanguages.placeholder')
-                    }}</span>
-                    <NuxtIcon
-                      name="lucide:chevrons-up-down"
-                      class="size-4 shrink-0 opacity-50"
-                    />
-                  </UiButton>
-                </UiPopoverTrigger>
-                <UiPopoverContent align="end" class="w-56 p-0">
-                  <UiCommand>
-                    <UiCommandInput
-                      :placeholder="
-                        t('settings.language.searchLanguages.search')
-                      "
-                    />
-                    <UiCommandList>
-                      <UiCommandEmpty>{{ t('command.empty') }}</UiCommandEmpty>
-                      <UiCommandGroup>
-                        <UiCommandItem
-                          v-for="l in searchLocaleOptions"
-                          :key="l.code"
-                          :value="l.code"
-                          @select="toggleSearchLocale(l.code)"
+                        <span
+                          v-for="(c, i) in field.state.value"
+                          :key="c"
+                          class="flex items-center gap-1"
                         >
                           <NuxtIcon
-                            :name="flagFor(l.code)"
+                            :name="flagFor(c)"
                             class="size-4 shrink-0"
                           />
-                          {{ t(`settings.language.name.${l.code}`) }}
-                          <NuxtIcon
-                            name="lucide:check"
-                            class="ml-auto size-4 shrink-0"
-                            :class="
-                              selectedSearchLocales.includes(l.code)
-                                ? 'opacity-100'
-                                : 'opacity-0'
+                          <span class="truncate"
+                            >{{ t(`settings.language.name.${c}`)
+                            }}{{
+                              i < field.state.value.length - 1 ? ',' : ''
+                            }}</span
+                          >
+                        </span>
+                      </span>
+                      <span v-else class="truncate text-muted-foreground">{{
+                        t('settings.language.searchLanguages.placeholder')
+                      }}</span>
+                      <NuxtIcon
+                        name="lucide:chevrons-up-down"
+                        class="size-4 shrink-0 opacity-50"
+                      />
+                    </UiButton>
+                  </UiPopoverTrigger>
+                  <UiPopoverContent align="end" class="w-56 p-0">
+                    <UiCommand>
+                      <UiCommandInput
+                        :placeholder="
+                          t('settings.language.searchLanguages.search')
+                        "
+                      />
+                      <UiCommandList>
+                        <UiCommandEmpty>{{
+                          t('command.empty')
+                        }}</UiCommandEmpty>
+                        <UiCommandGroup>
+                          <UiCommandItem
+                            v-for="l in searchLocaleOptions"
+                            :key="l.code"
+                            :value="l.code"
+                            @select="
+                              field.handleChange(
+                                toggledLocales(field.state.value, l.code)
+                              )
                             "
-                          />
-                        </UiCommandItem>
-                      </UiCommandGroup>
-                    </UiCommandList>
-                  </UiCommand>
-                </UiPopoverContent>
-              </UiPopover>
+                          >
+                            <NuxtIcon
+                              :name="flagFor(l.code)"
+                              class="size-4 shrink-0"
+                            />
+                            {{ t(`settings.language.name.${l.code}`) }}
+                            <NuxtIcon
+                              name="lucide:check"
+                              class="ml-auto size-4 shrink-0"
+                              :class="
+                                field.state.value.includes(l.code)
+                                  ? 'opacity-100'
+                                  : 'opacity-0'
+                              "
+                            />
+                          </UiCommandItem>
+                        </UiCommandGroup>
+                      </UiCommandList>
+                    </UiCommand>
+                  </UiPopoverContent>
+                </UiPopover>
+              </form.Field>
             </SettingsRow>
           </section>
 
