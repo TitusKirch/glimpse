@@ -36,4 +36,27 @@ describe('highlightLines', () => {
     expect(lines).toHaveLength(3);
     for (const line of lines) expect(spanBalance(line)).toBe(0);
   });
+
+  // Security invariant (the diff/blame views render this via v-html): the only
+  // tags the output may ever contain are highlight.js <span>s. A source `<`/`>`
+  // must come back escaped, never as a live element — otherwise a crafted file
+  // could inject markup. This guards against a highlight.js upgrade or a
+  // splitHighlightedLines regression silently breaking the escaping.
+  it('never emits a tag other than <span> and escapes source markup', () => {
+    const malicious =
+      'const s = "<img src=x onerror=alert(1)>";\n<script>alert(2)</script>\nok';
+    for (const lang of ['javascript', 'xml', '']) {
+      const lines = highlightLines({ text: malicious, lang });
+      const html = lines.join('\n');
+      // No injected elements survive — only span tags are allowed.
+      const tags = html.match(/<\/?[a-zA-Z][^>]*>/g) ?? [];
+      for (const tag of tags) {
+        expect(/^<\/?span[\s>]/.test(tag) || tag === '</span>').toBe(true);
+      }
+      // Source markup comes back escaped (&lt;img …) — never as a live element.
+      // (`onerror=` may still appear as escaped *text*, which is harmless.)
+      expect(html).not.toContain('<img');
+      expect(html).not.toContain('<script');
+    }
+  });
 });

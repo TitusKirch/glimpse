@@ -113,6 +113,11 @@
       "title": "Remote-Branch auschecken",
       "description": "Lokalen Branch erstellen, der „{name}“ trackt, und dorthin wechseln?",
       "confirm": "Auschecken"
+    },
+    "openDeepLink": {
+      "title": "Repository öffnen?",
+      "description": "Ein Link möchte, dass glimpse „{path}“ öffnet. Öffne es nur, wenn du der Quelle vertraust — beim Öffnen wird git darin ausgeführt.",
+      "confirm": "Öffnen"
     }
   },
   "branch": {

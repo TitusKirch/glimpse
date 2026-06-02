@@ -37,6 +37,17 @@ watch(
 
 // Load real git data when running inside the desktop shell (mock in browser).
 // Refresh-on-focus fallback (the best-effort FS watcher may miss WSL events).
+// Reject a deep-link path that isn't a plain absolute local directory: UNC /
+// network shares (incl. \\wsl$) must never be reachable from a remote trigger,
+// and a non-absolute value isn't a repo to open. Confirmation (above) is the
+// primary gate; this keeps the obviously-hostile shapes out entirely.
+function isUnsafeDeepLinkPath(p: string): boolean {
+  if (/^[\\/]{2}/.test(p)) return true; // \\server, //server, \\wsl$\…
+  if (/wsl\$|wsl\.localhost/i.test(p)) return true;
+  const absolute = p.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(p);
+  return !absolute;
+}
+
 let unlisten: (() => void) | undefined;
 let unlistenDeepLink: (() => void) | undefined;
 onMounted(async () => {
@@ -53,15 +64,27 @@ onMounted(async () => {
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   await whenTauri(async () => {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
-    // glimpse://open?path=/abs or glimpse:///abs -> open that repo.
-    unlistenDeepLink = await onOpenUrl((urls) => {
+    // glimpse://open?path=/abs -> open that repo, but only after confirmation.
+    unlistenDeepLink = await onOpenUrl(async (urls) => {
       for (const u of urls) {
         try {
           const url = new URL(u);
-          const path =
-            url.searchParams.get('path') ||
-            decodeURIComponent(url.pathname || url.hostname);
-          if (path) void repo.openRepo(path);
+          // Strict verb + typed arg: only `glimpse://open?path=<abs>` opens a
+          // repo. Anything else (a bare path, another verb) is ignored.
+          if (url.hostname !== 'open') continue;
+          const path = url.searchParams.get('path') ?? '';
+          if (!path || isUnsafeDeepLinkPath(path)) continue;
+          // A deep link is an untrusted, remotely-triggerable entry point: any
+          // website can navigate to glimpse://open?path=… . Opening a repo runs
+          // git against it, and a malicious .git/config could execute code, so
+          // require explicit confirmation (defaulting to cancel) first.
+          const ok = await useConfirm().confirm({
+            titleKey: 'confirm.openDeepLink.title',
+            descriptionKey: 'confirm.openDeepLink.description',
+            confirmKey: 'confirm.openDeepLink.confirm',
+            params: { path }
+          });
+          if (ok) void repo.openRepo(path);
         } catch {
           // ignore malformed deep links
         }

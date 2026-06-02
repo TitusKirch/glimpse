@@ -113,6 +113,11 @@
       "title": "Hacer checkout de la rama remota",
       "description": "¿Crear una rama local que siga a «{name}» y cambiar a ella?",
       "confirm": "Checkout"
+    },
+    "openDeepLink": {
+      "title": "¿Abrir repositorio?",
+      "description": "Un enlace pidió a glimpse abrir «{path}». Ábrelo solo si confías en la fuente: abrir un repositorio ejecuta git dentro de él.",
+      "confirm": "Abrir"
     }
   },
   "branch": {

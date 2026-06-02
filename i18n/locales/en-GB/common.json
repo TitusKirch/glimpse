@@ -113,6 +113,11 @@
       "title": "Check out remote branch",
       "description": "Create a local branch tracking “{name}” and switch to it?",
       "confirm": "Checkout"
+    },
+    "openDeepLink": {
+      "title": "Open repository?",
+      "description": "A link asked glimpse to open “{path}”. Only open it if you trust the source — opening a repository runs git inside it.",
+      "confirm": "Open"
     }
   },
   "branch": {

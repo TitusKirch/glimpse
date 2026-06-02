@@ -17,6 +17,64 @@ fn lines(s: &str) -> impl Iterator<Item = &str> {
     s.lines().filter(|l| !l.trim().is_empty())
 }
 
+/// Reject a value git could misread as a command-line option. Applied to every
+/// ref / branch / tag / hash / remote-name / stash-ref / URL before it reaches
+/// git. This is the backend's own authoritative guard, independent of the
+/// frontend's zod (which only runs in the browser layer and is bypassed by a
+/// direct IPC call, XSS, or attacker-controlled ref names coming back from a
+/// malicious repository). A leading `-` is the option-injection vector; control
+/// characters can't appear in a valid ref anyway.
+fn reject_option(v: &str) -> Result<(), String> {
+    if v.is_empty() || v.starts_with('-') || v.bytes().any(|b| b < 0x20) {
+        return Err(format!("rejected unsafe argument: {v:?}"));
+    }
+    Ok(())
+}
+
+/// Reject a working-tree path that escapes the repository (absolute path or
+/// `..` traversal) or that could inject extra headers into an interpolated
+/// patch (CR/LF/NUL). Used for every file path an IPC command passes through.
+fn reject_unsafe_path(v: &str) -> Result<(), String> {
+    if v.is_empty() || is_unsafe_path(v) {
+        return Err(format!("rejected unsafe path: {v:?}"));
+    }
+    Ok(())
+}
+
+/// Reject a hunk body that isn't pure hunk content. Every line of a real hunk
+/// begins with a hunk-header (`@`) or a context / add / remove / no-newline
+/// marker (` `, `+`, `-`, `\`). A line starting with anything else terminates
+/// the hunk in `git apply`'s parser, which would let an attacker smuggle a
+/// SECOND file section (e.g. `diff --git a/other …`) and stage content into a
+/// different in-repo path. The body is interpolated raw into the patch, so it
+/// must be validated as tightly as the file path.
+fn reject_unsafe_hunk(hunk: &str) -> Result<(), String> {
+    for line in hunk.lines() {
+        let valid =
+            line.is_empty() || matches!(line.as_bytes()[0], b'@' | b' ' | b'+' | b'-' | b'\\');
+        if !valid {
+            return Err(format!("rejected unsafe hunk line: {line:?}"));
+        }
+    }
+    Ok(())
+}
+
+/// True if `v` escapes the repository or could inject into an interpolated
+/// patch. Detects Unix-absolute (`/…`), UNC (`\\…`), and Windows-drive
+/// (`C:\…`) paths regardless of the build target — the WSL path runs on Windows
+/// where these all matter — plus `..` traversal and CR/LF/NUL. Shared so the
+/// native `read_file` sink applies the exact same rule.
+pub fn is_unsafe_path(v: &str) -> bool {
+    let bytes = v.as_bytes();
+    let win_drive = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    v.starts_with('/')
+        || v.starts_with('\\')
+        || std::path::Path::new(v).is_absolute()
+        || win_drive
+        || v.split(['/', '\\']).any(|c| c == "..")
+        || v.bytes().any(|b| b == b'\n' || b == b'\r' || b == 0)
+}
+
 #[derive(Serialize, TS)]
 pub struct Commit {
     pub hash: String,
@@ -249,7 +307,11 @@ impl Repo {
         ignore_whitespace: bool,
         whole: bool,
     ) -> Result<Option<DiffData>, String> {
-        let mut args = vec!["diff", "--no-color"];
+        reject_unsafe_path(file)?;
+        // `--no-ext-diff --no-textconv`: never let a malicious repo's configured
+        // external-diff / textconv driver run while we inspect it (we render the
+        // diff ourselves from the raw content anyway).
+        let mut args = vec!["diff", "--no-color", "--no-ext-diff", "--no-textconv"];
         if staged {
             args.push("--staged");
         }
@@ -270,7 +332,16 @@ impl Repo {
         // difference, so use run_diff which tolerates that.
         if raw.trim().is_empty() && !staged {
             let null = self.target.null_device();
-            raw = self.run_diff(&["diff", "--no-color", "--no-index", null, file]);
+            raw = self.run_diff(&[
+                "diff",
+                "--no-color",
+                "--no-ext-diff",
+                "--no-textconv",
+                "--no-index",
+                "--",
+                null,
+                file,
+            ]);
         }
 
         let Some(mut diff) = parse::diff(&raw) else {
@@ -288,6 +359,7 @@ impl Repo {
 
     /// Full commit message (subject + body) for the detail panel.
     pub fn commit_body(&self, hash: &str) -> Result<String, String> {
+        reject_option(hash)?;
         Ok(self
             .run(&["show", "-s", "--format=%B", hash])?
             .trim()
@@ -296,6 +368,7 @@ impl Repo {
 
     /// List of files changed by a commit (path + single-letter status).
     pub fn commit_files(&self, hash: &str) -> Result<Vec<CommitFile>, String> {
+        reject_option(hash)?;
         let raw = self.run(&["show", "--name-status", "--format=", hash])?;
         Ok(parse::commit_files(&raw))
     }
@@ -308,7 +381,15 @@ impl Repo {
         ignore_whitespace: bool,
         whole: bool,
     ) -> Result<Option<DiffData>, String> {
-        let mut args = vec!["show", "--no-color", "--format="];
+        reject_option(hash)?;
+        reject_unsafe_path(file)?;
+        let mut args = vec![
+            "show",
+            "--no-color",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--format=",
+        ];
         if ignore_whitespace {
             args.push("-w");
         }
@@ -326,10 +407,12 @@ impl Repo {
     }
 
     pub fn stage(&self, file: &str) -> Result<(), String> {
+        reject_unsafe_path(file)?;
         self.run(&["add", "--", file]).map(|_| ())
     }
 
     pub fn unstage(&self, file: &str) -> Result<(), String> {
+        reject_unsafe_path(file)?;
         self.run(&["restore", "--staged", "--", file]).map(|_| ())
     }
 
@@ -337,6 +420,13 @@ impl Repo {
     /// one-file patch into `git apply --cached`. `--recount` lets git fix the
     /// `@@` line counts, so the rendered hunk text doesn't need to be exact.
     pub fn apply_hunk(&self, file: &str, hunk: &str, reverse: bool) -> Result<(), String> {
+        // Reject CR/LF/`..`/absolute in the file path: it is interpolated raw
+        // into the patch headers below, so a newline could inject extra
+        // `+++ b/…` headers and redirect the write outside the intended file.
+        reject_unsafe_path(file)?;
+        // And reject a hunk body that smuggles a second file section, which would
+        // otherwise stage content into a different in-repo path.
+        reject_unsafe_hunk(hunk)?;
         let patch = format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{hunk}\n");
         let mut args = vec!["apply", "--cached", "--recount", "--whitespace=nowarn"];
         if reverse {
@@ -347,6 +437,7 @@ impl Repo {
 
     /// Commits that touched a file, following renames (`git log --follow`).
     pub fn file_history(&self, file: &str) -> Result<Vec<Commit>, String> {
+        reject_unsafe_path(file)?;
         let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
         let out = self.run(&["log", "--follow", "--date=short", &fmt, "--", file])?;
         Ok(parse::log(&out))
@@ -354,6 +445,7 @@ impl Repo {
 
     /// Per-line authorship for a file (`git blame --porcelain`).
     pub fn blame(&self, file: &str) -> Result<Vec<BlameLine>, String> {
+        reject_unsafe_path(file)?;
         let raw = self.run(&["blame", "--porcelain", "--", file])?;
         Ok(parse::blame(&raw))
     }
@@ -379,6 +471,7 @@ impl Repo {
     /// Discard a file's working-tree changes. Untracked files are deleted
     /// (`clean`); tracked files are reverted to HEAD (`restore`).
     pub fn discard(&self, file: &str, untracked: bool) -> Result<(), String> {
+        reject_unsafe_path(file)?;
         if untracked {
             self.run(&["clean", "-f", "--", file]).map(|_| ())
         } else {
@@ -387,16 +480,18 @@ impl Repo {
     }
 
     pub fn checkout_branch(&self, branch: &str) -> Result<(), String> {
-        self.run(&["switch", branch]).map(|_| ())
+        reject_option(branch)?;
+        self.run(&["switch", "--", branch]).map(|_| ())
     }
 
     /// Merge `branch` into the current branch (no editor). Conflicts surface in
     /// the status as unmerged entries, handled by the conflicts UI.
     pub fn merge(&self, branch: &str) -> Result<String, String> {
+        reject_option(branch)?;
         // `--no-ff` always records a merge commit, so a merged branch keeps its
         // own lane + merge point in the graph instead of being fast-forwarded
         // into a straight line (which erases the branch topology).
-        self.run(&["merge", "--no-ff", "--no-edit", branch])
+        self.run(&["merge", "--no-ff", "--no-edit", "--", branch])
     }
 
     /// Discard every working-tree change: restore tracked files to HEAD and
@@ -409,35 +504,47 @@ impl Repo {
     /// Check out a commit directly, leaving HEAD detached so the user can
     /// inspect or branch off it.
     pub fn checkout_commit(&self, hash: &str) -> Result<(), String> {
+        // `git checkout` reads a value after `--` as a pathspec, so a `--`
+        // separator can't guard a commit-ish here — reject a leading-dash value.
+        reject_option(hash)?;
         self.run(&["checkout", hash]).map(|_| ())
     }
 
     pub fn create_branch(&self, name: &str) -> Result<(), String> {
+        reject_option(name)?;
         self.run(&["switch", "-c", name]).map(|_| ())
     }
 
     /// Create a branch at a specific commit and switch to it ("branch here").
     pub fn create_branch_at(&self, name: &str, hash: &str) -> Result<(), String> {
+        reject_option(name)?;
+        reject_option(hash)?;
         self.run(&["switch", "-c", name, hash]).map(|_| ())
     }
 
     pub fn delete_branch(&self, name: &str) -> Result<(), String> {
-        self.run(&["branch", "-d", name]).map(|_| ())
+        reject_option(name)?;
+        self.run(&["branch", "-d", "--", name]).map(|_| ())
     }
 
     /// Revert a commit (creates a new inverse commit, no editor).
     pub fn revert(&self, hash: &str) -> Result<(), String> {
-        self.run(&["revert", "--no-edit", hash]).map(|_| ())
+        reject_option(hash)?;
+        self.run(&["revert", "--no-edit", "--", hash]).map(|_| ())
     }
 
     /// Cherry-pick a commit onto the current branch.
     pub fn cherry_pick(&self, hash: &str) -> Result<(), String> {
-        self.run(&["cherry-pick", hash]).map(|_| ())
+        reject_option(hash)?;
+        self.run(&["cherry-pick", "--", hash]).map(|_| ())
     }
 
     /// Move the current branch to `hash`. A hard reset discards working-tree
     /// changes — the UI confirms first.
     pub fn reset(&self, hash: &str, mode: ResetMode) -> Result<(), String> {
+        // `git reset` treats anything after `--` as a pathspec ("Cannot do soft
+        // reset with paths"), so guard the commit-ish by rejecting a leading `-`.
+        reject_option(hash)?;
         let flag = match mode {
             ResetMode::Soft => "--soft",
             ResetMode::Mixed => "--mixed",
@@ -447,26 +554,33 @@ impl Repo {
     }
 
     pub fn rename_branch(&self, old: &str, new: &str) -> Result<(), String> {
-        self.run(&["branch", "-m", old, new]).map(|_| ())
+        reject_option(old)?;
+        reject_option(new)?;
+        self.run(&["branch", "-m", "--", old, new]).map(|_| ())
     }
 
     /// Set a branch's upstream to `<remote>/<branch>` (so pull/push track it).
     pub fn set_upstream(&self, remote: &str, branch: &str) -> Result<(), String> {
+        reject_option(remote)?;
+        reject_option(branch)?;
         let target = format!("--set-upstream-to={remote}/{branch}");
-        self.run(&["branch", &target, branch]).map(|_| ())
+        self.run(&["branch", &target, "--", branch]).map(|_| ())
     }
 
     /// Create a lightweight tag at `hash` (or HEAD when `hash` is empty).
     pub fn create_tag(&self, name: &str, hash: &str) -> Result<(), String> {
+        reject_option(name)?;
         if hash.is_empty() {
-            self.run(&["tag", name]).map(|_| ())
+            self.run(&["tag", "--", name]).map(|_| ())
         } else {
-            self.run(&["tag", name, hash]).map(|_| ())
+            reject_option(hash)?;
+            self.run(&["tag", "--", name, hash]).map(|_| ())
         }
     }
 
     pub fn delete_tag(&self, name: &str) -> Result<(), String> {
-        self.run(&["tag", "-d", name]).map(|_| ())
+        reject_option(name)?;
+        self.run(&["tag", "-d", "--", name]).map(|_| ())
     }
 
     /// Push all local tags to the default remote.
@@ -475,14 +589,22 @@ impl Repo {
     }
 
     pub fn add_remote(&self, name: &str, url: &str) -> Result<(), String> {
+        reject_option(name)?;
+        // The URL is positional after the name; a leading `-` would be parsed as
+        // an option. (Dangerous transports like `ext::` are blocked by git's own
+        // protocol policy on fetch, but reject the option-injection vector here.)
+        reject_option(url)?;
         self.run(&["remote", "add", name, url]).map(|_| ())
     }
 
     pub fn remove_remote(&self, name: &str) -> Result<(), String> {
+        reject_option(name)?;
         self.run(&["remote", "remove", name]).map(|_| ())
     }
 
     pub fn rename_remote(&self, old: &str, new: &str) -> Result<(), String> {
+        reject_option(old)?;
+        reject_option(new)?;
         self.run(&["remote", "rename", old, new]).map(|_| ())
     }
 
@@ -510,14 +632,17 @@ impl Repo {
     }
 
     pub fn stash_pop(&self, reference: &str) -> Result<(), String> {
+        reject_option(reference)?;
         self.run(&["stash", "pop", reference]).map(|_| ())
     }
 
     pub fn stash_apply(&self, reference: &str) -> Result<(), String> {
+        reject_option(reference)?;
         self.run(&["stash", "apply", reference]).map(|_| ())
     }
 
     pub fn stash_drop(&self, reference: &str) -> Result<(), String> {
+        reject_option(reference)?;
         self.run(&["stash", "drop", reference]).map(|_| ())
     }
 
@@ -536,6 +661,7 @@ impl Repo {
     /// Resolve a conflicted file: take `ours`/`theirs` then stage it, or just
     /// stage a manually-resolved file (`mark`).
     pub fn resolve_conflict(&self, file: &str, side: &str) -> Result<(), String> {
+        reject_unsafe_path(file)?;
         match side {
             "ours" => {
                 self.run(&["checkout", "--ours", "--", file])?;
@@ -587,4 +713,74 @@ fn export_bindings() {
     );
     std::fs::create_dir_all("../app/types").expect("create app/types");
     std::fs::write("../app/types/bindings.ts", file).expect("write bindings.ts");
+}
+
+#[cfg(test)]
+mod validate_tests {
+    use super::{reject_option, reject_unsafe_hunk, reject_unsafe_path};
+
+    #[test]
+    fn reject_unsafe_hunk_blocks_smuggled_file_section() {
+        // A normal hunk (header + context/add/remove/no-newline lines) is fine.
+        let ok = "@@ -1,2 +1,2 @@\n context\n-old\n+new\n\\ No newline at end of file";
+        assert!(reject_unsafe_hunk(ok).is_ok());
+        // Removed/added lines that merely *look* like diff headers stay valid
+        // (they carry the -/+ prefix, so git treats them as content).
+        let tricky = "@@ -1 +1 @@\n--- a/keep\n+++ b/keep";
+        assert!(reject_unsafe_hunk(tricky).is_ok());
+        // A smuggled second file section (bare `diff --git`, `index`, `new file`)
+        // is rejected — those lines lack a hunk prefix.
+        for bad in [
+            "@@ -1 +1 @@\n-old\n+new\ndiff --git a/other b/other\n--- a/other\n+++ b/other\n@@ -1 +1 @@\n-x\n+PWNED",
+            "@@ -1 +1 @@\n+x\nindex 0000..1111 100644",
+            "@@ -1 +1 @@\n+x\nnew file mode 100644",
+        ] {
+            assert!(reject_unsafe_hunk(bad).is_err(), "should reject {bad:?}");
+        }
+    }
+
+    #[test]
+    fn reject_option_blocks_leading_dash_and_control() {
+        // Option-injection vectors and empties are rejected.
+        for bad in ["-D", "--upload-pack=x", "-", "", "a\nb", "x\u{1b}y"] {
+            assert!(reject_option(bad).is_err(), "should reject {bad:?}");
+        }
+        // Ordinary refs/hashes/remote names pass — including ones with `/`, `~`,
+        // `@`, `{}` that are valid in real ref/rev syntax.
+        for ok in [
+            "main",
+            "origin/main",
+            "feature/x",
+            "HEAD~3",
+            "stash@{0}",
+            "v1.2.3",
+            "0a1b2c3d",
+        ] {
+            assert!(reject_option(ok).is_ok(), "should allow {ok:?}");
+        }
+    }
+
+    #[test]
+    fn reject_unsafe_path_blocks_traversal_and_injection() {
+        for bad in [
+            "/etc/passwd",
+            "C:\\Windows\\win.ini",
+            "../secret",
+            "a/../../b",
+            "x\n+++ b/evil",
+            "x\rrest",
+            "",
+        ] {
+            assert!(reject_unsafe_path(bad).is_err(), "should reject {bad:?}");
+        }
+        // Normal repo-relative paths pass.
+        for ok in [
+            "src/main.rs",
+            "a/b/c.txt",
+            "file with spaces.md",
+            "-leading-dash.txt",
+        ] {
+            assert!(reject_unsafe_path(ok).is_ok(), "should allow {ok:?}");
+        }
+    }
 }

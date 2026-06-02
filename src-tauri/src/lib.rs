@@ -83,7 +83,10 @@ async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
 
 #[tauri::command]
 async fn git_log(path: String, limit: Option<u32>) -> Result<Vec<git::Commit>, String> {
-    git::Repo::open(&path).log(limit.unwrap_or(100))
+    // Clamp the window: the frontend raises `limit` 200 at a time with no
+    // ceiling, and the graph's lane assignment is super-linear, so an unbounded
+    // value is a self-inflicted DoS on the async command path.
+    git::Repo::open(&path).log(limit.unwrap_or(100).min(50_000))
 }
 
 #[tauri::command]
@@ -459,20 +462,32 @@ fn experiment_name() -> Option<String> {
 /// alias; beta uses a fixed, rolling `beta` release; an `experiment:<slug>`
 /// channel points at that experiment's own rolling release.
 #[cfg(desktop)]
-fn updater_endpoint(channel: &str) -> String {
+fn updater_endpoint(channel: &str) -> Result<String, String> {
     if let Some(slug) = channel.strip_prefix("experiment:") {
-        return format!(
+        // The slug is interpolated into the release URL. It is persisted in
+        // localStorage and only frontend-validated as a free string, so restrict
+        // it here to the charset the experiment workflow actually produces
+        // (`[a-z0-9-]`). Otherwise a tampered persisted channel could redirect
+        // the updater to a different github.com release path (e.g. a downgrade).
+        if slug.is_empty()
+            || !slug
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        {
+            return Err(format!("invalid experiment slug: {slug:?}"));
+        }
+        return Ok(format!(
             "https://github.com/TitusKirch/glimpse/releases/download/experiment-{slug}/latest.json"
-        );
+        ));
     }
-    match channel {
+    Ok(match channel {
         "beta" => {
             "https://github.com/TitusKirch/glimpse/releases/download/beta/latest.json".to_string()
         }
         _ => {
             "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json".to_string()
         }
-    }
+    })
 }
 
 /// Build an updater pointed at the given channel's manifest. The runtime
@@ -485,7 +500,7 @@ fn channel_updater(
     force: bool,
 ) -> Result<tauri_plugin_updater::Updater, String> {
     use tauri_plugin_updater::UpdaterExt;
-    let url = updater_endpoint(channel)
+    let url = updater_endpoint(channel)?
         .parse::<tauri::Url>()
         .map_err(|e| e.to_string())?;
     let mut builder = app

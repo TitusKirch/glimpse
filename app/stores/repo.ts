@@ -1034,6 +1034,9 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async refresh() {
+      // The window-focus listener fires this unconditionally, including on the
+      // start screen where there is no active repo — guard the deref.
+      if (!this.active) return;
       this.lastRefresh = 'just now';
       this.refreshing = true;
       try {

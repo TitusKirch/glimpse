@@ -113,6 +113,11 @@
       "title": "Checkout d'une branche distante",
       "description": "Créer une branche locale qui suit « {name} » et basculer dessus ?",
       "confirm": "Checkout"
+    },
+    "openDeepLink": {
+      "title": "Ouvrir le dépôt ?",
+      "description": "Un lien demande à glimpse d’ouvrir « {path} ». Ne l’ouvrez que si vous faites confiance à la source — ouvrir un dépôt exécute git à l’intérieur.",
+      "confirm": "Ouvrir"
     }
   },
   "branch": {
