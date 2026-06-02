@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
-import { getVersion } from '@tauri-apps/api/app';
 
 const open = defineModel<boolean>('open', { required: true });
 const { t, locale, locales } = useI18n();
@@ -106,17 +105,8 @@ watch(
   }
 );
 
-// App version (Tauri only); shown on the About page.
-const version = ref('dev');
-onMounted(async () => {
-  if (isTauri()) {
-    try {
-      version.value = await getVersion();
-    } catch {
-      version.value = 'dev';
-    }
-  }
-});
+// App version (Tauri only, "dev" in the browser); shown on the About page.
+const { version } = useAppVersion();
 
 const aboutLinks = [
   {

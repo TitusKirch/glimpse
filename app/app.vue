@@ -51,7 +51,7 @@ onMounted(async () => {
   // Populate the experiment list once on boot when that channel is active.
   if (layout.releaseChannel === 'experiment') void experiments.refresh();
   // Live-refresh on filesystem changes emitted by the Rust watcher.
-  if (isTauri()) {
+  await whenTauri(async () => {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
     // glimpse://open?path=/abs or glimpse:///abs -> open that repo.
     unlistenDeepLink = await onOpenUrl((urls) => {
@@ -67,7 +67,7 @@ onMounted(async () => {
         }
       }
     });
-  }
+  });
 });
 onBeforeUnmount(() => {
   window.removeEventListener('focus', repo.refresh);

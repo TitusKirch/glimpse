@@ -3,7 +3,6 @@
 // can pick the manifest endpoint at runtime — the JS check() can only read the
 // static config endpoints. Actual fetching works once the updater is configured
 // with a real signing key + a published release for the channel.
-import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'vue-sonner';
 
 export function useUpdater() {
@@ -32,12 +31,20 @@ export function useUpdater() {
     }
     checking.value = true;
     try {
-      const version = await invoke<string | null>('check_update', { channel });
+      const version = await tauriInvoke<string | null>({
+        command: 'check_update',
+        args: { channel },
+        fallback: null
+      });
       if (version) {
         toast.info(t('updater.available', { version }), {
           description: t('updater.installing')
         });
-        await invoke('install_update', { channel });
+        await tauriInvoke({
+          command: 'install_update',
+          args: { channel },
+          fallback: null
+        });
         toast.success(t('updater.installed'));
       } else if (manual) {
         toast.success(t('updater.upToDate'));
