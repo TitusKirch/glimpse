@@ -1,6 +1,6 @@
 [package]
 name = "glimpse"
-version = "0.0.0"
+version = "0.1.0"
 description = "A lightweight, git-native desktop Git client — the full branch graph, diffs, and everyday git, with first-class WSL support."
 authors = ["Titus Kirch <titus.kirch@kirch.dev>"]
 license = "MIT"
