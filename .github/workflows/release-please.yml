@@ -106,9 +106,10 @@ jobs:
             1fb62037-259b-45ec-b0fa-b45b017ab6e7 > TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 
       # Builds NSIS (Windows) and AppImage + .deb (Linux), signs the updater
-      # artifacts, and uploads them plus `latest.json` to the release-please
-      # release. The updater (tauri.conf.json plugins.updater) reads that
-      # manifest. Requires the signing secrets to be set — see
+      # artifacts, and uploads them to the release-please release. No latest.json
+      # here: the `finalize` job assembles it once. The matrix runs in parallel,
+      # and per-job includeUpdaterJson races on the shared manifest (last writer
+      # wins, dropping platforms). Requires the signing secrets to be set — see
       # UPDATER-SETUP.local.md for the one-time key generation + secrets.
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
@@ -118,5 +119,51 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ needs.release-please.outputs.tag_name }}
-          # Generate + attach latest.json so the in-app updater can find it.
-          includeUpdaterJson: true
+          includeUpdaterJson: false
+
+  # Assemble latest.json once, from the sigs the parallel bundle jobs uploaded,
+  # and attach it to the release — the race-free pattern the beta workflow uses.
+  # Stable ships Windows + Linux (no macOS), so the manifest has those keys.
+  finalize:
+    name: Publish updater manifest
+    needs: [release-please, bundle]
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build latest.json and attach it to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          VER="${TAG#v}"
+          mkdir -p sigs
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' --dir sigs
+          VER="$VER" BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const ver = process.env.VER;
+          const base = process.env.BASE;
+          const files = fs.readdirSync('sigs').filter((f) => f.endsWith('.sig'));
+          const find = (re) => files.find((f) => re.test(f));
+          const entry = (sig) => ({
+            signature: fs.readFileSync(path.join('sigs', sig), 'utf8').trim(),
+            url: `${base}/${sig.replace(/\.sig$/, '')}`
+          });
+          const win = find(/_x64-setup\.exe\.sig$/);
+          const lin = find(/_amd64\.AppImage\.sig$/);
+          if (!win || !lin) {
+            console.error('::error::missing platform sig — win:%s lin:%s', !!win, !!lin);
+            process.exit(1);
+          }
+          const platforms = {
+            'windows-x86_64': entry(win),
+            'windows-x86_64-nsis': entry(win),
+            'linux-x86_64': entry(lin),
+            'linux-x86_64-appimage': entry(lin)
+          };
+          const out = { version: ver, notes: `Release ${ver}.`, pub_date: new Date().toISOString(), platforms };
+          fs.writeFileSync('latest.json', JSON.stringify(out, null, 2));
+          console.log('latest.json platforms:', Object.keys(platforms).join(', '));
+          NODE
+          gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY" --clobber

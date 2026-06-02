@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# Delete an experiment's release when its branch is deleted, so experiments don't
+# outlive the work they track. Mirrors the slug rule in release-experiment.yml.
+# Tag deletions are ignored (the release tags aren't branches).
+
+name: Experiment cleanup
+
+on:
+  delete:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Remove experiment release
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Delete experiment-<slug> release (if any)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          SLUG=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+          [ -z "$SLUG" ] && { echo "empty slug, nothing to do"; exit 0; }
+          TAG="experiment-$SLUG"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Deleting $TAG"
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          else
+            echo "No release $TAG — nothing to clean up."
+          fi

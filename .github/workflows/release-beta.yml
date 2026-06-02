@@ -63,31 +63,30 @@ jobs:
             for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
             return 0;
           };
-          // Base = next stable. Honour release-please's `release-as` if pinned,
-          // else bump the latest stable tag from conventional commits.
+          // Base = next stable version. Anchor on the latest STABLE GitHub release
+          // (the "Latest" badge) rather than branch files, so a dev branch whose
+          // manifest / release-as lag behind main can't pin beta to a shipped version.
+          const repo = process.env.GITHUB_REPOSITORY;
+          let last = sh(`gh api repos/${repo}/releases/latest --jq .tag_name`).replace(/^v/, '');
+          if (!/^\d+\.\d+\.\d+$/.test(last)) last = '0.0.0';
           const cfg = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
           const pkg = (cfg.packages && cfg.packages['.']) || {};
+          // Bump from conventional commits since that stable tag, the release-please way
+          // (honouring bump-minor-pre-major / bump-patch-for-minor-pre-major).
+          const range = sh(`git tag --list "v${last}"`) ? `v${last}..HEAD` : 'HEAD';
+          const log = sh(`git log ${range} --format=%s%n%b`);
+          const [maj, min, pat] = last.split('.').map(Number);
+          const breaking = /(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log);
+          const feat = /(^|\n)feat(\(.+?\))?:/.test(log);
+          const preMajor = maj === 0 && pkg['bump-minor-pre-major'];
+          const patchForMinor = pkg['bump-patch-for-minor-pre-major'];
           let base;
-          if (pkg['release-as']) {
-            // While release-please pins the next version, just use it.
-            base = pkg['release-as'];
-          } else {
-            // Anchor on release-please's authoritative last-released version, then
-            // bump from conventional commits the same way release-please would,
-            // honouring bump-minor-pre-major / bump-patch-for-minor-pre-major.
-            let last = '0.0.0';
-            try { last = JSON.parse(fs.readFileSync('.release-please-manifest.json', 'utf8'))['.'] || '0.0.0'; } catch {}
-            const range = sh(`git tag --list "v${last}"`) ? `v${last}..HEAD` : 'HEAD';
-            const log = sh(`git log ${range} --format=%s%n%b`);
-            const [maj, min, pat] = last.split('.').map(Number);
-            const breaking = /(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log);
-            const feat = /(^|\n)feat(\(.+?\))?:/.test(log);
-            const preMajor = maj === 0 && pkg['bump-minor-pre-major'];
-            const patchForMinor = pkg['bump-patch-for-minor-pre-major'];
-            if (breaking) base = preMajor ? `${maj}.${min + 1}.0` : `${maj + 1}.0.0`;
-            else if (feat) base = preMajor && patchForMinor ? `${maj}.${min}.${pat + 1}` : `${maj}.${min + 1}.0`;
-            else base = `${maj}.${min}.${pat + 1}`;
-          }
+          if (breaking) base = preMajor ? `${maj}.${min + 1}.0` : `${maj + 1}.0.0`;
+          else if (feat) base = preMajor && patchForMinor ? `${maj}.${min}.${pat + 1}` : `${maj}.${min + 1}.0`;
+          else base = `${maj}.${min}.${pat + 1}`;
+          // An explicit release-as pin still wins, but only when it targets something
+          // newer than the latest stable — a leftover pin equal to a shipped version is ignored.
+          if (pkg['release-as'] && cmp(pkg['release-as'], last) > 0) base = pkg['release-as'];
           const esc = base.replace(/\./g, '\\.');
           const re = new RegExp(`^${esc}-beta\\.(\\d+)$`);
           const tagNs = sh('git tag --list "v*-beta.*"').split('\n').filter(Boolean)

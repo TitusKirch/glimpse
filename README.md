@@ -11,6 +11,8 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/TitusKirch/glimpse/ci.yml?branch=main&style=flat-square&label=tests)](https://github.com/TitusKirch/glimpse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/TitusKirch/glimpse?style=flat-square&color=10b981)](LICENSE)
 
+![glimpse — the multi-branch graph and diffs](.github/assets/preview.png)
+
 </div>
 
 ---

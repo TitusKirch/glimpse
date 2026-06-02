@@ -11,11 +11,27 @@ export function useUpdater() {
   const layout = useLayoutStore();
   const checking = ref(false);
 
+  // The channel string the Rust updater expects. For experiments it carries the
+  // selected slug (`experiment:<slug>`) so it hits that experiment's manifest.
+  function effectiveChannel(): string {
+    if (layout.releaseChannel === 'experiment') {
+      return layout.selectedExperiment
+        ? `experiment:${layout.selectedExperiment}`
+        : '';
+    }
+    return layout.releaseChannel;
+  }
+
   async function checkForUpdates(manual = true) {
     if (!isTauri()) return;
+    const channel = effectiveChannel();
+    // Experiment channel with nothing picked yet — nothing to check.
+    if (!channel) {
+      if (manual) toast.error(t('updater.noExperiment'));
+      return;
+    }
     checking.value = true;
     try {
-      const channel = layout.releaseChannel;
       const version = await invoke<string | null>('check_update', { channel });
       if (version) {
         toast.info(t('updater.available', { version }), {

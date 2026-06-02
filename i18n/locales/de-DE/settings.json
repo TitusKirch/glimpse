@@ -25,9 +25,23 @@
       },
       "releaseChannel": {
         "label": "Release-Channel",
-        "hint": "Stable oder frühere Beta-Builds aktivieren.",
+        "hint": "Stable, Beta-Builds aktivieren oder ein Experiment fahren.",
         "stable": "Stable",
-        "beta": "Beta"
+        "beta": "Beta",
+        "experiment": "Experiment"
+      },
+      "experiment": {
+        "label": "Experiment",
+        "hint": "Ein experimenteller Build pro Branch. Wechsel ist manuell.",
+        "none": "Experiment wählen",
+        "empty": "Keine Experimente gefunden",
+        "search": "Nach Experimenten suchen",
+        "refresh": "Liste aktualisieren",
+        "cooldown": "Noch {n}s bis zur nächsten Aktualisierung",
+        "refreshFailed": "Experimente konnten nicht geladen werden",
+        "switch": "Experiment wechseln",
+        "switchHint": "Den gewählten Experiment-Build installieren (erzwungen, nicht nur neuer).",
+        "install": "Wechseln / installieren"
       },
       "checkUpdatesHint": "Jetzt nach einem Update suchen.",
       "developer": "Entwickler",

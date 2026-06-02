@@ -1,0 +1,261 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# Experiment channel. Dispatch this workflow FROM the feature branch you want to
+# build (never dev/main). Each experiment is one branch → one rolling GitHub
+# release `experiment-<slug>` that holds the installers AND its latest.json (the
+# updater endpoint `releases/download/experiment-<slug>/latest.json`). Re-running
+# rebuilds that same release; the version's `-exp.<n>` counter increments per
+# experiment so a re-build reads as newer.
+#
+# slug = branch slugified (feat/new-theme-support -> feat-new-theme-support). The
+# slug is baked into the binary via GLIMPSE_EXPERIMENT (read with option_env!),
+# so the running app knows its experiment name for the sidebar badge.
+#
+# Phases:
+#   1. prepare  — reject dev/main, validate the platforms input, compute slug +
+#      version + the build matrix, (re)create the `experiment-<slug>` release.
+#   2. build    — selected-platform matrix; stamps the version + GLIMPSE_EXPERIMENT
+#      and uploads installers + .sig to the release.
+#   3. finalize — assemble latest.json from whatever platforms were built.
+#
+# Requires the same signing secrets as the beta/stable bundle jobs.
+
+name: Release Experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms (comma-separated: mac, windows, linux — or "all")'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: write
+
+# One run per branch at a time; never cancel a publish mid-flight.
+concurrency:
+  group: release-experiment-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate & create release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      slug: ${{ steps.meta.outputs.slug }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      matrix: ${{ steps.platforms.outputs.matrix }}
+    steps:
+      # Experiments are per-feature-branch; building from the integration
+      # branches would pollute them with throwaway builds.
+      - name: Reject dev/main
+        run: |
+          if [ "${{ github.ref_name }}" = "dev" ] || [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::Experiments cannot be built from dev or main — dispatch from a feature branch."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Validate the comma-separated platforms input and turn it into a build
+      # matrix. Whitespace is stripped; an unknown platform fails before building.
+      - name: Validate platforms & build matrix
+        id: platforms
+        env:
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const RUNNER = { mac: 'macos-latest', windows: 'windows-latest', linux: 'ubuntu-latest' };
+          const raw = (process.env.PLATFORMS || 'all').trim().toLowerCase();
+          let sel;
+          if (raw === '' || raw === 'all') {
+            sel = ['mac', 'windows', 'linux'];
+          } else {
+            sel = [...new Set(raw.split(',').map((s) => s.trim()).filter(Boolean))];
+            const bad = sel.filter((p) => !RUNNER[p]);
+            if (bad.length) {
+              console.error(`::error::Unknown platform(s): ${bad.join(', ')}. Use mac, windows, linux (or all).`);
+              process.exit(1);
+            }
+          }
+          const include = sel.map((p) => ({ platform: p, os: RUNNER[p] }));
+          console.log(`matrix=${JSON.stringify({ include })}`);
+          NODE
+
+      - name: Compute slug & version
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          SLUG=$(printf '%s' "$BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+          if [ -z "$SLUG" ]; then echo "::error::Empty slug from branch '$BRANCH'."; exit 1; fi
+          gh release download "experiment-$SLUG" --repo "$GITHUB_REPOSITORY" -p latest.json -O exp-latest.json 2>/dev/null || echo '{}' > exp-latest.json
+          SLUG="$SLUG" node <<'NODE' >> "$GITHUB_OUTPUT"
+          const fs = require('fs');
+          const slug = process.env.SLUG;
+          // Base = next stable: honour release-please's `release-as`, else the
+          // authoritative last-released version. Exact base is cosmetic here
+          // (experiments force-install and are identified by name).
+          const cfg = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
+          const pkg = (cfg.packages && cfg.packages['.']) || {};
+          let base = pkg['release-as'];
+          if (!base) {
+            try { base = JSON.parse(fs.readFileSync('.release-please-manifest.json', 'utf8'))['.']; } catch {}
+          }
+          base = base || '0.0.0';
+          // Per-experiment counter: one past this experiment's current build.
+          const re = new RegExp(`-exp\\.(\\d+)$`);
+          let prev = 0;
+          try {
+            const m = String(JSON.parse(fs.readFileSync('exp-latest.json', 'utf8')).version || '').match(re);
+            if (m) prev = +m[1];
+          } catch {}
+          const version = `${base}-exp.${prev + 1}`;
+          console.log(`slug=${slug}`);
+          console.log(`version=${version}`);
+          console.log(`tag=experiment-${slug}`);
+          NODE
+
+      # One rolling release per experiment — recreate it clean so stale installers
+      # from a previous build don't linger. Points at this branch's commit.
+      - name: Create experiment release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          SLUG: ${{ steps.meta.outputs.slug }}
+        run: |
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Experiment: $SLUG ($VERSION)" \
+            --notes "Experimental build of \`$GITHUB_REF_NAME\` — $VERSION. Not for general use." \
+            --prerelease
+
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            wget
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch updater signing secrets from Bitwarden
+        uses: bitwarden/sm-action@27c0c9dcab679d7250dbab91227c85b49ffa5e0f # v3.0.0
+        with:
+          access_token: ${{ secrets.BWS_ACCESS_TOKEN }}
+          cloud_region: eu
+          secrets: |
+            2fc619e7-4c67-4f40-9a63-b45b017af6d9 > TAURI_SIGNING_PRIVATE_KEY
+            1fb62037-259b-45ec-b0fa-b45b017ab6e7 > TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+
+      # tauri-action reads the version from tauri.conf.json; stamp the experiment one.
+      - name: Stamp experiment version
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          tmp=$(mktemp)
+          jq --arg v "$VERSION" '.version = $v' \
+            src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
+
+      # GLIMPSE_EXPERIMENT bakes the slug into the binary (option_env!), so the
+      # running app shows the experiment name in the sidebar. No latest.json here
+      # (finalize builds it once).
+      - name: Build and upload installers
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GLIMPSE_EXPERIMENT: ${{ needs.prepare.outputs.slug }}
+        with:
+          tagName: ${{ needs.prepare.outputs.tag }}
+          releaseDraft: false
+          prerelease: true
+          includeUpdaterJson: false
+
+  finalize:
+    name: Publish updater manifest
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Build latest.json from the built platforms
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          mkdir -p sigs
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.sig' --dir sigs
+          BASE="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const ver = process.env.VERSION;
+          const base = process.env.BASE;
+          const files = fs.readdirSync('sigs').filter((f) => f.endsWith('.sig'));
+          const find = (re) => files.find((f) => re.test(f));
+          const entry = (sig) => ({
+            signature: fs.readFileSync(path.join('sigs', sig), 'utf8').trim(),
+            url: `${base}/${sig.replace(/\.sig$/, '')}`
+          });
+          // Only the platforms that were actually built appear in the manifest.
+          const platforms = {};
+          const win = find(/_x64-setup\.exe\.sig$/);
+          const lin = find(/_amd64\.AppImage\.sig$/);
+          const mac = find(/\.app\.tar\.gz\.sig$/);
+          if (win) { platforms['windows-x86_64'] = entry(win); platforms['windows-x86_64-nsis'] = entry(win); }
+          if (lin) { platforms['linux-x86_64'] = entry(lin); platforms['linux-x86_64-appimage'] = entry(lin); }
+          if (mac) { platforms['darwin-aarch64'] = entry(mac); platforms['darwin-aarch64-app'] = entry(mac); }
+          if (!Object.keys(platforms).length) {
+            console.error('::error::no platform signatures found — nothing to publish');
+            process.exit(1);
+          }
+          const out = { version: ver, notes: `Experiment build ${ver}.`, pub_date: new Date().toISOString(), platforms };
+          fs.writeFileSync('latest.json', JSON.stringify(out, null, 2));
+          console.log('latest.json platforms:', Object.keys(platforms).join(', '));
+          NODE
+          gh release upload "$TAG" latest.json --repo "$GITHUB_REPOSITORY" --clobber

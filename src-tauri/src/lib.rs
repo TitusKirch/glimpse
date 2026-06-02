@@ -445,13 +445,33 @@ async fn open_in(path: String, app: String) -> Result<(), String> {
     platform::open_in(&path, &app)
 }
 
+/// The experiment slug baked into this build at compile time
+/// (`GLIMPSE_EXPERIMENT`, set by the experiment release workflow), or None for a
+/// normal stable/beta/dev build. Drives the sidebar's experiment badge.
+#[tauri::command]
+fn experiment_name() -> Option<String> {
+    option_env!("GLIMPSE_EXPERIMENT")
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 /// Update manifest URL for a release channel. Stable rides the GitHub `latest`
-/// alias; beta uses a fixed, rolling `beta` release the beta workflow recreates.
+/// alias; beta uses a fixed, rolling `beta` release; an `experiment:<slug>`
+/// channel points at that experiment's own rolling release.
 #[cfg(desktop)]
-fn updater_endpoint(channel: &str) -> &'static str {
+fn updater_endpoint(channel: &str) -> String {
+    if let Some(slug) = channel.strip_prefix("experiment:") {
+        return format!(
+            "https://github.com/TitusKirch/glimpse/releases/download/experiment-{slug}/latest.json"
+        );
+    }
     match channel {
-        "beta" => "https://github.com/TitusKirch/glimpse/releases/download/beta/latest.json",
-        _ => "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json",
+        "beta" => {
+            "https://github.com/TitusKirch/glimpse/releases/download/beta/latest.json".to_string()
+        }
+        _ => {
+            "https://github.com/TitusKirch/glimpse/releases/latest/download/latest.json".to_string()
+        }
     }
 }
 
@@ -467,28 +487,55 @@ fn channel_updater(
     let url = updater_endpoint(channel)
         .parse::<tauri::Url>()
         .map_err(|e| e.to_string())?;
-    app.updater_builder()
+    let mut builder = app
+        .updater_builder()
         .endpoints(vec![url])
-        .map_err(|e| e.to_string())?
-        .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // An experiment is chosen explicitly, so install it regardless of whether
+    // its version is "newer" — switching to an experiment is a deliberate
+    // (possibly side/down-grade) move, not an automatic update.
+    if channel.starts_with("experiment:") {
+        builder = builder.version_comparator(|_current, _update| true);
+    }
+    builder.build().map_err(|e| e.to_string())
 }
 
-/// Check the given channel for a newer version; returns its version string.
+/// Resolve the update to offer for a channel. The beta channel *graduates* to
+/// stable: it prefers a newer beta, but falls back to stable so a beta user
+/// moves to the final release once it's out (0.1.0-beta.2 → 0.1.0) instead of
+/// being stranded until the next beta. Stable / experiment channels check only
+/// themselves.
+#[cfg(desktop)]
+async fn resolve_update(
+    app: &AppHandle,
+    channel: &str,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    let chain: &[&str] = if channel == "beta" {
+        &["beta", "stable"]
+    } else {
+        std::slice::from_ref(&channel)
+    };
+    for &ch in chain {
+        let updater = channel_updater(app, ch)?;
+        if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
+            return Ok(Some(update));
+        }
+    }
+    Ok(None)
+}
+
+/// Check the given channel for an available update; returns its version string.
 #[cfg(desktop)]
 #[tauri::command]
 async fn check_update(app: AppHandle, channel: String) -> Result<Option<String>, String> {
-    let updater = channel_updater(&app, &channel)?;
-    let update = updater.check().await.map_err(|e| e.to_string())?;
-    Ok(update.map(|u| u.version))
+    Ok(resolve_update(&app, &channel).await?.map(|u| u.version))
 }
 
-/// Re-check the channel and, if an update exists, download and install it.
+/// Re-resolve the channel and, if an update exists, download and install it.
 #[cfg(desktop)]
 #[tauri::command]
 async fn install_update(app: AppHandle, channel: String) -> Result<(), String> {
-    let updater = channel_updater(&app, &channel)?;
-    let Some(update) = updater.check().await.map_err(|e| e.to_string())? else {
+    let Some(update) = resolve_update(&app, &channel).await? else {
         return Ok(());
     };
     update
@@ -591,6 +638,7 @@ pub fn run() {
             push,
             resolve_conflict,
             open_in,
+            experiment_name,
             check_update,
             install_update
         ])

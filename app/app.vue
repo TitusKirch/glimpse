@@ -10,6 +10,7 @@ const settings = useSettingsDialog();
 const palette = useCommandPalette();
 const help = useHelpDialog();
 const { checkForUpdates } = useUpdater();
+const experiments = useExperiments();
 const { t } = useI18n();
 
 // Cross-cutting app behaviour: apply appearance settings, wire global keyboard
@@ -38,7 +39,12 @@ onMounted(async () => {
   window.addEventListener('focus', repo.refresh);
   // Silently check for app updates on launch (auto-installs when found); a
   // no-op until the updater is configured with a real signing key + endpoint.
-  if (layout.autoUpdate) void checkForUpdates(false);
+  // Experiments are opt-in and manual, so they never auto-update on launch.
+  if (layout.autoUpdate && layout.releaseChannel !== 'experiment') {
+    void checkForUpdates(false);
+  }
+  // Populate the experiment list once on boot when that channel is active.
+  if (layout.releaseChannel === 'experiment') void experiments.refresh();
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   if (isTauri()) {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());

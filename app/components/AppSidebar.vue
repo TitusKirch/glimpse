@@ -8,10 +8,10 @@ const openRepoDialog = useOpenRepoDialog();
 const help = useHelpDialog();
 const { t } = useI18n();
 
-// BETA tag next to the app name, shown only on an actual pre-release build (the
-// running version carries a `-beta`/`-rc` suffix — not the updater channel
-// setting). In dev / stable builds it stays hidden.
-const { isPrerelease: showBetaBadge } = useAppVersion();
+// Build-identity tag next to the app name: the experiment name on an experiment
+// build, else BETA on a pre-release. Hidden on stable/dev. Reflects the *running
+// build*, not the updater channel setting.
+const { isBeta, isExperiment, experiment } = useAppVersion();
 
 // Collapsed (icon-only) sidebar: items open a dropdown instead of acting
 // directly, so their actions stay reachable.
@@ -84,14 +84,20 @@ const links = [
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
       <div
-        class="flex h-8 items-center gap-2 px-2 text-sm font-bold group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        class="flex h-8 items-center gap-2 overflow-hidden text-sm font-bold"
       >
-        <img src="/logo_128x128.png" alt="" class="size-5 shrink-0" />
-        <span class="group-data-[collapsible=icon]:hidden">{{
-          t('app.name')
-        }}</span>
+        <img src="/logo_128x128.png" alt="" class="size-8 shrink-0" />
+        <span class="truncate">{{ t('app.name') }}</span>
         <UiBadge
-          v-if="showBetaBadge"
+          v-if="isExperiment"
+          variant="destructive"
+          icon="lucide:flask-conical"
+          class="max-w-40 group-data-[collapsible=icon]:hidden"
+        >
+          <span class="min-w-0 truncate">{{ experiment }}</span>
+        </UiBadge>
+        <UiBadge
+          v-else-if="isBeta"
           variant="warning"
           icon="lucide:rocket"
           class="group-data-[collapsible=icon]:hidden"
