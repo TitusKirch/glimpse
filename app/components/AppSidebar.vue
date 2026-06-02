@@ -84,7 +84,6 @@ const links = [
   <UiSidebar collapsible="icon">
     <UiSidebarHeader>
       <div class="flex h-8 items-center gap-2 pl-2 text-sm font-bold">
-        <!-- 32px logo at a fixed left edge; collapse only hides label + badge. -->
         <img src="/logo_128x128.png" alt="" class="size-8 shrink-0" />
         <span class="group-data-[collapsible=icon]:hidden">{{
           t('app.name')
