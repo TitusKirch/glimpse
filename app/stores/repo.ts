@@ -120,6 +120,12 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
   };
 }
 
+// Serializes repo opening. Concurrent/rapid openRepo calls (double-clicking a
+// recent, switching while another open is mid-flight) would otherwise interleave
+// on the async `info` resolve and create a duplicate tab. Chaining them makes
+// each open see the tabs the previous one created.
+let openChain: Promise<unknown> = Promise.resolve();
+
 export const useRepoStore = defineStore('repo', {
   state: () => ({
     repos: { r1: demoRepo() } as Record<string, RepoState>,
@@ -995,19 +1001,26 @@ export const useRepoStore = defineStore('repo', {
       this.lastError = null;
     },
 
-    async loadStatus() {
+    // `target` lets a load write into a specific repo rather than whatever is
+    // active *now* — the active tab can change mid-load (user switches tabs),
+    // and the result must land in the repo it was fetched for, not the new one.
+    async loadStatus(target?: RepoState) {
       return this.native(async () => {
-        this.active.status = await gitClient.status(this.repoPath);
+        const r = target ?? this.active;
+        if (!r) return;
+        r.status = await gitClient.status(r.path);
       });
     },
 
-    async loadLog() {
+    async loadLog(target?: RepoState) {
       return this.native(async () => {
+        const r = target ?? this.active;
+        if (!r) return;
         const commits = await gitClient.log({
-          path: this.repoPath,
+          path: r.path,
           limit: this.logLimit
         });
-        if (commits.length) this.active.commits = commits;
+        if (commits.length) r.commits = commits;
         // Hitting the limit means git had more to give → another page exists.
         this.hasMore = commits.length >= this.logLimit;
       });
@@ -1052,17 +1065,31 @@ export const useRepoStore = defineStore('repo', {
     },
 
     // Open a folder as an additional repository tab and activate it. Re-opening
-    // an already-open repo just focuses its tab.
+    // an already-open repo just focuses its tab. Serialized via `openChain` so
+    // two rapid calls can't both miss the dedup and create duplicate tabs.
     async openRepo(path: string) {
+      const run = openChain.then(
+        () => this.doOpenRepo(path),
+        () => this.doOpenRepo(path)
+      );
+      openChain = run.catch(() => {});
+      return run;
+    },
+
+    async doOpenRepo(path: string) {
       return this.native(() =>
         this.guarded(async () => {
+          // Fast path: a tab for this exact path is already open. Done
+          // synchronously (no await) so it can't race a concurrent open.
+          const known = this.tabs.find((r) => r.path === path);
+          if (known) {
+            this.selectTab(known.id);
+            return;
+          }
           const top = (await gitClient.info(path)).toplevel || path;
-          const existing = this.order
-            .map((id) => this.repos[id]!)
-            .find((r) => r.path === top);
+          const existing = this.tabs.find((r) => r.path === top);
           if (existing) {
-            this.activeId = existing.id;
-            this.syncSession();
+            this.selectTab(existing.id);
             return;
           }
           this.seq += 1;
@@ -1084,7 +1111,14 @@ export const useRepoStore = defineStore('repo', {
     // Load real git output into the active repo. Without a path it resolves the
     // process CWD (initial open); with one it (re)loads that repo's tab.
     async loadFromBackend(path?: string) {
-      if (!this.active) return;
+      // Capture the target repo SYNCHRONOUSLY, before any await. The active tab
+      // can change while we're loading (the user switches/opens another repo),
+      // and this load's result must land in the repo it was started for — not
+      // whatever happens to be active when the awaits resolve. Reading
+      // `this.active` lazily after an await is what let one project's data leak
+      // into another's tab.
+      const r = this.active;
+      if (!r) return;
       return this.native(async () => {
         this.loading = true;
         this.loadError = null;
@@ -1093,7 +1127,6 @@ export const useRepoStore = defineStore('repo', {
           const info = await gitClient.info(start);
           const top = info.toplevel || start;
 
-          const r = this.active;
           r.name = top.split(/[\\/]/).pop() || 'repo';
           r.path = top;
           r.flavor = (info.flavor as GitFlavor) ?? 'linux';
@@ -1105,7 +1138,7 @@ export const useRepoStore = defineStore('repo', {
           r.tags = info.tags;
           r.stashes = info.stashes;
 
-          await Promise.all([this.loadLog(), this.loadStatus()]);
+          await Promise.all([this.loadLog(r), this.loadStatus(r)]);
 
           // Bail if the active repo changed while we were loading (e.g. the
           // user opened another project): the selection below reads
