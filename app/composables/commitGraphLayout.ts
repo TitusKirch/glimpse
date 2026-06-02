@@ -57,7 +57,17 @@ export function commitGraphLayout({
   // with the same "schwung" as a 2→7 one; the extra horizontal distance is just
   // a straight segment, not a flatter curve.
   const r = laneWidth;
-  const edgePath = (x1: number, y1: number, x2: number, y2: number) => {
+  const edgePath = ({
+    x1,
+    y1,
+    x2,
+    y2
+  }: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  }) => {
     if (x1 === x2) return `M ${x1} ${y1} L ${x2} ${y2}`;
     const rr = Math.min(r, Math.abs(y2 - y1) / 2);
     if (x2 > x1) {
@@ -92,7 +102,12 @@ export function commitGraphLayout({
         return;
       }
       edges.push({
-        d: edgePath(laneX(c.lane), nodeY(i), laneX(commits[j]!.lane), nodeY(j)),
+        d: edgePath({
+          x1: laneX(c.lane),
+          y1: nodeY(i),
+          x2: laneX(commits[j]!.lane),
+          y2: nodeY(j)
+        }),
         color: laneColor(Math.max(c.lane, commits[j]!.lane))
       });
     });

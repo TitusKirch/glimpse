@@ -106,17 +106,18 @@ type Row =
 
 const rows = computed<Row[]>(() => {
   const out: Row[] = [];
-  const walk = (nodes: TreeNode[], depth: number) => {
+  const walk = ({ nodes, depth }: { nodes: TreeNode[]; depth: number }) => {
     for (const n of sortNodes(nodes)) {
       if (n.type === 'dir') {
         out.push({ kind: 'dir', name: n.name, path: n.path, depth });
-        if (!collapsed.value.has(n.path)) walk(n.children, depth + 1);
+        if (!collapsed.value.has(n.path))
+          walk({ nodes: n.children, depth: depth + 1 });
       } else {
         out.push({ kind: 'file', name: n.name, file: n.file, depth });
       }
     }
   };
-  walk(tree.value.children, 0);
+  walk({ nodes: tree.value.children, depth: 0 });
   return out;
 });
 </script>

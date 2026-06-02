@@ -53,16 +53,16 @@ export function parseDiff({
     b: string;
   }): { oldHtml: string; newHtml: string } => {
     const { start, aEnd, bEnd } = wordDiffRanges({ a, b });
-    const wrap = (s: string, cls: string) =>
+    const wrap = ({ s, cls }: { s: string; cls: string }) =>
       s ? `<span class="${cls}">${escapeHtml(s)}</span>` : '';
     return {
       oldHtml:
         escapeHtml(a.slice(0, start)) +
-        wrap(a.slice(start, aEnd), 'wd-del') +
+        wrap({ s: a.slice(start, aEnd), cls: 'wd-del' }) +
         escapeHtml(a.slice(aEnd)),
       newHtml:
         escapeHtml(b.slice(0, start)) +
-        wrap(b.slice(start, bEnd), 'wd-add') +
+        wrap({ s: b.slice(start, bEnd), cls: 'wd-add' }) +
         escapeHtml(b.slice(bEnd))
     };
   };

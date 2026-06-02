@@ -72,7 +72,13 @@ export function useSettingsForm() {
 
   // Mirror one validated field value to its real home (change-guarded so we
   // don't fire reactive side effects or i18n loads for an unchanged value).
-  function apply(name: keyof SettingsValues, value: unknown) {
+  function apply({
+    name,
+    value
+  }: {
+    name: keyof SettingsValues;
+    value: unknown;
+  }) {
     if (name === 'theme') {
       if (colorMode.preference !== value)
         colorMode.preference = value as SettingsValues['theme'];
@@ -97,7 +103,7 @@ export function useSettingsForm() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChange: ({ fieldApi }: { fieldApi: any }) => {
         if (fieldApi.state.meta.errors.length === 0)
-          apply(name, fieldApi.state.value);
+          apply({ name, value: fieldApi.state.value });
       }
     };
   }

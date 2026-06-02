@@ -152,7 +152,13 @@ const searchLocaleOptions = computed(() =>
   localeOptions.value.filter((l) => l.code !== locale.value)
 );
 // Toggle a code in the multi-select field's array value.
-function toggledLocales(current: string[], code: string): string[] {
+function toggledLocales({
+  current,
+  code
+}: {
+  current: string[];
+  code: string;
+}): string[] {
   return current.includes(code)
     ? current.filter((c) => c !== code)
     : [...current, code];
@@ -1075,7 +1081,10 @@ function toggledLocales(current: string[], code: string): string[] {
                             :value="l.code"
                             @select="
                               field.handleChange(
-                                toggledLocales(field.state.value, l.code)
+                                toggledLocales({
+                                  current: field.state.value,
+                                  code: l.code
+                                })
                               )
                             "
                           >
