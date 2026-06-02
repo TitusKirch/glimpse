@@ -6,7 +6,17 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 const { open, hide } = useOpenRepoDialog();
 const repo = useRepoStore();
 const recent = useRecentStore();
+const layout = useLayoutStore();
 const { t } = useI18n();
+
+// Same recent list as the start screen this dialog mirrors: capped to the
+// configured on-page count (and never more than are stored).
+const recentOnPage = computed(() =>
+  recent.repos.slice(
+    0,
+    Math.min(layout.recentReposOnPage, layout.recentReposMax)
+  )
+);
 
 async function pick() {
   if (!isTauri()) return;
@@ -51,7 +61,7 @@ async function reopen(path: string) {
           </UiButton>
         </div>
         <ul class="max-h-64 space-y-1 overflow-auto">
-          <li v-for="r in recent.repos" :key="r.path">
+          <li v-for="r in recentOnPage" :key="r.path">
             <button
               class="group flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
               @click="reopen(r.path)"

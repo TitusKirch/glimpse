@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Ctrl/Cmd+K command palette: quick actions, branch switching and recent-repo
 // reopen. Built on the shadcn command component; selecting an item closes the
-// palette and runs the action.
+// palette and runs the action. The static commands live in a data registry
+// (`actions`) so they can also surface in a "recently used" group at the top.
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const { open, hide } = useCommandPalette();
@@ -9,6 +10,7 @@ const settings = useSettingsDialog();
 const help = useHelpDialog();
 const repo = useRepoStore();
 const recent = useRecentStore();
+const recentActions = useRecentActionsStore();
 const layout = useLayoutStore();
 const colorMode = useColorMode();
 const { t, locale } = useI18n();
@@ -89,6 +91,229 @@ async function pickFolder() {
 function toggleTheme() {
   colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark';
 }
+
+// Static command registry. Each action has a stable id (for recently-used
+// tracking), a group, a label key and either a `run` (executes) or a `page`
+// (opens a nested branch picker). `visible` gates on the current repo state.
+type ActionGroup = 'git' | 'branch' | 'repository' | 'view';
+interface PaletteAction {
+  id: string;
+  group: ActionGroup;
+  icon: string;
+  labelKey: string;
+  shortcut?: string;
+  page?: BranchPage;
+  run?: () => void | Promise<void>;
+  visible: boolean;
+}
+
+const actions = computed<PaletteAction[]>(() => {
+  const hasRepos = repo.hasRepos;
+  const hasBranches = repo.branches.length > 0;
+  return [
+    // Git
+    {
+      id: 'fetch',
+      group: 'git',
+      icon: 'lucide:download',
+      labelKey: 'sync.fetch',
+      shortcut: `${mod}+⇧+F`,
+      run: () => repo.sync('fetch'),
+      visible: hasRepos
+    },
+    {
+      id: 'pull',
+      group: 'git',
+      icon: 'lucide:arrow-down',
+      labelKey: 'sync.pull',
+      shortcut: `${mod}+⇧+L`,
+      run: () => repo.sync('pull'),
+      visible: hasRepos
+    },
+    {
+      id: 'push',
+      group: 'git',
+      icon: 'lucide:arrow-up',
+      labelKey: 'sync.push',
+      shortcut: `${mod}+⇧+U`,
+      run: () => repo.sync('push'),
+      visible: hasRepos
+    },
+    {
+      id: 'push-upstream',
+      group: 'git',
+      icon: 'lucide:cloud-upload',
+      labelKey: 'command.pushUpstream',
+      run: () => repo.push(true, false),
+      visible: hasRepos
+    },
+    {
+      id: 'push-force',
+      group: 'git',
+      icon: 'lucide:triangle-alert',
+      labelKey: 'command.pushForce',
+      run: () => repo.push(false, true),
+      visible: hasRepos
+    },
+    {
+      id: 'stash',
+      group: 'git',
+      icon: 'lucide:archive',
+      labelKey: 'command.stash',
+      run: () => repo.stashSave(),
+      visible: hasRepos
+    },
+    {
+      id: 'push-tags',
+      group: 'git',
+      icon: 'lucide:tags',
+      labelKey: 'command.pushTags',
+      run: () => repo.pushTags(),
+      visible: hasRepos
+    },
+    // Branch verbs (open a nested picker)
+    {
+      id: 'switch-branch',
+      group: 'branch',
+      icon: 'lucide:git-branch',
+      labelKey: 'command.switchBranch',
+      page: 'switch',
+      visible: hasBranches
+    },
+    {
+      id: 'rename-branch',
+      group: 'branch',
+      icon: 'lucide:pencil',
+      labelKey: 'command.renameBranch',
+      page: 'rename',
+      visible: hasBranches
+    },
+    {
+      id: 'merge-branch',
+      group: 'branch',
+      icon: 'lucide:git-merge',
+      labelKey: 'command.mergeBranch',
+      page: 'merge',
+      visible: hasBranches
+    },
+    {
+      id: 'delete-branch',
+      group: 'branch',
+      icon: 'lucide:trash-2',
+      labelKey: 'command.deleteBranch',
+      page: 'delete',
+      visible: hasBranches
+    },
+    // Repository
+    {
+      id: 'open-repository',
+      group: 'repository',
+      icon: 'lucide:folder-open',
+      labelKey: 'actions.openRepo',
+      run: pickFolder,
+      visible: true
+    },
+    {
+      id: 'refresh',
+      group: 'repository',
+      icon: 'lucide:refresh-cw',
+      labelKey: 'actions.refresh',
+      run: () => repo.refresh(),
+      visible: hasRepos
+    },
+    {
+      id: 'open-files',
+      group: 'repository',
+      icon: 'lucide:folder',
+      labelKey: 'command.openFiles',
+      run: () => repo.openIn('files'),
+      visible: hasRepos
+    },
+    {
+      id: 'open-terminal',
+      group: 'repository',
+      icon: 'lucide:square-terminal',
+      labelKey: 'command.openTerminal',
+      run: () => repo.openIn('terminal'),
+      visible: hasRepos
+    },
+    {
+      id: 'open-editor',
+      group: 'repository',
+      icon: 'lucide:code',
+      labelKey: 'command.openEditor',
+      run: () => repo.openIn('editor'),
+      visible: hasRepos
+    },
+    // View
+    {
+      id: 'toggle-theme',
+      group: 'view',
+      icon: 'lucide:sun-moon',
+      labelKey: 'theme.toggle',
+      run: toggleTheme,
+      visible: true
+    },
+    {
+      id: 'toggle-sidebar',
+      group: 'view',
+      icon: 'lucide:panel-left',
+      labelKey: 'command.toggleSidebar',
+      shortcut: `${mod}+B`,
+      run: () => layout.setSidebarOpen(!layout.sidebarOpen),
+      visible: true
+    },
+    {
+      id: 'settings',
+      group: 'view',
+      icon: 'lucide:settings',
+      labelKey: 'settings.title',
+      shortcut: `${mod}+,`,
+      run: settings.show,
+      visible: true
+    },
+    {
+      id: 'help',
+      group: 'view',
+      icon: 'lucide:keyboard',
+      labelKey: 'help.title',
+      shortcut: `${mod}+/`,
+      run: help.show,
+      visible: true
+    }
+  ];
+});
+
+function groupActions(g: ActionGroup): PaletteAction[] {
+  return actions.value.filter((a) => a.group === g && a.visible);
+}
+
+// Most-recently-used visible actions, newest first, capped to the configured
+// display count. Unknown or currently-hidden ids are skipped.
+const recentlyUsed = computed<PaletteAction[]>(() => {
+  const byId = new Map(
+    actions.value.filter((a) => a.visible).map((a) => [a.id, a])
+  );
+  return recentActions.actions
+    .map((r) => byId.get(r.id))
+    .filter((a): a is PaletteAction => Boolean(a))
+    .slice(0, layout.recentActionsInSearch);
+});
+
+// Record the action as recently used, then run it (or open its branch page).
+function selectAction(a: PaletteAction) {
+  recentActions.record(a.id);
+  if (a.page) openPage(a.page);
+  else if (a.run) run(a.run);
+}
+
+// Recent repos shown in the palette, capped (and never more than are stored).
+const recentReposInSearch = computed(() =>
+  recent.repos.slice(
+    0,
+    Math.min(layout.recentReposInSearch, layout.recentReposMax)
+  )
+);
 </script>
 
 <template>
@@ -105,105 +330,60 @@ function toggleTheme() {
       <CommandBranchPage v-if="page" :mode="page" :run="run" @back="back" />
 
       <template v-else>
+        <!-- Recently used: most-recent palette actions, newest first. -->
+        <UiCommandGroup
+          v-if="recentlyUsed.length"
+          :heading="t('command.recentActions')"
+        >
+          <UiCommandItem
+            v-for="a in recentlyUsed"
+            :key="`recent-${a.id}`"
+            :value="`recent-action ${a.id}`"
+            :keywords="kw(a.labelKey)"
+            @select="selectAction(a)"
+          >
+            <NuxtIcon :name="a.icon" />
+            {{ t(a.labelKey) }}
+            <UiCommandShortcut v-if="a.shortcut">{{
+              a.shortcut
+            }}</UiCommandShortcut>
+          </UiCommandItem>
+        </UiCommandGroup>
+
         <!-- Git: fetch / pull / push and friends, stash, tags. -->
-        <UiCommandGroup v-if="repo.hasRepos" :heading="t('command.git')">
+        <UiCommandGroup
+          v-if="groupActions('git').length"
+          :heading="t('command.git')"
+        >
           <UiCommandItem
-            value="fetch"
-            :keywords="kw('sync.fetch')"
-            @select="run(() => repo.sync('fetch'))"
+            v-for="a in groupActions('git')"
+            :key="a.id"
+            :value="`action ${a.id}`"
+            :keywords="kw(a.labelKey)"
+            @select="selectAction(a)"
           >
-            <NuxtIcon name="lucide:download" />
-            {{ t('sync.fetch') }}
-            <UiCommandShortcut>{{ mod }}+⇧+F</UiCommandShortcut>
-          </UiCommandItem>
-          <UiCommandItem
-            value="pull"
-            :keywords="kw('sync.pull')"
-            @select="run(() => repo.sync('pull'))"
-          >
-            <NuxtIcon name="lucide:arrow-down" />
-            {{ t('sync.pull') }}
-            <UiCommandShortcut>{{ mod }}+⇧+L</UiCommandShortcut>
-          </UiCommandItem>
-          <UiCommandItem
-            value="push"
-            :keywords="kw('sync.push')"
-            @select="run(() => repo.sync('push'))"
-          >
-            <NuxtIcon name="lucide:arrow-up" />
-            {{ t('sync.push') }}
-            <UiCommandShortcut>{{ mod }}+⇧+U</UiCommandShortcut>
-          </UiCommandItem>
-          <UiCommandItem
-            value="push set upstream publish"
-            :keywords="kw('command.pushUpstream')"
-            @select="run(() => repo.push(true, false))"
-          >
-            <NuxtIcon name="lucide:cloud-upload" />
-            {{ t('command.pushUpstream') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="push force with lease"
-            :keywords="kw('command.pushForce')"
-            @select="run(() => repo.push(false, true))"
-          >
-            <NuxtIcon name="lucide:triangle-alert" />
-            {{ t('command.pushForce') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="stash changes"
-            :keywords="kw('command.stash')"
-            @select="run(() => repo.stashSave())"
-          >
-            <NuxtIcon name="lucide:archive" />
-            {{ t('command.stash') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="push tags"
-            :keywords="kw('command.pushTags')"
-            @select="run(() => repo.pushTags())"
-          >
-            <NuxtIcon name="lucide:tags" />
-            {{ t('command.pushTags') }}
+            <NuxtIcon :name="a.icon" />
+            {{ t(a.labelKey) }}
+            <UiCommandShortcut v-if="a.shortcut">{{
+              a.shortcut
+            }}</UiCommandShortcut>
           </UiCommandItem>
         </UiCommandGroup>
 
         <!-- Branch verbs: each opens a nested branch picker (see page state). -->
         <UiCommandGroup
-          v-if="repo.branches.length"
+          v-if="groupActions('branch').length"
           :heading="t('command.branchActions')"
         >
           <UiCommandItem
-            value="switch branch checkout"
-            :keywords="kw('command.switchBranch')"
-            @select="openPage('switch')"
+            v-for="a in groupActions('branch')"
+            :key="a.id"
+            :value="`action ${a.id}`"
+            :keywords="kw(a.labelKey)"
+            @select="selectAction(a)"
           >
-            <NuxtIcon name="lucide:git-branch" />
-            {{ t('command.switchBranch') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="rename branch"
-            :keywords="kw('command.renameBranch')"
-            @select="openPage('rename')"
-          >
-            <NuxtIcon name="lucide:pencil" />
-            {{ t('command.renameBranch') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="merge branch into current"
-            :keywords="kw('command.mergeBranch')"
-            @select="openPage('merge')"
-          >
-            <NuxtIcon name="lucide:git-merge" />
-            {{ t('command.mergeBranch') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="delete branch"
-            :keywords="kw('command.deleteBranch')"
-            @select="openPage('delete')"
-          >
-            <NuxtIcon name="lucide:trash-2" />
-            {{ t('command.deleteBranch') }}
+            <NuxtIcon :name="a.icon" />
+            {{ t(a.labelKey) }}
           </UiCommandItem>
         </UiCommandGroup>
 
@@ -242,97 +422,48 @@ function toggleTheme() {
         </UiCommandGroup>
 
         <!-- Repository: open a repo, refresh its data, hand off to an external app. -->
-        <UiCommandGroup :heading="t('command.repository')">
+        <UiCommandGroup
+          v-if="groupActions('repository').length"
+          :heading="t('command.repository')"
+        >
           <UiCommandItem
-            value="open repository"
-            :keywords="kw('actions.openRepo')"
-            @select="run(pickFolder)"
+            v-for="a in groupActions('repository')"
+            :key="a.id"
+            :value="`action ${a.id}`"
+            :keywords="kw(a.labelKey)"
+            @select="selectAction(a)"
           >
-            <NuxtIcon name="lucide:folder-open" />
-            {{ t('actions.openRepo') }}
+            <NuxtIcon :name="a.icon" />
+            {{ t(a.labelKey) }}
           </UiCommandItem>
-
-          <template v-if="repo.hasRepos">
-            <UiCommandItem
-              value="refresh"
-              :keywords="kw('actions.refresh')"
-              @select="run(() => repo.refresh())"
-            >
-              <NuxtIcon name="lucide:refresh-cw" />
-              {{ t('actions.refresh') }}
-            </UiCommandItem>
-            <UiCommandItem
-              value="open in file manager"
-              :keywords="kw('command.openFiles')"
-              @select="run(() => repo.openIn('files'))"
-            >
-              <NuxtIcon name="lucide:folder" />
-              {{ t('command.openFiles') }}
-            </UiCommandItem>
-            <UiCommandItem
-              value="open in terminal"
-              :keywords="kw('command.openTerminal')"
-              @select="run(() => repo.openIn('terminal'))"
-            >
-              <NuxtIcon name="lucide:square-terminal" />
-              {{ t('command.openTerminal') }}
-            </UiCommandItem>
-            <UiCommandItem
-              value="open in editor"
-              :keywords="kw('command.openEditor')"
-              @select="run(() => repo.openIn('editor'))"
-            >
-              <NuxtIcon name="lucide:code" />
-              {{ t('command.openEditor') }}
-            </UiCommandItem>
-          </template>
         </UiCommandGroup>
 
         <!-- View: appearance and app-level toggles. -->
-        <UiCommandGroup :heading="t('command.view')">
+        <UiCommandGroup
+          v-if="groupActions('view').length"
+          :heading="t('command.view')"
+        >
           <UiCommandItem
-            value="toggle theme"
-            :keywords="kw('theme.toggle')"
-            @select="run(toggleTheme)"
+            v-for="a in groupActions('view')"
+            :key="a.id"
+            :value="`action ${a.id}`"
+            :keywords="kw(a.labelKey)"
+            @select="selectAction(a)"
           >
-            <NuxtIcon name="lucide:sun-moon" />
-            {{ t('theme.toggle') }}
-          </UiCommandItem>
-          <UiCommandItem
-            value="toggle sidebar"
-            :keywords="kw('command.toggleSidebar')"
-            @select="run(() => layout.setSidebarOpen(!layout.sidebarOpen))"
-          >
-            <NuxtIcon name="lucide:panel-left" />
-            {{ t('command.toggleSidebar') }}
-            <UiCommandShortcut>{{ mod }}+B</UiCommandShortcut>
-          </UiCommandItem>
-          <UiCommandItem
-            value="settings"
-            :keywords="kw('settings.title')"
-            @select="run(settings.show)"
-          >
-            <NuxtIcon name="lucide:settings" />
-            {{ t('settings.title') }}
-            <UiCommandShortcut>{{ mod }}+,</UiCommandShortcut>
-          </UiCommandItem>
-          <UiCommandItem
-            value="keyboard shortcuts help"
-            :keywords="kw('help.title')"
-            @select="run(help.show)"
-          >
-            <NuxtIcon name="lucide:keyboard" />
-            {{ t('help.title') }}
-            <UiCommandShortcut>{{ mod }}+/</UiCommandShortcut>
+            <NuxtIcon :name="a.icon" />
+            {{ t(a.labelKey) }}
+            <UiCommandShortcut v-if="a.shortcut">{{
+              a.shortcut
+            }}</UiCommandShortcut>
           </UiCommandItem>
         </UiCommandGroup>
 
         <UiCommandGroup
-          v-if="recent.repos.length"
+          v-if="recentReposInSearch.length"
           :heading="t('command.recent')"
         >
           <UiCommandItem
-            v-for="r in recent.repos"
+            v-for="r in recentReposInSearch"
             :key="r.path"
             :value="`recent ${r.name} ${r.path}`"
             @select="run(() => repo.openRepo(r.path))"

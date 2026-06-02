@@ -155,6 +155,7 @@
     "remoteBranches": "Remote branches",
     "pickBranch": "Pick a branch…",
     "back": "Back",
+    "recentActions": "Recently used",
     "recent": "Recent repositories",
     "current": "current",
     "openFiles": "Open in file manager",

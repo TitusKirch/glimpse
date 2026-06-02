@@ -26,6 +26,16 @@ export const useLayoutStore = defineStore('layout', {
     // Pull strategy: plain merge or --rebase.
     pullStrategy: 'merge' as 'merge' | 'rebase',
     leftTab: 'changes' as 'changes' | 'history',
+    // Recent projects: how many to keep (max), and how many to surface on the
+    // start screen and in the command palette. The two display counts are capped
+    // to the max at read time, so they always stay <= recentReposMax.
+    recentReposMax: 12,
+    recentReposOnPage: 8,
+    recentReposInSearch: 6,
+    // Recently-used command-palette actions: how many to keep, and how many to
+    // surface in the palette's "recently used" group.
+    recentActionsMax: 12,
+    recentActionsInSearch: 6,
     // Extra locales whose translations the command palette also indexes for
     // search, on top of the active UI language (e.g. a German user typing
     // English command names). `null` = never initialised: the locale-dependent

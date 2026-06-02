@@ -470,6 +470,101 @@ function toggleSearchLocale(code: string) {
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
+                {{ t('settings.general.recentSection') }}
+              </h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentReposMax.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentReposMax.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentReposMax"
+                    type="number"
+                    min="1"
+                    max="50"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentReposOnPage.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentReposOnPage.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentReposOnPage"
+                    type="number"
+                    min="0"
+                    :max="layout.recentReposMax"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentReposInSearch.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentReposInSearch.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentReposInSearch"
+                    type="number"
+                    min="0"
+                    :max="layout.recentReposMax"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentActionsMax.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentActionsMax.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentActionsMax"
+                    type="number"
+                    min="0"
+                    max="50"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium">
+                      {{ t('settings.general.recentActionsInSearch.label') }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ t('settings.general.recentActionsInSearch.hint') }}
+                    </p>
+                  </div>
+                  <UiInput
+                    v-model.number="layout.recentActionsInSearch"
+                    type="number"
+                    min="0"
+                    :max="layout.recentActionsMax"
+                    class="w-24 shrink-0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
                 {{ t('settings.general.developer') }}
               </h3>
               <div class="flex items-center justify-between gap-4">

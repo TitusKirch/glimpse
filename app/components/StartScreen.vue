@@ -5,7 +5,16 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const repo = useRepoStore();
 const recent = useRecentStore();
+const layout = useLayoutStore();
 const { t } = useI18n();
+
+// Recent repos shown on the start screen, capped (and never more than stored).
+const recentOnPage = computed(() =>
+  recent.repos.slice(
+    0,
+    Math.min(layout.recentReposOnPage, layout.recentReposMax)
+  )
+);
 
 async function pick() {
   if (!isTauri()) return;
@@ -44,7 +53,7 @@ async function pick() {
         </UiButton>
       </div>
       <ul class="space-y-1">
-        <li v-for="r in recent.repos" :key="r.path">
+        <li v-for="r in recentOnPage" :key="r.path">
           <button
             class="group flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
             @click="repo.openRepo(r.path)"
