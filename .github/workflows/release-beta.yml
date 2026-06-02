@@ -112,8 +112,8 @@ jobs:
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "$VERSION" \
-            --notes "Beta build $VERSION." \
+            --title "$TAG" \
+            --notes "Beta build $TAG." \
             --prerelease
 
   build:

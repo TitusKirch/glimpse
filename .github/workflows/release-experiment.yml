@@ -154,8 +154,8 @@ jobs:
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Experiment: $SLUG ($VERSION)" \
-            --notes "Experimental build of \`$GITHUB_REF_NAME\` — $VERSION. Not for general use." \
+            --title "Experiment: $SLUG (v$VERSION)" \
+            --notes "Experimental build of \`$GITHUB_REF_NAME\` — v$VERSION. Not for general use." \
             --prerelease
 
   build:
