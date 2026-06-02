@@ -86,6 +86,14 @@ export function useSettingsForm() {
     }
     if (name === 'language') {
       if (locale.value !== value) void setLocale(value as typeof locale.value);
+      // The active display language can't also be an *additional* search
+      // language; drop it from that list (and the field) if it's in there.
+      const langs = form.getFieldValue('searchLocales');
+      if (langs.includes(value as string)) {
+        const pruned = langs.filter((c) => c !== value);
+        form.setFieldValue('searchLocales', pruned);
+        layout.setSearchLocales(pruned);
+      }
       return;
     }
     if (name === 'searchLocales') {
