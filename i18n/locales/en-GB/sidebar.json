@@ -25,6 +25,13 @@
     "localOnly": "local",
     "localOnlyHint": "Local only — not on a remote yet",
     "experimentBadge": "Experimental",
+    "reorderHint": "Drag to reorder",
+    "collapseSection": "Collapse section",
+    "expandSection": "Expand section",
+    "editMode": {
+      "hint": "Drag sections to reorder",
+      "done": "Done"
+    },
     "noRepo": {
       "title": "No repository open",
       "hint": "Open a repository to see its branches and history."

@@ -8,6 +8,19 @@ import type { DiffMode } from '@/stores/repo';
 export type FileView = 'list' | 'tree';
 export type Accent = 'default' | 'blue' | 'violet' | 'green' | 'amber' | 'rose';
 
+// The sidebar sections in their default top-to-bottom order. The user can
+// reorder and collapse them individually (persisted below); this list is also
+// the source of truth for normalising a stale persisted order — unknown ids are
+// dropped and newly-added sections are appended.
+export const SIDEBAR_SECTIONS = [
+  'branches',
+  'remotes',
+  'remoteBranches',
+  'tags',
+  'stashes'
+] as const;
+export type SidebarSectionId = (typeof SIDEBAR_SECTIONS)[number];
+
 // Coerce a numeric setting to a whole number inside [min, max]; anything that
 // isn't a number (a stale/edited persisted value, an out-of-range entry) falls
 // back to the lower bound. This is the single validation point for the numeric
@@ -37,6 +50,14 @@ export const useLayoutStore = defineStore('layout', {
     // Whether the drag-to-resize handle is active (the width is still settable
     // numerically when off).
     sidebarResizable: true,
+    // User-defined top-to-bottom order of the sidebar sections (a permutation of
+    // SIDEBAR_SECTIONS; normalised on hydrate so a stale list can't break it).
+    sidebarSectionOrder: [...SIDEBAR_SECTIONS] as string[],
+    // Ids of the sidebar sections the user has collapsed (header still shown).
+    sidebarCollapsedSections: [] as string[],
+    // Edit mode: when on, sidebar sections show a drag handle and can be
+    // reordered. Toggled from the settings dialog (and the in-sidebar "done").
+    sidebarEditMode: false,
     // Horizontal split between the commit graph (left) and the diff (right).
     panelSizes: [58, 42] as number[],
     // Vertical split inside a commit's diff view (detail / file list / diff).
@@ -92,6 +113,19 @@ export const useLayoutStore = defineStore('layout', {
   actions: {
     setSidebarOpen(open: boolean) {
       this.sidebarOpen = open;
+    },
+    // Persist a new section order (the caller supplies a full permutation).
+    reorderSidebarSections(order: string[]) {
+      this.sidebarSectionOrder = order;
+    },
+    // Collapse/expand one section by id.
+    toggleSidebarSection(id: string) {
+      this.sidebarCollapsedSections = this.sidebarCollapsedSections.includes(id)
+        ? this.sidebarCollapsedSections.filter((s) => s !== id)
+        : [...this.sidebarCollapsedSections, id];
+    },
+    setSidebarEditMode(on: boolean) {
+      this.sidebarEditMode = on;
     },
     setLeftTab(tab: 'changes' | 'history') {
       this.leftTab = tab;
@@ -165,12 +199,36 @@ export const useLayoutStore = defineStore('layout', {
         min: 1,
         max: 120
       });
+    },
+    // Reconcile the persisted sidebar section order/collapse with the current
+    // set of known sections: keep the user's order, drop ids that no longer
+    // exist (and any duplicates), append sections added in a newer build, and
+    // forget collapse flags for unknown ids. Keeps a stale localStorage value
+    // from hiding or breaking a section.
+    normalizeSections() {
+      const known = SIDEBAR_SECTIONS as readonly string[];
+      const seen = new Set<string>();
+      const ordered: string[] = [];
+      for (const id of this.sidebarSectionOrder) {
+        if (known.includes(id) && !seen.has(id)) {
+          seen.add(id);
+          ordered.push(id);
+        }
+      }
+      for (const id of known) if (!seen.has(id)) ordered.push(id);
+      this.sidebarSectionOrder = ordered;
+      this.sidebarCollapsedSections = this.sidebarCollapsedSections.filter(
+        (id) => known.includes(id)
+      );
     }
   },
   persist: {
-    // Validate persisted numeric settings on load so an out-of-range value left
-    // in localStorage (older build, hand-edited) is corrected immediately.
-    afterHydrate: (ctx) => ctx.store.normalizeNumbers()
+    // Validate persisted settings on load so a stale value left in localStorage
+    // (older build, hand-edited) is corrected immediately.
+    afterHydrate: (ctx) => {
+      ctx.store.normalizeNumbers();
+      ctx.store.normalizeSections();
+    }
   }
 });
 
