@@ -12,10 +12,66 @@
         "label": "Intervalle (minutes)",
         "hint": "Fréquence du fetch automatique."
       },
+      "pullStrategy": {
+        "label": "Stratégie de pull",
+        "hint": "Merger ou rebaser lors d'un pull.",
+        "merge": "Merge",
+        "rebase": "Rebase"
+      },
+      "updatesSection": "Mises à jour",
+      "autoUpdate": {
+        "label": "Mises à jour automatiques",
+        "hint": "Rechercher les mises à jour au démarrage et les installer automatiquement."
+      },
+      "releaseChannel": {
+        "label": "Canal de diffusion",
+        "hint": "Rester sur le canal stable, activer les versions bêta ou tester une expérimentation.",
+        "stable": "Stable",
+        "beta": "Beta",
+        "experiment": "Expérimentation"
+      },
+      "experiment": {
+        "label": "Expérimentation",
+        "hint": "Une version expérimentale par branche. Le changement est manuel.",
+        "none": "Choisir une expérimentation",
+        "empty": "Aucune expérimentation trouvée",
+        "search": "Rechercher des expérimentations",
+        "refresh": "Actualiser la liste",
+        "refreshing": "Actualisation…",
+        "refreshIn": "Actualisation dans {n} s",
+        "checking": "Recherche d'expérimentations…",
+        "cooldown": "Patientez {n} s avant la prochaine actualisation",
+        "refreshFailed": "Impossible de charger les expérimentations",
+        "switch": "Changer d'expérimentation",
+        "switchHint": "Installer la version expérimentale sélectionnée (forcée, pas seulement plus récente).",
+        "install": "Changer / installer"
+      },
+      "checkUpdatesHint": "Rechercher une mise à jour maintenant.",
+      "recentSection": "Récents",
+      "recentReposMax": {
+        "label": "Projets récents conservés",
+        "hint": "Nombre de dépôts récemment ouverts à mémoriser."
+      },
+      "recentReposOnPage": {
+        "label": "Projets récents sur l'écran d'accueil",
+        "hint": "Nombre à afficher sur l'écran d'accueil (au plus le nombre conservé)."
+      },
+      "recentReposInSearch": {
+        "label": "Projets récents dans la recherche",
+        "hint": "Nombre à afficher dans la palette de commandes (au plus le nombre conservé)."
+      },
+      "recentActionsMax": {
+        "label": "Actions récentes conservées",
+        "hint": "Nombre de commandes récemment utilisées à mémoriser."
+      },
+      "recentActionsInSearch": {
+        "label": "Actions récentes dans la recherche",
+        "hint": "Nombre à afficher sous « Utilisées récemment » (au plus le nombre conservé)."
+      },
       "developer": "Développeur",
       "devMode": {
         "label": "Paramètres développeur",
-        "hint": "Afficher des outils de débogage supplémentaires."
+        "hint": "Afficher des outils de débogage supplémentaires dans les paramètres."
       }
     },
     "developer": {
@@ -25,6 +81,10 @@
       "toasts": {
         "label": "Tester les toasts",
         "hint": "Déclencher un toast de chaque type."
+      },
+      "badges": {
+        "label": "Badges",
+        "hint": "Toutes les variantes de badge en un coup d'œil."
       },
       "info": {
         "label": "Info",
@@ -68,7 +128,7 @@
       },
       "fileView": {
         "label": "Vue de la liste de fichiers",
-        "hint": "Liste plate ou arborescence groupée."
+        "hint": "Liste plate ou arborescence groupée par dossier."
       },
       "diffFont": {
         "label": "Taille de police du diff",
@@ -77,12 +137,32 @@
         "default": "Par défaut",
         "large": "Grande",
         "xlarge": "Très grande"
+      },
+      "sidebarSection": "Barre latérale",
+      "sidebarResizable": {
+        "label": "Redimensionnable",
+        "hint": "Faites glisser le bord droit pour redimensionner la barre latérale."
+      },
+      "sidebarWidth": {
+        "label": "Largeur (px)",
+        "hint": "Largeur de la barre latérale déployée, 192–512. Par défaut 256 px."
+      },
+      "graphSection": "Graphe",
+      "shortenDependabot": {
+        "label": "Raccourcir les branches Dependabot",
+        "hint": "Réduire les longs noms de branches dependabot/… dans le graphe d'historique."
       }
     },
     "language": {
       "title": "Langue",
       "label": "Langue",
       "hint": "La langue d'affichage de glimpse.",
+      "searchLanguages": {
+        "label": "Langues de recherche supplémentaires",
+        "hint": "Faire aussi correspondre les entrées de la palette de commandes dans ces langues, en plus de la langue d'affichage.",
+        "placeholder": "Aucune",
+        "search": "Rechercher des langues…"
+      },
       "name": {
         "de-DE": "Deutsch",
         "en-GB": "English",
@@ -92,7 +172,8 @@
     },
     "about": {
       "title": "À propos",
-      "description": "Un client Git de bureau léger et git-natif — le graphe de branches complet, les diffs et le git au quotidien, avec une prise en charge de WSL de premier ordre."
+      "description": "Un client Git de bureau léger et git-natif — le graphe de branches complet, les diffs et le git au quotidien, avec une prise en charge de WSL de premier ordre.",
+      "checkUpdates": "Rechercher des mises à jour"
     }
   }
 }

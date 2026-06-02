@@ -61,7 +61,13 @@ export function escapeHtml(s: string): string {
 }
 
 /** Highlight one line of code; falls back to escaped text on any failure. */
-export function highlightLine(text: string, lang: string): string {
+export function highlightLine({
+  text,
+  lang
+}: {
+  text: string;
+  lang: string;
+}): string {
   if (!text) return '';
   if (!lang) return escapeHtml(text);
   try {
@@ -108,7 +114,13 @@ function splitHighlightedLines(html: string): string[] {
  * per-line highlighting this keeps cross-line context (so a Vue SFC's script and
  * style sections highlight, not just its template). Index is line-number - 1.
  */
-export function highlightLines(text: string, lang: string): string[] {
+export function highlightLines({
+  text,
+  lang
+}: {
+  text: string;
+  lang: string;
+}): string[] {
   if (!lang) return text.split('\n').map(escapeHtml);
   try {
     const html = hljs.highlight(text, {

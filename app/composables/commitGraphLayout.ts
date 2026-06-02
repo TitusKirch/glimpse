@@ -4,33 +4,12 @@
 // (git::parse); this is only the visual projection of those lanes.
 
 import type { Commit } from '~/stores/repo';
-
-export interface GraphNode {
-  hash: string;
-  cx: number;
-  cy: number;
-  color: string;
-}
-
-export interface GraphEdge {
-  d: string;
-  color: string;
-}
-
-export interface GraphLayout {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  width: number;
-  height: number;
-  rowHeight: number;
-}
-
-export interface GraphLayoutOptions {
-  rowHeight?: number;
-  laneWidth?: number;
-  originX?: number;
-  colors?: string[];
-}
+import type {
+  GraphEdge,
+  GraphLayout,
+  GraphLayoutOptions,
+  GraphNode
+} from '~/types/graph';
 
 const DEFAULTS = {
   rowHeight: 60,
@@ -51,14 +30,13 @@ const DEFAULTS = {
   ]
 };
 
-export function commitGraphLayout(
-  commits: Commit[],
-  options: GraphLayoutOptions = {}
-): GraphLayout {
-  const { rowHeight, laneWidth, originX, colors } = {
-    ...DEFAULTS,
-    ...options
-  };
+export function commitGraphLayout({
+  commits,
+  rowHeight = DEFAULTS.rowHeight,
+  laneWidth = DEFAULTS.laneWidth,
+  originX = DEFAULTS.originX,
+  colors = DEFAULTS.colors
+}: { commits: Commit[] } & GraphLayoutOptions): GraphLayout {
   const laneX = (lane: number) => originX + lane * laneWidth;
   const nodeY = (i: number) => rowHeight / 2 + i * rowHeight;
   const laneColor = (lane: number) => colors[lane % colors.length]!;
@@ -79,7 +57,17 @@ export function commitGraphLayout(
   // with the same "schwung" as a 2→7 one; the extra horizontal distance is just
   // a straight segment, not a flatter curve.
   const r = laneWidth;
-  const edgePath = (x1: number, y1: number, x2: number, y2: number) => {
+  const edgePath = ({
+    x1,
+    y1,
+    x2,
+    y2
+  }: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  }) => {
     if (x1 === x2) return `M ${x1} ${y1} L ${x2} ${y2}`;
     const rr = Math.min(r, Math.abs(y2 - y1) / 2);
     if (x2 > x1) {
@@ -114,7 +102,12 @@ export function commitGraphLayout(
         return;
       }
       edges.push({
-        d: edgePath(laneX(c.lane), nodeY(i), laneX(commits[j]!.lane), nodeY(j)),
+        d: edgePath({
+          x1: laneX(c.lane),
+          y1: nodeY(i),
+          x2: laneX(commits[j]!.lane),
+          y2: nodeY(j)
+        }),
         color: laneColor(Math.max(c.lane, commits[j]!.lane))
       });
     });

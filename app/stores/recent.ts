@@ -15,12 +15,15 @@ export const useRecentStore = defineStore('recent', {
   }),
   actions: {
     // Move/insert `path` to the front (most-recent-first), de-duplicated, then
-    // trim to the user-configured maximum (Settings → General → Recent).
-    push(path: string, name: string) {
-      this.repos = [
-        { path, name },
-        ...this.repos.filter((r) => r.path !== path)
-      ].slice(0, useLayoutStore().recentReposMax);
+    // trim to the user-configured maximum (Settings → General → Recent). The
+    // move-to-front/dedup/trim mechanics live in the shared `moveToFront` core.
+    push({ path, name }: { path: string; name: string }) {
+      this.repos = moveToFront({
+        list: this.repos,
+        item: { path, name },
+        key: (r) => r.path,
+        max: useLayoutStore().recentReposMax
+      });
     },
     remove(path: string) {
       this.repos = this.repos.filter((r) => r.path !== path);

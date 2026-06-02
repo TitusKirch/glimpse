@@ -6,12 +6,17 @@
     "stage": "Preparar",
     "unstage": "Quitar de preparación",
     "discard": "Descartar cambios",
+    "discardAll": "Descartar todos los cambios",
     "commit": {
       "label": "Confirmar",
       "placeholder": "Mensaje de confirmación"
     },
     "amend": "Enmendar",
     "amendCommit": "Enmendar confirmación",
+    "conflicts": "Conflictos",
+    "useOurs": "Usar los nuestros",
+    "useTheirs": "Usar los suyos",
+    "markResolved": "Marcar como resuelto",
     "clean": "Árbol de trabajo limpio",
     "cleanHint": "No hay cambios para confirmar."
   }

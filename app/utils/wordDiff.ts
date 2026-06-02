@@ -12,7 +12,13 @@ export interface WordDiffRanges {
   bEnd: number;
 }
 
-export function wordDiffRanges(a: string, b: string): WordDiffRanges {
+export function wordDiffRanges({
+  a,
+  b
+}: {
+  a: string;
+  b: string;
+}): WordDiffRanges {
   let start = 0;
   const min = Math.min(a.length, b.length);
   while (start < min && a[start] === b[start]) start++;

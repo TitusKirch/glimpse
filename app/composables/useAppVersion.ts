@@ -1,5 +1,4 @@
 import { getVersion } from '@tauri-apps/api/app';
-import { invoke } from '@tauri-apps/api/core';
 
 // Shared app version + build identity. Beta builds carry a SemVer pre-release
 // suffix (e.g. "0.1.0-beta.3"); experiment builds carry "-exp.N" plus a slug
@@ -13,14 +12,17 @@ export function useAppVersion() {
   const loaded = useState('app-version-loaded', () => false);
   if (import.meta.client && !loaded.value) {
     loaded.value = true;
-    if (isTauri()) {
+    whenTauri(() =>
       getVersion()
         .then((v) => (version.value = v))
-        .catch(() => {});
-      invoke<string | null>('experiment_name')
-        .then((n) => (experiment.value = n))
-        .catch(() => {});
-    }
+        .catch(() => {})
+    );
+    void tauriInvoke<string | null>({
+      command: 'experiment_name',
+      fallback: null
+    })
+      .then((n) => (experiment.value = n))
+      .catch(() => {});
   }
   const isExperiment = computed(() => !!experiment.value);
   // A pre-release suffix marks a beta build — but an experiment is its own thing,

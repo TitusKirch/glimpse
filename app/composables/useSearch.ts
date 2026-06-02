@@ -1,14 +1,11 @@
 // Shared fuzzy search (Fuse.js) so every search in the app — the command
 // palette, the language comboboxes, anything future — feels the same and is
-// configured in one place. useSearch() exposes two helpers:
-//   - fuzzySearch(): a pure function, for callers that manage their own state
-//     (e.g. the Command component maps hits to per-item scores).
-//   - search(): a reactive wrapper returning the filtered+ranked list.
+// configured in one place. useSearch() exposes one helper, fuzzySearch(): a
+// pure function whose callers manage their own state (e.g. the Command
+// component maps hits to per-item scores).
 
 import type { IFuseOptions } from 'fuse.js';
-import type { MaybeRefOrGetter } from 'vue';
 import Fuse from 'fuse.js';
-import { computed, toValue } from 'vue';
 
 // App-wide defaults: match anywhere in the string (not just the start) with a
 // middling typo tolerance. Tune here to change every search at once.
@@ -58,21 +55,5 @@ export function useSearch() {
       }));
   }
 
-  // Reactive wrapper: pass a ref/getter source list and query, get the
-  // filtered, ranked list back. The Fuse index is rebuilt only when the source
-  // changes, not on every keystroke.
-  function search<T>(
-    source: MaybeRefOrGetter<readonly T[]>,
-    query: MaybeRefOrGetter<string>,
-    options: SearchOptions<T> = {}
-  ) {
-    const fuse = computed(() => makeFuse(toValue(source), options));
-    return computed<T[]>(() => {
-      const q = toValue(query);
-      if (!q) return [...toValue(source)];
-      return fuse.value.search(q).map((r) => r.item);
-    });
-  }
-
-  return { fuzzySearch, search };
+  return { fuzzySearch };
 }

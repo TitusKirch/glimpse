@@ -6,12 +6,17 @@
     "stage": "Indexer",
     "unstage": "Désindexer",
     "discard": "Annuler les modifications",
+    "discardAll": "Annuler toutes les modifications",
     "commit": {
       "label": "Valider",
       "placeholder": "Message de validation"
     },
     "amend": "Modifier",
     "amendCommit": "Modifier le commit",
+    "conflicts": "Conflits",
+    "useOurs": "Garder les nôtres",
+    "useTheirs": "Garder les leurs",
+    "markResolved": "Marquer comme résolu",
     "clean": "Arbre de travail propre",
     "cleanHint": "Aucune modification à valider."
   }

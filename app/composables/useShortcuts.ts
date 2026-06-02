@@ -8,9 +8,9 @@ import { useEventListener } from '@vueuse/core';
 
 export function useShortcuts() {
   const repo = useRepoStore();
-  const palette = useCommandPalette();
-  const settings = useSettingsDialog();
-  const help = useHelpDialog();
+  const palette = useOverlay('commandPalette');
+  const settings = useOverlay('settings');
+  const help = useOverlay('help');
 
   const isMac = navigator.platform.toLowerCase().includes('mac');
 

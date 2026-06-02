@@ -1,10 +1,33 @@
 {
   "sidebar": {
-    "branches": "Ramas",
-    "remotes": "Remotos",
-    "remoteBranches": "Ramas remotas",
-    "tags": "Etiquetas",
-    "newBranch": "Nueva rama",
-    "branchName": "nombre de la rama…"
+    "branches": "Branches",
+    "remotes": "Remotes",
+    "remoteBranches": "Branches remotos",
+    "tags": "Tags",
+    "newBranch": "Nuevo branch",
+    "branchName": "nombre del branch…",
+    "newTag": "Nuevo tag",
+    "tagName": "nombre del tag…",
+    "stashes": "Stashes",
+    "stashPush": "Guardar cambios en stash",
+    "stashPop": "Pop",
+    "stashApply": "Aplicar",
+    "stashDrop": "Descartar",
+    "noStashes": "No hay stashes",
+    "addRemote": "Añadir remote",
+    "remoteName": "nombre (p. ej. origin)",
+    "remoteUrl": "URL del remote",
+    "renameBranch": "Renombrar branch",
+    "renameRemote": "Renombrar remote",
+    "rename": "Renombrar",
+    "showMore": "Mostrar {n} más",
+    "showLess": "Mostrar menos",
+    "localOnly": "local",
+    "localOnlyHint": "Solo local — aún no está en un remote",
+    "experimentBadge": "Experimental",
+    "noRepo": {
+      "title": "Ningún repositorio abierto",
+      "hint": "Abre un repositorio para ver sus branches e historial."
+    }
   }
 }

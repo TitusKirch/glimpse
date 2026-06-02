@@ -4,6 +4,17 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 export async function openExternal(url: string): Promise<void> {
+  // Only ever hand http(s) URLs to the OS opener. Today every caller passes a
+  // hardcoded URL, but this guard means the helper can never become a
+  // `file://`/custom-scheme launch sink if a caller is later changed to pass
+  // dynamic (e.g. remote-derived) input.
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return;
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return;
   if (isTauri()) {
     await openUrl(url);
   } else if (typeof window !== 'undefined') {

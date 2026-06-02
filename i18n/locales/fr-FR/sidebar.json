@@ -1,10 +1,33 @@
 {
   "sidebar": {
     "branches": "Branches",
-    "remotes": "Dépôts distants",
+    "remotes": "Remotes",
     "remoteBranches": "Branches distantes",
-    "tags": "Étiquettes",
+    "tags": "Tags",
     "newBranch": "Nouvelle branche",
-    "branchName": "nom de la branche…"
+    "branchName": "nom de la branche…",
+    "newTag": "Nouveau tag",
+    "tagName": "nom du tag…",
+    "stashes": "Stashes",
+    "stashPush": "Remiser les modifications",
+    "stashPop": "Appliquer et supprimer",
+    "stashApply": "Appliquer",
+    "stashDrop": "Supprimer",
+    "noStashes": "Aucun stash",
+    "addRemote": "Ajouter un remote",
+    "remoteName": "nom (par ex. origin)",
+    "remoteUrl": "URL du remote",
+    "renameBranch": "Renommer la branche",
+    "renameRemote": "Renommer le remote",
+    "rename": "Renommer",
+    "showMore": "Afficher {n} de plus",
+    "showLess": "Afficher moins",
+    "localOnly": "locale",
+    "localOnlyHint": "Locale uniquement — pas encore sur un remote",
+    "experimentBadge": "Expérimental",
+    "noRepo": {
+      "title": "Aucun dépôt ouvert",
+      "hint": "Ouvrez un dépôt pour voir ses branches et son historique."
+    }
   }
 }
