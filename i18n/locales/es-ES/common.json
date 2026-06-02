@@ -2,6 +2,9 @@
   "app": {
     "name": "glimpse"
   },
+  "platform": {
+    "wsl": "WSL2"
+  },
   "error": {
     "title": "Error",
     "loadFailed": "No se pudo cargar este repositorio",
@@ -20,18 +23,155 @@
   "theme": {
     "toggle": "Cambiar tema"
   },
+  "updater": {
+    "available": "Actualización {version} disponible",
+    "installing": "Descargando e instalando…",
+    "installed": "Actualización instalada: reinicia para aplicarla",
+    "upToDate": "Tienes la última versión",
+    "failed": "Error al comprobar actualizaciones",
+    "noExperiment": "Elige primero un experimento"
+  },
+  "copied": "Copiado al portapapeles",
+  "help": {
+    "title": "Atajos de teclado",
+    "contextHint": "Consejo: haz clic derecho en un commit para más acciones."
+  },
+  "common": {
+    "cancel": "Cancelar"
+  },
+  "form": {
+    "create": "Crear",
+    "rename": "Renombrar",
+    "validation": {
+      "required": "Obligatorio.",
+      "invalidRef": "Sin espacios ni caracteres especiales.",
+      "invalidRemoteName": "Solo letras, números, puntos, guiones y guiones bajos.",
+      "invalidUrl": "Introduce una URL o ruta de git válida."
+    },
+    "branch": {
+      "label": "Nombre de la rama",
+      "description": "p. ej. feature/mi-cambio.",
+      "placeholder": "feature/mi-cambio"
+    },
+    "tag": {
+      "label": "Nombre del tag",
+      "placeholder": "v1.0.0"
+    },
+    "remoteName": {
+      "label": "Nombre",
+      "placeholder": "origin"
+    },
+    "remoteUrl": {
+      "label": "URL",
+      "description": "HTTPS o SSH, p. ej. git{'@'}github.com:usuario/repo.git",
+      "placeholder": "https://github.com/usuario/repo.git"
+    }
+  },
+  "confirm": {
+    "dirtySwitch": {
+      "title": "Cambios sin confirmar",
+      "description": "Tienes cambios sin confirmar. ¿Guardarlos en un stash y cambiar de rama?",
+      "confirm": "Stash y cambiar"
+    },
+    "resetHard": {
+      "title": "Reset hard",
+      "description": "Esto descarta todos los cambios sin confirmar y mueve la rama. ¿Continuar?",
+      "confirm": "Reset hard"
+    },
+    "discardAll": {
+      "title": "Descartar todos los cambios",
+      "description": "Esto descarta de forma permanente todos los cambios sin confirmar, incluidos los archivos sin seguimiento. ¿Continuar?",
+      "confirm": "Descartar todo"
+    },
+    "publishBranch": {
+      "title": "Publicar rama",
+      "description": "Esta rama aún no tiene upstream. ¿Hacer push a origin y establecerlo como upstream?",
+      "confirm": "Publicar"
+    },
+    "setUpstream": {
+      "title": "Sin rama upstream",
+      "description": "Esta rama no está siguiendo ningún remote. ¿Establecer su upstream en origin y hacer pull?",
+      "confirm": "Definir upstream y pull"
+    },
+    "deleteBranch": {
+      "title": "Eliminar rama",
+      "description": "¿Eliminar la rama «{name}»? Esto no se puede deshacer."
+    },
+    "deleteTag": {
+      "title": "Eliminar tag",
+      "description": "¿Eliminar el tag «{name}»?"
+    },
+    "removeRemote": {
+      "title": "Eliminar remote",
+      "description": "¿Eliminar el remote «{name}»?"
+    },
+    "dropStash": {
+      "title": "Descartar stash",
+      "description": "¿Descartar este stash? Sus cambios se perderán."
+    },
+    "checkoutRemote": {
+      "title": "Hacer checkout de la rama remota",
+      "description": "¿Crear una rama local que siga a «{name}» y cambiar a ella?",
+      "confirm": "Checkout"
+    },
+    "openDeepLink": {
+      "title": "¿Abrir repositorio?",
+      "description": "Un enlace pidió a glimpse abrir «{path}». Ábrelo solo si confías en la fuente: abrir un repositorio ejecuta git dentro de él.",
+      "confirm": "Abrir"
+    }
+  },
+  "branch": {
+    "switch": "Cambiar a la rama",
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "merge": "Merge en la actual",
+    "mergeCurrentInto": "Merge de la actual en esta",
+    "checkoutRemote": "Checkout"
+  },
+  "commit": {
+    "checkout": "Hacer checkout de este commit",
+    "copyHash": "Copiar hash",
+    "branchHere": "Crear rama desde aquí",
+    "tagHere": "Etiquetar este commit",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "reset": "Reset hasta aquí",
+    "resetSoft": "Soft",
+    "resetSoftHint": "mantener los cambios en stage",
+    "resetMixed": "Mixed",
+    "resetMixedHint": "mantener los cambios fuera de stage",
+    "resetHard": "Hard",
+    "resetHardHint": "descartar todos los cambios"
+  },
   "command": {
     "open": "Paleta de comandos",
     "placeholder": "Escribe un comando o busca…",
     "empty": "Sin resultados.",
     "actions": "Acciones",
+    "git": "Git",
+    "repository": "Repositorio",
+    "view": "Vista",
     "branches": "Cambiar de rama",
+    "branchActions": "Rama",
+    "switchBranch": "Cambiar de rama…",
+    "renameBranch": "Renombrar rama…",
+    "mergeBranch": "Merge en la actual…",
+    "deleteBranch": "Eliminar rama…",
+    "localBranches": "Ramas",
+    "remoteBranches": "Ramas remotas",
+    "pickBranch": "Elige una rama…",
+    "back": "Atrás",
+    "recentActions": "Usados recientemente",
     "recent": "Repositorios recientes",
     "current": "actual",
     "openFiles": "Abrir en el explorador de archivos",
     "openTerminal": "Abrir en la terminal",
     "openEditor": "Abrir en el editor",
-    "toggleSidebar": "Alternar barra lateral"
+    "toggleSidebar": "Alternar barra lateral",
+    "pushUpstream": "Push y definir upstream",
+    "pushForce": "Force push (con lease)",
+    "stash": "Guardar cambios en stash",
+    "pushTags": "Push de los tags"
   },
   "start": {
     "title": "Ningún repositorio abierto",

@@ -98,19 +98,38 @@ jobs:
           gh release download "experiment-$SLUG" --repo "$GITHUB_REPOSITORY" -p latest.json -O exp-latest.json 2>/dev/null || echo '{}' > exp-latest.json
           SLUG="$SLUG" node <<'NODE' >> "$GITHUB_OUTPUT"
           const fs = require('fs');
+          const { execSync } = require('child_process');
+          const sh = (c) => { try { return execSync(c, { encoding: 'utf8' }).trim(); } catch { return ''; } };
+          const cmp = (a, b) => {
+            const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+            for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+            return 0;
+          };
           const slug = process.env.SLUG;
-          // Base = next stable: honour release-please's `release-as`, else the
-          // authoritative last-released version. Exact base is cosmetic here
-          // (experiments force-install and are identified by name).
+          // Base = next stable, computed exactly like the beta workflow: anchor on
+          // the latest STABLE GitHub release and bump by the conventional commits
+          // since its tag (honouring release-please's pre-major rules), so an
+          // experiment reads as `<next stable>-exp.N` instead of a stale 0.0.0 from
+          // the lagging manifest.
+          const repo = process.env.GITHUB_REPOSITORY;
+          let last = sh(`gh api repos/${repo}/releases/latest --jq .tag_name`).replace(/^v/, '');
+          if (!/^\d+\.\d+\.\d+$/.test(last)) last = '0.0.0';
           const cfg = JSON.parse(fs.readFileSync('release-please-config.json', 'utf8'));
           const pkg = (cfg.packages && cfg.packages['.']) || {};
-          let base = pkg['release-as'];
-          if (!base) {
-            try { base = JSON.parse(fs.readFileSync('.release-please-manifest.json', 'utf8'))['.']; } catch {}
-          }
-          base = base || '0.0.0';
+          const range = sh(`git tag --list "v${last}"`) ? `v${last}..HEAD` : 'HEAD';
+          const log = sh(`git log ${range} --format=%s%n%b`);
+          const [maj, min, pat] = last.split('.').map(Number);
+          const breaking = /(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log);
+          const feat = /(^|\n)feat(\(.+?\))?:/.test(log);
+          const preMajor = maj === 0 && pkg['bump-minor-pre-major'];
+          const patchForMinor = pkg['bump-patch-for-minor-pre-major'];
+          let base;
+          if (breaking) base = preMajor ? `${maj}.${min + 1}.0` : `${maj + 1}.0.0`;
+          else if (feat) base = preMajor && patchForMinor ? `${maj}.${min}.${pat + 1}` : `${maj}.${min + 1}.0`;
+          else base = `${maj}.${min}.${pat + 1}`;
+          if (pkg['release-as'] && cmp(pkg['release-as'], last) > 0) base = pkg['release-as'];
           // Per-experiment counter: one past this experiment's current build.
-          const re = new RegExp(`-exp\\.(\\d+)$`);
+          const re = /-exp\.(\d+)$/;
           let prev = 0;
           try {
             const m = String(JSON.parse(fs.readFileSync('exp-latest.json', 'utf8')).version || '').match(re);

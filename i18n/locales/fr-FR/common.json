@@ -2,6 +2,9 @@
   "app": {
     "name": "glimpse"
   },
+  "platform": {
+    "wsl": "WSL2"
+  },
   "error": {
     "title": "Erreur",
     "loadFailed": "Impossible de charger ce dépôt",
@@ -20,18 +23,155 @@
   "theme": {
     "toggle": "Changer de thème"
   },
+  "updater": {
+    "available": "Mise à jour {version} disponible",
+    "installing": "Téléchargement et installation…",
+    "installed": "Mise à jour installée — redémarrez pour l'appliquer",
+    "upToDate": "Vous utilisez la dernière version",
+    "failed": "Échec de la vérification des mises à jour",
+    "noExperiment": "Choisissez d'abord une expérimentation"
+  },
+  "copied": "Copié dans le presse-papiers",
+  "help": {
+    "title": "Raccourcis clavier",
+    "contextHint": "Astuce : faites un clic droit sur un commit pour plus d'actions."
+  },
+  "common": {
+    "cancel": "Annuler"
+  },
+  "form": {
+    "create": "Créer",
+    "rename": "Renommer",
+    "validation": {
+      "required": "Champ obligatoire.",
+      "invalidRef": "Aucun espace ni caractère spécial.",
+      "invalidRemoteName": "Lettres, chiffres, points, tirets et tirets bas uniquement.",
+      "invalidUrl": "Saisissez une URL ou un chemin git valide."
+    },
+    "branch": {
+      "label": "Nom de la branche",
+      "description": "p. ex. feature/ma-modification.",
+      "placeholder": "feature/ma-modification"
+    },
+    "tag": {
+      "label": "Nom du tag",
+      "placeholder": "v1.0.0"
+    },
+    "remoteName": {
+      "label": "Nom",
+      "placeholder": "origin"
+    },
+    "remoteUrl": {
+      "label": "URL",
+      "description": "HTTPS ou SSH, p. ex. git{'@'}github.com:user/repo.git",
+      "placeholder": "https://github.com/user/repo.git"
+    }
+  },
+  "confirm": {
+    "dirtySwitch": {
+      "title": "Modifications non commitées",
+      "description": "Vous avez des modifications non commitées. Les stasher et changer de branche ?",
+      "confirm": "Stasher et changer"
+    },
+    "resetHard": {
+      "title": "Reset hard",
+      "description": "Ceci supprime toutes les modifications non commitées et déplace la branche. Continuer ?",
+      "confirm": "Reset hard"
+    },
+    "discardAll": {
+      "title": "Abandonner toutes les modifications",
+      "description": "Ceci supprime définitivement toutes les modifications non commitées, y compris les fichiers non suivis. Continuer ?",
+      "confirm": "Tout abandonner"
+    },
+    "publishBranch": {
+      "title": "Publier la branche",
+      "description": "Cette branche n'a pas encore de branche amont. La pusher vers origin et la définir comme branche amont ?",
+      "confirm": "Publier"
+    },
+    "setUpstream": {
+      "title": "Aucune branche amont",
+      "description": "Cette branche ne suit aucun remote. Définir sa branche amont sur origin et faire un pull ?",
+      "confirm": "Définir l'amont et pull"
+    },
+    "deleteBranch": {
+      "title": "Supprimer la branche",
+      "description": "Supprimer la branche « {name} » ? Cette action est irréversible."
+    },
+    "deleteTag": {
+      "title": "Supprimer le tag",
+      "description": "Supprimer le tag « {name} » ?"
+    },
+    "removeRemote": {
+      "title": "Supprimer le remote",
+      "description": "Supprimer le remote « {name} » ?"
+    },
+    "dropStash": {
+      "title": "Supprimer le stash",
+      "description": "Supprimer ce stash ? Ses modifications seront perdues."
+    },
+    "checkoutRemote": {
+      "title": "Checkout d'une branche distante",
+      "description": "Créer une branche locale qui suit « {name} » et basculer dessus ?",
+      "confirm": "Checkout"
+    },
+    "openDeepLink": {
+      "title": "Ouvrir le dépôt ?",
+      "description": "Un lien demande à glimpse d’ouvrir « {path} ». Ne l’ouvrez que si vous faites confiance à la source — ouvrir un dépôt exécute git à l’intérieur.",
+      "confirm": "Ouvrir"
+    }
+  },
+  "branch": {
+    "switch": "Basculer sur la branche",
+    "rename": "Renommer",
+    "delete": "Supprimer",
+    "merge": "Merger dans la branche actuelle",
+    "mergeCurrentInto": "Merger l'actuelle dans celle-ci",
+    "checkoutRemote": "Checkout"
+  },
+  "commit": {
+    "checkout": "Checkout de ce commit",
+    "copyHash": "Copier le hash",
+    "branchHere": "Créer une branche ici",
+    "tagHere": "Taguer ce commit",
+    "cherryPick": "Cherry-pick",
+    "revert": "Revert",
+    "reset": "Reset jusqu'ici",
+    "resetSoft": "Soft",
+    "resetSoftHint": "garder les modifications indexées",
+    "resetMixed": "Mixed",
+    "resetMixedHint": "garder les modifications non indexées",
+    "resetHard": "Hard",
+    "resetHardHint": "abandonner toutes les modifications"
+  },
   "command": {
     "open": "Palette de commandes",
     "placeholder": "Tapez une commande ou recherchez…",
     "empty": "Aucun résultat.",
     "actions": "Actions",
+    "git": "Git",
+    "repository": "Dépôt",
+    "view": "Affichage",
     "branches": "Changer de branche",
+    "branchActions": "Branche",
+    "switchBranch": "Changer de branche…",
+    "renameBranch": "Renommer la branche…",
+    "mergeBranch": "Merger dans la branche actuelle…",
+    "deleteBranch": "Supprimer la branche…",
+    "localBranches": "Branches",
+    "remoteBranches": "Branches distantes",
+    "pickBranch": "Choisir une branche…",
+    "back": "Retour",
+    "recentActions": "Utilisés récemment",
     "recent": "Dépôts récents",
     "current": "actuel",
     "openFiles": "Ouvrir dans le gestionnaire de fichiers",
     "openTerminal": "Ouvrir dans le terminal",
     "openEditor": "Ouvrir dans l'éditeur",
-    "toggleSidebar": "Basculer la barre latérale"
+    "toggleSidebar": "Basculer la barre latérale",
+    "pushUpstream": "Push et définir la branche amont",
+    "pushForce": "Force push (avec lease)",
+    "stash": "Stasher les modifications",
+    "pushTags": "Push des tags"
   },
   "start": {
     "title": "Aucun dépôt ouvert",

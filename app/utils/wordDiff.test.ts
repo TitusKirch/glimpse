@@ -4,7 +4,7 @@ import { wordDiffRanges } from './wordDiff';
 describe('wordDiffRanges', () => {
   it('reports no change for identical strings', () => {
     const a = 'const x = 1;';
-    const r = wordDiffRanges(a, a);
+    const r = wordDiffRanges({ a, b: a });
     expect(r.start).toBe(a.length);
     expect(r.aEnd).toBe(a.length);
     expect(r.bEnd).toBe(a.length);
@@ -14,7 +14,7 @@ describe('wordDiffRanges', () => {
   });
 
   it('isolates a single changed character', () => {
-    const r = wordDiffRanges('foo', 'fox');
+    const r = wordDiffRanges({ a: 'foo', b: 'fox' });
     expect('foo'.slice(r.start, r.aEnd)).toBe('o');
     expect('fox'.slice(r.start, r.bEnd)).toBe('x');
   });
@@ -22,14 +22,14 @@ describe('wordDiffRanges', () => {
   it('trims common prefix and suffix around an edit', () => {
     const a = 'const a = 1;';
     const b = 'const a = 42;';
-    const r = wordDiffRanges(a, b);
+    const r = wordDiffRanges({ a, b });
     expect(a.slice(r.start, r.aEnd)).toBe('1');
     expect(b.slice(r.start, r.bEnd)).toBe('42');
     expect(a.slice(0, r.start)).toBe('const a = ');
   });
 
   it('handles pure insertion (one side empty change)', () => {
-    const r = wordDiffRanges('ab', 'axb');
+    const r = wordDiffRanges({ a: 'ab', b: 'axb' });
     expect('ab'.slice(r.start, r.aEnd)).toBe('');
     expect('axb'.slice(r.start, r.bEnd)).toBe('x');
   });

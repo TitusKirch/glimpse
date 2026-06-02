@@ -3,10 +3,20 @@
     "title": "Diff",
     "sideBySide": "Côte à côte",
     "unified": "Unifié",
-    "noSelection": "Sélectionnez un commit ou un fichier pour voir son diff"
+    "whole": "Fichier entier",
+    "noSelection": "Sélectionnez un commit ou un fichier pour afficher son diff",
+    "noTextDiff": "Aucun diff textuel à afficher (binaire, vide ou inchangé).",
+    "ignoreWhitespace": "Ignorer les espaces",
+    "blame": "Blame",
+    "blameEmpty": "Aucune information de blame",
+    "blameEmptyHint": "Ce fichier n'a pas encore été commité.",
+    "blameViewCommit": "Voir ce commit",
+    "fileHistory": "Historique du fichier",
+    "copyPath": "Copier le chemin",
+    "copyDiff": "Copier le diff"
   },
   "fileView": {
-    "list": "Vue liste",
-    "tree": "Vue arborescente"
+    "list": "Vue en liste",
+    "tree": "Vue en arborescence"
   }
 }

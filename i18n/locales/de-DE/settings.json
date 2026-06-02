@@ -25,7 +25,7 @@
       },
       "releaseChannel": {
         "label": "Release-Channel",
-        "hint": "Stable, Beta-Builds aktivieren oder ein Experiment fahren.",
+        "hint": "Stabilen Kanal nutzen, Beta-Builds aktivieren oder ein Experiment ausprobieren.",
         "stable": "Stable",
         "beta": "Beta",
         "experiment": "Experiment"
@@ -37,6 +37,9 @@
         "empty": "Keine Experimente gefunden",
         "search": "Nach Experimenten suchen",
         "refresh": "Liste aktualisieren",
+        "refreshing": "Wird aktualisiert…",
+        "refreshIn": "Aktualisieren in {n}s",
+        "checking": "Suche nach Experimenten…",
         "cooldown": "Noch {n}s bis zur nächsten Aktualisierung",
         "refreshFailed": "Experimente konnten nicht geladen werden",
         "switch": "Experiment wechseln",

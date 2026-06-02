@@ -62,6 +62,14 @@ impl GitTarget {
         // the wsl.exe boundary), so set it here for the native case.
         cmd.env("GIT_OPTIONAL_LOCKS", "0");
         cmd.args(&self.prefix_args);
+        // Defense in depth: a repository we merely inspect must not be able to
+        // run code through its own config. `core.fsmonitor` would otherwise be
+        // executed by `git status` (the command run on every open), turning
+        // "open a repo" into code execution. A command-line `-c` overrides repo
+        // and global config, and disabling fsmonitor has no correctness impact
+        // on glimpse (it never relies on it). Diff/show additionally pass
+        // `--no-ext-diff --no-textconv` at their call sites for the same reason.
+        cmd.arg("-c").arg("core.fsmonitor=");
         cmd.arg("-C").arg(&self.repo_arg);
         cmd.args(args);
         cmd
@@ -84,18 +92,27 @@ impl GitTarget {
 
     /// The exact argv [`command`] would run, as a single string — appended to
     /// error messages so a failing invocation (especially the WSL path) is
-    /// visible to the user instead of just git's bare stderr.
+    /// visible to the user instead of just git's bare stderr. Credentials
+    /// embedded in a remote URL (`https://user:token@host/…`) are redacted so a
+    /// failed `add_remote`/`fetch` doesn't echo a secret into a UI toast.
     pub fn describe(&self, args: &[&str]) -> String {
         let mut parts = vec![self.program.clone()];
         parts.extend(self.prefix_args.iter().cloned());
         parts.push("-C".into());
         parts.push(self.repo_arg.clone());
-        parts.extend(args.iter().map(|a| a.to_string()));
+        parts.extend(args.iter().map(|a| redact_credentials(a)));
         parts.join(" ")
     }
 
     /// Read a working-tree file's content (native fs, or `cat` inside WSL).
     pub fn read_file(&self, rel: &str) -> Option<String> {
+        // Stay inside the repository. An absolute `rel` would replace the base
+        // in `Path::join` (reading e.g. `/etc/passwd`), and `..` segments would
+        // traverse out — both turn this into an arbitrary-file-read primitive.
+        // Same rule the git engine applies at the IPC seam (see git::is_unsafe_path).
+        if rel.is_empty() || crate::git::is_unsafe_path(rel) {
+            return None;
+        }
         if let Some(distro) = &self.distro {
             let path = format!("{}/{}", self.repo_arg, rel);
             let mut cmd = Command::new("wsl.exe");
@@ -239,6 +256,24 @@ fn open_candidates(app: &str, path: &str) -> Vec<Vec<String>> {
     }
 }
 
+/// Strip `user:token@` (or `user@`) userinfo from a URL so a credential
+/// embedded in a remote URL never lands in a user-visible error string.
+/// Non-URL arguments (paths, refs) pass through unchanged.
+fn redact_credentials(s: &str) -> String {
+    let Some(scheme_end) = s.find("://") else {
+        return s.to_string();
+    };
+    let after = &s[scheme_end + 3..];
+    match after.find('@') {
+        // Only treat the part before '@' as userinfo when it is the authority
+        // (no '/' yet) — otherwise a '@' in a path would be mangled.
+        Some(at) if !after[..at].contains('/') => {
+            format!("{}://***@{}", &s[..scheme_end], &after[at + 1..])
+        }
+        _ => s.to_string(),
+    }
+}
+
 const fn native_flavor() -> Flavor {
     #[cfg(target_os = "windows")]
     {
@@ -317,6 +352,26 @@ mod tests {
     #[test]
     fn open_candidates_unknown_is_empty() {
         assert!(super::open_candidates("nope", "/x").is_empty());
+    }
+
+    #[test]
+    fn redacts_url_credentials() {
+        use super::redact_credentials;
+        assert_eq!(
+            redact_credentials("https://user:token@github.com/x.git"),
+            "https://***@github.com/x.git"
+        );
+        assert_eq!(
+            redact_credentials("https://token@github.com/x.git"),
+            "https://***@github.com/x.git"
+        );
+        // No userinfo, a path '@', and non-URL args pass through unchanged.
+        assert_eq!(
+            redact_credentials("https://github.com/a@b"),
+            "https://github.com/a@b"
+        );
+        assert_eq!(redact_credentials("origin"), "origin");
+        assert_eq!(redact_credentials("/home/u/repo"), "/home/u/repo");
     }
 
     #[test]

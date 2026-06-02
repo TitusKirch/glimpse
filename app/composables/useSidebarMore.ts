@@ -2,13 +2,15 @@
 // useAppSidebarNavSectionState: show `initial` items, reveal `step` more per
 // click (or all when step is null), and collapse back to `initial` once fully
 // expanded.
-export function useSidebarMore<T>(
-  items: () => T[],
-  opts?: { initial?: number; step?: number | null }
-) {
-  const initial = opts?.initial ?? 5;
-  const step = opts?.step === undefined ? 10 : opts.step;
-
+export function useSidebarMore<T>({
+  items,
+  initial = 5,
+  step = 10
+}: {
+  items: () => T[];
+  initial?: number;
+  step?: number | null;
+}) {
   const count = ref<number | null>(null);
   const total = computed(() => items().length);
   const initialVisible = computed(() =>
