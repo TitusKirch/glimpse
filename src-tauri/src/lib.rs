@@ -482,6 +482,7 @@ fn updater_endpoint(channel: &str) -> String {
 fn channel_updater(
     app: &AppHandle,
     channel: &str,
+    force: bool,
 ) -> Result<tauri_plugin_updater::Updater, String> {
     use tauri_plugin_updater::UpdaterExt;
     let url = updater_endpoint(channel)
@@ -491,10 +492,11 @@ fn channel_updater(
         .updater_builder()
         .endpoints(vec![url])
         .map_err(|e| e.to_string())?;
-    // An experiment is chosen explicitly, so install it regardless of whether
-    // its version is "newer" — switching to an experiment is a deliberate
-    // (possibly side/down-grade) move, not an automatic update.
-    if channel.starts_with("experiment:") {
+    // An experiment is chosen explicitly; a manual channel switch (`force`) is
+    // too. Either way install the channel's build regardless of whether it is
+    // "newer" — moving channel is a deliberate, possibly side/down-grade move
+    // (e.g. beta → the latest stable), not an automatic update.
+    if force || channel.starts_with("experiment:") {
         builder = builder.version_comparator(|_current, _update| true);
     }
     builder.build().map_err(|e| e.to_string())
@@ -509,6 +511,7 @@ fn channel_updater(
 async fn resolve_update(
     app: &AppHandle,
     channel: &str,
+    force: bool,
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
     let chain: &[&str] = if channel == "beta" {
         &["beta", "stable"]
@@ -516,7 +519,7 @@ async fn resolve_update(
         std::slice::from_ref(&channel)
     };
     for &ch in chain {
-        let updater = channel_updater(app, ch)?;
+        let updater = channel_updater(app, ch, force)?;
         if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
             return Ok(Some(update));
         }
@@ -527,15 +530,21 @@ async fn resolve_update(
 /// Check the given channel for an available update; returns its version string.
 #[cfg(desktop)]
 #[tauri::command]
-async fn check_update(app: AppHandle, channel: String) -> Result<Option<String>, String> {
-    Ok(resolve_update(&app, &channel).await?.map(|u| u.version))
+async fn check_update(
+    app: AppHandle,
+    channel: String,
+    force: bool,
+) -> Result<Option<String>, String> {
+    Ok(resolve_update(&app, &channel, force)
+        .await?
+        .map(|u| u.version))
 }
 
 /// Re-resolve the channel and, if an update exists, download and install it.
 #[cfg(desktop)]
 #[tauri::command]
-async fn install_update(app: AppHandle, channel: String) -> Result<(), String> {
-    let Some(update) = resolve_update(&app, &channel).await? else {
+async fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
+    let Some(update) = resolve_update(&app, &channel, force).await? else {
         return Ok(());
     };
     update
@@ -547,13 +556,13 @@ async fn install_update(app: AppHandle, channel: String) -> Result<(), String> {
 // Mobile has no updater; no-op stubs keep the command set identical per target.
 #[cfg(not(desktop))]
 #[tauri::command]
-async fn check_update(_channel: String) -> Result<Option<String>, String> {
+async fn check_update(_channel: String, _force: bool) -> Result<Option<String>, String> {
     Ok(None)
 }
 
 #[cfg(not(desktop))]
 #[tauri::command]
-async fn install_update(_channel: String) -> Result<(), String> {
+async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
     Ok(())
 }
 

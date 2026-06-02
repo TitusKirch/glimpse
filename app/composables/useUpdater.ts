@@ -8,6 +8,7 @@ import { toast } from 'vue-sonner';
 export function useUpdater() {
   const { t } = useI18n();
   const layout = useLayoutStore();
+  const { version, experiment } = useAppVersion();
   const checking = ref(false);
 
   // The channel string the Rust updater expects. For experiments it carries the
@@ -21,6 +22,13 @@ export function useUpdater() {
     return layout.releaseChannel;
   }
 
+  // Which channel the running build belongs to, inferred from its version.
+  function runningChannel(): 'stable' | 'beta' | 'experiment' {
+    if (experiment.value) return 'experiment';
+    if (version.value.includes('-beta.')) return 'beta';
+    return 'stable';
+  }
+
   async function checkForUpdates(manual = true) {
     if (!isTauri()) return;
     const channel = effectiveChannel();
@@ -29,20 +37,25 @@ export function useUpdater() {
       if (manual) toast.error(t('updater.noExperiment'));
       return;
     }
+    // Switching channels (a manual check where the selected channel differs from
+    // the running build's) installs that channel's current build even if it
+    // isn't strictly newer — e.g. beta → the latest stable, a deliberate
+    // downgrade. Automatic launch checks never force, so they can't downgrade.
+    const force = manual && runningChannel() !== layout.releaseChannel;
     checking.value = true;
     try {
-      const version = await tauriInvoke<string | null>({
+      const available = await tauriInvoke<string | null>({
         command: 'check_update',
-        args: { channel },
+        args: { channel, force },
         fallback: null
       });
-      if (version) {
-        toast.info(t('updater.available', { version }), {
+      if (available) {
+        toast.info(t('updater.available', { version: available }), {
           description: t('updater.installing')
         });
         await tauriInvoke({
           command: 'install_update',
-          args: { channel },
+          args: { channel, force },
           fallback: null
         });
         toast.success(t('updater.installed'));
