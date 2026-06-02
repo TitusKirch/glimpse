@@ -243,36 +243,38 @@ export const useRepoStore = defineStore('repo', {
 
     // Persist the open repo paths + active path so the tabs reopen next launch.
     syncSession() {
-      if (!isTauri()) return;
-      const s = useSessionStore();
-      s.openPaths = this.order.map((id) => this.repos[id]!.path);
-      s.activePath = this.active?.path ?? '';
-      s.initialized = true;
+      void this.native(() => {
+        const s = useSessionStore();
+        s.openPaths = this.order.map((id) => this.repos[id]!.path);
+        s.activePath = this.active?.path ?? '';
+        s.initialized = true;
+      });
     },
 
     // Reopen the previous session's tabs. First-ever launch (not initialized)
     // opens the process CWD; if the user had closed every tab, show the start
     // screen instead of forcing the CWD back open.
     async restoreSession() {
-      if (!isTauri()) return;
-      const s = useSessionStore();
-      if (!s.initialized) {
-        await this.loadFromBackend();
+      return this.native(async () => {
+        const s = useSessionStore();
+        if (!s.initialized) {
+          await this.loadFromBackend();
+          this.syncSession();
+          return;
+        }
+        const paths = [...s.openPaths];
+        const activePath = s.activePath;
+        // Rebuild from saved paths; openRepo validates each (invalid ones are
+        // skipped) and the demo tab is dropped.
+        this.repos = {};
+        this.order = [];
+        this.activeId = '';
+        for (const p of paths) await this.openRepo(p);
+        const target = this.tabs.find((t) => t.path === activePath);
+        if (target) this.selectTab(target.id);
+        else if (this.order[0]) this.selectTab(this.order[0]);
         this.syncSession();
-        return;
-      }
-      const paths = [...s.openPaths];
-      const activePath = s.activePath;
-      // Rebuild from saved paths; openRepo validates each (invalid ones are
-      // skipped) and the demo tab is dropped.
-      this.repos = {};
-      this.order = [];
-      this.activeId = '';
-      for (const p of paths) await this.openRepo(p);
-      const target = this.tabs.find((t) => t.path === activePath);
-      if (target) this.selectTab(target.id);
-      else if (this.order[0]) this.selectTab(this.order[0]);
-      this.syncSession();
+      });
     },
 
     // Point the backend FS watcher at the active repo (live-refresh source).
@@ -282,8 +284,9 @@ export const useRepoStore = defineStore('repo', {
 
     // Light refresh used by the watcher: reload status + log, keep selection.
     async reloadActive() {
-      if (!isTauri()) return;
-      await Promise.all([this.loadStatus(), this.loadLog()]);
+      return this.native(async () => {
+        await Promise.all([this.loadStatus(), this.loadLog()]);
+      });
     },
 
     async selectCommit(hash: string) {
@@ -367,19 +370,21 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async stage(file: string) {
-      if (!isTauri()) return;
-      await gitClient.stage({ path: this.repoPath, file });
-      await this.loadStatus();
-      if (this.active.selectedFile === file)
-        await this.selectFile({ file, staged: true });
+      return this.native(async () => {
+        await gitClient.stage({ path: this.repoPath, file });
+        await this.loadStatus();
+        if (this.active.selectedFile === file)
+          await this.selectFile({ file, staged: true });
+      });
     },
 
     async unstage(file: string) {
-      if (!isTauri()) return;
-      await gitClient.unstage({ path: this.repoPath, file });
-      await this.loadStatus();
-      if (this.active.selectedFile === file)
-        await this.selectFile({ file, staged: false });
+      return this.native(async () => {
+        await gitClient.unstage({ path: this.repoPath, file });
+        await this.loadStatus();
+        if (this.active.selectedFile === file)
+          await this.selectFile({ file, staged: false });
+      });
     },
 
     async commit() {
@@ -425,25 +430,27 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async checkout(branch: string) {
-      if (!isTauri() || branch === this.currentBranch) return;
-      // Guard a dirty working tree: offer to stash before switching, so the
-      // switch doesn't fail (or silently carry changes across).
-      let stashFirst = false;
-      if (this.status.length) {
-        const ok = await useConfirm().confirm({
-          titleKey: 'confirm.dirtySwitch.title',
-          descriptionKey: 'confirm.dirtySwitch.description',
-          confirmKey: 'confirm.dirtySwitch.confirm'
-        });
-        if (!ok) return;
-        stashFirst = true;
-      }
-      return this.mutate({
-        run: async () => {
-          if (stashFirst)
-            await gitClient.stashSave({ path: this.repoPath, message: '' });
-          await gitClient.checkoutBranch({ path: this.repoPath, branch });
+      if (branch === this.currentBranch) return;
+      return this.native(async () => {
+        // Guard a dirty working tree: offer to stash before switching, so the
+        // switch doesn't fail (or silently carry changes across).
+        let stashFirst = false;
+        if (this.status.length) {
+          const ok = await useConfirm().confirm({
+            titleKey: 'confirm.dirtySwitch.title',
+            descriptionKey: 'confirm.dirtySwitch.description',
+            confirmKey: 'confirm.dirtySwitch.confirm'
+          });
+          if (!ok) return;
+          stashFirst = true;
         }
+        await this.mutate({
+          run: async () => {
+            if (stashFirst)
+              await gitClient.stashSave({ path: this.repoPath, message: '' });
+            await gitClient.checkoutBranch({ path: this.repoPath, branch });
+          }
+        });
       });
     },
 
@@ -471,64 +478,69 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async deleteBranch(name: string) {
-      if (!isTauri()) return;
-      const ok = await useConfirm().confirm({
-        titleKey: 'confirm.deleteBranch.title',
-        descriptionKey: 'confirm.deleteBranch.description',
-        confirmKey: 'branch.delete',
-        params: { name },
-        destructive: true
-      });
-      if (!ok) return;
-      return this.mutate({
-        run: () => gitClient.deleteBranch({ path: this.repoPath, name })
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.deleteBranch.title',
+          descriptionKey: 'confirm.deleteBranch.description',
+          confirmKey: 'branch.delete',
+          params: { name },
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () => gitClient.deleteBranch({ path: this.repoPath, name })
+        });
       });
     },
 
     // Create a branch via a name prompt (replaces the inline sidebar input).
     async createBranchPrompt() {
-      if (!isTauri()) return;
-      const name = await usePrompt().prompt({
-        titleKey: 'sidebar.newBranch',
-        labelKey: 'form.branch.label',
-        descriptionKey: 'form.branch.description',
-        placeholderKey: 'form.branch.placeholder',
-        submitKey: 'form.create',
-        schema: branchNameSchema
+      return this.native(async () => {
+        const name = await usePrompt().prompt({
+          titleKey: 'sidebar.newBranch',
+          labelKey: 'form.branch.label',
+          descriptionKey: 'form.branch.description',
+          placeholderKey: 'form.branch.placeholder',
+          submitKey: 'form.create',
+          schema: branchNameSchema
+        });
+        if (name) await this.createBranch(name);
       });
-      if (name) await this.createBranch(name);
     },
 
     // Rename a branch via a prompt prefilled with its current name.
     async renameBranchPrompt(oldName: string) {
-      if (!isTauri()) return;
-      const name = await usePrompt().prompt({
-        titleKey: 'sidebar.renameBranch',
-        labelKey: 'form.branch.label',
-        placeholderKey: 'form.branch.placeholder',
-        submitKey: 'form.rename',
-        initial: oldName,
-        schema: branchNameSchema
+      return this.native(async () => {
+        const name = await usePrompt().prompt({
+          titleKey: 'sidebar.renameBranch',
+          labelKey: 'form.branch.label',
+          placeholderKey: 'form.branch.placeholder',
+          submitKey: 'form.rename',
+          initial: oldName,
+          schema: branchNameSchema
+        });
+        if (name) await this.renameBranch({ oldName, newName: name });
       });
-      if (name) await this.renameBranch({ oldName, newName: name });
     },
 
     // Checkout a remote branch: if no local branch exists yet, confirm creating
     // a tracking branch; otherwise just switch.
     async checkoutRemote(remoteBranch: string) {
-      const i = remoteBranch.indexOf('/');
-      const name = i >= 0 ? remoteBranch.slice(i + 1) : remoteBranch;
-      if (this.branches.some((b) => b.name === name)) {
-        await this.checkout(name);
-        return;
-      }
-      const ok = await useConfirm().confirm({
-        titleKey: 'confirm.checkoutRemote.title',
-        descriptionKey: 'confirm.checkoutRemote.description',
-        confirmKey: 'confirm.checkoutRemote.confirm',
-        params: { name }
+      return this.native(async () => {
+        const i = remoteBranch.indexOf('/');
+        const name = i >= 0 ? remoteBranch.slice(i + 1) : remoteBranch;
+        if (this.branches.some((b) => b.name === name)) {
+          await this.checkout(name);
+          return;
+        }
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.checkoutRemote.title',
+          descriptionKey: 'confirm.checkoutRemote.description',
+          confirmKey: 'confirm.checkoutRemote.confirm',
+          params: { name }
+        });
+        if (ok) await this.checkout(name);
       });
-      if (ok) await this.checkout(name);
     },
 
     async renameBranch({
@@ -564,32 +576,36 @@ export const useRepoStore = defineStore('repo', {
     // current into it. You end up on `branch`, matching the GitKraken
     // "merge A into B" semantics.
     async mergeCurrentInto(branch: string) {
-      if (!isTauri() || branch === this.currentBranch) return;
-      const source = this.currentBranch;
-      await this.checkout(branch);
-      // checkout() aborts silently if the user declines the dirty-tree prompt;
-      // only merge once we're actually on the target.
-      if (this.currentBranch !== branch) return;
-      await this.merge(source);
+      if (branch === this.currentBranch) return;
+      return this.native(async () => {
+        const source = this.currentBranch;
+        await this.checkout(branch);
+        // checkout() aborts silently if the user declines the dirty-tree prompt;
+        // only merge once we're actually on the target.
+        if (this.currentBranch !== branch) return;
+        await this.merge(source);
+      });
     },
 
     // Discard every working-tree change (confirms first — irreversible).
     async discardAll() {
-      if (!isTauri() || !this.status.length) return;
-      const ok = await useConfirm().confirm({
-        titleKey: 'confirm.discardAll.title',
-        descriptionKey: 'confirm.discardAll.description',
-        confirmKey: 'confirm.discardAll.confirm'
-      });
-      if (!ok) return;
-      return this.mutate({
-        refresh: 'none',
-        run: async () => {
-          await gitClient.discardAll(this.repoPath);
-          await this.loadStatus();
-          this.active!.diff = null;
-          this.active!.selectedFile = null;
-        }
+      if (!this.status.length) return;
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.discardAll.title',
+          descriptionKey: 'confirm.discardAll.description',
+          confirmKey: 'confirm.discardAll.confirm'
+        });
+        if (!ok) return;
+        await this.mutate({
+          refresh: 'none',
+          run: async () => {
+            await gitClient.discardAll(this.repoPath);
+            await this.loadStatus();
+            this.active!.diff = null;
+            this.active!.selectedFile = null;
+          }
+        });
       });
     },
 
@@ -607,38 +623,40 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async removeRemote(name: string) {
-      if (!isTauri()) return;
-      const ok = await useConfirm().confirm({
-        titleKey: 'confirm.removeRemote.title',
-        descriptionKey: 'confirm.removeRemote.description',
-        confirmKey: 'branch.delete',
-        params: { name },
-        destructive: true
-      });
-      if (!ok) return;
-      return this.mutate({
-        run: () => gitClient.removeRemote({ path: this.repoPath, name })
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.removeRemote.title',
+          descriptionKey: 'confirm.removeRemote.description',
+          confirmKey: 'branch.delete',
+          params: { name },
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () => gitClient.removeRemote({ path: this.repoPath, name })
+        });
       });
     },
 
     async renameRemote(oldName: string) {
-      if (!isTauri()) return;
-      const name = await usePrompt().prompt({
-        titleKey: 'sidebar.renameRemote',
-        labelKey: 'form.remoteName.label',
-        placeholderKey: 'form.remoteName.placeholder',
-        submitKey: 'form.rename',
-        initial: oldName,
-        schema: remoteNameSchema
-      });
-      if (!name || name === oldName) return;
-      return this.mutate({
-        run: () =>
-          gitClient.renameRemote({
-            path: this.repoPath,
-            oldName,
-            newName: name
-          })
+      return this.native(async () => {
+        const name = await usePrompt().prompt({
+          titleKey: 'sidebar.renameRemote',
+          labelKey: 'form.remoteName.label',
+          placeholderKey: 'form.remoteName.placeholder',
+          submitKey: 'form.rename',
+          initial: oldName,
+          schema: remoteNameSchema
+        });
+        if (!name || name === oldName) return;
+        await this.mutate({
+          run: () =>
+            gitClient.renameRemote({
+              path: this.repoPath,
+              oldName,
+              newName: name
+            })
+        });
       });
     },
 
@@ -651,33 +669,36 @@ export const useRepoStore = defineStore('repo', {
 
     // Create a branch at a commit and switch to it (prompts for the name).
     async branchAt(hash: string) {
-      if (!isTauri()) return;
-      const name = await usePrompt().prompt({
-        titleKey: 'commit.branchHere',
-        labelKey: 'form.branch.label',
-        descriptionKey: 'form.branch.description',
-        placeholderKey: 'form.branch.placeholder',
-        submitKey: 'form.create',
-        schema: branchNameSchema
-      });
-      if (!name) return;
-      return this.mutate({
-        run: () => gitClient.createBranchAt({ path: this.repoPath, name, hash })
+      return this.native(async () => {
+        const name = await usePrompt().prompt({
+          titleKey: 'commit.branchHere',
+          labelKey: 'form.branch.label',
+          descriptionKey: 'form.branch.description',
+          placeholderKey: 'form.branch.placeholder',
+          submitKey: 'form.create',
+          schema: branchNameSchema
+        });
+        if (!name) return;
+        await this.mutate({
+          run: () =>
+            gitClient.createBranchAt({ path: this.repoPath, name, hash })
+        });
       });
     },
 
     // Tag a commit (prompts for the tag name).
     async tagAt(hash: string) {
-      if (!isTauri()) return;
-      const name = await usePrompt().prompt({
-        titleKey: 'commit.tagHere',
-        labelKey: 'form.tag.label',
-        placeholderKey: 'form.tag.placeholder',
-        submitKey: 'form.create',
-        schema: tagNameSchema
+      return this.native(async () => {
+        const name = await usePrompt().prompt({
+          titleKey: 'commit.tagHere',
+          labelKey: 'form.tag.label',
+          placeholderKey: 'form.tag.placeholder',
+          submitKey: 'form.create',
+          schema: tagNameSchema
+        });
+        if (!name) return;
+        await this.createTag({ name, hash });
       });
-      if (!name) return;
-      await this.createTag({ name, hash });
     },
 
     async revert(hash: string) {
@@ -701,31 +722,33 @@ export const useRepoStore = defineStore('repo', {
       hash: string;
       mode: 'soft' | 'mixed' | 'hard';
     }) {
-      if (!isTauri()) return;
-      if (mode === 'hard') {
-        const ok = await useConfirm().confirm({
-          titleKey: 'confirm.resetHard.title',
-          descriptionKey: 'confirm.resetHard.description',
-          confirmKey: 'confirm.resetHard.confirm'
+      return this.native(async () => {
+        if (mode === 'hard') {
+          const ok = await useConfirm().confirm({
+            titleKey: 'confirm.resetHard.title',
+            descriptionKey: 'confirm.resetHard.description',
+            confirmKey: 'confirm.resetHard.confirm'
+          });
+          if (!ok) return;
+        }
+        await this.mutate({
+          run: () => gitClient.reset({ path: this.repoPath, hash, mode })
         });
-        if (!ok) return;
-      }
-      return this.mutate({
-        run: () => gitClient.reset({ path: this.repoPath, hash, mode })
       });
     },
 
     // Create a tag on HEAD via a name prompt.
     async createTagPrompt() {
-      if (!isTauri()) return;
-      const name = await usePrompt().prompt({
-        titleKey: 'sidebar.newTag',
-        labelKey: 'form.tag.label',
-        placeholderKey: 'form.tag.placeholder',
-        submitKey: 'form.create',
-        schema: tagNameSchema
+      return this.native(async () => {
+        const name = await usePrompt().prompt({
+          titleKey: 'sidebar.newTag',
+          labelKey: 'form.tag.label',
+          placeholderKey: 'form.tag.placeholder',
+          submitKey: 'form.create',
+          schema: tagNameSchema
+        });
+        if (name) await this.createTag({ name });
       });
-      if (name) await this.createTag({ name });
     },
 
     async createTag({ name, hash = '' }: { name: string; hash?: string }) {
@@ -738,17 +761,18 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async deleteTag(name: string) {
-      if (!isTauri()) return;
-      const ok = await useConfirm().confirm({
-        titleKey: 'confirm.deleteTag.title',
-        descriptionKey: 'confirm.deleteTag.description',
-        confirmKey: 'branch.delete',
-        params: { name },
-        destructive: true
-      });
-      if (!ok) return;
-      return this.mutate({
-        run: () => gitClient.deleteTag({ path: this.repoPath, name })
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'confirm.deleteTag.title',
+          descriptionKey: 'confirm.deleteTag.description',
+          confirmKey: 'branch.delete',
+          params: { name },
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () => gitClient.deleteTag({ path: this.repoPath, name })
+        });
       });
     },
 
@@ -765,41 +789,43 @@ export const useRepoStore = defineStore('repo', {
       action: 'pop' | 'apply' | 'drop';
       reference: string;
     }) {
-      if (!isTauri()) return;
-      if (action === 'drop') {
-        const ok = await useConfirm().confirm({
-          titleKey: 'confirm.dropStash.title',
-          descriptionKey: 'confirm.dropStash.description',
-          confirmKey: 'sidebar.stashDrop',
-          destructive: true
-        });
-        if (!ok) return;
-      }
-      return this.mutate({
-        run: async () => {
-          if (action === 'pop')
-            await gitClient.stashPop({ path: this.repoPath, reference });
-          else if (action === 'apply')
-            await gitClient.stashApply({ path: this.repoPath, reference });
-          else await gitClient.stashDrop({ path: this.repoPath, reference });
+      return this.native(async () => {
+        if (action === 'drop') {
+          const ok = await useConfirm().confirm({
+            titleKey: 'confirm.dropStash.title',
+            descriptionKey: 'confirm.dropStash.description',
+            confirmKey: 'sidebar.stashDrop',
+            destructive: true
+          });
+          if (!ok) return;
         }
+        await this.mutate({
+          run: async () => {
+            if (action === 'pop')
+              await gitClient.stashPop({ path: this.repoPath, reference });
+            else if (action === 'apply')
+              await gitClient.stashApply({ path: this.repoPath, reference });
+            else await gitClient.stashDrop({ path: this.repoPath, reference });
+          }
+        });
       });
     },
 
     async sync(command: 'fetch' | 'pull' | 'push') {
-      if (!isTauri()) return;
-      this.syncing = command;
-      this.busy = true;
-      this.lastError = null;
-      try {
-        await Promise.all([
-          this.doSync(command),
-          promiseTimeout(MIN_SPINNER_MS)
-        ]);
-      } finally {
-        this.busy = false;
-        this.syncing = null;
-      }
+      return this.native(async () => {
+        this.syncing = command;
+        this.busy = true;
+        this.lastError = null;
+        try {
+          await Promise.all([
+            this.doSync(command),
+            promiseTimeout(MIN_SPINNER_MS)
+          ]);
+        } finally {
+          this.busy = false;
+          this.syncing = null;
+        }
+      });
     },
 
     async doPull() {
@@ -868,19 +894,20 @@ export const useRepoStore = defineStore('repo', {
       setUpstream: boolean;
       force: boolean;
     }) {
-      if (!isTauri()) return;
-      this.syncing = 'push';
-      try {
-        await Promise.all([
-          this.guarded(async () => {
-            await gitClient.push({ path: this.repoPath, setUpstream, force });
-            await this.loadFromBackend(this.active?.path);
-          }),
-          promiseTimeout(MIN_SPINNER_MS)
-        ]);
-      } finally {
-        this.syncing = null;
-      }
+      return this.native(async () => {
+        this.syncing = 'push';
+        try {
+          await Promise.all([
+            this.guarded(async () => {
+              await gitClient.push({ path: this.repoPath, setUpstream, force });
+              await this.loadFromBackend(this.active?.path);
+            }),
+            promiseTimeout(MIN_SPINNER_MS)
+          ]);
+        } finally {
+          this.syncing = null;
+        }
+      });
     },
 
     // Open the active repo's folder in an external app.
@@ -914,6 +941,16 @@ export const useRepoStore = defineStore('repo', {
       this.syncSession();
     },
 
+    // The single Native/Browser gate for store effects. Runs `fn` only inside
+    // the desktop shell; in the browser demo it's a no-op so the mock data
+    // stays put. Every action that reaches the git backend — or shows a git
+    // dialog that only makes sense against a real repo — goes through here, so
+    // the `isTauri()` check lives in one place instead of at each call site.
+    async native<T>(fn: () => Promise<T> | T): Promise<T | undefined> {
+      if (!isTauri()) return;
+      return fn();
+    },
+
     // Runs an action with a busy flag and surfaces failures via lastError.
     async guarded(fn: () => Promise<void>) {
       this.busy = true;
@@ -941,15 +978,17 @@ export const useRepoStore = defineStore('repo', {
       run: () => Promise<unknown>;
       refresh?: 'reload' | 'status' | 'none';
     }) {
-      if (!isTauri()) return;
-      await this.guarded(async () => {
-        await run();
-        if (refresh === 'reload') await this.loadFromBackend(this.active?.path);
-        else if (refresh === 'status') {
-          await this.loadStatus();
-          await this.reDiff();
-        }
-      });
+      return this.native(() =>
+        this.guarded(async () => {
+          await run();
+          if (refresh === 'reload')
+            await this.loadFromBackend(this.active?.path);
+          else if (refresh === 'status') {
+            await this.loadStatus();
+            await this.reDiff();
+          }
+        })
+      );
     },
 
     clearError() {
@@ -957,19 +996,21 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async loadStatus() {
-      if (!isTauri()) return;
-      this.active.status = await gitClient.status(this.repoPath);
+      return this.native(async () => {
+        this.active.status = await gitClient.status(this.repoPath);
+      });
     },
 
     async loadLog() {
-      if (!isTauri()) return;
-      const commits = await gitClient.log({
-        path: this.repoPath,
-        limit: this.logLimit
+      return this.native(async () => {
+        const commits = await gitClient.log({
+          path: this.repoPath,
+          limit: this.logLimit
+        });
+        if (commits.length) this.active.commits = commits;
+        // Hitting the limit means git had more to give → another page exists.
+        this.hasMore = commits.length >= this.logLimit;
       });
-      if (commits.length) this.active.commits = commits;
-      // Hitting the limit means git had more to give → another page exists.
-      this.hasMore = commits.length >= this.logLimit;
     },
 
     // Load another page of history (raise the log limit and reload). The button
@@ -977,17 +1018,19 @@ export const useRepoStore = defineStore('repo', {
     // hides only when there is genuinely nothing left. A 300ms floor keeps the
     // spinner from flashing on fast local loads.
     async loadMoreHistory() {
-      if (!isTauri() || this.loadingMore) return;
-      this.loadingMore = true;
-      this.logLimit += 200;
-      try {
-        await Promise.all([
-          this.loadLog(),
-          new Promise((resolve) => setTimeout(resolve, 300))
-        ]);
-      } finally {
-        this.loadingMore = false;
-      }
+      if (this.loadingMore) return;
+      return this.native(async () => {
+        this.loadingMore = true;
+        this.logLimit += 200;
+        try {
+          await Promise.all([
+            this.loadLog(),
+            new Promise((resolve) => setTimeout(resolve, 300))
+          ]);
+        } finally {
+          this.loadingMore = false;
+        }
+      });
     },
 
     async refresh() {
@@ -1008,25 +1051,26 @@ export const useRepoStore = defineStore('repo', {
     // Open a folder as an additional repository tab and activate it. Re-opening
     // an already-open repo just focuses its tab.
     async openRepo(path: string) {
-      if (!isTauri()) return;
-      await this.guarded(async () => {
-        const top = (await gitClient.info(path)).toplevel || path;
-        const existing = this.order
-          .map((id) => this.repos[id]!)
-          .find((r) => r.path === top);
-        if (existing) {
-          this.activeId = existing.id;
+      return this.native(() =>
+        this.guarded(async () => {
+          const top = (await gitClient.info(path)).toplevel || path;
+          const existing = this.order
+            .map((id) => this.repos[id]!)
+            .find((r) => r.path === top);
+          if (existing) {
+            this.activeId = existing.id;
+            this.syncSession();
+            return;
+          }
+          this.seq += 1;
+          const id = `r${this.seq}`;
+          this.repos[id] = blankRepo({ id, path: top });
+          this.order.push(id);
+          this.activeId = id;
+          await this.loadFromBackend(top);
           this.syncSession();
-          return;
-        }
-        this.seq += 1;
-        const id = `r${this.seq}`;
-        this.repos[id] = blankRepo({ id, path: top });
-        this.order.push(id);
-        this.activeId = id;
-        await this.loadFromBackend(top);
-        this.syncSession();
-      });
+        })
+      );
     },
 
     // Retry the active repo's load after a failure (inline error → retry).
@@ -1037,75 +1081,77 @@ export const useRepoStore = defineStore('repo', {
     // Load real git output into the active repo. Without a path it resolves the
     // process CWD (initial open); with one it (re)loads that repo's tab.
     async loadFromBackend(path?: string) {
-      if (!isTauri() || !this.active) return;
-      this.loading = true;
-      this.loadError = null;
-      try {
-        const start = path ?? (await gitClient.defaultRepo());
-        const info = await gitClient.info(start);
-        const top = info.toplevel || start;
+      if (!this.active) return;
+      return this.native(async () => {
+        this.loading = true;
+        this.loadError = null;
+        try {
+          const start = path ?? (await gitClient.defaultRepo());
+          const info = await gitClient.info(start);
+          const top = info.toplevel || start;
 
-        const r = this.active;
-        r.name = top.split(/[\\/]/).pop() || 'repo';
-        r.path = top;
-        r.flavor = (info.flavor as GitFlavor) ?? 'linux';
-        r.distro = info.distro ?? undefined;
-        r.branches = info.branches;
-        r.remoteBranches = info.remoteBranches;
-        r.currentBranch = info.currentBranch;
-        r.remotes = info.remotes;
-        r.tags = info.tags;
-        r.stashes = info.stashes;
+          const r = this.active;
+          r.name = top.split(/[\\/]/).pop() || 'repo';
+          r.path = top;
+          r.flavor = (info.flavor as GitFlavor) ?? 'linux';
+          r.distro = info.distro ?? undefined;
+          r.branches = info.branches;
+          r.remoteBranches = info.remoteBranches;
+          r.currentBranch = info.currentBranch;
+          r.remotes = info.remotes;
+          r.tags = info.tags;
+          r.stashes = info.stashes;
 
-        await Promise.all([this.loadLog(), this.loadStatus()]);
+          await Promise.all([this.loadLog(), this.loadStatus()]);
 
-        // Bail if the active repo changed while we were loading (e.g. the user
-        // opened another project): the selection below reads `this.active`
-        // freshly, so a stale commit hash would hit the wrong repo ("bad
-        // object"). The owning load will finish its own selection.
-        if (this.active !== r) return;
+          // Bail if the active repo changed while we were loading (e.g. the
+          // user opened another project): the selection below reads
+          // `this.active` freshly, so a stale commit hash would hit the wrong
+          // repo ("bad object"). The owning load will finish its own selection.
+          if (this.active !== r) return;
 
-        // Preserve the user's selection across a reload (e.g. on window focus)
-        // instead of jumping back to the first commit/file. Only fall back to a
-        // default selection on the initial load.
-        const keepCommit =
-          r.selectedHash && r.commits.some((c) => c.hash === r.selectedHash);
-        const keepFile =
-          !r.selectedHash &&
-          r.selectedFile &&
-          r.status.some((f) => f.path === r.selectedFile);
+          // Preserve the user's selection across a reload (e.g. on window
+          // focus) instead of jumping back to the first commit/file. Only fall
+          // back to a default selection on the initial load.
+          const keepCommit =
+            r.selectedHash && r.commits.some((c) => c.hash === r.selectedHash);
+          const keepFile =
+            !r.selectedHash &&
+            r.selectedFile &&
+            r.status.some((f) => f.path === r.selectedFile);
 
-        if (keepCommit) {
-          await this.selectCommit(r.selectedHash!);
-        } else if (keepFile) {
-          await this.selectFile({
-            file: r.selectedFile!,
-            staged: r.selectedFileStaged
-          });
-        } else {
-          // Open the first changed file (or the newest commit) by default.
-          const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
-          if (first) {
+          if (keepCommit) {
+            await this.selectCommit(r.selectedHash!);
+          } else if (keepFile) {
             await this.selectFile({
-              file: first.path,
-              staged: !first.unstaged && !first.untracked
+              file: r.selectedFile!,
+              staged: r.selectedFileStaged
             });
-          } else if (r.commits[0]) {
-            await this.selectCommit(r.commits[0].hash);
           } else {
-            r.diff = null;
+            // Open the first changed file (or the newest commit) by default.
+            const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
+            if (first) {
+              await this.selectFile({
+                file: first.path,
+                staged: !first.unstaged && !first.untracked
+              });
+            } else if (r.commits[0]) {
+              await this.selectCommit(r.commits[0].hash);
+            } else {
+              r.diff = null;
+            }
           }
-        }
 
-        useRecentStore().push({ path: top, name: r.name });
-        this.watchActive();
-      } catch (err) {
-        const raw = typeof err === 'string' ? err : String(err);
-        this.loadError = cleanGitError(raw);
-        console.error('loadFromBackend failed:', err);
-      } finally {
-        this.loading = false;
-      }
+          useRecentStore().push({ path: top, name: r.name });
+          this.watchActive();
+        } catch (err) {
+          const raw = typeof err === 'string' ? err : String(err);
+          this.loadError = cleanGitError(raw);
+          console.error('loadFromBackend failed:', err);
+        } finally {
+          this.loading = false;
+        }
+      });
     }
   }
 });
