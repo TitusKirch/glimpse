@@ -291,6 +291,9 @@ function toggledLocales({
                         <UiSelectItem value="rebase">
                           {{ t('settings.general.pullStrategy.rebase') }}
                         </UiSelectItem>
+                        <UiSelectItem value="ff-only">
+                          {{ t('settings.general.pullStrategy.ffOnly') }}
+                        </UiSelectItem>
                       </UiSelectContent>
                     </UiSelect>
                   </form.Field>

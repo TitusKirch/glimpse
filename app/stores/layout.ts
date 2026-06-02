@@ -6,6 +6,9 @@ import { z } from 'zod';
 import type { DiffMode } from '@/stores/repo';
 
 export type FileView = 'list' | 'tree';
+// How `git pull` reconciles diverged branches: merge (--no-rebase), rebase
+// (--rebase), or fast-forward only (--ff-only). Passed straight to the backend.
+export type PullStrategy = 'merge' | 'rebase' | 'ff-only';
 export type Accent = 'default' | 'blue' | 'violet' | 'green' | 'amber' | 'rose';
 
 // The sidebar sections in their default top-to-bottom order. The user can
@@ -65,8 +68,8 @@ export const useLayoutStore = defineStore('layout', {
     diffMode: 'split' as DiffMode,
     // Ignore whitespace-only changes in diffs (git -w).
     ignoreWhitespace: false,
-    // Pull strategy: plain merge or --rebase.
-    pullStrategy: 'merge' as 'merge' | 'rebase',
+    // Pull strategy: merge (--no-rebase), rebase (--rebase) or ff-only.
+    pullStrategy: 'merge' as PullStrategy,
     leftTab: 'changes' as 'changes' | 'history',
     // Recent projects: how many to keep (max), and how many to surface on the
     // start screen and in the command palette. The two display counts are capped

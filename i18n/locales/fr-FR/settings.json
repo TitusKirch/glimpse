@@ -13,10 +13,11 @@
         "hint": "Fréquence du fetch automatique."
       },
       "pullStrategy": {
-        "label": "Stratégie de pull",
-        "hint": "Merger ou rebaser lors d'un pull.",
+        "label": "Stratégie de pull par défaut",
+        "hint": "Merger, rebaser ou fast-forward uniquement lors d'un pull.",
         "merge": "Merge",
-        "rebase": "Rebase"
+        "rebase": "Rebase",
+        "ffOnly": "Fast-forward uniquement"
       },
       "updatesSection": "Mises à jour",
       "autoUpdate": {

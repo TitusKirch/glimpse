@@ -127,6 +127,11 @@ interface PaletteAction {
 const actions = computed<PaletteAction[]>(() => {
   const hasRepos = repo.hasRepos;
   const hasBranches = repo.branches.length > 0;
+  // The configured default pull strategy carries the shortcut; the other two
+  // are offered as separate, shortcut-less entries (all labelled "Pull (…)").
+  const defaultPull = PULL_STRATEGIES.find(
+    (s) => s.value === layout.pullStrategy
+  );
   return [
     // Git
     {
@@ -142,11 +147,21 @@ const actions = computed<PaletteAction[]>(() => {
       id: 'pull',
       group: 'git',
       icon: 'lucide:arrow-down',
-      labelKey: 'sync.pull',
+      labelKey: defaultPull?.labelKey ?? 'pull.merge',
       shortcut: `${mod}+⇧+L`,
       run: () => repo.sync('pull'),
       visible: hasRepos
     },
+    ...PULL_STRATEGIES.filter((s) => s.value !== layout.pullStrategy).map(
+      (s) => ({
+        id: `pull-${s.value}`,
+        group: 'git' as const,
+        icon: s.icon,
+        labelKey: s.labelKey,
+        run: () => repo.pull({ strategy: s.value }),
+        visible: hasRepos
+      })
+    ),
     {
       id: 'push',
       group: 'git',

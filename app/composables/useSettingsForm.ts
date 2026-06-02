@@ -15,7 +15,7 @@ export function useSettingsForm() {
     theme: z.enum(['system', 'light', 'dark']),
     language: z.string().min(1),
     searchLocales: z.array(z.string()),
-    pullStrategy: z.enum(['merge', 'rebase']),
+    pullStrategy: z.enum(['merge', 'rebase', 'ff-only']),
     releaseChannel: z.enum(['stable', 'beta', 'experiment']),
     selectedExperiment: z.string(),
     autoFetch: z.boolean(),

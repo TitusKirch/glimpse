@@ -13,10 +13,11 @@
         "hint": "Wie oft automatisch gefetcht wird."
       },
       "pullStrategy": {
-        "label": "Pull-Strategie",
-        "hint": "Beim Pull mergen oder rebasen.",
+        "label": "Standard-Pull-Strategie",
+        "hint": "Beim Pull mergen, rebasen oder nur Fast-forward.",
         "merge": "Merge",
-        "rebase": "Rebase"
+        "rebase": "Rebase",
+        "ffOnly": "Nur Fast-forward"
       },
       "updatesSection": "Updates",
       "autoUpdate": {

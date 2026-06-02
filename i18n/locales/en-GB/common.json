@@ -15,6 +15,16 @@
     "pull": "Pull",
     "push": "Push"
   },
+  "pull": {
+    "options": "Pull options",
+    "merge": "Pull (merge)",
+    "rebase": "Pull (rebase)",
+    "ffOnly": "Pull (fast-forward only)",
+    "diverged": {
+      "title": "Branches have diverged",
+      "description": "Your local and remote branches have diverged, so a fast-forward isn't possible. Choose how to reconcile them."
+    }
+  },
   "actions": {
     "refresh": "Refresh",
     "openRepo": "Open repository",

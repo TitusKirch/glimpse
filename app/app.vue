@@ -131,6 +131,17 @@ function syncCount(command: string): number {
   if (command === 'push') return repo.ahead;
   return 0;
 }
+
+// The plain pull button uses the configured default strategy; its tooltip shows
+// it ("Pull (merge)"), and the caret dropdown offers only the *other* two.
+const pullDefaultLabel = computed(
+  () =>
+    PULL_STRATEGIES.find((s) => s.value === layout.pullStrategy)?.labelKey ??
+    'pull.merge'
+);
+const otherPullStrategies = computed(() =>
+  PULL_STRATEGIES.filter((s) => s.value !== layout.pullStrategy)
+);
 </script>
 
 <template>
@@ -185,32 +196,88 @@ function syncCount(command: string): number {
               <UiKbd>{{ `${modKey}+/` }}</UiKbd>
             </UiTooltipContent>
           </UiTooltip>
-          <UiTooltip v-for="b in syncButtons" :key="b.command">
-            <UiTooltipTrigger as-child>
-              <UiButton
-                variant="ghost"
-                :size="syncCount(b.command) ? 'sm' : 'icon'"
-                :icon="b.icon"
-                :disabled="repo.busy || !repo.hasRepos"
-                :pending="repo.syncing === b.command"
-                @click="repo.sync(b.command)"
-              >
-                <!-- behind-count on pull, ahead-count on push -->
-                <span
-                  v-if="syncCount(b.command)"
-                  class="text-xs font-medium tabular-nums"
-                  :class="
-                    b.command === 'push' ? 'text-success' : 'text-warning'
-                  "
-                  >{{ syncCount(b.command) }}</span
+          <template v-for="b in syncButtons" :key="b.command">
+            <!-- Pull is a split button: the left half pulls with the configured
+                 default strategy, the attached caret opens the per-pull chooser.
+                 Tooltip and dropdown wrap *different* elements — wrapping one
+                 button in both as-child triggers swallows the click. -->
+            <div v-if="b.command === 'pull'" class="flex items-center">
+              <UiTooltip>
+                <UiTooltipTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    :size="syncCount('pull') ? 'sm' : 'icon'"
+                    icon="lucide:arrow-down"
+                    class="rounded-r-none"
+                    :disabled="repo.busy || !repo.hasRepos"
+                    :pending="repo.syncing === 'pull'"
+                    @click="repo.sync('pull')"
+                  >
+                    <span
+                      v-if="syncCount('pull')"
+                      class="text-xs font-medium tabular-nums text-warning"
+                      >{{ syncCount('pull') }}</span
+                    >
+                  </UiButton>
+                </UiTooltipTrigger>
+                <UiTooltipContent class="flex items-center gap-2">
+                  <span>{{ t(pullDefaultLabel) }}</span>
+                  <UiKbd>{{ b.keys }}</UiKbd>
+                </UiTooltipContent>
+              </UiTooltip>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    :size="syncCount('pull') ? 'sm' : 'icon'"
+                    icon="lucide:chevron-down"
+                    class="w-6 rounded-l-none border-l border-border px-0"
+                    :disabled="repo.busy || !repo.hasRepos"
+                    :aria-label="t('pull.options')"
+                  />
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent align="end" class="w-56">
+                  <!-- Only the strategies other than the configured default —
+                       the plain pull button already runs the default. -->
+                  <UiDropdownMenuItem
+                    v-for="s in otherPullStrategies"
+                    :key="s.value"
+                    @click="repo.pull({ strategy: s.value })"
+                  >
+                    <NuxtIcon :name="s.icon" />
+                    {{ t(s.labelKey) }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
+            </div>
+            <!-- fetch / push: plain icon button -->
+            <UiTooltip v-else>
+              <UiTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  :size="syncCount(b.command) ? 'sm' : 'icon'"
+                  :icon="b.icon"
+                  :disabled="repo.busy || !repo.hasRepos"
+                  :pending="repo.syncing === b.command"
+                  @click="repo.sync(b.command)"
                 >
-              </UiButton>
-            </UiTooltipTrigger>
-            <UiTooltipContent class="flex items-center gap-2">
-              <span>{{ t(b.label) }}</span>
-              <UiKbd>{{ b.keys }}</UiKbd>
-            </UiTooltipContent>
-          </UiTooltip>
+                  <!-- ahead-count on push -->
+                  <span
+                    v-if="syncCount(b.command)"
+                    class="text-xs font-medium tabular-nums"
+                    :class="
+                      b.command === 'push' ? 'text-success' : 'text-warning'
+                    "
+                    >{{ syncCount(b.command) }}</span
+                  >
+                </UiButton>
+              </UiTooltipTrigger>
+              <UiTooltipContent class="flex items-center gap-2">
+                <span>{{ t(b.label) }}</span>
+                <UiKbd>{{ b.keys }}</UiKbd>
+              </UiTooltipContent>
+            </UiTooltip>
+          </template>
           <div class="mx-1 h-5 w-px bg-border" />
           <UiTooltip>
             <UiTooltipTrigger as-child>
@@ -292,6 +359,7 @@ function syncCount(command: string): number {
   <CommandPalette />
   <SettingsDialog v-model:open="settings.open.value" />
   <ConfirmDialog />
+  <PullStrategyDialog />
   <PromptDialog />
   <HelpDialog />
   <AddRemoteDialog />

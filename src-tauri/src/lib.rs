@@ -413,8 +413,12 @@ async fn fetch(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn pull(locks: State<'_, RepoLocks>, path: String, rebase: bool) -> Result<String, String> {
-    locked(&locks, &path, || git::Repo::open(&path).pull(rebase))
+async fn pull(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    strategy: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).pull(&strategy))
 }
 
 #[tauri::command]

@@ -16,6 +16,7 @@ import type {
   RepoInfo,
   StatusEntry
 } from '~/types/bindings';
+import type { PullStrategy } from '~/stores/layout';
 
 // Each method owns its command name, arg shape, and fallback. Read methods fall
 // back to mock data so the browser demo renders; mutations fall back to a no-op.
@@ -396,10 +397,10 @@ export const gitClient = {
   fetch: (path: string) =>
     tauriInvoke<string>({ command: 'fetch', args: { path }, fallback: '' }),
 
-  pull: ({ path, rebase = false }: { path: string; rebase?: boolean }) =>
+  pull: ({ path, strategy }: { path: string; strategy: PullStrategy }) =>
     tauriInvoke<string>({
       command: 'pull',
-      args: { path, rebase },
+      args: { path, strategy },
       fallback: ''
     }),
 
