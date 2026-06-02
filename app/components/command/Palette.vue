@@ -4,6 +4,8 @@
 // palette and runs the action. The static commands live in a data registry
 // (`actions`) so they can also surface in a "recently used" group at the top.
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { useForm } from '@tanstack/vue-form';
+import { z } from 'zod';
 
 const { open, hide } = useCommandPalette();
 const settings = useSettingsDialog();
@@ -34,27 +36,34 @@ function kw(key: string): string {
 type BranchPage = 'switch' | 'rename' | 'delete' | 'merge';
 const page = ref<BranchPage | null>(null);
 
-// Live search query, mirrored from the command input. We clear it on every page
-// transition so a leftover query (e.g. "switch", typed to reach the verb) does
-// not filter the nested branch list down to nothing.
-const search = ref('');
+// Live search query, mirrored from the command input. The input is a TanStack
+// form field; `search` reads its value and clearSearch() resets it. We clear it
+// on every page transition so a leftover query (e.g. "switch", typed to reach
+// the verb) does not filter the nested branch list down to nothing.
+const searchForm = useForm({
+  defaultValues: { search: '' },
+  validators: { onChange: z.object({ search: z.string() }) }
+});
+function clearSearch() {
+  searchForm.setFieldValue('search', '');
+}
 
 // Always return to the root list when the palette closes, so the next open
 // starts fresh.
 watch(open, (isOpen) => {
   if (!isOpen) {
     page.value = null;
-    search.value = '';
+    clearSearch();
   }
 });
 
 function openPage(p: BranchPage) {
-  search.value = '';
+  clearSearch();
   page.value = p;
 }
 
 function back() {
-  search.value = '';
+  clearSearch();
   page.value = null;
 }
 
@@ -318,11 +327,14 @@ const recentReposInSearch = computed(() =>
 
 <template>
   <UiCommandDialog v-model:open="open">
-    <UiCommandInput
-      v-model:search="search"
-      :placeholder="page ? t('command.pickBranch') : t('command.placeholder')"
-      @keydown="onInputKeydown"
-    />
+    <searchForm.Field v-slot="{ field }" name="search">
+      <UiCommandInput
+        :search="field.state.value"
+        :placeholder="page ? t('command.pickBranch') : t('command.placeholder')"
+        @update:search="(v) => field.handleChange(v ?? '')"
+        @keydown="onInputKeydown"
+      />
+    </searchForm.Field>
     <UiCommandList>
       <UiCommandEmpty>{{ t('command.empty') }}</UiCommandEmpty>
 

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import { useForm } from '@tanstack/vue-form';
+import { z } from 'zod';
 
 const repo = useRepoStore();
 const { refLabel, fullRefLabel } = useBranchLabel();
@@ -44,8 +46,13 @@ watch(
 
 // Client-side commit search over the loaded log. While a query is active the
 // SVG graph is replaced by a flat filtered list (lane geometry can't follow an
-// arbitrary subset), which is exactly what a search wants anyway.
-const query = ref('');
+// arbitrary subset), which is exactly what a search wants anyway. The input is a
+// TanStack form field; `query` reads its current value.
+const searchForm = useForm({
+  defaultValues: { query: '' },
+  validators: { onChange: z.object({ query: z.string() }) }
+});
+const query = computed(() => searchForm.state.values.query);
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) return [];
@@ -91,11 +98,14 @@ function refVariant(ref: string) {
         name="lucide:search"
         class="pointer-events-none absolute top-1/2 left-4 size-3.5 -translate-y-1/2 text-muted-foreground"
       />
-      <UiInput
-        v-model="query"
-        :placeholder="t('history.search')"
-        class="h-8 pl-8 text-sm"
-      />
+      <searchForm.Field v-slot="{ field }" name="query">
+        <UiInput
+          :model-value="field.state.value"
+          :placeholder="t('history.search')"
+          class="h-8 pl-8 text-sm"
+          @input="field.handleChange(($event.target as HTMLInputElement).value)"
+        />
+      </searchForm.Field>
     </div>
 
     <!-- filtered flat list -->
