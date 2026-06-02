@@ -8,6 +8,12 @@ const colorMode = useColorMode();
 const layout = useLayoutStore();
 const { accentOptions, accentSwatch } = useAppearance();
 
+// Clamp the numeric settings back into range when the dialog closes, so a typed
+// out-of-range value is corrected on exit (the store owns the validation).
+watch(open, (isOpen) => {
+  if (!isOpen) layout.normalizeNumbers();
+});
+
 // Dev-only: fire one of each toast kind (with title + description) to preview.
 const toastKinds = [
   { kind: 'info', variant: 'info', fn: toast.info },
