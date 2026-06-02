@@ -338,27 +338,24 @@ const lang = computed({
                         </UiSelectItem>
                       </UiSelectContent>
                     </UiSelect>
-                    <UiTooltip>
-                      <UiTooltipTrigger as-child>
-                        <UiButton
-                          variant="outline"
-                          size="icon"
-                          icon="lucide:refresh-cw"
-                          :disabled="!expRefresh.canRefresh.value"
-                          :pending="refreshingExp"
-                          @click="refreshExperiments"
-                        />
-                      </UiTooltipTrigger>
-                      <UiTooltipContent>
-                        {{
-                          expRefresh.canRefresh.value
-                            ? t('settings.general.experiment.refresh')
-                            : t('settings.general.experiment.cooldown', {
-                                n: expRefresh.cooldown.value
-                              })
-                        }}
-                      </UiTooltipContent>
-                    </UiTooltip>
+                    <!-- a visible cooldown counter instead of a tooltip: the
+                         dialog is portalled outside the TooltipProvider, and a
+                         disabled button can't be hovered anyway -->
+                    <span
+                      v-if="!expRefresh.canRefresh.value"
+                      class="text-xs text-muted-foreground tabular-nums"
+                    >
+                      {{ expRefresh.cooldown.value }}s
+                    </span>
+                    <UiButton
+                      variant="outline"
+                      size="icon"
+                      icon="lucide:refresh-cw"
+                      :aria-label="t('settings.general.experiment.refresh')"
+                      :disabled="!expRefresh.canRefresh.value"
+                      :pending="refreshingExp"
+                      @click="refreshExperiments"
+                    />
                   </div>
                 </div>
 
