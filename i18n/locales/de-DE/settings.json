@@ -133,6 +133,12 @@
       "title": "Sprache",
       "label": "Sprache",
       "hint": "Die Anzeigesprache von glimpse.",
+      "searchLanguages": {
+        "label": "Zusätzliche Suchsprachen",
+        "hint": "Einträge der Befehlspalette zusätzlich in diesen Sprachen finden, neben der Anzeigesprache.",
+        "placeholder": "Keine",
+        "search": "Sprache suchen…"
+      },
       "name": {
         "de-DE": "Deutsch",
         "en-GB": "English",

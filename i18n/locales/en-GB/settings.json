@@ -133,6 +133,12 @@
       "title": "Language",
       "label": "Language",
       "hint": "The display language of glimpse.",
+      "searchLanguages": {
+        "label": "Additional search languages",
+        "hint": "Also match command palette entries in these languages, on top of the display language.",
+        "placeholder": "None",
+        "search": "Search languages…"
+      },
       "name": {
         "de-DE": "Deutsch",
         "en-GB": "English",
