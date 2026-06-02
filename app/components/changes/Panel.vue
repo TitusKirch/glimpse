@@ -86,7 +86,7 @@ onMounted(autoResize);
           :files="conflictItems"
           :view="layout.fileView"
           :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
-          @select="(p) => repo.selectFile(p, false)"
+          @select="(p) => repo.selectFile({ file: p, staged: false })"
         >
           <template #actions="{ file }">
             <UiDropdownMenu>
@@ -102,18 +102,24 @@ onMounted(autoResize);
               </UiDropdownMenuTrigger>
               <UiDropdownMenuContent align="end">
                 <UiDropdownMenuItem
-                  @click="repo.resolveConflict(file.path, 'ours')"
+                  @click="
+                    repo.resolveConflict({ file: file.path, side: 'ours' })
+                  "
                 >
                   {{ t('changes.useOurs') }}
                 </UiDropdownMenuItem>
                 <UiDropdownMenuItem
-                  @click="repo.resolveConflict(file.path, 'theirs')"
+                  @click="
+                    repo.resolveConflict({ file: file.path, side: 'theirs' })
+                  "
                 >
                   {{ t('changes.useTheirs') }}
                 </UiDropdownMenuItem>
                 <UiDropdownMenuSeparator />
                 <UiDropdownMenuItem
-                  @click="repo.resolveConflict(file.path, 'mark')"
+                  @click="
+                    repo.resolveConflict({ file: file.path, side: 'mark' })
+                  "
                 >
                   {{ t('changes.markResolved') }}
                 </UiDropdownMenuItem>
@@ -134,7 +140,7 @@ onMounted(autoResize);
           :files="stagedItems"
           :view="layout.fileView"
           :selected="repo.selectedFileStaged ? repo.selectedFile : null"
-          @select="(p) => repo.selectFile(p, true)"
+          @select="(p) => repo.selectFile({ file: p, staged: true })"
         >
           <template #actions="{ file }">
             <UiTooltip>
@@ -180,7 +186,7 @@ onMounted(autoResize);
           :files="unstagedItems"
           :view="layout.fileView"
           :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
-          @select="(p) => repo.selectFile(p, false)"
+          @select="(p) => repo.selectFile({ file: p, staged: false })"
         >
           <template #actions="{ file }">
             <UiTooltip>
@@ -191,7 +197,9 @@ onMounted(autoResize);
                   class="size-5 opacity-0 group-hover:opacity-100"
                   icon="lucide:undo-2"
                   icon-size="sm"
-                  @click.stop="repo.discard(file.path, file.untracked)"
+                  @click.stop="
+                    repo.discard({ file: file.path, untracked: file.untracked })
+                  "
                 />
               </UiTooltipTrigger>
               <UiTooltipContent>{{ t('changes.discard') }}</UiTooltipContent>

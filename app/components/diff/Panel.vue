@@ -40,7 +40,11 @@ function copyPath() {
 // (reverse patch).
 function onStageHunk(hunk: string) {
   if (repo.selectedFile) {
-    void repo.applyHunk(repo.selectedFile, hunk, repo.selectedFileStaged);
+    void repo.applyHunk({
+      file: repo.selectedFile,
+      hunk,
+      reverse: repo.selectedFileStaged
+    });
   }
 }
 </script>

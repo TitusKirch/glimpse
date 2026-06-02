@@ -120,7 +120,7 @@ function isNewBlock(i: number): boolean {
           </td>
           <td
             class="px-2 whitespace-pre"
-            v-html="highlightLine(l.content, lang)"
+            v-html="highlightLine({ text: l.content, lang })"
           />
         </tr>
       </tbody>

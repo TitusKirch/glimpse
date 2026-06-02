@@ -316,7 +316,7 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async selectFile(file: string, staged: boolean) {
+    async selectFile({ file, staged }: { file: string; staged: boolean }) {
       const r = this.active;
       if (!r) return;
       r.selectedFile = file;
@@ -342,11 +342,23 @@ export const useRepoStore = defineStore('repo', {
       const r = this.active;
       if (!r?.selectedFile) return;
       if (r.selectedHash) await this.selectCommitFile(r.selectedFile);
-      else await this.selectFile(r.selectedFile, r.selectedFileStaged);
+      else
+        await this.selectFile({
+          file: r.selectedFile,
+          staged: r.selectedFileStaged
+        });
     },
 
     // Stage or unstage a single hunk, then refresh status and the diff.
-    async applyHunk(file: string, hunk: string, reverse: boolean) {
+    async applyHunk({
+      file,
+      hunk,
+      reverse
+    }: {
+      file: string;
+      hunk: string;
+      reverse: boolean;
+    }) {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.applyHunk({ path: this.repoPath, file, hunk, reverse });
@@ -359,14 +371,16 @@ export const useRepoStore = defineStore('repo', {
       if (!isTauri()) return;
       await gitClient.stage({ path: this.repoPath, file });
       await this.loadStatus();
-      if (this.active.selectedFile === file) await this.selectFile(file, true);
+      if (this.active.selectedFile === file)
+        await this.selectFile({ file, staged: true });
     },
 
     async unstage(file: string) {
       if (!isTauri()) return;
       await gitClient.unstage({ path: this.repoPath, file });
       await this.loadStatus();
-      if (this.active.selectedFile === file) await this.selectFile(file, false);
+      if (this.active.selectedFile === file)
+        await this.selectFile({ file, staged: false });
     },
 
     async commit() {
@@ -397,7 +411,7 @@ export const useRepoStore = defineStore('repo', {
       }
     },
 
-    async discard(file: string, untracked: boolean) {
+    async discard({ file, untracked }: { file: string; untracked: boolean }) {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.discard({ path: this.repoPath, file, untracked });
@@ -428,7 +442,13 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async resolveConflict(file: string, side: 'ours' | 'theirs' | 'mark') {
+    async resolveConflict({
+      file,
+      side
+    }: {
+      file: string;
+      side: 'ours' | 'theirs' | 'mark';
+    }) {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.resolveConflict({ path: this.repoPath, file, side });
@@ -487,7 +507,7 @@ export const useRepoStore = defineStore('repo', {
         initial: oldName,
         schema: branchNameSchema
       });
-      if (name) await this.renameBranch(oldName, name);
+      if (name) await this.renameBranch({ oldName, newName: name });
     },
 
     // Checkout a remote branch: if no local branch exists yet, confirm creating
@@ -508,7 +528,13 @@ export const useRepoStore = defineStore('repo', {
       if (ok) await this.checkout(name);
     },
 
-    async renameBranch(oldName: string, newName: string) {
+    async renameBranch({
+      oldName,
+      newName
+    }: {
+      oldName: string;
+      newName: string;
+    }) {
       const trimmed = newName.trim();
       if (!trimmed || trimmed === oldName || !isTauri()) return;
       await this.guarded(async () => {
@@ -569,7 +595,7 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async addRemote(name: string, url: string) {
+    async addRemote({ name, url }: { name: string; url: string }) {
       if (!isTauri()) return;
       await this.guarded(async () => {
         await gitClient.addRemote({ path: this.repoPath, name, url });
@@ -652,7 +678,7 @@ export const useRepoStore = defineStore('repo', {
         schema: tagNameSchema
       });
       if (!name) return;
-      await this.createTag(name, hash);
+      await this.createTag({ name, hash });
     },
 
     async revert(hash: string) {
@@ -673,7 +699,13 @@ export const useRepoStore = defineStore('repo', {
 
     // Move the current branch to a commit. A hard reset discards working-tree
     // changes, so it confirms first.
-    async reset(hash: string, mode: 'soft' | 'mixed' | 'hard') {
+    async reset({
+      hash,
+      mode
+    }: {
+      hash: string;
+      mode: 'soft' | 'mixed' | 'hard';
+    }) {
       if (!isTauri()) return;
       if (mode === 'hard') {
         const ok = await useConfirm().confirm({
@@ -699,10 +731,10 @@ export const useRepoStore = defineStore('repo', {
         submitKey: 'form.create',
         schema: tagNameSchema
       });
-      if (name) await this.createTag(name);
+      if (name) await this.createTag({ name });
     },
 
-    async createTag(name: string, hash = '') {
+    async createTag({ name, hash = '' }: { name: string; hash?: string }) {
       const trimmed = name.trim();
       if (!trimmed || !isTauri()) return;
       await this.guarded(async () => {
@@ -735,7 +767,13 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async stashAction(action: 'pop' | 'apply' | 'drop', reference: string) {
+    async stashAction({
+      action,
+      reference
+    }: {
+      action: 'pop' | 'apply' | 'drop';
+      reference: string;
+    }) {
       if (!isTauri()) return;
       if (action === 'drop') {
         const ok = await useConfirm().confirm({
@@ -831,7 +869,13 @@ export const useRepoStore = defineStore('repo', {
 
     // Push with options: publish a new branch (set upstream) and/or force with
     // lease. Shares the push spinner/guard with the plain sync('push').
-    async push(setUpstream: boolean, force: boolean) {
+    async push({
+      setUpstream,
+      force
+    }: {
+      setUpstream: boolean;
+      force: boolean;
+    }) {
       if (!isTauri()) return;
       this.syncing = 'push';
       try {
@@ -1018,15 +1062,18 @@ export const useRepoStore = defineStore('repo', {
         if (keepCommit) {
           await this.selectCommit(r.selectedHash!);
         } else if (keepFile) {
-          await this.selectFile(r.selectedFile!, r.selectedFileStaged);
+          await this.selectFile({
+            file: r.selectedFile!,
+            staged: r.selectedFileStaged
+          });
         } else {
           // Open the first changed file (or the newest commit) by default.
           const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
           if (first) {
-            await this.selectFile(
-              first.path,
-              !first.unstaged && !first.untracked
-            );
+            await this.selectFile({
+              file: first.path,
+              staged: !first.unstaged && !first.untracked
+            });
           } else if (r.commits[0]) {
             await this.selectCommit(r.commits[0].hash);
           } else {
@@ -1034,7 +1081,7 @@ export const useRepoStore = defineStore('repo', {
           }
         }
 
-        useRecentStore().push(top, r.name);
+        useRecentStore().push({ path: top, name: r.name });
         this.watchActive();
       } catch (err) {
         const raw = typeof err === 'string' ? err : String(err);

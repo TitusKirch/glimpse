@@ -16,7 +16,7 @@ export const useRecentStore = defineStore('recent', {
   actions: {
     // Move/insert `path` to the front (most-recent-first), de-duplicated, then
     // trim to the user-configured maximum (Settings → General → Recent).
-    push(path: string, name: string) {
+    push({ path, name }: { path: string; name: string }) {
       this.repos = [
         { path, name },
         ...this.repos.filter((r) => r.path !== path)

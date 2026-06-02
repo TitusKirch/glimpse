@@ -333,13 +333,23 @@ const links = [
                 </UiDropdownMenuTrigger>
                 <UiDropdownMenuContent side="right" align="start">
                   <UiDropdownMenuItem
-                    @click="repo.stashAction('pop', s.reference)"
+                    @click="
+                      repo.stashAction({
+                        action: 'pop',
+                        reference: s.reference
+                      })
+                    "
                   >
                     <NuxtIcon name="lucide:archive-restore" />
                     {{ t('sidebar.stashPop') }}
                   </UiDropdownMenuItem>
                   <UiDropdownMenuItem
-                    @click="repo.stashAction('apply', s.reference)"
+                    @click="
+                      repo.stashAction({
+                        action: 'apply',
+                        reference: s.reference
+                      })
+                    "
                   >
                     <NuxtIcon name="lucide:copy-plus" />
                     {{ t('sidebar.stashApply') }}
@@ -347,7 +357,12 @@ const links = [
                   <UiDropdownMenuSeparator />
                   <UiDropdownMenuItem
                     class="text-destructive focus:text-destructive"
-                    @click="repo.stashAction('drop', s.reference)"
+                    @click="
+                      repo.stashAction({
+                        action: 'drop',
+                        reference: s.reference
+                      })
+                    "
                   >
                     <NuxtIcon name="lucide:trash-2" />
                     {{ t('sidebar.stashDrop') }}

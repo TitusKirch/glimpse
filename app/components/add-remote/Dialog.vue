@@ -16,7 +16,7 @@ const form = useForm({
   defaultValues: { name: '', url: '' },
   validators: { onSubmit: schema },
   onSubmit: async ({ value }) => {
-    await repo.addRemote(value.name.trim(), value.url.trim());
+    await repo.addRemote({ name: value.name.trim(), url: value.url.trim() });
     open.value = false;
   }
 });

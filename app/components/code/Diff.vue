@@ -129,10 +129,10 @@ function hl(text: string): string {
 // Whole-file highlight, one entry per line (index = line number - 1). Computed
 // once per diff; falls back per-line via hl() when a line isn't found.
 const oldHi = computed(() =>
-  highlightLines(props.oldContent ?? '', lang.value)
+  highlightLines({ text: props.oldContent ?? '', lang: lang.value })
 );
 const newHi = computed(() =>
-  highlightLines(props.newContent ?? '', lang.value)
+  highlightLines({ text: props.newContent ?? '', lang: lang.value })
 );
 function hlOld(no: number, text: string): string {
   return oldHi.value[no - 1] ?? hl(text);
@@ -145,7 +145,7 @@ function hlNew(no: number, text: string): string {
 // (common prefix/suffix trimmed by the pure wordDiffRanges helper). Cheap and
 // effective for the common single-edit line.
 function wordDiff(a: string, b: string): { oldHtml: string; newHtml: string } {
-  const { start, aEnd, bEnd } = wordDiffRanges(a, b);
+  const { start, aEnd, bEnd } = wordDiffRanges({ a, b });
   const wrap = (s: string, cls: string) =>
     s ? `<span class="${cls}">${escapeHtml(s)}</span>` : '';
   return {

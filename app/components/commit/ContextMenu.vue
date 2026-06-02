@@ -44,7 +44,7 @@ const copyText = useCopy();
           {{ t('commit.reset') }}
         </UiContextMenuSubTrigger>
         <UiContextMenuSubContent>
-          <UiContextMenuItem @select="repo.reset(hash, 'soft')">
+          <UiContextMenuItem @select="repo.reset({ hash, mode: 'soft' })">
             <NuxtIcon name="lucide:package-check" />
             <div class="flex flex-col">
               <span>{{ t('commit.resetSoft') }}</span>
@@ -53,7 +53,7 @@ const copyText = useCopy();
               }}</span>
             </div>
           </UiContextMenuItem>
-          <UiContextMenuItem @select="repo.reset(hash, 'mixed')">
+          <UiContextMenuItem @select="repo.reset({ hash, mode: 'mixed' })">
             <NuxtIcon name="lucide:file-pen" />
             <div class="flex flex-col">
               <span>{{ t('commit.resetMixed') }}</span>
@@ -64,7 +64,7 @@ const copyText = useCopy();
           </UiContextMenuItem>
           <UiContextMenuItem
             class="text-destructive focus:text-destructive"
-            @select="repo.reset(hash, 'hard')"
+            @select="repo.reset({ hash, mode: 'hard' })"
           >
             <NuxtIcon name="lucide:trash-2" />
             <div class="flex flex-col">

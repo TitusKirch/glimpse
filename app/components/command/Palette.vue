@@ -144,7 +144,7 @@ const actions = computed<PaletteAction[]>(() => {
       group: 'git',
       icon: 'lucide:cloud-upload',
       labelKey: 'command.pushUpstream',
-      run: () => repo.push(true, false),
+      run: () => repo.push({ setUpstream: true, force: false }),
       visible: hasRepos
     },
     {
@@ -152,7 +152,7 @@ const actions = computed<PaletteAction[]>(() => {
       group: 'git',
       icon: 'lucide:triangle-alert',
       labelKey: 'command.pushForce',
-      run: () => repo.push(false, true),
+      run: () => repo.push({ setUpstream: false, force: true }),
       visible: hasRepos
     },
     {
