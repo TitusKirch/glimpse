@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import EmptyState from './EmptyState.vue';
+import EmptyState from './State.vue';
 
 // NuxtIcon is a global auto-import in the app; stub it for the test runtime.
 const global = { stubs: { NuxtIcon: { template: '<i data-icon />' } } };
