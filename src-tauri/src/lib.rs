@@ -314,9 +314,9 @@ async fn reset(
     locks: State<'_, RepoLocks>,
     path: String,
     hash: String,
-    mode: String,
+    mode: git::ResetMode,
 ) -> Result<(), String> {
-    locked(&locks, &path, || git::Repo::open(&path).reset(&hash, &mode))
+    locked(&locks, &path, || git::Repo::open(&path).reset(&hash, mode))
 }
 
 #[tauri::command]

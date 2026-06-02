@@ -4,7 +4,7 @@
 //! [`parse`] module into serde structs that mirror the frontend's store shapes.
 
 use crate::platform::{self, GitTarget};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::process::Stdio;
 use ts_rs::TS;
@@ -103,6 +103,17 @@ pub struct StatusEntry {
     pub untracked: bool,
     /// Unmerged (merge-conflict) entry — shown in its own section.
     pub conflicted: bool,
+}
+
+/// How far `git reset` rewinds. Deserialized from the frontend's
+/// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
+/// seam instead of silently falling back to `--mixed`.
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ResetMode {
+    Soft,
+    Mixed,
+    Hard,
 }
 
 /// A repository with its `git` invocation resolved once. All operations run
@@ -424,13 +435,13 @@ impl Repo {
         self.run(&["cherry-pick", hash]).map(|_| ())
     }
 
-    /// Move the current branch to `hash`. `mode` is "soft", "mixed", or "hard"
-    /// (hard discards working-tree changes — the UI confirms first).
-    pub fn reset(&self, hash: &str, mode: &str) -> Result<(), String> {
+    /// Move the current branch to `hash`. A hard reset discards working-tree
+    /// changes — the UI confirms first.
+    pub fn reset(&self, hash: &str, mode: ResetMode) -> Result<(), String> {
         let flag = match mode {
-            "soft" => "--soft",
-            "hard" => "--hard",
-            _ => "--mixed",
+            ResetMode::Soft => "--soft",
+            ResetMode::Mixed => "--mixed",
+            ResetMode::Hard => "--hard",
         };
         self.run(&["reset", flag, hash]).map(|_| ())
     }
