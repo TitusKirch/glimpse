@@ -4,33 +4,12 @@
 // (git::parse); this is only the visual projection of those lanes.
 
 import type { Commit } from '~/stores/repo';
-
-export interface GraphNode {
-  hash: string;
-  cx: number;
-  cy: number;
-  color: string;
-}
-
-export interface GraphEdge {
-  d: string;
-  color: string;
-}
-
-export interface GraphLayout {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  width: number;
-  height: number;
-  rowHeight: number;
-}
-
-export interface GraphLayoutOptions {
-  rowHeight?: number;
-  laneWidth?: number;
-  originX?: number;
-  colors?: string[];
-}
+import type {
+  GraphEdge,
+  GraphLayout,
+  GraphLayoutOptions,
+  GraphNode
+} from '~/types/graph';
 
 const DEFAULTS = {
   rowHeight: 60,
@@ -51,14 +30,13 @@ const DEFAULTS = {
   ]
 };
 
-export function commitGraphLayout(
-  commits: Commit[],
-  options: GraphLayoutOptions = {}
-): GraphLayout {
-  const { rowHeight, laneWidth, originX, colors } = {
-    ...DEFAULTS,
-    ...options
-  };
+export function commitGraphLayout({
+  commits,
+  rowHeight = DEFAULTS.rowHeight,
+  laneWidth = DEFAULTS.laneWidth,
+  originX = DEFAULTS.originX,
+  colors = DEFAULTS.colors
+}: { commits: Commit[] } & GraphLayoutOptions): GraphLayout {
   const laneX = (lane: number) => originX + lane * laneWidth;
   const nodeY = (i: number) => rowHeight / 2 + i * rowHeight;
   const laneColor = (lane: number) => colors[lane % colors.length]!;

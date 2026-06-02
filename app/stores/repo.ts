@@ -84,14 +84,14 @@ function demoRepo(): RepoState {
     remotes: ['origin'],
     tags: ['v0.0.0'],
     stashes: [],
-    commits: mock.commits,
-    status: mock.status,
+    commits: gitMock.commits,
+    status: gitMock.status,
     selectedHash: null,
     selectedBody: '',
     selectedFile: 'app/stores/repo.ts',
     selectedFileStaged: false,
     commitFiles: [],
-    diff: mock.diff
+    diff: gitMock.diff
   };
 }
 

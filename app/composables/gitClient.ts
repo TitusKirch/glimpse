@@ -4,6 +4,7 @@
 // stringly-typed `invoke`. Payload types come from the generated bindings
 // (see app/types/bindings.ts), so the contract has one source of truth.
 
+import { invoke } from '@tauri-apps/api/core';
 import type {
   BlameLine,
   Commit,
@@ -13,108 +14,23 @@ import type {
   StatusEntry
 } from '~/types/bindings';
 
-// Demo fixtures shown in the browser (no Tauri shell) so the UI stays
-// developable. They live with the client because they ARE its dev fallback.
-export const mock = {
-  commits: [
-    {
-      hash: 'a1b2c3d',
-      subject: 'feat(diff): side-by-side diff panel',
-      author: 'Titus Kirch',
-      date: '2026-05-30',
-      refs: ['HEAD -> main'],
-      parents: ['b2c3d4e'],
-      lane: 0
-    },
-    {
-      hash: 'b2c3d4e',
-      subject: 'feat(graph): render commit lanes as SVG',
-      author: 'Titus Kirch',
-      date: '2026-05-29',
-      refs: [],
-      parents: ['c3d4e5f'],
-      lane: 0
-    },
-    {
-      hash: 'c3d4e5f',
-      subject: 'feat(wsl): resolve git per repo flavor',
-      author: 'Titus Kirch',
-      date: '2026-05-29',
-      refs: ['origin/main'],
-      parents: ['d4e5f60', 'f6a7b80'],
-      lane: 0
-    },
-    {
-      hash: 'f6a7b80',
-      subject: 'feat(wsl): detect installed distros',
-      author: 'Titus Kirch',
-      date: '2026-05-28',
-      refs: ['feat/wsl'],
-      parents: ['d4e5f60'],
-      lane: 1
-    },
-    {
-      hash: 'd4e5f60',
-      subject: 'chore: scaffold tauri + nuxt shell',
-      author: 'Titus Kirch',
-      date: '2026-05-28',
-      refs: [],
-      parents: ['e5f6071'],
-      lane: 0
-    },
-    {
-      hash: 'e5f6071',
-      subject: 'chore: adapt scaffold template for glimpse',
-      author: 'Titus Kirch',
-      date: '2026-05-27',
-      refs: ['v0.0.0'],
-      parents: [],
-      lane: 0
-    }
-  ] satisfies Commit[],
-  status: [
-    {
-      path: 'app/stores/repo.ts',
-      x: ' ',
-      y: 'M',
-      staged: false,
-      unstaged: true,
-      untracked: false,
-      conflicted: false
-    },
-    {
-      path: 'src-tauri/src/git.rs',
-      x: 'M',
-      y: ' ',
-      staged: true,
-      unstaged: false,
-      untracked: false,
-      conflicted: false
-    },
-    {
-      path: 'docs/NOTES.md',
-      x: '?',
-      y: '?',
-      staged: false,
-      unstaged: false,
-      untracked: true,
-      conflicted: false
-    }
-  ] satisfies StatusEntry[],
-  diff: {
-    fileName: 'app/stores/repo.ts',
-    oldContent: '',
-    newContent: '',
-    hunks: [
-      `@@ -1,4 +1,6 @@
- export const useRepoStore = defineStore('repo', {
--  state: () => ({ commits: [] }),
-+  state: () => ({ commits: [], status: [] }),
-+  // now talks to the real git backend
- })`
-    ]
-  } satisfies DiffData
-};
+// Thin bridge to the Tauri backend: inside the desktop shell it invokes Rust
+// commands over IPC; in the browser (Nuxt dev demo) it returns the given
+// fallback so the UI is fully developable without the native shell. Private to
+// the client — nothing else should restate the stringly-typed `invoke`.
+async function gitInvoke<T>(
+  command: string,
+  args?: Record<string, unknown>,
+  fallback?: T
+): Promise<T> {
+  if (isTauri()) {
+    return invoke<T>(command, args);
+  }
+  if (fallback !== undefined) return fallback;
+  throw new Error(
+    `gitInvoke(${command}) called outside Tauri without a fallback`
+  );
+}
 
 // Each method owns its command name, arg shape, and fallback. Read methods fall
 // back to mock data so the browser demo renders; mutations fall back to a no-op.
@@ -143,7 +59,7 @@ export const gitClient = {
     gitInvoke<DiffData | null>(
       'file_diff',
       { path, file, staged, ignoreWhitespace, whole },
-      mock.diff
+      gitMock.diff
     ),
 
   // Commits that touched a file (follows renames).
@@ -174,7 +90,7 @@ export const gitClient = {
     gitInvoke<DiffData | null>(
       'commit_file_diff',
       { path, hash, file, ignoreWhitespace, whole },
-      mock.diff
+      gitMock.diff
     ),
 
   stage: (path: string, file: string) =>

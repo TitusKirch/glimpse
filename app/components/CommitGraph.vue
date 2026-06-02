@@ -6,7 +6,7 @@ const { refLabel, fullRefLabel } = useBranchLabel();
 const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
-const layout = computed(() => commitGraphLayout(repo.commits));
+const layout = computed(() => commitGraphLayout({ commits: repo.commits }));
 
 // Virtualize the commit rows so large repos stay smooth; the SVG lane overlay
 // is cheap and stays full-height, the heavy per-row DOM is windowed.

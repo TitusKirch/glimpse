@@ -6,6 +6,7 @@ const open = defineModel<boolean>('open', { required: true });
 const { t, locale, locales, setLocale } = useI18n();
 const colorMode = useColorMode();
 const layout = useLayoutStore();
+const { accentOptions, accentSwatch } = useAppearance();
 
 // Dev-only: fire one of each toast kind (with title + description) to preview.
 const toastKinds = [

@@ -2,6 +2,10 @@
 // the accent colour (overrides the neutral --primary token) and the diff font
 // scale (--mono-scale). Inline styles on <html> win over the .dark rules, so a
 // chosen accent holds in both light and dark mode.
+//
+// Single export by convention: the accent metadata the settings picker needs
+// (`accentOptions`, `accentSwatch`) is returned from the composable rather than
+// exported standalone.
 
 import type { Accent } from '@/stores/layout';
 
@@ -16,7 +20,7 @@ const ACCENTS: Record<
   rose: { primary: 'oklch(0.6 0.2 15)', fg: 'oklch(0.99 0 0)' }
 };
 
-export const accentOptions: Accent[] = [
+const accentOptions: Accent[] = [
   'default',
   'blue',
   'violet',
@@ -26,8 +30,8 @@ export const accentOptions: Accent[] = [
 ];
 
 // Swatch colour for the settings picker (matches the applied primary).
-export function accentSwatch(a: Accent): string {
-  return a === 'default' ? 'oklch(0.55 0 0)' : ACCENTS[a].primary;
+function accentSwatch(accent: Accent): string {
+  return accent === 'default' ? 'oklch(0.55 0 0)' : ACCENTS[accent].primary;
 }
 
 export function useAppearance() {
@@ -50,4 +54,6 @@ export function useAppearance() {
     apply();
     watch(() => [layout.accent, layout.monoScale], apply);
   });
+
+  return { accentOptions, accentSwatch, apply };
 }
