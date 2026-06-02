@@ -29,23 +29,23 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 - **🧬 Git-native** — never reimplements git; it shells out to your real `git` binary and parses its porcelain output. Your config, hooks, and credentials apply unchanged, and glimpse stores no secrets.
 - **🪟 First-class WSL (Windows)** — a `\\wsl$` repository is driven through that distro's git automatically, while Windows-path repos use Windows git. No setup, no per-repo switch.
 - **🌳 Graph & history** — the full multi-branch commit graph, searchable history, and per-commit detail (changed files + diff).
-- **🔍 Rich diffs** — side-by-side or unified, with syntax highlighting, word-level diff, ignore-whitespace, blame, and file history.
+- **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, ignore-whitespace, blame, and file history.
 - **✏️ Stage & commit** — stage/unstage by file **or hunk**, discard, commit, amend, and resolve merge conflicts (use ours/theirs).
 - **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), tags, and stash save/pop/apply/drop.
 - **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
-- **⌨️ Fast workflow** — command palette, keyboard shortcuts, multi-repo tabs, recent repos, and "open in editor / terminal / file manager".
-- **🌓 Themed & localized** — dark/light follows the OS (manually switchable), with English, German, Spanish, and French.
+- **⌨️ Fast workflow** — command palette, keyboard shortcuts, drag-reorderable multi-repo tabs, a resizable sidebar, recent repos, and "open in editor / terminal / file manager".
+- **🌓 Themed & localized** — dark/light follows the OS (manually switchable), with a localized UI.
 
 <details>
 <summary>Full feature list</summary>
 
-- **Viewing** — multi-branch commit graph, commit search, side-by-side / unified diffs with syntax highlighting and word-level diff, ignore-whitespace, blame, file history, list/tree file view.
+- **Viewing** — multi-branch commit graph, commit search, side-by-side / unified / whole-file diffs with syntax highlighting and word-level diff, ignore-whitespace, blame, file history, list/tree file view.
 - **Staging & commits** — stage / unstage by file or hunk, discard, discard all, commit, `commit --amend`, conflict resolution (use ours/theirs, mark resolved).
 - **Branches & tags** — create / switch / rename / delete branches, branch from a commit, publish (set upstream), merge in either direction, create / delete / push tags, checkout a commit (detached HEAD).
 - **History rewriting** — cherry-pick, revert, reset (soft / mixed / hard).
 - **Stash** — save, pop, apply, drop.
 - **Remotes & sync** — add / rename / remove remotes, fetch, pull (incl. rebase), push (set-upstream, `--force-with-lease`), push tags.
-- **App** — command palette, keyboard shortcuts, multi-repo tabs, recent repositories, open in editor / terminal / file manager, built-in auto-update.
+- **App** — command palette, keyboard shortcuts, drag-reorderable multi-repo tabs, resizable sidebar, recent repositories, open in editor / terminal / file manager, built-in auto-update.
 
 </details>
 
@@ -62,9 +62,9 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 | Frontend        | [Nuxt 4](https://nuxt.com/) (Vue 3), SPA mode (`ssr: false`), code in `app/` |
 | Styling / UI    | [Tailwind v4](https://tailwindcss.com/) + [shadcn-vue](https://www.shadcn-vue.com/) (Reka UI) |
 | State           | [Pinia](https://pinia.vuejs.org/) — per-repo store, persisted to `localStorage` |
-| Diff rendering  | Custom side-by-side / unified view; [highlight.js](https://highlightjs.org/) syntax highlighting + word-level diff |
+| Diff rendering  | Custom side-by-side / unified / whole-file view; [highlight.js](https://highlightjs.org/) syntax highlighting + word-level diff |
 | Graph rendering | SVG generated from structured `git log` data                                 |
-| i18n            | [`@nuxtjs/i18n`](https://i18n.nuxtjs.org/) — English, German, Spanish, French |
+| i18n            | [`@nuxtjs/i18n`](https://i18n.nuxtjs.org/) — localized UI                     |
 | Git access      | System `git` binary (shell-out); Windows git or WSL git resolved per repo     |
 | FS watcher      | Rust [`notify`](https://docs.rs/notify) (debounced), best-effort (incl. `\\wsl$`) |
 | Updates         | [Tauri updater](https://v2.tauri.app/plugin/updater/) against GitHub Releases  |
@@ -80,7 +80,7 @@ Download a build from the [latest release](https://github.com/TitusKirch/glimpse
   ```bash
   sudo apt install ./glimpse_*_amd64.deb
   ```
-- **macOS** — download `glimpse_<version>_aarch64.dmg` (Apple Silicon), open it, and drag glimpse to Applications.
+- **macOS (Apple Silicon)** — the build produces an unsigned `.app` bundle (no `.dmg` installer); extract it from the release assets and move **glimpse** to Applications.
 
 > [!WARNING]
 > **The macOS build is untested and unsigned.** It compiles in CI alongside Windows and Linux, but those two are the actively tested targets. Gatekeeper blocks it on first launch — right-click the app and choose **Open**. Use at your own risk.
@@ -126,6 +126,9 @@ On Linux and macOS git is simply native — there is no WSL concept. Live refres
 | `pnpm lint`        | `oxlint . --deny-warnings`                    |
 | `pnpm format`      | `oxfmt --check .`                             |
 | `pnpm cargofmt`    | `cargo fmt --check` for the Rust backend      |
+| `pnpm cargo:update`   | Refresh Rust deps within semver            |
+| `pnpm cargo:outdated` | Show major Rust-dep upgrades (needs `cargo-edit`) |
+| `pnpm cargo:upgrade`  | Apply major Rust-dep upgrades (needs `cargo-edit`) |
 | `pnpm check`       | `lint` + `format` + `cargofmt` — the CI gate  |
 | `pnpm check:fix`   | Auto-fix lint, format, and Rust formatting    |
 

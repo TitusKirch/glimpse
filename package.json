@@ -45,6 +45,9 @@
     "check:fix": "pnpm lint:fix && pnpm format:fix && pnpm cargofmt:fix",
     "taze": "taze",
     "taze:w": "taze -w",
+    "cargo:update": "cargo update --manifest-path src-tauri/Cargo.toml",
+    "cargo:outdated": "cargo upgrade --manifest-path src-tauri/Cargo.toml --incompatible --dry-run",
+    "cargo:upgrade": "cargo upgrade --manifest-path src-tauri/Cargo.toml --incompatible",
     "prepare": "husky"
   },
   "dependencies": {
