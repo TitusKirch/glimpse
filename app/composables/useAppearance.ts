@@ -35,24 +35,25 @@ function accentSwatch(accent: Accent): string {
 }
 
 export function useAppearance() {
-  const layout = useLayoutStore();
+  const settings = useSettingsStore();
 
   function apply() {
     const root = document.documentElement;
-    if (layout.accent === 'default') {
+    const accent = settings.get('accent');
+    if (accent === 'default') {
       root.style.removeProperty('--primary');
       root.style.removeProperty('--primary-foreground');
     } else {
-      const a = ACCENTS[layout.accent];
+      const a = ACCENTS[accent];
       root.style.setProperty('--primary', a.primary);
       root.style.setProperty('--primary-foreground', a.fg);
     }
-    root.style.setProperty('--mono-scale', String(layout.monoScale));
+    root.style.setProperty('--mono-scale', String(settings.get('monoScale')));
   }
 
   onMounted(() => {
     apply();
-    watch(() => [layout.accent, layout.monoScale], apply);
+    watch(() => [settings.accent, settings.monoScale], apply);
   });
 
   return { accentOptions, accentSwatch, apply };

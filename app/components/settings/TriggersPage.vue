@@ -3,7 +3,7 @@ import { toast } from 'vue-sonner';
 import { z } from 'zod';
 
 const { t } = useI18n();
-const layout = useLayoutStore();
+const settings = useSettingsStore();
 
 // Triggers page: fire one of each toast kind (with title + description).
 const toastKinds = [
@@ -52,7 +52,9 @@ async function triggerPrompt() {
   toast.success(t('settings.triggers.prompt.saved'), { description: value });
 }
 async function triggerPull() {
-  const strategy = await pullStrategy.choose({ initial: layout.pullStrategy });
+  const strategy = await pullStrategy.choose({
+    initial: settings.pullStrategy
+  });
   toast.info(
     strategy === null
       ? t('settings.triggers.cancelled')

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
-const layout = useLayoutStore();
+const settings = useSettingsStore();
 const { t } = useI18n();
 
 const modLabel = navigator.platform.toLowerCase().includes('mac')
@@ -120,7 +120,7 @@ onMounted(autoResize);
         </h3>
         <FileTree
           :files="conflictItems"
-          :view="layout.fileView"
+          :view="settings.fileView"
           :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
           @select="(p) => repo.selectFile({ file: p, staged: false })"
         >
@@ -174,7 +174,7 @@ onMounted(autoResize);
         </h3>
         <FileTree
           :files="stagedItems"
-          :view="layout.fileView"
+          :view="settings.fileView"
           :selected="repo.selectedFileStaged ? repo.selectedFile : null"
           @select="(p) => repo.selectFile({ file: p, staged: true })"
         >
@@ -220,7 +220,7 @@ onMounted(autoResize);
         </h3>
         <FileTree
           :files="unstagedItems"
-          :view="layout.fileView"
+          :view="settings.fileView"
           :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
           @select="(p) => repo.selectFile({ file: p, staged: false })"
         >

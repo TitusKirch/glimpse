@@ -8,7 +8,7 @@ import { toast } from 'vue-sonner';
 defineProps<{ form: SettingsForm; persist: SettingsPersist }>();
 
 const { t } = useI18n();
-const layout = useLayoutStore();
+const settings = useSettingsStore();
 
 // Install the `glimpse` command-line launcher onto PATH (desktop only — the row
 // is hidden in the browser demo). Idempotent; re-running just refreshes it.
@@ -34,7 +34,7 @@ const refreshingExp = ref(false);
 // False until the first experiment fetch settles, so the experiment section
 // shows a "checking…" row instead of flashing the empty state before results
 // arrive (e.g. right after switching to the experiment channel).
-const experimentsChecked = ref(layout.experiments.length > 0);
+const experimentsChecked = ref(settings.experiments.length > 0);
 
 async function loadExperiments(force = false) {
   refreshingExp.value = true;
@@ -53,10 +53,10 @@ function refreshExperiments() {
   void loadExperiments(true);
 }
 watch(
-  () => layout.releaseChannel,
+  () => settings.releaseChannel,
   (c) => {
     if (c === 'experiment') {
-      experimentsChecked.value = layout.experiments.length > 0;
+      experimentsChecked.value = settings.experiments.length > 0;
       void loadExperiments();
     }
   }
@@ -89,7 +89,7 @@ watch(
           </form.Field>
         </SettingsRow>
         <SettingsRow
-          v-if="layout.autoFetch"
+          v-if="settings.autoFetch"
           label="settings.general.autoFetchInterval.label"
           hint="settings.general.autoFetchInterval.hint"
         >
@@ -222,7 +222,7 @@ watch(
                   {{ t('settings.general.releaseChannel.beta') }}
                 </UiSelectItem>
                 <UiSelectItem
-                  v-if="layout.experimentsActive"
+                  v-if="settings.get('experimentsEnabled')"
                   value="experiment"
                 >
                   {{ t('settings.general.releaseChannel.experiment') }}
@@ -233,11 +233,11 @@ watch(
         </SettingsRow>
 
         <!-- experiment picker — only on the experiment channel -->
-        <template v-if="layout.releaseChannel === 'experiment'">
+        <template v-if="settings.releaseChannel === 'experiment'">
           <!-- has experiments: the picker; refreshing the list is an
                inline link in the hint, with its cooldown counter -->
           <SettingsRow
-            v-if="layout.experiments.length"
+            v-if="settings.experiments.length"
             label="settings.general.experiment.label"
             hint="settings.general.experiment.hint"
           >
@@ -276,7 +276,7 @@ watch(
                 </UiSelectTrigger>
                 <UiSelectContent>
                   <UiSelectItem
-                    v-for="e in layout.experiments"
+                    v-for="e in settings.experiments"
                     :key="e"
                     :value="e"
                   >
@@ -343,14 +343,14 @@ watch(
           <div class="min-w-0">
             <p class="text-sm font-medium">
               {{
-                layout.releaseChannel === 'experiment'
+                settings.releaseChannel === 'experiment'
                   ? t('settings.general.experiment.switch')
                   : t('settings.about.checkUpdates')
               }}
             </p>
             <p class="text-xs text-muted-foreground">
               {{
-                layout.releaseChannel === 'experiment'
+                settings.releaseChannel === 'experiment'
                   ? t('settings.general.experiment.switchHint')
                   : t('settings.general.checkUpdatesHint')
               }}
@@ -363,13 +363,13 @@ watch(
             icon="lucide:refresh-cw"
             :pending="checking"
             :disabled="
-              layout.releaseChannel === 'experiment' &&
-              !layout.selectedExperiment
+              settings.releaseChannel === 'experiment' &&
+              !settings.selectedExperiment
             "
             @click="checkForUpdates()"
           >
             {{
-              layout.releaseChannel === 'experiment'
+              settings.releaseChannel === 'experiment'
                 ? t('settings.general.experiment.install')
                 : t('settings.about.checkUpdates')
             }}
@@ -420,7 +420,7 @@ watch(
             <UiInput
               type="number"
               min="0"
-              :max="layout.recentReposMax"
+              :max="settings.recentReposMax"
               class="w-24 shrink-0"
               :model-value="field.state.value"
               @input="
@@ -443,7 +443,7 @@ watch(
             <UiInput
               type="number"
               min="0"
-              :max="layout.recentReposMax"
+              :max="settings.recentReposMax"
               class="w-24 shrink-0"
               :model-value="field.state.value"
               @input="
@@ -489,7 +489,7 @@ watch(
             <UiInput
               type="number"
               min="0"
-              :max="layout.recentActionsMax"
+              :max="settings.recentActionsMax"
               class="w-24 shrink-0"
               :model-value="field.state.value"
               @input="
@@ -530,7 +530,7 @@ watch(
         <!-- Experiments opt-in: only once developer mode is on. Off by
              default; gates the Experiment release channel. -->
         <SettingsRow
-          v-if="layout.devMode"
+          v-if="settings.devMode"
           label="settings.general.experimentsOptIn.label"
           hint="settings.general.experimentsOptIn.hint"
         >

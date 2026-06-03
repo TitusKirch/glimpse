@@ -314,9 +314,8 @@ export const useRepoStore = defineStore('repo', {
       const r = this.active;
       if (!r?.selectedHash) return;
       r.selectedFile = file;
-      const layout = useLayoutStore();
-      const ws = layout.ignoreWhitespace;
-      const whole = layout.diffMode === 'whole';
+      const ws = useLayoutStore().ignoreWhitespace;
+      const whole = useSettingsStore().diffMode === 'whole';
       r.diff = await gitClient.commitFileDiff({
         path: r.path,
         hash: r.selectedHash,
@@ -334,9 +333,8 @@ export const useRepoStore = defineStore('repo', {
       r.selectedHash = null;
       r.selectedBody = '';
       r.commitFiles = [];
-      const layout = useLayoutStore();
-      const ws = layout.ignoreWhitespace;
-      const whole = layout.diffMode === 'whole';
+      const ws = useLayoutStore().ignoreWhitespace;
+      const whole = useSettingsStore().diffMode === 'whole';
       r.diff = await gitClient.fileDiff({
         path: r.path,
         file,
@@ -841,7 +839,7 @@ export const useRepoStore = defineStore('repo', {
     async doPull(strategy?: PullStrategy) {
       await gitClient.pull({
         path: this.repoPath,
-        strategy: strategy ?? useLayoutStore().pullStrategy
+        strategy: strategy ?? useSettingsStore().pullStrategy
       });
     },
 
@@ -867,7 +865,7 @@ export const useRepoStore = defineStore('repo', {
           )
         ) {
           const choice = await usePullStrategy().choose({
-            initial: useLayoutStore().pullStrategy
+            initial: useSettingsStore().pullStrategy
           });
           if (!choice) return;
           try {

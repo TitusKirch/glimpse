@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const open = defineModel<boolean>('open', { required: true });
 const { t } = useI18n();
-const layout = useLayoutStore();
+const settings = useSettingsStore();
 
 // Every setting is a field of one TanStack form (validated by a single Zod
 // schema); a valid change is mirrored straight to its real home. The form is
@@ -23,7 +23,7 @@ const navSections = computed(() => {
     ],
     [{ key: 'about', icon: 'lucide:info' }]
   ];
-  if (layout.devMode) {
+  if (settings.devMode) {
     sections.push([
       { key: 'showcase', icon: 'lucide:layout-grid' },
       { key: 'triggers', icon: 'lucide:zap' }
@@ -35,7 +35,7 @@ const page = ref('general');
 
 // Leave a developer page if dev mode is switched off while one is open.
 watch(
-  () => layout.devMode,
+  () => settings.devMode,
   (on) => {
     if (!on && (page.value === 'showcase' || page.value === 'triggers'))
       page.value = 'general';

@@ -21,23 +21,27 @@ const isCollapsed = computed(
 );
 
 const layout = useLayoutStore();
+const settingsStore = useSettingsStore();
 // Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
-// Width persists in the layout store and feeds --sidebar-width via the
+// Width persists in the settings store and feeds --sidebar-width via the
 // provider. Transitions are suppressed (body class) during the drag so it
 // tracks the pointer crisply.
 const MIN_WIDTH = 192;
 const MAX_WIDTH = 512;
 const canResize = computed(
-  () => layout.sidebarResizable && state.value === 'expanded' && !isMobile.value
+  () =>
+    settingsStore.sidebarResizable &&
+    state.value === 'expanded' &&
+    !isMobile.value
 );
 function startResize(e: PointerEvent) {
   e.preventDefault();
   const startX = e.clientX;
-  const startWidth = layout.sidebarWidth;
+  const startWidth = settingsStore.sidebarWidth;
   document.body.classList.add('resizing-sidebar');
   const onMove = (ev: PointerEvent) => {
     const next = startWidth + (ev.clientX - startX);
-    layout.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
+    settingsStore.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
   };
   const onUp = () => {
     document.body.classList.remove('resizing-sidebar');

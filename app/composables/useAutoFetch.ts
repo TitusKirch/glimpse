@@ -7,10 +7,10 @@ import { useIntervalFn } from '@vueuse/core';
 
 export function useAutoFetch() {
   const repo = useRepoStore();
-  const layout = useLayoutStore();
+  const settings = useSettingsStore();
 
   const intervalMs = computed(
-    () => Math.max(1, layout.autoFetchMinutes) * 60_000
+    () => Math.max(1, settings.get('autoFetchMinutes')) * 60_000
   );
 
   const { pause, resume } = useIntervalFn(
@@ -22,7 +22,7 @@ export function useAutoFetch() {
   );
 
   watchEffect(() => {
-    if (layout.autoFetch) resume();
+    if (settings.get('autoFetch')) resume();
     else pause();
   });
 }
