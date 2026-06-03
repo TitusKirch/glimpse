@@ -110,9 +110,21 @@ export const useLayoutStore = defineStore('layout', {
     experiments: [] as string[],
     selectedExperiment: '',
     experimentsFetchedAt: 0,
-    // Developer settings (extra debug tools in the settings dialog).
+    // Opt in to per-branch experiment builds. Off by default and gated by
+    // developer mode (see useReleaseChannel): only with both on does the
+    // Experiment release channel unlock.
+    experimentsEnabled: false,
+    // Developer mode: unlocks the Showcase/Triggers pages and the pre-release
+    // (beta / experiment) update channels.
     devMode: false
   }),
+  getters: {
+    // Stable and Beta are always selectable. Only the Experiment channel is
+    // gated: it needs the experiments opt-in, which itself is reachable only in
+    // developer mode — so both. Matched in one place so callers read a single
+    // flag instead of recombining devMode with the opt-in everywhere.
+    experimentsActive: (state) => state.devMode && state.experimentsEnabled
+  },
   actions: {
     setSidebarOpen(open: boolean) {
       this.sidebarOpen = open;
@@ -223,6 +235,17 @@ export const useLayoutStore = defineStore('layout', {
       this.sidebarCollapsedSections = this.sidebarCollapsedSections.filter(
         (id) => known.includes(id)
       );
+    },
+    // Stable and Beta are always available; only Experiment is gated (needs the
+    // opt-in + developer mode). Drop a now-inaccessible Experiment selection back
+    // to Beta. Run silently on hydrate and after toggling either gate (the
+    // settings dialog toasts the change). Returns true if the channel changed.
+    normalizeChannel(): boolean {
+      if (this.releaseChannel !== 'experiment' || this.experimentsActive) {
+        return false;
+      }
+      this.releaseChannel = 'beta';
+      return true;
     }
   },
   persist: {
@@ -231,6 +254,7 @@ export const useLayoutStore = defineStore('layout', {
     afterHydrate: (ctx) => {
       ctx.store.normalizeNumbers();
       ctx.store.normalizeSections();
+      ctx.store.normalizeChannel();
     }
   }
 });

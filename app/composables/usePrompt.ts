@@ -3,6 +3,7 @@
 // field and resolves with the entered string, or null if cancelled. Text props
 // are i18n keys; `schema` validates the value (its messages are i18n keys too).
 // The request/answer wiring is shared with useConfirm via createPromiseDialog.
+import { markRaw } from 'vue';
 import type { z } from 'zod';
 
 interface PromptOptions {
@@ -30,7 +31,17 @@ export function usePrompt() {
     request: dialog.request,
     prompt(opts: PromptOptions): Promise<string | null> {
       seq += 1;
-      return dialog.ask({ id: seq, ...opts, initial: opts.initial ?? '' });
+      // Mark the Zod schema raw before it's stored in the request ref: a Vue
+      // reactive Proxy wrapped around a schema trips JavaScriptCore's stricter
+      // Proxy invariants (the WebKitGTK desktop build), which throws during form
+      // validation and the dialog never resolves. The schema is immutable, so
+      // keeping it non-reactive is correct regardless.
+      return dialog.ask({
+        id: seq,
+        ...opts,
+        schema: markRaw(opts.schema),
+        initial: opts.initial ?? ''
+      });
     },
     answer: dialog.answer
   };

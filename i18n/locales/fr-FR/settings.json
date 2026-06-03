@@ -69,23 +69,60 @@
         "label": "Actions récentes dans la recherche",
         "hint": "Nombre à afficher sous « Utilisées récemment » (au plus le nombre conservé)."
       },
-      "developer": "Développeur",
+      "developer": "Paramètres développeur",
       "devMode": {
-        "label": "Paramètres développeur",
-        "hint": "Afficher des outils de débogage supplémentaires dans les paramètres."
+        "label": "Mode développeur",
+        "hint": "Débloquer les outils de développeur — les pages Showcase et Triggers, ainsi que le canal de mise à jour bêta."
+      },
+      "experimentsOptIn": {
+        "label": "Participer aux expérimentations",
+        "hint": "Activer les versions expérimentales par branche. Désactivé par défaut ; débloque le canal de diffusion Expérimentation."
+      },
+      "channelFallback": {
+        "title": "Canal de diffusion modifié",
+        "description": "Basculé sur {channel}."
       }
     },
-    "developer": {
-      "title": "Développeur"
+    "showcase": {
+      "title": "Showcase",
+      "badges": {
+        "label": "Badges",
+        "hint": "Toutes les variantes de badge en un coup d'œil.",
+        "beta": "Beta",
+        "experiment": "Expérimentation",
+        "withIcon": "Avec icône"
+      }
     },
-    "dev": {
+    "triggers": {
+      "title": "Triggers",
       "toasts": {
         "label": "Tester les toasts",
         "hint": "Déclencher un toast de chaque type."
       },
-      "badges": {
-        "label": "Badges",
-        "hint": "Toutes les variantes de badge en un coup d'œil."
+      "dialogs": {
+        "label": "Dialogues",
+        "hint": "Ouvrir les dialogues qu'on ne voit normalement pas directement."
+      },
+      "cancelled": "Annulé",
+      "confirm": {
+        "button": "Dialogue de confirmation",
+        "title": "Supprimer la branche ?",
+        "description": "Un aperçu du dialogue de confirmation — rien ne se passe réellement.",
+        "action": "Supprimer",
+        "confirmed": "Confirmé"
+      },
+      "prompt": {
+        "button": "Dialogue de saisie",
+        "title": "Renommer",
+        "label": "Nouveau nom",
+        "placeholder": "Saisissez quelque chose…",
+        "submit": "Enregistrer",
+        "required": "Requis",
+        "saved": "Enregistré"
+      },
+      "pull": {
+        "button": "Dialogue de divergence",
+        "result": "Stratégie choisie : {strategy}"
       },
       "info": {
         "label": "Info",

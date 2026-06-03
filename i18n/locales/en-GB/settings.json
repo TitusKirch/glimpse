@@ -69,23 +69,60 @@
         "label": "Recent actions in search",
         "hint": "How many to show under 'Recently used' (at most the number kept)."
       },
-      "developer": "Developer",
+      "developer": "Developer settings",
       "devMode": {
-        "label": "Developer settings",
-        "hint": "Show extra debugging tools in settings."
+        "label": "Developer mode",
+        "hint": "Unlock developer tools — the Showcase and Triggers pages, plus the beta update channel."
+      },
+      "experimentsOptIn": {
+        "label": "Participate in experiments",
+        "hint": "Opt in to per-branch experiment builds. Off by default; unlocks the Experiment release channel."
+      },
+      "channelFallback": {
+        "title": "Release channel changed",
+        "description": "Switched to {channel}."
       }
     },
-    "developer": {
-      "title": "Developer"
+    "showcase": {
+      "title": "Showcase",
+      "badges": {
+        "label": "Badges",
+        "hint": "Every badge variant at a glance.",
+        "beta": "Beta",
+        "experiment": "Experiment",
+        "withIcon": "With icon"
+      }
     },
-    "dev": {
+    "triggers": {
+      "title": "Triggers",
       "toasts": {
         "label": "Test toasts",
         "hint": "Fire one of each toast kind."
       },
-      "badges": {
-        "label": "Badges",
-        "hint": "Every badge variant at a glance."
+      "dialogs": {
+        "label": "Dialogs",
+        "hint": "Open the dialogs you don't normally see directly."
+      },
+      "cancelled": "Cancelled",
+      "confirm": {
+        "button": "Confirm dialog",
+        "title": "Delete branch?",
+        "description": "A preview of the confirm dialog — nothing actually happens.",
+        "action": "Delete",
+        "confirmed": "Confirmed"
+      },
+      "prompt": {
+        "button": "Prompt dialog",
+        "title": "Rename",
+        "label": "New name",
+        "placeholder": "Type something…",
+        "submit": "Save",
+        "required": "Required",
+        "saved": "Saved"
+      },
+      "pull": {
+        "button": "Diverged dialog",
+        "result": "Chosen strategy: {strategy}"
       },
       "info": {
         "label": "Info",

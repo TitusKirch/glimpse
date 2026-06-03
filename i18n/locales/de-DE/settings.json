@@ -69,23 +69,60 @@
         "label": "Aktionen in der Suche",
         "hint": "Wie viele unter „Zuletzt verwendet“ erscheinen (höchstens so viele wie gespeichert)."
       },
-      "developer": "Entwickler",
+      "developer": "Entwickler-Einstellungen",
       "devMode": {
-        "label": "Entwickler-Einstellungen",
-        "hint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
+        "label": "Entwickler-Modus",
+        "hint": "Entwickler-Tools freischalten — die Seiten Showcase und Triggers sowie den Beta-Update-Channel."
+      },
+      "experimentsOptIn": {
+        "label": "An Experimenten teilnehmen",
+        "hint": "Experimentelle Builds pro Branch aktivieren. Standardmäßig aus; schaltet den Experiment-Release-Channel frei."
+      },
+      "channelFallback": {
+        "title": "Release-Channel geändert",
+        "description": "Auf {channel} gewechselt."
       }
     },
-    "developer": {
-      "title": "Entwickler"
+    "showcase": {
+      "title": "Showcase",
+      "badges": {
+        "label": "Badges",
+        "hint": "Alle Badge-Varianten auf einen Blick.",
+        "beta": "Beta",
+        "experiment": "Experiment",
+        "withIcon": "Mit Icon"
+      }
     },
-    "dev": {
+    "triggers": {
+      "title": "Triggers",
       "toasts": {
         "label": "Toasts testen",
         "hint": "Je einen Toast pro Art auslösen."
       },
-      "badges": {
-        "label": "Badges",
-        "hint": "Alle Badge-Varianten auf einen Blick."
+      "dialogs": {
+        "label": "Dialoge",
+        "hint": "Die Dialoge öffnen, die man sonst nicht direkt sieht."
+      },
+      "cancelled": "Abgebrochen",
+      "confirm": {
+        "button": "Bestätigungs-Dialog",
+        "title": "Branch löschen?",
+        "description": "Eine Vorschau des Bestätigungs-Dialogs — es passiert nichts wirklich.",
+        "action": "Löschen",
+        "confirmed": "Bestätigt"
+      },
+      "prompt": {
+        "button": "Eingabe-Dialog",
+        "title": "Umbenennen",
+        "label": "Neuer Name",
+        "placeholder": "Etwas eingeben…",
+        "submit": "Speichern",
+        "required": "Pflichtfeld",
+        "saved": "Gespeichert"
+      },
+      "pull": {
+        "button": "Diverged-Dialog",
+        "result": "Gewählte Strategie: {strategy}"
       },
       "info": {
         "label": "Info",

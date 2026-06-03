@@ -5,11 +5,12 @@
 // per-input overhead.
 import { useForm } from '@tanstack/vue-form';
 import { z } from 'zod';
+import { toast } from 'vue-sonner';
 
 export function useSettingsForm() {
   const layout = useLayoutStore();
   const colorMode = useColorMode();
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
 
   const schema = z.object({
     theme: z.enum(['system', 'light', 'dark']),
@@ -34,7 +35,8 @@ export function useSettingsForm() {
     monoScale: z.number(),
     accent: z.enum(['default', 'blue', 'violet', 'green', 'amber', 'rose']),
     shortenDependabot: z.boolean(),
-    devMode: z.boolean()
+    devMode: z.boolean(),
+    experimentsEnabled: z.boolean()
   });
   type SettingsValues = z.infer<typeof schema>;
 
@@ -63,7 +65,8 @@ export function useSettingsForm() {
       monoScale: layout.monoScale,
       accent: layout.accent,
       shortenDependabot: layout.shortenDependabot,
-      devMode: layout.devMode
+      devMode: layout.devMode,
+      experimentsEnabled: layout.experimentsEnabled
     };
   }
 
@@ -104,6 +107,20 @@ export function useSettingsForm() {
     }
     const store = layout as unknown as Record<string, unknown>;
     if (store[name] !== value) store[name] = value;
+    // Toggling either gate can strip access to the Experiment channel; drop it
+    // back to Beta, keep the dialog's channel field in sync, and tell the user.
+    if (name === 'devMode' || name === 'experimentsEnabled') {
+      if (layout.normalizeChannel()) {
+        form.setFieldValue('releaseChannel', layout.releaseChannel);
+        toast.info(t('settings.general.channelFallback.title'), {
+          description: t('settings.general.channelFallback.description', {
+            channel: t(
+              `settings.general.releaseChannel.${layout.releaseChannel}`
+            )
+          })
+        });
+      }
+    }
   }
 
   // Per-field listener: persist only when the field itself is valid, so an

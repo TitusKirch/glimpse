@@ -69,23 +69,60 @@
         "label": "Acciones recientes en la búsqueda",
         "hint": "Cuántas mostrar en «Usadas recientemente» (como mucho las que se guardan)."
       },
-      "developer": "Desarrollador",
+      "developer": "Ajustes de desarrollador",
       "devMode": {
-        "label": "Ajustes de desarrollador",
-        "hint": "Mostrar herramientas de depuración adicionales en los ajustes."
+        "label": "Modo desarrollador",
+        "hint": "Desbloquea las herramientas de desarrollador: las páginas Showcase y Triggers, además del canal de actualizaciones beta."
+      },
+      "experimentsOptIn": {
+        "label": "Participar en experimentos",
+        "hint": "Activa las builds experimentales por rama. Desactivado por defecto; desbloquea el canal de versiones Experimento."
+      },
+      "channelFallback": {
+        "title": "Canal de versiones cambiado",
+        "description": "Se cambió a {channel}."
       }
     },
-    "developer": {
-      "title": "Desarrollador"
+    "showcase": {
+      "title": "Showcase",
+      "badges": {
+        "label": "Insignias",
+        "hint": "Todas las variantes de insignia de un vistazo.",
+        "beta": "Beta",
+        "experiment": "Experimento",
+        "withIcon": "Con icono"
+      }
     },
-    "dev": {
+    "triggers": {
+      "title": "Triggers",
       "toasts": {
         "label": "Probar toasts",
         "hint": "Lanzar un toast de cada tipo."
       },
-      "badges": {
-        "label": "Insignias",
-        "hint": "Todas las variantes de insignia de un vistazo."
+      "dialogs": {
+        "label": "Diálogos",
+        "hint": "Abrir los diálogos que normalmente no ves directamente."
+      },
+      "cancelled": "Cancelado",
+      "confirm": {
+        "button": "Diálogo de confirmación",
+        "title": "¿Eliminar la rama?",
+        "description": "Una vista previa del diálogo de confirmación: no ocurre nada de verdad.",
+        "action": "Eliminar",
+        "confirmed": "Confirmado"
+      },
+      "prompt": {
+        "button": "Diálogo de entrada",
+        "title": "Renombrar",
+        "label": "Nuevo nombre",
+        "placeholder": "Escribe algo…",
+        "submit": "Guardar",
+        "required": "Obligatorio",
+        "saved": "Guardado"
+      },
+      "pull": {
+        "button": "Diálogo de divergencia",
+        "result": "Estrategia elegida: {strategy}"
       },
       "info": {
         "label": "Información",

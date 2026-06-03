@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
+import { z } from 'zod';
 
 const open = defineModel<boolean>('open', { required: true });
 const { t, locale, locales } = useI18n();
@@ -14,7 +15,7 @@ watch(open, (isOpen) => {
   if (isOpen) reset();
 });
 
-// Dev-only: fire one of each toast kind (with title + description) to preview.
+// Triggers page: fire one of each toast kind (with title + description).
 const toastKinds = [
   { kind: 'info', variant: 'info', fn: toast.info },
   { kind: 'success', variant: 'success', fn: toast.success },
@@ -22,12 +23,54 @@ const toastKinds = [
   { kind: 'error', variant: 'destructive', fn: toast.error }
 ] as const;
 function fireToast(tk: (typeof toastKinds)[number]) {
-  tk.fn(t(`settings.dev.${tk.kind}.title`), {
-    description: t(`settings.dev.${tk.kind}.description`)
+  tk.fn(t(`settings.triggers.${tk.kind}.title`), {
+    description: t(`settings.triggers.${tk.kind}.description`)
   });
 }
 
-// Dev-only: every badge variant at a glance (the design-system reference).
+// Triggers page: open the promise-based dialogs you don't normally see directly
+// (they fire from store actions in real use), and report the outcome as a toast.
+const confirmDialog = useConfirm();
+const promptDialog = usePrompt();
+const pullStrategy = usePullStrategy();
+async function triggerConfirm() {
+  const ok = await confirmDialog.confirm({
+    titleKey: 'settings.triggers.confirm.title',
+    descriptionKey: 'settings.triggers.confirm.description',
+    confirmKey: 'settings.triggers.confirm.action',
+    destructive: true
+  });
+  toast.info(
+    t(
+      ok ? 'settings.triggers.confirm.confirmed' : 'settings.triggers.cancelled'
+    )
+  );
+}
+async function triggerPrompt() {
+  const value = await promptDialog.prompt({
+    titleKey: 'settings.triggers.prompt.title',
+    labelKey: 'settings.triggers.prompt.label',
+    placeholderKey: 'settings.triggers.prompt.placeholder',
+    submitKey: 'settings.triggers.prompt.submit',
+    schema: z.string().min(1, 'settings.triggers.prompt.required')
+  });
+  // On save, echo the entered value back in the toast; on cancel, just say so.
+  if (value === null) {
+    toast.info(t('settings.triggers.cancelled'));
+    return;
+  }
+  toast.success(t('settings.triggers.prompt.saved'), { description: value });
+}
+async function triggerPull() {
+  const strategy = await pullStrategy.choose({ initial: layout.pullStrategy });
+  toast.info(
+    strategy === null
+      ? t('settings.triggers.cancelled')
+      : t('settings.triggers.pull.result', { strategy })
+  );
+}
+
+// Showcase page: every badge variant at a glance (the design-system reference).
 const badgeKinds = [
   'default',
   'secondary',
@@ -39,7 +82,7 @@ const badgeKinds = [
 ] as const;
 
 // Left navigation, grouped into sections separated by dividers. The Developer
-// section only appears when dev mode is on.
+// group (Showcase + Triggers) only appears when dev mode is on.
 const navSections = computed(() => {
   const sections = [
     [
@@ -50,17 +93,21 @@ const navSections = computed(() => {
     [{ key: 'about', icon: 'lucide:info' }]
   ];
   if (layout.devMode) {
-    sections.push([{ key: 'developer', icon: 'lucide:flask-conical' }]);
+    sections.push([
+      { key: 'showcase', icon: 'lucide:layout-grid' },
+      { key: 'triggers', icon: 'lucide:zap' }
+    ]);
   }
   return sections;
 });
 const page = ref('general');
 
-// Leave the Developer page if dev mode is switched off while it is open.
+// Leave a developer page if dev mode is switched off while one is open.
 watch(
   () => layout.devMode,
   (on) => {
-    if (!on && page.value === 'developer') page.value = 'general';
+    if (!on && (page.value === 'showcase' || page.value === 'triggers'))
+      page.value = 'general';
   }
 );
 
@@ -327,6 +374,8 @@ function toggledLocales({
                   </form.Field>
                 </SettingsRow>
 
+                <!-- Release channel: Stable and Beta are always selectable; the
+                     Experiment option appears only with the experiments opt-in. -->
                 <SettingsRow
                   label="settings.general.releaseChannel.label"
                   hint="settings.general.releaseChannel.hint"
@@ -352,7 +401,10 @@ function toggledLocales({
                         <UiSelectItem value="beta">
                           {{ t('settings.general.releaseChannel.beta') }}
                         </UiSelectItem>
-                        <UiSelectItem value="experiment">
+                        <UiSelectItem
+                          v-if="layout.experimentsActive"
+                          value="experiment"
+                        >
                           {{ t('settings.general.releaseChannel.experiment') }}
                         </UiSelectItem>
                       </UiSelectContent>
@@ -648,69 +700,141 @@ function toggledLocales({
               >
                 {{ t('settings.general.developer') }}
               </h3>
-              <SettingsRow
-                label="settings.general.devMode.label"
-                hint="settings.general.devMode.hint"
-              >
-                <form.Field
-                  v-slot="{ field }"
-                  name="devMode"
-                  :listeners="persist('devMode')"
+              <div class="space-y-4">
+                <SettingsRow
+                  label="settings.general.devMode.label"
+                  hint="settings.general.devMode.hint"
                 >
-                  <UiSwitch
-                    :model-value="field.state.value"
-                    class="shrink-0"
-                    @update:model-value="(v) => field.handleChange(v as never)"
-                  />
-                </form.Field>
-              </SettingsRow>
+                  <form.Field
+                    v-slot="{ field }"
+                    name="devMode"
+                    :listeners="persist('devMode')"
+                  >
+                    <UiSwitch
+                      :model-value="field.state.value"
+                      class="shrink-0"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    />
+                  </form.Field>
+                </SettingsRow>
+
+                <!-- Experiments opt-in: only once developer mode is on. Off by
+                     default; gates the Experiment release channel. -->
+                <SettingsRow
+                  v-if="layout.devMode"
+                  label="settings.general.experimentsOptIn.label"
+                  hint="settings.general.experimentsOptIn.hint"
+                >
+                  <form.Field
+                    v-slot="{ field }"
+                    name="experimentsEnabled"
+                    :listeners="persist('experimentsEnabled')"
+                  >
+                    <UiSwitch
+                      :model-value="field.state.value"
+                      class="shrink-0"
+                      @update:model-value="
+                        (v) => field.handleChange(v as never)
+                      "
+                    />
+                  </form.Field>
+                </SettingsRow>
+              </div>
             </div>
           </section>
 
-          <section v-else-if="page === 'developer'" class="w-full space-y-8">
+          <!-- Showcase: a visual reference of shared building blocks. -->
+          <section v-else-if="page === 'showcase'" class="w-full space-y-8">
             <div>
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
-                {{ t('settings.dev.toasts.label') }}
+                {{ t('settings.showcase.badges.label') }}
               </h3>
-              <SettingsRow
-                label="settings.dev.toasts.label"
-                hint="settings.dev.toasts.hint"
+              <p class="mb-3 text-xs text-muted-foreground">
+                {{ t('settings.showcase.badges.hint') }}
+              </p>
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- every variant -->
+                <UiBadge v-for="v in badgeKinds" :key="v" :variant="v">
+                  {{ v }}
+                </UiBadge>
+                <!-- the real beta / experiment badges (as shown in the sidebar) -->
+                <UiBadge variant="warning" icon="lucide:rocket">
+                  {{ t('settings.showcase.badges.beta') }}
+                </UiBadge>
+                <UiBadge variant="destructive" icon="lucide:flask-conical">
+                  {{ t('settings.showcase.badges.experiment') }}
+                </UiBadge>
+                <!-- a plain "with icon" example (neutral icon + tint) -->
+                <UiBadge variant="info" icon="lucide:star">
+                  {{ t('settings.showcase.badges.withIcon') }}
+                </UiBadge>
+              </div>
+            </div>
+          </section>
+
+          <!-- Triggers: fire the toasts and the dialogs you don't normally see
+               directly (they pop from store actions in real use). -->
+          <section v-else-if="page === 'triggers'" class="w-full space-y-8">
+            <div>
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
-                <div class="flex shrink-0 gap-2">
-                  <UiButton
-                    v-for="tk in toastKinds"
-                    :key="tk.kind"
-                    :variant="tk.variant"
-                    size="sm"
-                    @click="fireToast(tk)"
-                  >
-                    {{ t(`settings.dev.${tk.kind}.label`) }}
-                  </UiButton>
-                </div>
-              </SettingsRow>
+                {{ t('settings.triggers.toasts.label') }}
+              </h3>
+              <p class="mb-3 text-xs text-muted-foreground">
+                {{ t('settings.triggers.toasts.hint') }}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <UiButton
+                  v-for="tk in toastKinds"
+                  :key="tk.kind"
+                  :variant="tk.variant"
+                  size="sm"
+                  @click="fireToast(tk)"
+                >
+                  {{ t(`settings.triggers.${tk.kind}.label`) }}
+                </UiButton>
+              </div>
             </div>
 
             <div>
               <h3
                 class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
               >
-                {{ t('settings.dev.badges.label') }}
+                {{ t('settings.triggers.dialogs.label') }}
               </h3>
               <p class="mb-3 text-xs text-muted-foreground">
-                {{ t('settings.dev.badges.hint') }}
+                {{ t('settings.triggers.dialogs.hint') }}
               </p>
-              <div class="flex flex-wrap items-center gap-2">
-                <UiBadge v-for="v in badgeKinds" :key="v" :variant="v">
-                  {{ v }}
-                </UiBadge>
-                <UiBadge variant="warning" icon="lucide:rocket">
-                  with icon
-                </UiBadge>
-                <UiBadge variant="destructive" icon="lucide:flask-conical">
-                  Experiment
-                </UiBadge>
+              <div class="flex flex-wrap gap-2">
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  icon="lucide:circle-alert"
+                  @click="triggerConfirm"
+                >
+                  {{ t('settings.triggers.confirm.button') }}
+                </UiButton>
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  icon="lucide:pencil"
+                  @click="triggerPrompt"
+                >
+                  {{ t('settings.triggers.prompt.button') }}
+                </UiButton>
+                <UiButton
+                  variant="outline"
+                  size="sm"
+                  icon="lucide:git-merge"
+                  @click="triggerPull"
+                >
+                  {{ t('settings.triggers.pull.button') }}
+                </UiButton>
               </div>
             </div>
           </section>
