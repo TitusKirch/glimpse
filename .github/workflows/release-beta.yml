@@ -200,6 +200,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
+          # --verbose surfaces the signer's stdout/stderr (the bundler logs the
+          # custom sign command's output at debug level) — temporary, for
+          # diagnosing the Authenticode signing step. Drop once it's green.
+          args: --verbose
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseDraft: false
           prerelease: true

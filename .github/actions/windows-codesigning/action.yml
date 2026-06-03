@@ -41,6 +41,23 @@ runs:
       shell: bash
       run: cargo install artifact-signing-cli@0.11.0
 
+    # artifact-signing-cli drives signtool.exe + the Azure.CodeSigning dlib, and
+    # defaults to a HARD-CODED Windows SDK path (…\10\bin\10.0.26100.0\x64\…) that
+    # won't match every runner's installed SDK. Resolve the newest signtool.exe
+    # and pin it via SIGNTOOL_PATH so the signer finds it regardless of version.
+    - name: Resolve signtool.exe
+      shell: pwsh
+      run: |
+        $st = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' -ErrorAction SilentlyContinue |
+          Sort-Object { [version]$_.Directory.Parent.Name } -Descending |
+          Select-Object -First 1
+        if (-not $st) {
+          Write-Error 'signtool.exe not found under the Windows 10/11 SDK on this runner.'
+          exit 1
+        }
+        Write-Host "Using signtool: $($st.FullName)"
+        "SIGNTOOL_PATH=$($st.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
     # Point Tauri at the signer. Tauri runs signCommand on the app .exe first and
     # then on the NSIS installer, so BOTH get an Authenticode signature (signing
     # only the final installer post-build would leave the inner .exe unsigned).
