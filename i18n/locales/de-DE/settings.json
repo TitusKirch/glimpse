@@ -9,6 +9,7 @@
         "label": "Kommandozeilen-Starter",
         "hint": "Installiere den `glimpse`-Befehl, um ein Repo aus dem Terminal zu öffnen – wie `code .`.",
         "install": "Installieren",
+        "installedLabel": "Installiert",
         "installed": "glimpse installiert unter {path}",
         "restartHint": "Terminal neu starten, dann „glimpse .“ in einem Repo ausführen.",
         "failed": "Befehl konnte nicht installiert werden"

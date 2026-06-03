@@ -12,14 +12,29 @@ const { accentOptions, accentSwatch } = useAppearance();
 // re-seeded from the live settings each time the dialog opens.
 const { form, persist, reset } = useSettingsForm();
 watch(open, (isOpen) => {
-  if (isOpen) reset();
+  if (isOpen) {
+    reset();
+    void refreshCliStatus();
+  }
 });
 
 // Install the `glimpse` command-line launcher onto PATH (desktop only — the row
-// is hidden in the browser demo). Idempotent; re-running just refreshes it.
+// is hidden in the browser demo). Idempotent; re-running just refreshes it. The
+// install runs a spinner while it works, and the button disables itself once
+// `glimpse` is on PATH (re-checked each time the dialog opens).
+const installingCli = ref(false);
+const cliInstalledPath = ref<string | null>(null);
+
+async function refreshCliStatus() {
+  if (!isTauri()) return;
+  cliInstalledPath.value = await gitClient.cliInstallStatus();
+}
+
 async function installCli() {
+  installingCli.value = true;
   try {
     const path = await gitClient.installCli();
+    cliInstalledPath.value = path;
     toast.success(t('settings.general.cli.installed', { path }), {
       description: t('settings.general.cli.restartHint')
     });
@@ -27,6 +42,8 @@ async function installCli() {
     toast.error(t('settings.general.cli.failed'), {
       description: typeof err === 'string' ? err : String(err)
     });
+  } finally {
+    installingCli.value = false;
   }
 }
 
@@ -379,11 +396,19 @@ function toggledLocales({
                   <UiButton
                     variant="outline"
                     size="sm"
-                    icon="lucide:terminal"
+                    :icon="
+                      cliInstalledPath ? 'lucide:check' : 'lucide:terminal'
+                    "
                     class="shrink-0"
+                    :pending="installingCli"
+                    :disabled="!!cliInstalledPath"
                     @click="installCli"
                   >
-                    {{ t('settings.general.cli.install') }}
+                    {{
+                      cliInstalledPath
+                        ? t('settings.general.cli.installedLabel')
+                        : t('settings.general.cli.install')
+                    }}
                   </UiButton>
                 </SettingsRow>
               </div>

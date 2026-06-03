@@ -9,6 +9,7 @@
         "label": "Lanzador de línea de comandos",
         "hint": "Instala el comando `glimpse` para abrir un repositorio desde la terminal, como `code .`.",
         "install": "Instalar",
+        "installedLabel": "Instalado",
         "installed": "glimpse instalado en {path}",
         "restartHint": "Reinicia la terminal y ejecuta «glimpse .» en cualquier repositorio.",
         "failed": "No se pudo instalar el comando"

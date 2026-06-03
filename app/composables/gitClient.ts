@@ -39,6 +39,15 @@ export const gitClient = {
   // settings row that triggers it is hidden in the browser demo).
   installCli: () => tauriInvoke<string>({ command: 'install_cli', args: {} }),
 
+  // The installed launcher path if `glimpse` is already on PATH for this build,
+  // else null — lets the settings row show an installed state. Null in the demo.
+  cliInstallStatus: () =>
+    tauriInvoke<string | null>({
+      command: 'cli_install_status',
+      args: {},
+      fallback: null
+    }),
+
   // Start the FS watcher for `path`; the backend emits `repo-changed`.
   watchRepo: (path: string) =>
     tauriInvoke<null>({

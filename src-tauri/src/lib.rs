@@ -166,12 +166,74 @@ fn install_cli_impl(exe: &Path) -> Result<String, String> {
         .into_owned())
 }
 
+/// Linux/macOS: installed if the launcher symlink resolves to *this* executable
+/// (a stray `glimpse` from something else doesn't count).
+#[cfg(all(desktop, unix))]
+fn cli_install_status_impl(exe: &Path) -> Option<String> {
+    let home = env::var_os("HOME")?;
+    let bin_dir = if cfg!(target_os = "macos") {
+        std::path::PathBuf::from("/usr/local/bin")
+    } else {
+        Path::new(&home).join(".local/bin")
+    };
+    let link = bin_dir.join("glimpse");
+    match std::fs::read_link(&link) {
+        Ok(target) if target == exe => Some(link.to_string_lossy().into_owned()),
+        _ => None,
+    }
+}
+
+/// Decode `wsl.exe -l -q` output (UTF-16LE, CRLF-separated) into the installed
+/// distro names, dropping blanks and the docker-desktop helper distros (no point
+/// installing a launcher there). Pure, so it's tested off Windows; the live
+/// enumeration that feeds it is Windows-only.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn parse_wsl_distros(utf16le: &[u8]) -> Vec<String> {
+    let units: Vec<u16> = utf16le
+        .chunks_exact(2)
+        .map(|c| u16::from_le_bytes([c[0], c[1]]))
+        .collect();
+    String::from_utf16_lossy(&units)
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with("docker-desktop"))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Bake a fixed `GLIMPSE_EXE` into the WSL launcher so the installed copy locates
+/// glimpse.exe without relying on the Windows PATH propagating into WSL — and so
+/// it works in every shell, zsh included. Injected right after the shim's `set
+/// -eu`; the `${GLIMPSE_EXE:-…}` form still lets an explicit env override win.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn bake_wsl_shim(shim: &str, exe_unix: &str) -> String {
+    shim.replacen(
+        "set -eu",
+        &format!("set -eu\nGLIMPSE_EXE=\"${{GLIMPSE_EXE:-{exe_unix}}}\""),
+        1,
+    )
+}
+
+/// The WSL launcher script, embedded so the Windows build can drop it into each
+/// distro (see `install_wsl_shims`). Kept byte-for-byte in sync with the repo's
+/// `scripts/glimpse-wsl.sh`.
+#[cfg(all(desktop, windows))]
+const WSL_SHIM: &str = include_str!("../../scripts/glimpse-wsl.sh");
+
+/// CREATE_NO_WINDOW — run a child without flashing a console window.
+#[cfg(all(desktop, windows))]
+const NO_WINDOW: u32 = 0x0800_0000;
+
 /// Windows: add this executable's directory to the *user* PATH so `glimpse`
 /// resolves to glimpse.exe. Uses PowerShell's Environment API — unlike `setx`
 /// (1024-char truncation) or hand-editing the registry it writes the correct
 /// value type and broadcasts the change. The directory is passed via an env var,
 /// never interpolated into the script, so there is no command injection.
 /// (Mechanism is the documented-safe one; verify in a Windows build.)
+///
+/// Then, best-effort, install the WSL launcher into each distro so `glimpse .`
+/// also works from a WSL shell (it opens this same Windows GUI). WSL failures
+/// never fail the Windows install — they just don't extend the returned summary.
 #[cfg(all(desktop, windows))]
 fn install_cli_impl(exe: &Path) -> Result<String, String> {
     use std::os::windows::process::CommandExt;
@@ -183,7 +245,7 @@ $p = [Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $p) { $
 $parts = $p -split ';' | Where-Object { $_ -ne '' }
 if ($parts -notcontains $d) { [Environment]::SetEnvironmentVariable('Path', ((@($parts) + $d) -join ';'), 'User') }"#;
     let out = std::process::Command::new("powershell")
-        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW — no console flash
+        .creation_flags(NO_WINDOW)
         .env("GLIMPSE_BIN_DIR", dir)
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .output()
@@ -191,7 +253,102 @@ if ($parts -notcontains $d) { [Environment]::SetEnvironmentVariable('Path', ((@(
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }
-    Ok(dir.join("glimpse.exe").to_string_lossy().into_owned())
+    let win_path = dir.join("glimpse.exe").to_string_lossy().into_owned();
+    let distros = install_wsl_shims(exe);
+    Ok(if distros.is_empty() {
+        win_path
+    } else {
+        format!("{win_path} (WSL: {})", distros.join(", "))
+    })
+}
+
+/// Windows: installed if this exe's directory is on the user PATH.
+#[cfg(all(desktop, windows))]
+fn cli_install_status_impl(exe: &Path) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let dir = exe.parent()?;
+    let script = r#"$d = $env:GLIMPSE_BIN_DIR
+$p = [Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $p) { $p = '' }
+if (($p -split ';') -contains $d) { Write-Output 'yes' }"#;
+    let out = std::process::Command::new("powershell")
+        .creation_flags(NO_WINDOW)
+        .env("GLIMPSE_BIN_DIR", dir)
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .ok()?;
+    (out.status.success() && String::from_utf8_lossy(&out.stdout).trim() == "yes")
+        .then(|| dir.join("glimpse.exe").to_string_lossy().into_owned())
+}
+
+/// Drop the WSL launcher into every installed distro; returns the distros it
+/// reached. Best-effort: a distro that errors is simply skipped.
+#[cfg(all(desktop, windows))]
+fn install_wsl_shims(exe: &Path) -> Vec<String> {
+    use std::os::windows::process::CommandExt;
+    let win_exe = exe.to_string_lossy().to_string();
+    let listed = match std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-l", "-q"])
+        .output()
+    {
+        Ok(o) if o.status.success() => o.stdout,
+        _ => return Vec::new(),
+    };
+    parse_wsl_distros(&listed)
+        .into_iter()
+        .filter(|distro| install_wsl_shim_into(distro, &win_exe).is_ok())
+        .collect()
+}
+
+/// Install the launcher as `/usr/local/bin/glimpse` inside one distro. That dir
+/// is on PATH in every shell (zsh included), and WSL grants passwordless root
+/// from the Windows side, so no prompt. glimpse.exe is resolved to its in-distro
+/// `/mnt/…` path and baked in, so the launcher needs no PATH/config to find it.
+#[cfg(all(desktop, windows))]
+fn install_wsl_shim_into(distro: &str, win_exe: &str) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::windows::process::CommandExt;
+    let resolved = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-d", distro, "--", "wslpath", "-u", win_exe])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !resolved.status.success() {
+        return Err(String::from_utf8_lossy(&resolved.stderr).trim().to_string());
+    }
+    let exe_unix = String::from_utf8_lossy(&resolved.stdout).trim().to_string();
+    if exe_unix.is_empty() {
+        return Err("could not resolve glimpse.exe inside WSL".into());
+    }
+    let baked = bake_wsl_shim(WSL_SHIM, &exe_unix);
+    let mut child = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args([
+            "-d",
+            distro,
+            "-u",
+            "root",
+            "--",
+            "sh",
+            "-c",
+            "cat > /usr/local/bin/glimpse && chmod 0755 /usr/local/bin/glimpse",
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or("no stdin for the WSL writer")?
+        .write_all(baked.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
 }
 
 // Mobile has no PATH; a no-op stub keeps the command set identical.
@@ -199,6 +356,23 @@ if ($parts -notcontains $d) { [Environment]::SetEnvironmentVariable('Path', ((@(
 #[tauri::command]
 async fn install_cli() -> Result<String, String> {
     Err("the command-line launcher is not available on this platform".into())
+}
+
+/// Whether the `glimpse` launcher is already installed for this executable — its
+/// path if so, else None. Lets the settings UI show an installed state and
+/// disable the install action. (The best-effort WSL shim on Windows is not
+/// probed here; this reflects the native launcher.)
+#[cfg(desktop)]
+#[tauri::command]
+async fn cli_install_status() -> Option<String> {
+    let exe = env::current_exe().ok()?;
+    cli_install_status_impl(&exe)
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn cli_install_status() -> Option<String> {
+    None
 }
 
 /// Watch `path` recursively and emit `repo-changed` (debounced) on any change,
@@ -857,6 +1031,7 @@ pub fn run() {
             default_repo,
             take_cli_open_path,
             install_cli,
+            cli_install_status,
             watch_repo,
             repo_info,
             git_log,
@@ -910,7 +1085,9 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::{first_path_arg, resolve_cli_path, version_outranks};
+    use super::{
+        bake_wsl_shim, first_path_arg, parse_wsl_distros, resolve_cli_path, version_outranks,
+    };
 
     fn argv(parts: &[&str]) -> Vec<String> {
         parts.iter().map(|s| s.to_string()).collect()
@@ -973,6 +1150,32 @@ mod tests {
         assert_eq!(again, link);
         assert_eq!(std::fs::read_link(&again).unwrap(), exe);
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn parse_wsl_distros_decodes_and_filters() {
+        // `wsl.exe -l -q` emits UTF-16LE, CRLF-separated; docker-desktop helper
+        // distros and blank lines are dropped.
+        let mut bytes = Vec::new();
+        for line in ["docker-desktop\r\n", "Ubuntu-22.04\r\n", "\r\n"] {
+            for u in line.encode_utf16() {
+                bytes.extend_from_slice(&u.to_le_bytes());
+            }
+        }
+        assert_eq!(parse_wsl_distros(&bytes), vec!["Ubuntu-22.04".to_string()]);
+        assert!(parse_wsl_distros(&[]).is_empty());
+    }
+
+    #[test]
+    fn bake_wsl_shim_injects_exe_once_after_set_eu() {
+        let shim = "#!/bin/sh\nset -eu\necho hi\n";
+        let out = bake_wsl_shim(shim, "/mnt/c/glimpse.exe");
+        assert!(out.starts_with(
+            "#!/bin/sh\nset -eu\nGLIMPSE_EXE=\"${GLIMPSE_EXE:-/mnt/c/glimpse.exe}\"\n"
+        ));
+        // The `${GLIMPSE_EXE:-…}` default leaves an explicit env override able to
+        // win, and the injection happens exactly once.
+        assert_eq!(out.matches("GLIMPSE_EXE=").count(), 1);
     }
 
     #[test]

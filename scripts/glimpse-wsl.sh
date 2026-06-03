@@ -20,8 +20,10 @@
 #     glimpse ../other   # open another repo by path
 #     glimpse            # just open / focus the app
 #
-# (A future glimpse release installs and configures this for you from the app;
-# until then this is the canonical launcher.)
+# (The glimpse app installs and configures this for you — Settings → General →
+# Command line drops it into each WSL distro as /usr/local/bin/glimpse with the
+# glimpse.exe path baked in. This file remains the canonical launcher and the
+# manual fallback.)
 
 set -eu
 
