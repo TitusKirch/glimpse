@@ -214,6 +214,16 @@ fn bake_wsl_shim(shim: &str, exe_unix: &str) -> String {
     )
 }
 
+/// Normalise glimpse.exe's Windows path for a `wsl.exe -- wslpath -u <path>`
+/// call. `wsl.exe` strips backslashes from the args it forwards, so a literal
+/// `C:\Users\…` reaches `wslpath` as `C:Users…` and fails; the forward-slash
+/// form survives the hop and `wslpath` accepts it. Pure, so it's tested off
+/// Windows (the live `wsl.exe` round-trip that consumes it is Windows-only).
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wslpath_arg(win_exe: &str) -> String {
+    win_exe.replace('\\', "/")
+}
+
 /// The WSL launcher script, embedded so the Windows build can drop it into each
 /// distro (see `install_wsl_shims`). Kept byte-for-byte in sync with the repo's
 /// `scripts/glimpse-wsl.sh`.
@@ -300,27 +310,39 @@ fn install_wsl_shims(exe: &Path) -> Vec<String> {
         .collect()
 }
 
+/// Ask one distro to translate glimpse.exe's Windows path to its in-distro
+/// `/mnt/…` form (via `wslpath -u`, with the path normalised so `wsl.exe`'s arg
+/// forwarding doesn't eat the backslashes). Best-effort: returns None on any
+/// failure, and the caller installs the launcher anyway.
+#[cfg(all(desktop, windows))]
+fn wsl_resolve_exe_path(distro: &str, win_exe: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-d", distro, "--", "wslpath", "-u", &wslpath_arg(win_exe)])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!path.is_empty()).then_some(path)
+}
+
 /// Install the launcher as `/usr/local/bin/glimpse` inside one distro. That dir
 /// is on PATH in every shell (zsh included), and WSL grants passwordless root
 /// from the Windows side, so no prompt. glimpse.exe is resolved to its in-distro
-/// `/mnt/…` path and baked in, so the launcher needs no PATH/config to find it.
+/// `/mnt/…` path and baked in so the launcher needs no PATH/config to find it —
+/// but resolving is best-effort: if it fails the launcher is still installed and
+/// falls back to `glimpse.exe` on PATH at runtime.
 #[cfg(all(desktop, windows))]
 fn install_wsl_shim_into(distro: &str, win_exe: &str) -> Result<(), String> {
     use std::io::Write;
     use std::os::windows::process::CommandExt;
-    let resolved = std::process::Command::new("wsl.exe")
-        .creation_flags(NO_WINDOW)
-        .args(["-d", distro, "--", "wslpath", "-u", win_exe])
-        .output()
-        .map_err(|e| e.to_string())?;
-    if !resolved.status.success() {
-        return Err(String::from_utf8_lossy(&resolved.stderr).trim().to_string());
-    }
-    let exe_unix = String::from_utf8_lossy(&resolved.stdout).trim().to_string();
-    if exe_unix.is_empty() {
-        return Err("could not resolve glimpse.exe inside WSL".into());
-    }
-    let baked = bake_wsl_shim(WSL_SHIM, &exe_unix);
+    let baked = match wsl_resolve_exe_path(distro, win_exe) {
+        Some(exe_unix) => bake_wsl_shim(WSL_SHIM, &exe_unix),
+        None => WSL_SHIM.to_string(),
+    };
     let mut child = std::process::Command::new("wsl.exe")
         .creation_flags(NO_WINDOW)
         .args([
@@ -1087,6 +1109,7 @@ pub fn run() {
 mod tests {
     use super::{
         bake_wsl_shim, first_path_arg, parse_wsl_distros, resolve_cli_path, version_outranks,
+        wslpath_arg,
     };
 
     fn argv(parts: &[&str]) -> Vec<String> {
@@ -1176,6 +1199,19 @@ mod tests {
         // The `${GLIMPSE_EXE:-…}` default leaves an explicit env override able to
         // win, and the injection happens exactly once.
         assert_eq!(out.matches("GLIMPSE_EXE=").count(), 1);
+    }
+
+    #[test]
+    fn wslpath_arg_uses_forward_slashes() {
+        // wsl.exe eats backslashes from forwarded args, so the path handed to
+        // `wslpath -u` must use forward slashes (verified live: the `C:\…` form
+        // arrives mangled and wslpath exits 1; the `C:/…` form resolves).
+        assert_eq!(
+            wslpath_arg(r"C:\Users\titus\AppData\Local\glimpse\glimpse.exe"),
+            "C:/Users/titus/AppData/Local/glimpse/glimpse.exe"
+        );
+        // A path with no backslashes is left untouched.
+        assert_eq!(wslpath_arg("/mnt/c/glimpse.exe"), "/mnt/c/glimpse.exe");
     }
 
     #[test]
