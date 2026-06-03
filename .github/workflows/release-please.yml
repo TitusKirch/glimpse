@@ -106,11 +106,10 @@ jobs:
             1fb62037-259b-45ec-b0fa-b45b017ab6e7 > TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 
       # Authenticode-sign the Windows .exe + NSIS installer via Azure Artifact
-      # Signing. Injects bundle.windows.signCommand before the build runs.
-      # Gated on the WINDOWS_CODESIGNING repo variable so it is a one-flag
-      # kill-switch — see WINDOWS-SIGNING-SETUP.local.md.
+      # Signing. Injects bundle.windows.signCommand before the build runs — see
+      # WINDOWS-SIGNING-SETUP.local.md.
       - name: Set up Windows code signing (Azure Artifact Signing)
-        if: runner.os == 'Windows' && vars.WINDOWS_CODESIGNING == 'true'
+        if: runner.os == 'Windows'
         uses: ./.github/actions/windows-codesigning
         with:
           bws-access-token: ${{ secrets.BWS_ACCESS_TOKEN }}
