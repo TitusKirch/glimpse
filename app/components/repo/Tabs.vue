@@ -6,6 +6,10 @@ const repo = useRepoStore();
 const openRepoDialog = useOverlay('openRepo');
 const { t } = useI18n();
 
+// Suppress tooltips (e.g. a tab's WSL-distro tooltip) while a tab reorder drag
+// is in flight, so the pointer sweeping over tabs doesn't pop them mid-drag.
+const { startReorder, endReorder } = useDragReorder();
+
 // Map a WSL distro name to its brand icon (simple-icons), falling back to the
 // generic Tux penguin when the distro isn't recognised.
 function distroIcon(distro?: string): string {
@@ -46,6 +50,8 @@ function onReorder(tabs: RepoState[]) {
       ghost-class="opacity-50"
       filter=".tab-close"
       :prevent-on-filter="false"
+      @start="startReorder"
+      @end="endReorder"
       @update:model-value="onReorder"
     >
       <template #item="{ element: tab }">

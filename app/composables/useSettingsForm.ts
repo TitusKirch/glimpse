@@ -1,6 +1,6 @@
 // One TanStack form + Zod schema for the whole settings dialog. Every setting is
 // a field; a field's validated value is mirrored straight to its real home
-// (layout store, colour mode, or i18n locale) so the change still applies live.
+// (settings store, colour mode, or i18n locale) so the change still applies live.
 // A single form — not one per input — keeps validation in one schema without the
 // per-input overhead.
 import { useForm } from '@tanstack/vue-form';
@@ -9,6 +9,7 @@ import { toast } from 'vue-sonner';
 
 export function useSettingsForm() {
   const layout = useLayoutStore();
+  const settings = useSettingsStore();
   const colorMode = useColorMode();
   const { locale, setLocale, t } = useI18n();
 
@@ -40,33 +41,35 @@ export function useSettingsForm() {
   });
   type SettingsValues = z.infer<typeof schema>;
 
-  // The current settings, read from each value's real home.
+  // The current settings, read from each value's real home. Most live in the
+  // settings store; theme/language live in colour mode / i18n, and sidebarEditMode
+  // is ephemeral view state in the layout store.
   function snapshot(): SettingsValues {
     return {
       theme: colorMode.preference as SettingsValues['theme'],
       language: locale.value,
-      searchLocales: layout.searchLocales ?? [],
-      pullStrategy: layout.pullStrategy,
-      releaseChannel: layout.releaseChannel,
-      selectedExperiment: layout.selectedExperiment,
-      autoFetch: layout.autoFetch,
-      autoFetchMinutes: layout.autoFetchMinutes,
-      autoUpdate: layout.autoUpdate,
-      recentReposMax: layout.recentReposMax,
-      recentReposOnPage: layout.recentReposOnPage,
-      recentReposInSearch: layout.recentReposInSearch,
-      recentActionsMax: layout.recentActionsMax,
-      recentActionsInSearch: layout.recentActionsInSearch,
-      sidebarResizable: layout.sidebarResizable,
-      sidebarWidth: layout.sidebarWidth,
+      searchLocales: settings.searchLocales ?? [],
+      pullStrategy: settings.pullStrategy,
+      releaseChannel: settings.releaseChannel,
+      selectedExperiment: settings.selectedExperiment,
+      autoFetch: settings.autoFetch,
+      autoFetchMinutes: settings.autoFetchMinutes,
+      autoUpdate: settings.autoUpdate,
+      recentReposMax: settings.recentReposMax,
+      recentReposOnPage: settings.recentReposOnPage,
+      recentReposInSearch: settings.recentReposInSearch,
+      recentActionsMax: settings.recentActionsMax,
+      recentActionsInSearch: settings.recentActionsInSearch,
+      sidebarResizable: settings.sidebarResizable,
+      sidebarWidth: settings.sidebarWidth,
       sidebarEditMode: layout.sidebarEditMode,
-      diffMode: layout.diffMode,
-      fileView: layout.fileView,
-      monoScale: layout.monoScale,
-      accent: layout.accent,
-      shortenDependabot: layout.shortenDependabot,
-      devMode: layout.devMode,
-      experimentsEnabled: layout.experimentsEnabled
+      diffMode: settings.diffMode,
+      fileView: settings.fileView,
+      monoScale: settings.monoScale,
+      accent: settings.accent,
+      shortenDependabot: settings.shortenDependabot,
+      devMode: settings.devMode,
+      experimentsEnabled: settings.experimentsEnabled
     };
   }
 
@@ -97,25 +100,29 @@ export function useSettingsForm() {
       if (langs.includes(value as string)) {
         const pruned = langs.filter((c) => c !== value);
         form.setFieldValue('searchLocales', pruned);
-        layout.setSearchLocales(pruned);
+        settings.setSearchLocales(pruned);
       }
       return;
     }
     if (name === 'searchLocales') {
-      layout.setSearchLocales(value as string[]);
+      settings.setSearchLocales(value as string[]);
       return;
     }
-    const store = layout as unknown as Record<string, unknown>;
+    // sidebarEditMode is ephemeral view state (layout store); every other field
+    // is a real setting that lives in the settings store.
+    const store = (name === 'sidebarEditMode'
+      ? layout
+      : settings) as unknown as Record<string, unknown>;
     if (store[name] !== value) store[name] = value;
     // Toggling either gate can strip access to the Experiment channel; drop it
     // back to Beta, keep the dialog's channel field in sync, and tell the user.
     if (name === 'devMode' || name === 'experimentsEnabled') {
-      if (layout.normalizeChannel()) {
-        form.setFieldValue('releaseChannel', layout.releaseChannel);
+      if (settings.normalizeChannel()) {
+        form.setFieldValue('releaseChannel', settings.releaseChannel);
         toast.info(t('settings.general.channelFallback.title'), {
           description: t('settings.general.channelFallback.description', {
             channel: t(
-              `settings.general.releaseChannel.${layout.releaseChannel}`
+              `settings.general.releaseChannel.${settings.releaseChannel}`
             )
           })
         });
@@ -142,3 +149,8 @@ export function useSettingsForm() {
 
   return { form, persist, reset };
 }
+
+// The shared form + per-field persist listener factory, as handed to the
+// per-page settings components (Dialog.vue owns the single instance).
+export type SettingsForm = ReturnType<typeof useSettingsForm>['form'];
+export type SettingsPersist = ReturnType<typeof useSettingsForm>['persist'];

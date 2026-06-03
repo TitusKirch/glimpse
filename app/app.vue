@@ -6,6 +6,7 @@ import { Toaster as UiSonner } from '@/components/ui/sonner';
 
 const repo = useRepoStore();
 const layout = useLayoutStore();
+const settingsStore = useSettingsStore();
 const settings = useOverlay('settings');
 const palette = useOverlay('commandPalette');
 const help = useOverlay('help');
@@ -16,7 +17,7 @@ const { t, locale } = useI18n();
 // First-launch default for the command palette's extra search languages, keyed
 // to the startup locale: English UI → none, any other language → also search
 // English. No-op once the user has touched the setting (see initSearchLocales).
-layout.initSearchLocales(locale.value);
+settingsStore.initSearchLocales(locale.value);
 
 // Cross-cutting app behaviour: apply appearance settings, wire global keyboard
 // shortcuts, and run the optional auto-fetch loop.
@@ -95,11 +96,14 @@ onMounted(async () => {
   // Silently check for app updates on launch (auto-installs when found); a
   // no-op until the updater is configured with a real signing key + endpoint.
   // Experiments are opt-in and manual, so they never auto-update on launch.
-  if (layout.autoUpdate && layout.releaseChannel !== 'experiment') {
+  if (
+    settingsStore.autoUpdate &&
+    settingsStore.releaseChannel !== 'experiment'
+  ) {
     void checkForUpdates(false);
   }
   // Populate the experiment list once on boot when that channel is active.
-  if (layout.releaseChannel === 'experiment') void experiments.refresh();
+  if (settingsStore.releaseChannel === 'experiment') void experiments.refresh();
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   await whenTauri(async () => {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
@@ -163,18 +167,18 @@ function syncCount(command: string): number {
 // it ("Pull (merge)"), and the caret dropdown offers only the *other* two.
 const pullDefaultLabel = computed(
   () =>
-    PULL_STRATEGIES.find((s) => s.value === layout.pullStrategy)?.labelKey ??
-    'pull.merge'
+    PULL_STRATEGIES.find((s) => s.value === settingsStore.pullStrategy)
+      ?.labelKey ?? 'pull.merge'
 );
 const otherPullStrategies = computed(() =>
-  PULL_STRATEGIES.filter((s) => s.value !== layout.pullStrategy)
+  PULL_STRATEGIES.filter((s) => s.value !== settingsStore.pullStrategy)
 );
 </script>
 
 <template>
   <UiSidebarProvider
     :open="layout.sidebarOpen"
-    :width="`${layout.sidebarWidth}px`"
+    :width="`${settingsStore.sidebarWidth}px`"
     class="h-screen"
     @update:open="layout.setSidebarOpen"
   >

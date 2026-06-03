@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+
+name: Windows code signing (Azure Artifact Signing)
+description: >-
+  Authenticode-signs the Windows .exe and the NSIS installer via Azure Artifact
+  Signing (formerly "Trusted Signing"). Pulls the signing Service Principal plus
+  the (non-secret) endpoint/account/cert-profile from Bitwarden Secrets Manager,
+  installs artifact-signing-cli, and injects `bundle.windows.signCommand` into
+  tauri.conf.json so the subsequent `tauri build` signs the app binary AND the
+  installer. Windows-only — gate the caller with `runner.os == 'Windows'`.
+
+inputs:
+  bws-access-token:
+    description: Bitwarden Secrets Manager access token (secrets.BWS_ACCESS_TOKEN).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The signing Service Principal + the endpoint/account/cert-profile live in
+    # Bitwarden SM, same flow as the updater key. sm-action exports them to the
+    # job env (via $GITHUB_ENV), so the AZURE_CLIENT_* auth vars are inherited by
+    # artifact-signing-cli when `tauri build` (a later step) spawns it.
+    - name: Fetch Azure Artifact Signing secrets from Bitwarden
+      uses: bitwarden/sm-action@27c0c9dcab679d7250dbab91227c85b49ffa5e0f # v3.0.0
+      with:
+        access_token: ${{ inputs.bws-access-token }}
+        cloud_region: eu
+        secrets: |
+          a7673cdb-1864-4d16-a73a-b45e01649f16 > AZURE_ARTIFACT_SIGNING_ENDPOINT
+          65b739a6-3c70-4792-ab98-b45e0164a9c9 > AZURE_ARTIFACT_SIGNING_ACCOUNT
+          4b6c87d3-9336-4d6d-b749-b45e0164b049 > AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE
+          fce1f420-527d-4606-a2ed-b45e0164b60f > AZURE_CLIENT_ID
+          c0c6d13e-ef46-4d0f-a4e6-b45e0164bc74 > AZURE_TENANT_ID
+          8181afa3-9411-4478-9615-b45e0164c207 > AZURE_CLIENT_SECRET
+
+    # artifact-signing-cli talks to the Artifact Signing REST API directly (no
+    # signtool / Dlib needed). Pinned for reproducibility — bump deliberately.
+    # The old `trusted-signing-cli` crate is deprecated in favour of this one.
+    - name: Install artifact-signing-cli
+      shell: bash
+      run: cargo install artifact-signing-cli@0.11.0
+
+    # Point Tauri at the signer. Tauri runs signCommand on the app .exe first and
+    # then on the NSIS installer, so BOTH get an Authenticode signature (signing
+    # only the final installer post-build would leave the inner .exe unsigned).
+    # Endpoint/account/cert are baked in from the SM values; the SP credentials
+    # stay in the env and are never written to the config file. `%1` is the
+    # placeholder Tauri replaces with each binary path.
+    - name: Enable Authenticode signing in tauri.conf.json
+      shell: bash
+      run: |
+        tmp=$(mktemp)
+        jq \
+          --arg ep "$AZURE_ARTIFACT_SIGNING_ENDPOINT" \
+          --arg ac "$AZURE_ARTIFACT_SIGNING_ACCOUNT" \
+          --arg cp "$AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE" \
+          '.bundle.windows.signCommand = {cmd: "artifact-signing-cli", args: ["-e", $ep, "-a", $ac, "-c", $cp, "-d", "glimpse", "%1"]}' \
+          src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
+        echo "Windows code signing enabled (account: $AZURE_ARTIFACT_SIGNING_ACCOUNT, profile: $AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE)"

@@ -5,14 +5,14 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const repo = useRepoStore();
 const recent = useRecentStore();
-const layout = useLayoutStore();
+const settings = useSettingsStore();
 const { t } = useI18n();
 
 // Recent repos shown on the start screen, capped (and never more than stored).
 const recentOnPage = computed(() =>
   recent.repos.slice(
     0,
-    Math.min(layout.recentReposOnPage, layout.recentReposMax)
+    Math.min(settings.recentReposOnPage, settings.recentReposMax)
   )
 );
 

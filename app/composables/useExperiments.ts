@@ -1,7 +1,7 @@
 import { useNow } from '@vueuse/core';
 
 // Active experiments come from the public GitHub Releases API (no token needed,
-// ~60 req/h unauthenticated). The list is cached in the layout store; we fetch
+// ~60 req/h unauthenticated). The list is cached in the settings store; we fetch
 // it on boot and on a manual, throttled refresh only — never on a timer — to
 // stay well under the rate limit.
 const REPO = 'TitusKirch/glimpse';
@@ -9,19 +9,20 @@ const PREFIX = 'experiment-';
 const THROTTLE_MS = 60_000;
 
 export function useExperiments() {
-  const layout = useLayoutStore();
+  const settings = useSettingsStore();
   const now = useNow({ interval: 1000 });
 
   // True once the throttle window since the last fetch has elapsed.
   const canRefresh = computed(
-    () => now.value.getTime() - layout.experimentsFetchedAt >= THROTTLE_MS
+    () => now.value.getTime() - settings.experimentsFetchedAt >= THROTTLE_MS
   );
   // Whole seconds left before a refresh is allowed again, clamped to [1, 60] as
   // a display failsafe (a skewed/zero `experimentsFetchedAt` could otherwise
   // compute a nonsensical value). Only shown while !canRefresh.
   const cooldown = computed(() => {
     const raw = Math.ceil(
-      (THROTTLE_MS - (now.value.getTime() - layout.experimentsFetchedAt)) / 1000
+      (THROTTLE_MS - (now.value.getTime() - settings.experimentsFetchedAt)) /
+        1000
     );
     return Math.min(60, Math.max(1, raw));
   });
@@ -41,14 +42,14 @@ export function useExperiments() {
       .filter((t) => t.startsWith(PREFIX))
       .map((t) => t.slice(PREFIX.length))
       .filter(Boolean);
-    layout.experiments = [...new Set(slugs)].sort();
-    layout.experimentsFetchedAt = Date.now();
+    settings.experiments = [...new Set(slugs)].sort();
+    settings.experimentsFetchedAt = Date.now();
     // Drop a selection that no longer exists (e.g. its branch was deleted).
     if (
-      layout.selectedExperiment &&
-      !layout.experiments.includes(layout.selectedExperiment)
+      settings.selectedExperiment &&
+      !settings.experiments.includes(settings.selectedExperiment)
     ) {
-      layout.selectedExperiment = '';
+      settings.selectedExperiment = '';
     }
   }
 

@@ -11,3 +11,6 @@ dist
 # Tauri / Rust (src-tauri)
 src-tauri/target
 src-tauri/gen/schemas
+
+# Local-only operator notes (signing/updater setup, secret references)
+*.local.md

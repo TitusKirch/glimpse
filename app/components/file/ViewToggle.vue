@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // List vs. folder-tree toggle for the shared file lists. The choice lives in
-// the (persisted) layout store, so it stays consistent everywhere.
-const layout = useLayoutStore();
+// the (persisted) settings store, so it stays consistent everywhere.
+const settings = useSettingsStore();
 const { t } = useI18n();
 </script>
 
@@ -10,12 +10,12 @@ const { t } = useI18n();
     <UiTooltip>
       <UiTooltipTrigger as-child>
         <UiButton
-          :variant="layout.fileView === 'list' ? 'secondary' : 'ghost'"
+          :variant="settings.fileView === 'list' ? 'secondary' : 'ghost'"
           size="icon"
           class="size-6"
           icon="lucide:list"
           icon-size="sm"
-          @click="layout.setFileView('list')"
+          @click="settings.setFileView('list')"
         />
       </UiTooltipTrigger>
       <UiTooltipContent>{{ t('fileView.list') }}</UiTooltipContent>
@@ -23,12 +23,12 @@ const { t } = useI18n();
     <UiTooltip>
       <UiTooltipTrigger as-child>
         <UiButton
-          :variant="layout.fileView === 'tree' ? 'secondary' : 'ghost'"
+          :variant="settings.fileView === 'tree' ? 'secondary' : 'ghost'"
           size="icon"
           class="size-6"
           icon="lucide:folder-tree"
           icon-size="sm"
-          @click="layout.setFileView('tree')"
+          @click="settings.setFileView('tree')"
         />
       </UiTooltipTrigger>
       <UiTooltipContent>{{ t('fileView.tree') }}</UiTooltipContent>

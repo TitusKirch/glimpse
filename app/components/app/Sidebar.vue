@@ -21,23 +21,27 @@ const isCollapsed = computed(
 );
 
 const layout = useLayoutStore();
+const settingsStore = useSettingsStore();
 // Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
-// Width persists in the layout store and feeds --sidebar-width via the
+// Width persists in the settings store and feeds --sidebar-width via the
 // provider. Transitions are suppressed (body class) during the drag so it
 // tracks the pointer crisply.
 const MIN_WIDTH = 192;
 const MAX_WIDTH = 512;
 const canResize = computed(
-  () => layout.sidebarResizable && state.value === 'expanded' && !isMobile.value
+  () =>
+    settingsStore.sidebarResizable &&
+    state.value === 'expanded' &&
+    !isMobile.value
 );
 function startResize(e: PointerEvent) {
   e.preventDefault();
   const startX = e.clientX;
-  const startWidth = layout.sidebarWidth;
+  const startWidth = settingsStore.sidebarWidth;
   document.body.classList.add('resizing-sidebar');
   const onMove = (ev: PointerEvent) => {
     const next = startWidth + (ev.clientX - startX);
-    layout.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
+    settingsStore.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
   };
   const onUp = () => {
     document.body.classList.remove('resizing-sidebar');
@@ -72,6 +76,10 @@ function onReorderSections(next: string[]) {
   );
   layout.reorderSidebarSections(merged);
 }
+
+// Suppress item tooltips while a section reorder drag is in flight, so the
+// pointer sweeping over branch/tag/stash rows doesn't pop their tooltips.
+const { startReorder, endReorder } = useDragReorder();
 
 // External links pinned to the bottom of the sidebar.
 const links = [
@@ -149,9 +157,9 @@ const links = [
              driven by the per-section drag handles. -->
         <div
           v-if="layout.sidebarEditMode"
-          class="mx-2 mt-2 mb-1 flex items-center justify-between gap-2 rounded-md border border-dashed border-sidebar-border px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+          class="mx-2 mt-2 mb-1 flex items-start justify-between gap-2 rounded-md border border-dashed border-sidebar-border px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
         >
-          <span class="truncate">{{ t('sidebar.editMode.hint') }}</span>
+          <span>{{ t('sidebar.editMode.hint') }}</span>
           <UiButton
             size="sm"
             variant="ghost"
@@ -172,6 +180,8 @@ const links = [
           :fallback-tolerance="3"
           :animation="150"
           ghost-class="opacity-50"
+          @start="startReorder"
+          @end="endReorder"
           @update:model-value="onReorderSections"
         >
           <template #item="{ element: id }">

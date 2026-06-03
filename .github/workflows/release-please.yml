@@ -105,6 +105,16 @@ jobs:
             2fc619e7-4c67-4f40-9a63-b45b017af6d9 > TAURI_SIGNING_PRIVATE_KEY
             1fb62037-259b-45ec-b0fa-b45b017ab6e7 > TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 
+      # Authenticode-sign the Windows .exe + NSIS installer via Azure Artifact
+      # Signing. Injects bundle.windows.signCommand before the build runs.
+      # Gated on the WINDOWS_CODESIGNING repo variable so it is a one-flag
+      # kill-switch — see WINDOWS-SIGNING-SETUP.local.md.
+      - name: Set up Windows code signing (Azure Artifact Signing)
+        if: runner.os == 'Windows' && vars.WINDOWS_CODESIGNING == 'true'
+        uses: ./.github/actions/windows-codesigning
+        with:
+          bws-access-token: ${{ secrets.BWS_ACCESS_TOKEN }}
+
       # Builds NSIS (Windows) and AppImage + .deb (Linux), signs the updater
       # artifacts, and uploads them to the release-please release. No latest.json
       # here: the `finalize` job assembles it once. The matrix runs in parallel,

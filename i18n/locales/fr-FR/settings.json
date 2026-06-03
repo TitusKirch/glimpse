@@ -9,7 +9,9 @@
         "label": "Lanceur en ligne de commande",
         "hint": "Installez la commande `glimpse` pour ouvrir un dépôt depuis le terminal, comme `code .`.",
         "install": "Installer",
+        "installing": "Installation…",
         "installedLabel": "Installé",
+        "reinstall": "Réinstaller",
         "installed": "glimpse installé dans {path}",
         "restartHint": "Redémarrez le terminal, puis lancez « glimpse . » dans un dépôt.",
         "failed": "Impossible d'installer la commande"

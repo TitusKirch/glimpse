@@ -29,7 +29,9 @@ const forwarded = useForwardPropsEmits(props, emits);
 
 <template>
   <Dialog v-slot="slotProps" v-bind="forwarded">
-    <DialogContent class="overflow-hidden p-0">
+    <DialogContent
+      class="overflow-hidden p-0 [&>[data-slot=dialog-close]]:top-2.5 [&>[data-slot=dialog-close]]:right-3"
+    >
       <DialogHeader class="sr-only">
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription>{{ description }}</DialogDescription>

@@ -9,7 +9,9 @@
         "label": "Command-line launcher",
         "hint": "Install the `glimpse` command so you can open a repo from your terminal, like `code .`.",
         "install": "Install",
+        "installing": "Installing…",
         "installedLabel": "Installed",
+        "reinstall": "Reinstall",
         "installed": "Installed glimpse at {path}",
         "restartHint": "Restart your terminal, then run “glimpse .” in any repo.",
         "failed": "Couldn't install the command"
