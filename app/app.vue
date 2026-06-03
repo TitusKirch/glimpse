@@ -48,10 +48,49 @@ function isUnsafeDeepLinkPath(p: string): boolean {
   return !absolute;
 }
 
+// Handle one or more glimpse:// deep links. A deep link is an untrusted,
+// remotely-triggerable entry point (any website can navigate to it), and opening
+// a repo runs git against it — a malicious .git/config could execute code — so
+// each one requires explicit confirmation (defaulting to cancel) first. Reused
+// for links forwarded from a second instance on Linux/Windows (deep-link-url
+// event from the single-instance plugin), which deliver the URL as a CLI arg.
+async function handleDeepLinkUrls(urls: string[]) {
+  for (const u of urls) {
+    try {
+      const url = new URL(u);
+      // Strict verb + typed arg: only `glimpse://open?path=<abs>` opens a repo.
+      // Anything else (a bare path, another verb) is ignored.
+      if (url.hostname !== 'open') continue;
+      const path = url.searchParams.get('path') ?? '';
+      if (!path || isUnsafeDeepLinkPath(path)) continue;
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.openDeepLink.title',
+        descriptionKey: 'confirm.openDeepLink.description',
+        confirmKey: 'confirm.openDeepLink.confirm',
+        params: { path }
+      });
+      if (ok) void repo.openRepo(path);
+    } catch {
+      // ignore malformed deep links
+    }
+  }
+}
+
 let unlisten: (() => void) | undefined;
+let unlistenOpenRepo: (() => void) | undefined;
 let unlistenDeepLink: (() => void) | undefined;
+let unlistenDeepLinkForward: (() => void) | undefined;
 onMounted(async () => {
-  void repo.restoreSession();
+  // Restore the previous session's tabs, then open any repo passed on the launch
+  // command line (`glimpse <path>`) as the active tab. The CLI is a trusted,
+  // local entry point, so (unlike a deep link) it opens without confirmation and
+  // may target a \\wsl$ path — the dedicated transport for that case.
+  void repo.restoreSession().then(() =>
+    whenTauri(async () => {
+      const cliPath = await gitClient.takeCliOpenPath();
+      if (cliPath) await repo.openRepo(cliPath);
+    })
+  );
   window.addEventListener('focus', repo.refresh);
   // Silently check for app updates on launch (auto-installs when found); a
   // no-op until the updater is configured with a real signing key + endpoint.
@@ -64,38 +103,26 @@ onMounted(async () => {
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   await whenTauri(async () => {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
-    // glimpse://open?path=/abs -> open that repo, but only after confirmation.
-    unlistenDeepLink = await onOpenUrl(async (urls) => {
-      for (const u of urls) {
-        try {
-          const url = new URL(u);
-          // Strict verb + typed arg: only `glimpse://open?path=<abs>` opens a
-          // repo. Anything else (a bare path, another verb) is ignored.
-          if (url.hostname !== 'open') continue;
-          const path = url.searchParams.get('path') ?? '';
-          if (!path || isUnsafeDeepLinkPath(path)) continue;
-          // A deep link is an untrusted, remotely-triggerable entry point: any
-          // website can navigate to glimpse://open?path=… . Opening a repo runs
-          // git against it, and a malicious .git/config could execute code, so
-          // require explicit confirmation (defaulting to cancel) first.
-          const ok = await useConfirm().confirm({
-            titleKey: 'confirm.openDeepLink.title',
-            descriptionKey: 'confirm.openDeepLink.description',
-            confirmKey: 'confirm.openDeepLink.confirm',
-            params: { path }
-          });
-          if (ok) void repo.openRepo(path);
-        } catch {
-          // ignore malformed deep links
-        }
-      }
+    // CLI: a repo path forwarded from a second `glimpse <path>` launch
+    // (single-instance). Trusted, local entry — opens without confirmation.
+    unlistenOpenRepo = await listen<string>('open-repo', (e) => {
+      if (e.payload) void repo.openRepo(e.payload);
+    });
+    // Deep links: the OS delivers them here directly (macOS), or single-instance
+    // forwards one from a second instance on Linux/Windows (deep-link-url event).
+    // Both paths run the confirmation gate in handleDeepLinkUrls.
+    unlistenDeepLink = await onOpenUrl(handleDeepLinkUrls);
+    unlistenDeepLinkForward = await listen<string>('deep-link-url', (e) => {
+      if (e.payload) void handleDeepLinkUrls([e.payload]);
     });
   });
 });
 onBeforeUnmount(() => {
   window.removeEventListener('focus', repo.refresh);
   unlisten?.();
+  unlistenOpenRepo?.();
   unlistenDeepLink?.();
+  unlistenDeepLinkForward?.();
 });
 
 // Platform-correct modifier glyphs for the shortcut hints in tooltips, matching

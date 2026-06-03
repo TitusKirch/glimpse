@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_mini::{new_debouncer, DebounceEventResult, Debouncer};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Holds the active filesystem watcher so it stays alive (dropping it stops
 /// watching). Only the most recently watched repo is tracked.
@@ -47,6 +47,82 @@ async fn default_repo() -> Result<String, String> {
     env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string())
+}
+
+/// A repo path passed on the command line at first launch (`glimpse <path>`),
+/// held until the frontend consumes it once on mount. Unlike a deep link, the
+/// CLI is a *trusted, local* entry point: the frontend opens this path without
+/// the deep-link confirmation and accepts `\\wsl$` UNC paths (the WSL shim).
+#[cfg(desktop)]
+#[derive(Default)]
+struct CliOpenState(Mutex<Option<String>>);
+
+/// Turn a CLI path argument into an absolute path. Absolute paths (incl. a
+/// `\\wsl.localhost\…` UNC from the WSL shim) pass through; a bare `.` becomes
+/// `cwd`; any other relative path is joined onto `cwd`. `git -C` resolves the
+/// rest, so no canonicalization is needed. A `scheme://` value is rejected: a
+/// deep-link URL must never be treated as a trusted path (that would bypass the
+/// deep-link confirmation), even when clap captures it as the positional.
+#[cfg(desktop)]
+fn resolve_cli_path(raw: &str, cwd: &str) -> Option<String> {
+    let raw = raw.trim();
+    if raw.is_empty() || raw.contains("://") {
+        return None;
+    }
+    if raw == "." {
+        return Some(cwd.to_string());
+    }
+    let p = Path::new(raw);
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        Path::new(cwd).join(p)
+    };
+    Some(abs.to_string_lossy().into_owned())
+}
+
+/// First positional argument in a raw argv (skipping argv[0] and `-`/`--`
+/// flags) — the repo path for a second-instance `glimpse <path>` launch, where
+/// only the raw argv is available (not the CLI plugin's parsed matches).
+#[cfg(desktop)]
+fn first_path_arg(argv: &[String]) -> Option<&str> {
+    argv.iter()
+        .skip(1)
+        .map(String::as_str)
+        .find(|a| !a.starts_with('-'))
+}
+
+/// Resolve the repo path from a second-instance launch's raw argv + cwd.
+#[cfg(desktop)]
+fn resolve_cli_path_from_argv(argv: &[String], cwd: &str) -> Option<String> {
+    resolve_cli_path(first_path_arg(argv)?, cwd)
+}
+
+/// Surface the existing window for a second `glimpse` launch — it should come to
+/// the front, not open a tab silently behind whatever else is focused.
+#[cfg(desktop)]
+fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Hand the frontend the repo path passed on the CLI this launch, consuming it
+/// so it opens only once. None thereafter, in the browser demo, and when the app
+/// was launched without a path.
+#[cfg(desktop)]
+#[tauri::command]
+fn take_cli_open_path(state: State<'_, CliOpenState>) -> Option<String> {
+    state.0.lock().unwrap().take()
+}
+
+// Mobile has no CLI entry point; a no-op stub keeps the command set identical.
+#[cfg(not(desktop))]
+#[tauri::command]
+fn take_cli_open_path() -> Option<String> {
+    None
 }
 
 /// Watch `path` recursively and emit `repo-changed` (debounced) on any change,
@@ -622,7 +698,30 @@ async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
-        .manage(RepoLocks::default())
+        .manage(RepoLocks::default());
+
+    // Holds a repo path passed on the launch command line until the frontend
+    // consumes it on mount (desktop-only — no CLI entry on mobile).
+    #[cfg(desktop)]
+    let builder = builder.manage(CliOpenState::default());
+
+    // Single instance MUST be the first plugin: a second `glimpse <path>` launch
+    // is funneled into the running window (focus + open in a new tab) instead of
+    // spawning a duplicate process. A `glimpse://` deep link delivered to a
+    // second instance (Linux/Windows route it via CLI args) is forwarded to the
+    // running window's deep-link handling — with its confirmation — rather than
+    // mistaken for a trusted path.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        focus_main_window(app);
+        if let Some(url) = argv.iter().skip(1).find(|a| a.starts_with("glimpse://")) {
+            let _ = app.emit("deep-link-url", url.clone());
+        } else if let Some(path) = resolve_cli_path_from_argv(&argv, &cwd) {
+            let _ = app.emit("open-repo", path);
+        }
+    }));
+
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         // Persists window size/position/maximized state across restarts.
@@ -630,6 +729,10 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // `glimpse://` deep links (see tauri.conf.json plugins.deep-link).
         .plugin(tauri_plugin_deep_link::init());
+
+    // CLI argument parsing (the `glimpse <path>` positional) — desktop-only.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_cli::init());
 
     // Auto-update is desktop-only; the plugin needs a signing key + endpoint
     // configured in tauri.conf.json before it can actually fetch updates.
@@ -652,10 +755,31 @@ pub fn run() {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let _ = app.deep_link().register_all();
             }
+            // A repo path on the launch command line (`glimpse <path>`) is stashed
+            // for the frontend to open on mount (it calls take_cli_open_path). The
+            // second-instance case is handled by the single-instance callback.
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_cli::CliExt;
+                if let Ok(matches) = app.cli().matches() {
+                    let resolved = matches
+                        .args
+                        .get("path")
+                        .and_then(|arg| arg.value.as_str())
+                        .and_then(|raw| {
+                            let cwd = env::current_dir().ok()?;
+                            resolve_cli_path(raw, &cwd.to_string_lossy())
+                        });
+                    if let Some(path) = resolved {
+                        *app.state::<CliOpenState>().0.lock().unwrap() = Some(path);
+                    }
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             default_repo,
+            take_cli_open_path,
             watch_repo,
             repo_info,
             git_log,
@@ -709,7 +833,52 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::version_outranks;
+    use super::{first_path_arg, resolve_cli_path, version_outranks};
+
+    fn argv(parts: &[&str]) -> Vec<String> {
+        parts.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn first_path_arg_skips_program_and_flags() {
+        assert_eq!(first_path_arg(&argv(&["glimpse", "."])), Some("."));
+        assert_eq!(first_path_arg(&argv(&["glimpse"])), None);
+        assert_eq!(
+            first_path_arg(&argv(&["glimpse", "--new", "/r"])),
+            Some("/r")
+        );
+        assert_eq!(first_path_arg(&argv(&["glimpse", "-n"])), None);
+    }
+
+    #[test]
+    fn resolve_cli_path_rejects_empty_and_urls() {
+        // A deep-link URL captured as the positional must never become a trusted
+        // path — that would bypass the deep-link confirmation gate.
+        assert_eq!(resolve_cli_path("", "/cwd"), None);
+        assert_eq!(resolve_cli_path("   ", "/cwd"), None);
+        assert_eq!(resolve_cli_path("glimpse://open?path=/x", "/cwd"), None);
+    }
+
+    #[test]
+    fn resolve_cli_path_dot_is_cwd() {
+        assert_eq!(
+            resolve_cli_path(".", "/home/u/p"),
+            Some("/home/u/p".to_string())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_cli_path_unix_absolute_and_relative() {
+        assert_eq!(
+            resolve_cli_path("/abs/x", "/cwd"),
+            Some("/abs/x".to_string())
+        );
+        assert_eq!(
+            resolve_cli_path("sub/dir", "/cwd"),
+            Some("/cwd/sub/dir".to_string())
+        );
+    }
 
     #[test]
     fn newer_version_outranks() {

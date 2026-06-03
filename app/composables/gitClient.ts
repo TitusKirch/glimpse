@@ -24,6 +24,16 @@ export const gitClient = {
   defaultRepo: () =>
     tauriInvoke<string>({ command: 'default_repo', args: {}, fallback: '.' }),
 
+  // Repo path passed on the CLI (`glimpse <path>`) for this launch, consumed
+  // once. Null in the browser demo and when no path was given. A trusted, local
+  // entry point — unlike a deep link it opens without confirmation.
+  takeCliOpenPath: () =>
+    tauriInvoke<string | null>({
+      command: 'take_cli_open_path',
+      args: {},
+      fallback: null
+    }),
+
   // Start the FS watcher for `path`; the backend emits `repo-changed`.
   watchRepo: (path: string) =>
     tauriInvoke<null>({
