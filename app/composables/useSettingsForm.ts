@@ -142,3 +142,8 @@ export function useSettingsForm() {
 
   return { form, persist, reset };
 }
+
+// The shared form + per-field persist listener factory, as handed to the
+// per-page settings components (Dialog.vue owns the single instance).
+export type SettingsForm = ReturnType<typeof useSettingsForm>['form'];
+export type SettingsPersist = ReturnType<typeof useSettingsForm>['persist'];
