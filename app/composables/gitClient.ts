@@ -34,6 +34,11 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Install the `glimpse` command-line launcher onto PATH; resolves to the
+  // installed path. No fallback — only ever called from the desktop shell (the
+  // settings row that triggers it is hidden in the browser demo).
+  installCli: () => tauriInvoke<string>({ command: 'install_cli', args: {} }),
+
   // Start the FS watcher for `path`; the backend emits `repo-changed`.
   watchRepo: (path: string) =>
     tauriInvoke<null>({

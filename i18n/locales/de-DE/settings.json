@@ -4,6 +4,15 @@
     "general": {
       "title": "Allgemein",
       "gitSection": "Git",
+      "cliSection": "Kommandozeile",
+      "cli": {
+        "label": "Kommandozeilen-Starter",
+        "hint": "Installiere den `glimpse`-Befehl, um ein Repo aus dem Terminal zu öffnen – wie `code .`.",
+        "install": "Installieren",
+        "installed": "glimpse installiert unter {path}",
+        "restartHint": "Terminal neu starten, dann „glimpse .“ in einem Repo ausführen.",
+        "failed": "Befehl konnte nicht installiert werden"
+      },
       "autoFetch": {
         "label": "Automatisch fetchen",
         "hint": "Im Hintergrund regelmäßig von Remotes fetchen."

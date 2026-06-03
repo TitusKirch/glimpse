@@ -15,6 +15,21 @@ watch(open, (isOpen) => {
   if (isOpen) reset();
 });
 
+// Install the `glimpse` command-line launcher onto PATH (desktop only — the row
+// is hidden in the browser demo). Idempotent; re-running just refreshes it.
+async function installCli() {
+  try {
+    const path = await gitClient.installCli();
+    toast.success(t('settings.general.cli.installed', { path }), {
+      description: t('settings.general.cli.restartHint')
+    });
+  } catch (err) {
+    toast.error(t('settings.general.cli.failed'), {
+      description: typeof err === 'string' ? err : String(err)
+    });
+  }
+}
+
 // Triggers page: fire one of each toast kind (with title + description).
 const toastKinds = [
   { kind: 'info', variant: 'info', fn: toast.info },
@@ -344,6 +359,32 @@ function toggledLocales({
                       </UiSelectContent>
                     </UiSelect>
                   </form.Field>
+                </SettingsRow>
+              </div>
+            </div>
+
+            <!-- Command-line launcher install — desktop only (no PATH in the
+                 browser demo). -->
+            <div v-if="isTauri()">
+              <h3
+                class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+              >
+                {{ t('settings.general.cliSection') }}
+              </h3>
+              <div class="space-y-4">
+                <SettingsRow
+                  label="settings.general.cli.label"
+                  hint="settings.general.cli.hint"
+                >
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    icon="lucide:terminal"
+                    class="shrink-0"
+                    @click="installCli"
+                  >
+                    {{ t('settings.general.cli.install') }}
+                  </UiButton>
                 </SettingsRow>
               </div>
             </div>

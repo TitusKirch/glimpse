@@ -4,6 +4,15 @@
     "general": {
       "title": "General",
       "gitSection": "Git",
+      "cliSection": "Command line",
+      "cli": {
+        "label": "Command-line launcher",
+        "hint": "Install the `glimpse` command so you can open a repo from your terminal, like `code .`.",
+        "install": "Install",
+        "installed": "Installed glimpse at {path}",
+        "restartHint": "Restart your terminal, then run “glimpse .” in any repo.",
+        "failed": "Couldn't install the command"
+      },
       "autoFetch": {
         "label": "Auto-fetch",
         "hint": "Periodically fetch from remotes in the background."

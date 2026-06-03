@@ -125,6 +125,82 @@ fn take_cli_open_path() -> Option<String> {
     None
 }
 
+/// Install a `glimpse` launcher onto the user's PATH so a repo can be opened
+/// from a terminal (`glimpse .`, like `code .`). Idempotent — re-running just
+/// refreshes it. Returns the installed launcher path. See `install_cli_impl`.
+#[cfg(desktop)]
+#[tauri::command]
+async fn install_cli() -> Result<String, String> {
+    let exe = env::current_exe().map_err(|e| e.to_string())?;
+    install_cli_impl(&exe)
+}
+
+/// Linux/macOS: a `glimpse` symlink onto PATH pointing at this executable.
+/// Replaces an existing one (symlink_metadata also sees a stale/dangling link),
+/// so re-installing is a no-op rather than an "already exists" error.
+#[cfg(all(desktop, unix))]
+fn install_symlink(bin_dir: &Path, exe: &Path) -> Result<std::path::PathBuf, String> {
+    use std::os::unix::fs::symlink;
+    std::fs::create_dir_all(bin_dir)
+        .map_err(|e| format!("cannot create {}: {e}", bin_dir.display()))?;
+    let link = bin_dir.join("glimpse");
+    if std::fs::symlink_metadata(&link).is_ok() {
+        std::fs::remove_file(&link)
+            .map_err(|e| format!("cannot replace {}: {e}", link.display()))?;
+    }
+    symlink(exe, &link).map_err(|e| format!("cannot link {}: {e}", link.display()))?;
+    Ok(link)
+}
+
+#[cfg(all(desktop, unix))]
+fn install_cli_impl(exe: &Path) -> Result<String, String> {
+    let home = env::var_os("HOME").ok_or("HOME is not set")?;
+    // ~/.local/bin is on PATH by default on modern Linux; macOS uses /usr/local/bin.
+    let bin_dir = if cfg!(target_os = "macos") {
+        std::path::PathBuf::from("/usr/local/bin")
+    } else {
+        Path::new(&home).join(".local/bin")
+    };
+    Ok(install_symlink(&bin_dir, exe)?
+        .to_string_lossy()
+        .into_owned())
+}
+
+/// Windows: add this executable's directory to the *user* PATH so `glimpse`
+/// resolves to glimpse.exe. Uses PowerShell's Environment API — unlike `setx`
+/// (1024-char truncation) or hand-editing the registry it writes the correct
+/// value type and broadcasts the change. The directory is passed via an env var,
+/// never interpolated into the script, so there is no command injection.
+/// (Mechanism is the documented-safe one; verify in a Windows build.)
+#[cfg(all(desktop, windows))]
+fn install_cli_impl(exe: &Path) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
+    let dir = exe
+        .parent()
+        .ok_or("cannot determine the install directory")?;
+    let script = r#"$d = $env:GLIMPSE_BIN_DIR
+$p = [Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $p) { $p = '' }
+$parts = $p -split ';' | Where-Object { $_ -ne '' }
+if ($parts -notcontains $d) { [Environment]::SetEnvironmentVariable('Path', ((@($parts) + $d) -join ';'), 'User') }"#;
+    let out = std::process::Command::new("powershell")
+        .creation_flags(0x0800_0000) // CREATE_NO_WINDOW — no console flash
+        .env("GLIMPSE_BIN_DIR", dir)
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .map_err(|e| format!("could not run PowerShell: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(dir.join("glimpse.exe").to_string_lossy().into_owned())
+}
+
+// Mobile has no PATH; a no-op stub keeps the command set identical.
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn install_cli() -> Result<String, String> {
+    Err("the command-line launcher is not available on this platform".into())
+}
+
 /// Watch `path` recursively and emit `repo-changed` (debounced) on any change,
 /// so the frontend can live-refresh. Replaces any previous watcher. Best-effort
 /// over `\\wsl$` shares — the on-focus refresh remains the fallback.
@@ -780,6 +856,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             default_repo,
             take_cli_open_path,
+            install_cli,
             watch_repo,
             repo_info,
             git_log,
@@ -878,6 +955,24 @@ mod tests {
             resolve_cli_path("sub/dir", "/cwd"),
             Some("/cwd/sub/dir".to_string())
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_symlink_points_at_exe_and_is_idempotent() {
+        use super::install_symlink;
+        let base = std::env::temp_dir().join(format!("glimpse-cli-{}", std::process::id()));
+        let bin = base.join("bin");
+        let exe = base.join("glimpse-bin");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(&exe, b"x").unwrap();
+        let link = install_symlink(&bin, &exe).unwrap();
+        assert_eq!(std::fs::read_link(&link).unwrap(), exe);
+        // Re-running over an existing link replaces it instead of erroring.
+        let again = install_symlink(&bin, &exe).unwrap();
+        assert_eq!(again, link);
+        assert_eq!(std::fs::read_link(&again).unwrap(), exe);
+        std::fs::remove_dir_all(&base).ok();
     }
 
     #[test]
