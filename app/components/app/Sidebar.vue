@@ -73,6 +73,10 @@ function onReorderSections(next: string[]) {
   layout.reorderSidebarSections(merged);
 }
 
+// Suppress item tooltips while a section reorder drag is in flight, so the
+// pointer sweeping over branch/tag/stash rows doesn't pop their tooltips.
+const { startReorder, endReorder } = useDragReorder();
+
 // External links pinned to the bottom of the sidebar.
 const links = [
   {
@@ -172,6 +176,8 @@ const links = [
           :fallback-tolerance="3"
           :animation="150"
           ghost-class="opacity-50"
+          @start="startReorder"
+          @end="endReorder"
           @update:model-value="onReorderSections"
         >
           <template #item="{ element: id }">
