@@ -149,9 +149,9 @@ const links = [
              driven by the per-section drag handles. -->
         <div
           v-if="layout.sidebarEditMode"
-          class="mx-2 mt-2 mb-1 flex items-center justify-between gap-2 rounded-md border border-dashed border-sidebar-border px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+          class="mx-2 mt-2 mb-1 flex items-start justify-between gap-2 rounded-md border border-dashed border-sidebar-border px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
         >
-          <span class="truncate">{{ t('sidebar.editMode.hint') }}</span>
+          <span>{{ t('sidebar.editMode.hint') }}</span>
           <UiButton
             size="sm"
             variant="ghost"
