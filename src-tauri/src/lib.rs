@@ -207,6 +207,10 @@ fn parse_wsl_distros(utf16le: &[u8]) -> Vec<String> {
 /// -eu`; the `${GLIMPSE_EXE:-…}` form still lets an explicit env override win.
 #[allow(dead_code)] // used by the Windows install path + the unit tests
 fn bake_wsl_shim(shim: &str, exe_unix: &str) -> String {
+    // Normalise to LF first: a Windows checkout can convert the embedded script's
+    // line endings, and a `#!/bin/sh\r` shebang is rejected by Linux as a bad
+    // interpreter (a trailing `\r` would also follow the baked anchor).
+    let shim = shim.replace("\r\n", "\n");
     shim.replacen(
         "set -eu",
         &format!("set -eu\nGLIMPSE_EXE=\"${{GLIMPSE_EXE:-{exe_unix}}}\""),
@@ -341,7 +345,9 @@ fn install_wsl_shim_into(distro: &str, win_exe: &str) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
     let baked = match wsl_resolve_exe_path(distro, win_exe) {
         Some(exe_unix) => bake_wsl_shim(WSL_SHIM, &exe_unix),
-        None => WSL_SHIM.to_string(),
+        // Normalise to LF here too (bake_wsl_shim does it on the resolved path),
+        // so an un-baked install can't ship a CRLF `#!/bin/sh\r` shebang.
+        None => WSL_SHIM.replace("\r\n", "\n"),
     };
     let mut child = std::process::Command::new("wsl.exe")
         .creation_flags(NO_WINDOW)
@@ -1199,6 +1205,18 @@ mod tests {
         // The `${GLIMPSE_EXE:-…}` default leaves an explicit env override able to
         // win, and the injection happens exactly once.
         assert_eq!(out.matches("GLIMPSE_EXE=").count(), 1);
+    }
+
+    #[test]
+    fn bake_wsl_shim_normalises_crlf_to_lf() {
+        // A Windows checkout can embed the shim with CRLF; the installed copy must
+        // be LF or `#!/bin/sh` becomes `#!/bin/sh\r` — rejected as a bad interpreter.
+        let crlf = "#!/bin/sh\r\nset -eu\r\necho hi\r\n";
+        let out = bake_wsl_shim(crlf, "/mnt/c/glimpse.exe");
+        assert!(!out.contains('\r'), "all CRs must be stripped");
+        assert!(out.starts_with(
+            "#!/bin/sh\nset -eu\nGLIMPSE_EXE=\"${GLIMPSE_EXE:-/mnt/c/glimpse.exe}\"\n"
+        ));
     }
 
     #[test]

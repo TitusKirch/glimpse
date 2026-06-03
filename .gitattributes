@@ -1,0 +1,6 @@
+# Shell scripts run on Linux/WSL. The WSL launcher (scripts/glimpse-wsl.sh) is
+# also embedded into the Windows build via include_str! and written into each WSL
+# distro as /usr/local/bin/glimpse — so a Windows checkout must NOT convert it to
+# CRLF, or its shebang becomes `#!/bin/sh^M`, which Linux rejects as a bad
+# interpreter. Pin shell scripts to LF on every platform.
+*.sh text eol=lf
