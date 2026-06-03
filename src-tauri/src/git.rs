@@ -650,12 +650,18 @@ impl Repo {
         self.run(&["fetch", "--all", "--prune"])
     }
 
-    pub fn pull(&self, rebase: bool) -> Result<String, String> {
-        if rebase {
-            self.run(&["pull", "--rebase"])
-        } else {
-            self.run(&["pull"])
-        }
+    /// Pull with an explicit reconcile strategy so git never aborts with "Need
+    /// to specify how to reconcile divergent branches" (which it does for a bare
+    /// `git pull` on diverged branches when the user has no pull.rebase/pull.ff
+    /// config): `merge` → `--no-rebase`, `rebase` → `--rebase`, `ff-only` →
+    /// `--ff-only`. An unknown value falls back to merge.
+    pub fn pull(&self, strategy: &str) -> Result<String, String> {
+        let flag = match strategy {
+            "rebase" => "--rebase",
+            "ff-only" => "--ff-only",
+            _ => "--no-rebase",
+        };
+        self.run(&["pull", flag])
     }
 
     /// Resolve a conflicted file: take `ours`/`theirs` then stage it, or just

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const repo = useRepoStore();
 const layout = useLayoutStore();
+const settings = useSettingsStore();
 const { t } = useI18n();
 const copyText = useCopy();
 
@@ -22,12 +23,12 @@ function toggleWhitespace() {
 // Whole-file view reuses the unified layout but is fetched with full context;
 // switching into/out of it changes the context, so it needs a re-diff.
 const effectiveMode = computed(() =>
-  layout.diffMode === 'whole' ? 'unified' : layout.diffMode
+  settings.diffMode === 'whole' ? 'unified' : settings.diffMode
 );
-const hideHunkHeader = computed(() => layout.diffMode === 'whole');
+const hideHunkHeader = computed(() => settings.diffMode === 'whole');
 function setMode(v: string) {
-  const crossesWhole = (v === 'whole') !== (layout.diffMode === 'whole');
-  layout.setDiffMode(v as 'split' | 'unified' | 'whole');
+  const crossesWhole = (v === 'whole') !== (settings.diffMode === 'whole');
+  settings.setDiffMode(v as 'split' | 'unified' | 'whole');
   if (crossesWhole) void repo.reDiff();
 }
 function copyDiff() {
@@ -120,7 +121,7 @@ function onStageHunk(hunk: string) {
 
         <!-- diff mode toggle — same segmented style as Changes/History -->
         <UiTabs
-          :model-value="layout.diffMode"
+          :model-value="settings.diffMode"
           @update:model-value="(v) => setMode(v as string)"
         >
           <UiTabsList class="h-8">
@@ -202,7 +203,7 @@ function onStageHunk(hunk: string) {
           <div class="min-h-0 flex-1 overflow-auto px-1 py-1">
             <FileTree
               :files="repo.commitFiles"
-              :view="layout.fileView"
+              :view="settings.fileView"
               :selected="repo.selectedFile"
               @select="repo.selectCommitFile"
             />

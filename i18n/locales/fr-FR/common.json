@@ -15,6 +15,16 @@
     "pull": "Pull",
     "push": "Push"
   },
+  "pull": {
+    "options": "Options de pull",
+    "merge": "Pull (merge)",
+    "rebase": "Pull (rebase)",
+    "ffOnly": "Pull (fast-forward uniquement)",
+    "diverged": {
+      "title": "Les branches ont divergé",
+      "description": "Vos branches locale et distante ont divergé : un fast-forward est impossible. Choisissez comment les réconcilier."
+    }
+  },
   "actions": {
     "refresh": "Actualiser",
     "openRepo": "Ouvrir un dépôt",

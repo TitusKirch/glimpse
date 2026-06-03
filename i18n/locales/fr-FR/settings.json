@@ -4,6 +4,18 @@
     "general": {
       "title": "Général",
       "gitSection": "Git",
+      "cliSection": "Ligne de commande",
+      "cli": {
+        "label": "Lanceur en ligne de commande",
+        "hint": "Installez la commande `glimpse` pour ouvrir un dépôt depuis le terminal, comme `code .`.",
+        "install": "Installer",
+        "installing": "Installation…",
+        "installedLabel": "Installé",
+        "reinstall": "Réinstaller",
+        "installed": "glimpse installé dans {path}",
+        "restartHint": "Redémarrez le terminal, puis lancez « glimpse . » dans un dépôt.",
+        "failed": "Impossible d'installer la commande"
+      },
       "autoFetch": {
         "label": "Fetch automatique",
         "hint": "Récupérer périodiquement depuis les dépôts distants en arrière-plan."
@@ -13,10 +25,11 @@
         "hint": "Fréquence du fetch automatique."
       },
       "pullStrategy": {
-        "label": "Stratégie de pull",
-        "hint": "Merger ou rebaser lors d'un pull.",
+        "label": "Stratégie de pull par défaut",
+        "hint": "Merger, rebaser ou fast-forward uniquement lors d'un pull.",
         "merge": "Merge",
-        "rebase": "Rebase"
+        "rebase": "Rebase",
+        "ffOnly": "Fast-forward uniquement"
       },
       "updatesSection": "Mises à jour",
       "autoUpdate": {
@@ -68,23 +81,60 @@
         "label": "Actions récentes dans la recherche",
         "hint": "Nombre à afficher sous « Utilisées récemment » (au plus le nombre conservé)."
       },
-      "developer": "Développeur",
+      "developer": "Paramètres développeur",
       "devMode": {
-        "label": "Paramètres développeur",
-        "hint": "Afficher des outils de débogage supplémentaires dans les paramètres."
+        "label": "Mode développeur",
+        "hint": "Débloquer les outils de développeur — les pages Showcase et Triggers, ainsi que le canal de mise à jour bêta."
+      },
+      "experimentsOptIn": {
+        "label": "Participer aux expérimentations",
+        "hint": "Activer les versions expérimentales par branche. Désactivé par défaut ; débloque le canal de diffusion Expérimentation."
+      },
+      "channelFallback": {
+        "title": "Canal de diffusion modifié",
+        "description": "Basculé sur {channel}."
       }
     },
-    "developer": {
-      "title": "Développeur"
+    "showcase": {
+      "title": "Showcase",
+      "badges": {
+        "label": "Badges",
+        "hint": "Toutes les variantes de badge en un coup d'œil.",
+        "beta": "Beta",
+        "experiment": "Expérimentation",
+        "withIcon": "Avec icône"
+      }
     },
-    "dev": {
+    "triggers": {
+      "title": "Triggers",
       "toasts": {
         "label": "Tester les toasts",
         "hint": "Déclencher un toast de chaque type."
       },
-      "badges": {
-        "label": "Badges",
-        "hint": "Toutes les variantes de badge en un coup d'œil."
+      "dialogs": {
+        "label": "Dialogues",
+        "hint": "Ouvrir les dialogues qu'on ne voit normalement pas directement."
+      },
+      "cancelled": "Annulé",
+      "confirm": {
+        "button": "Dialogue de confirmation",
+        "title": "Supprimer la branche ?",
+        "description": "Un aperçu du dialogue de confirmation — rien ne se passe réellement.",
+        "action": "Supprimer",
+        "confirmed": "Confirmé"
+      },
+      "prompt": {
+        "button": "Dialogue de saisie",
+        "title": "Renommer",
+        "label": "Nouveau nom",
+        "placeholder": "Saisissez quelque chose…",
+        "submit": "Enregistrer",
+        "required": "Requis",
+        "saved": "Enregistré"
+      },
+      "pull": {
+        "button": "Dialogue de divergence",
+        "result": "Stratégie choisie : {strategy}"
       },
       "info": {
         "label": "Info",
@@ -139,6 +189,10 @@
         "xlarge": "Très grande"
       },
       "sidebarSection": "Barre latérale",
+      "sidebarEdit": {
+        "label": "Modifier la disposition",
+        "hint": "Réordonnez les sections de la barre latérale en les faisant glisser. Chaque section peut aussi être réduite."
+      },
       "sidebarResizable": {
         "label": "Redimensionnable",
         "hint": "Faites glisser le bord droit pour redimensionner la barre latérale."

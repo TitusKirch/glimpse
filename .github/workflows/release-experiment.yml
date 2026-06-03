@@ -154,8 +154,8 @@ jobs:
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Experiment: $SLUG ($VERSION)" \
-            --notes "Experimental build of \`$GITHUB_REF_NAME\` — $VERSION. Not for general use." \
+            --title "Experiment: $SLUG (v$VERSION)" \
+            --notes "Experimental build of \`$GITHUB_REF_NAME\` — v$VERSION. Not for general use." \
             --prerelease
 
   build:
@@ -219,6 +219,15 @@ jobs:
           tmp=$(mktemp)
           jq --arg v "$VERSION" '.version = $v' \
             src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
+
+      # Authenticode-sign the Windows .exe + NSIS installer via Azure Artifact
+      # Signing (injects bundle.windows.signCommand before the build) — see
+      # WINDOWS-SIGNING-SETUP.local.md.
+      - name: Set up Windows code signing (Azure Artifact Signing)
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/windows-codesigning
+        with:
+          bws-access-token: ${{ secrets.BWS_ACCESS_TOKEN }}
 
       # GLIMPSE_EXPERIMENT bakes the slug into the binary (option_env!), so the
       # running app shows the experiment name in the sidebar. No latest.json here

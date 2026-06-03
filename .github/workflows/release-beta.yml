@@ -112,8 +112,8 @@ jobs:
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "$VERSION" \
-            --notes "Beta build $VERSION." \
+            --title "$TAG" \
+            --notes "Beta build $TAG." \
             --prerelease
 
   build:
@@ -181,6 +181,15 @@ jobs:
           jq --arg v "$VERSION" '.version = $v' \
             src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
 
+      # Authenticode-sign the Windows .exe + NSIS installer via Azure Artifact
+      # Signing (injects bundle.windows.signCommand before the build) — see
+      # WINDOWS-SIGNING-SETUP.local.md.
+      - name: Set up Windows code signing (Azure Artifact Signing)
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/windows-codesigning
+        with:
+          bws-access-token: ${{ secrets.BWS_ACCESS_TOKEN }}
+
       # Builds + signs and uploads the installers + their .sig to the versioned
       # prerelease. No latest.json here (finalize builds it once) → parallel jobs
       # only upload distinct files, so there is no race.
@@ -191,6 +200,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
+          # --verbose surfaces the signer's stdout/stderr (the bundler logs the
+          # custom sign command's output at debug level) — temporary, for
+          # diagnosing the Authenticode signing step. Drop once it's green.
+          args: --verbose
           tagName: ${{ needs.prepare.outputs.tag }}
           releaseDraft: false
           prerelease: true

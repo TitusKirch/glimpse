@@ -6,7 +6,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 const { open, hide } = useOverlay('openRepo');
 const repo = useRepoStore();
 const recent = useRecentStore();
-const layout = useLayoutStore();
+const settings = useSettingsStore();
 const { t } = useI18n();
 
 // Same recent list as the start screen this dialog mirrors: capped to the
@@ -14,7 +14,7 @@ const { t } = useI18n();
 const recentOnPage = computed(() =>
   recent.repos.slice(
     0,
-    Math.min(layout.recentReposOnPage, layout.recentReposMax)
+    Math.min(settings.recentReposOnPage, settings.recentReposMax)
   )
 );
 

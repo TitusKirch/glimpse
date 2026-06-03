@@ -26,6 +26,17 @@
     }
   },
   "plugins": {
+    "cli": {
+      "description": "glimpse — a lightweight, git-native desktop Git client",
+      "args": [
+        {
+          "name": "path",
+          "index": 1,
+          "takesValue": true,
+          "description": "Path to a git repository to open (defaults to the current directory)"
+        }
+      ]
+    },
     "deep-link": {
       "desktop": {
         "schemes": [

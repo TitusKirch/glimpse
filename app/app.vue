@@ -6,6 +6,7 @@ import { Toaster as UiSonner } from '@/components/ui/sonner';
 
 const repo = useRepoStore();
 const layout = useLayoutStore();
+const settingsStore = useSettingsStore();
 const settings = useOverlay('settings');
 const palette = useOverlay('commandPalette');
 const help = useOverlay('help');
@@ -16,7 +17,7 @@ const { t, locale } = useI18n();
 // First-launch default for the command palette's extra search languages, keyed
 // to the startup locale: English UI → none, any other language → also search
 // English. No-op once the user has touched the setting (see initSearchLocales).
-layout.initSearchLocales(locale.value);
+settingsStore.initSearchLocales(locale.value);
 
 // Cross-cutting app behaviour: apply appearance settings, wire global keyboard
 // shortcuts, and run the optional auto-fetch loop.
@@ -48,54 +49,84 @@ function isUnsafeDeepLinkPath(p: string): boolean {
   return !absolute;
 }
 
+// Handle one or more glimpse:// deep links. A deep link is an untrusted,
+// remotely-triggerable entry point (any website can navigate to it), and opening
+// a repo runs git against it — a malicious .git/config could execute code — so
+// each one requires explicit confirmation (defaulting to cancel) first. Reused
+// for links forwarded from a second instance on Linux/Windows (deep-link-url
+// event from the single-instance plugin), which deliver the URL as a CLI arg.
+async function handleDeepLinkUrls(urls: string[]) {
+  for (const u of urls) {
+    try {
+      const url = new URL(u);
+      // Strict verb + typed arg: only `glimpse://open?path=<abs>` opens a repo.
+      // Anything else (a bare path, another verb) is ignored.
+      if (url.hostname !== 'open') continue;
+      const path = url.searchParams.get('path') ?? '';
+      if (!path || isUnsafeDeepLinkPath(path)) continue;
+      const ok = await useConfirm().confirm({
+        titleKey: 'confirm.openDeepLink.title',
+        descriptionKey: 'confirm.openDeepLink.description',
+        confirmKey: 'confirm.openDeepLink.confirm',
+        params: { path }
+      });
+      if (ok) void repo.openRepo(path);
+    } catch {
+      // ignore malformed deep links
+    }
+  }
+}
+
 let unlisten: (() => void) | undefined;
+let unlistenOpenRepo: (() => void) | undefined;
 let unlistenDeepLink: (() => void) | undefined;
+let unlistenDeepLinkForward: (() => void) | undefined;
 onMounted(async () => {
-  void repo.restoreSession();
+  // Restore the previous session's tabs, then open any repo passed on the launch
+  // command line (`glimpse <path>`) as the active tab. The CLI is a trusted,
+  // local entry point, so (unlike a deep link) it opens without confirmation and
+  // may target a \\wsl$ path — the dedicated transport for that case.
+  void repo.restoreSession().then(() =>
+    whenTauri(async () => {
+      const cliPath = await gitClient.takeCliOpenPath();
+      if (cliPath) await repo.openRepo(cliPath);
+    })
+  );
   window.addEventListener('focus', repo.refresh);
   // Silently check for app updates on launch (auto-installs when found); a
   // no-op until the updater is configured with a real signing key + endpoint.
   // Experiments are opt-in and manual, so they never auto-update on launch.
-  if (layout.autoUpdate && layout.releaseChannel !== 'experiment') {
+  if (
+    settingsStore.autoUpdate &&
+    settingsStore.releaseChannel !== 'experiment'
+  ) {
     void checkForUpdates(false);
   }
   // Populate the experiment list once on boot when that channel is active.
-  if (layout.releaseChannel === 'experiment') void experiments.refresh();
+  if (settingsStore.releaseChannel === 'experiment') void experiments.refresh();
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   await whenTauri(async () => {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
-    // glimpse://open?path=/abs -> open that repo, but only after confirmation.
-    unlistenDeepLink = await onOpenUrl(async (urls) => {
-      for (const u of urls) {
-        try {
-          const url = new URL(u);
-          // Strict verb + typed arg: only `glimpse://open?path=<abs>` opens a
-          // repo. Anything else (a bare path, another verb) is ignored.
-          if (url.hostname !== 'open') continue;
-          const path = url.searchParams.get('path') ?? '';
-          if (!path || isUnsafeDeepLinkPath(path)) continue;
-          // A deep link is an untrusted, remotely-triggerable entry point: any
-          // website can navigate to glimpse://open?path=… . Opening a repo runs
-          // git against it, and a malicious .git/config could execute code, so
-          // require explicit confirmation (defaulting to cancel) first.
-          const ok = await useConfirm().confirm({
-            titleKey: 'confirm.openDeepLink.title',
-            descriptionKey: 'confirm.openDeepLink.description',
-            confirmKey: 'confirm.openDeepLink.confirm',
-            params: { path }
-          });
-          if (ok) void repo.openRepo(path);
-        } catch {
-          // ignore malformed deep links
-        }
-      }
+    // CLI: a repo path forwarded from a second `glimpse <path>` launch
+    // (single-instance). Trusted, local entry — opens without confirmation.
+    unlistenOpenRepo = await listen<string>('open-repo', (e) => {
+      if (e.payload) void repo.openRepo(e.payload);
+    });
+    // Deep links: the OS delivers them here directly (macOS), or single-instance
+    // forwards one from a second instance on Linux/Windows (deep-link-url event).
+    // Both paths run the confirmation gate in handleDeepLinkUrls.
+    unlistenDeepLink = await onOpenUrl(handleDeepLinkUrls);
+    unlistenDeepLinkForward = await listen<string>('deep-link-url', (e) => {
+      if (e.payload) void handleDeepLinkUrls([e.payload]);
     });
   });
 });
 onBeforeUnmount(() => {
   window.removeEventListener('focus', repo.refresh);
   unlisten?.();
+  unlistenOpenRepo?.();
   unlistenDeepLink?.();
+  unlistenDeepLinkForward?.();
 });
 
 // Platform-correct modifier glyphs for the shortcut hints in tooltips, matching
@@ -131,12 +162,23 @@ function syncCount(command: string): number {
   if (command === 'push') return repo.ahead;
   return 0;
 }
+
+// The plain pull button uses the configured default strategy; its tooltip shows
+// it ("Pull (merge)"), and the caret dropdown offers only the *other* two.
+const pullDefaultLabel = computed(
+  () =>
+    PULL_STRATEGIES.find((s) => s.value === settingsStore.pullStrategy)
+      ?.labelKey ?? 'pull.merge'
+);
+const otherPullStrategies = computed(() =>
+  PULL_STRATEGIES.filter((s) => s.value !== settingsStore.pullStrategy)
+);
 </script>
 
 <template>
   <UiSidebarProvider
     :open="layout.sidebarOpen"
-    :width="`${layout.sidebarWidth}px`"
+    :width="`${settingsStore.sidebarWidth}px`"
     class="h-screen"
     @update:open="layout.setSidebarOpen"
   >
@@ -185,32 +227,88 @@ function syncCount(command: string): number {
               <UiKbd>{{ `${modKey}+/` }}</UiKbd>
             </UiTooltipContent>
           </UiTooltip>
-          <UiTooltip v-for="b in syncButtons" :key="b.command">
-            <UiTooltipTrigger as-child>
-              <UiButton
-                variant="ghost"
-                :size="syncCount(b.command) ? 'sm' : 'icon'"
-                :icon="b.icon"
-                :disabled="repo.busy || !repo.hasRepos"
-                :pending="repo.syncing === b.command"
-                @click="repo.sync(b.command)"
-              >
-                <!-- behind-count on pull, ahead-count on push -->
-                <span
-                  v-if="syncCount(b.command)"
-                  class="text-xs font-medium tabular-nums"
-                  :class="
-                    b.command === 'push' ? 'text-success' : 'text-warning'
-                  "
-                  >{{ syncCount(b.command) }}</span
+          <template v-for="b in syncButtons" :key="b.command">
+            <!-- Pull is a split button: the left half pulls with the configured
+                 default strategy, the attached caret opens the per-pull chooser.
+                 Tooltip and dropdown wrap *different* elements — wrapping one
+                 button in both as-child triggers swallows the click. -->
+            <div v-if="b.command === 'pull'" class="flex items-center">
+              <UiTooltip>
+                <UiTooltipTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    :size="syncCount('pull') ? 'sm' : 'icon'"
+                    icon="lucide:arrow-down"
+                    class="rounded-r-none"
+                    :disabled="repo.busy || !repo.hasRepos"
+                    :pending="repo.syncing === 'pull'"
+                    @click="repo.sync('pull')"
+                  >
+                    <span
+                      v-if="syncCount('pull')"
+                      class="text-xs font-medium tabular-nums text-warning"
+                      >{{ syncCount('pull') }}</span
+                    >
+                  </UiButton>
+                </UiTooltipTrigger>
+                <UiTooltipContent class="flex items-center gap-2">
+                  <span>{{ t(pullDefaultLabel) }}</span>
+                  <UiKbd>{{ b.keys }}</UiKbd>
+                </UiTooltipContent>
+              </UiTooltip>
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    :size="syncCount('pull') ? 'sm' : 'icon'"
+                    icon="lucide:chevron-down"
+                    class="w-6 rounded-l-none border-l border-border px-0"
+                    :disabled="repo.busy || !repo.hasRepos"
+                    :aria-label="t('pull.options')"
+                  />
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent align="end" class="w-56">
+                  <!-- Only the strategies other than the configured default —
+                       the plain pull button already runs the default. -->
+                  <UiDropdownMenuItem
+                    v-for="s in otherPullStrategies"
+                    :key="s.value"
+                    @click="repo.pull({ strategy: s.value })"
+                  >
+                    <NuxtIcon :name="s.icon" />
+                    {{ t(s.labelKey) }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
+            </div>
+            <!-- fetch / push: plain icon button -->
+            <UiTooltip v-else>
+              <UiTooltipTrigger as-child>
+                <UiButton
+                  variant="ghost"
+                  :size="syncCount(b.command) ? 'sm' : 'icon'"
+                  :icon="b.icon"
+                  :disabled="repo.busy || !repo.hasRepos"
+                  :pending="repo.syncing === b.command"
+                  @click="repo.sync(b.command)"
                 >
-              </UiButton>
-            </UiTooltipTrigger>
-            <UiTooltipContent class="flex items-center gap-2">
-              <span>{{ t(b.label) }}</span>
-              <UiKbd>{{ b.keys }}</UiKbd>
-            </UiTooltipContent>
-          </UiTooltip>
+                  <!-- ahead-count on push -->
+                  <span
+                    v-if="syncCount(b.command)"
+                    class="text-xs font-medium tabular-nums"
+                    :class="
+                      b.command === 'push' ? 'text-success' : 'text-warning'
+                    "
+                    >{{ syncCount(b.command) }}</span
+                  >
+                </UiButton>
+              </UiTooltipTrigger>
+              <UiTooltipContent class="flex items-center gap-2">
+                <span>{{ t(b.label) }}</span>
+                <UiKbd>{{ b.keys }}</UiKbd>
+              </UiTooltipContent>
+            </UiTooltip>
+          </template>
           <div class="mx-1 h-5 w-px bg-border" />
           <UiTooltip>
             <UiTooltipTrigger as-child>
@@ -292,6 +390,7 @@ function syncCount(command: string): number {
   <CommandPalette />
   <SettingsDialog v-model:open="settings.open.value" />
   <ConfirmDialog />
+  <PullStrategyDialog />
   <PromptDialog />
   <HelpDialog />
   <AddRemoteDialog />

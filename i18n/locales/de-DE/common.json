@@ -15,6 +15,16 @@
     "pull": "Pull",
     "push": "Push"
   },
+  "pull": {
+    "options": "Pull-Optionen",
+    "merge": "Pull (Merge)",
+    "rebase": "Pull (Rebase)",
+    "ffOnly": "Pull (nur Fast-forward)",
+    "diverged": {
+      "title": "Branches sind divergiert",
+      "description": "Lokaler und Remote-Branch sind auseinandergelaufen, ein Fast-forward ist nicht möglich. Wähle, wie sie zusammengeführt werden sollen."
+    }
+  },
   "actions": {
     "refresh": "Aktualisieren",
     "openRepo": "Repository öffnen",

@@ -15,6 +15,16 @@
     "pull": "Pull",
     "push": "Push"
   },
+  "pull": {
+    "options": "Opciones de pull",
+    "merge": "Pull (merge)",
+    "rebase": "Pull (rebase)",
+    "ffOnly": "Pull (solo fast-forward)",
+    "diverged": {
+      "title": "Las ramas han divergido",
+      "description": "Tu rama local y la remota han divergido, así que no es posible un fast-forward. Elige cómo reconciliarlas."
+    }
+  },
   "actions": {
     "refresh": "Actualizar",
     "openRepo": "Abrir repositorio",

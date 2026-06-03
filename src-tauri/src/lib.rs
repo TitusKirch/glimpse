@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
 use notify_debouncer_mini::{new_debouncer, DebounceEventResult, Debouncer};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 /// Holds the active filesystem watcher so it stays alive (dropping it stops
 /// watching). Only the most recently watched repo is tracked.
@@ -47,6 +47,354 @@ async fn default_repo() -> Result<String, String> {
     env::current_dir()
         .map(|p| p.to_string_lossy().to_string())
         .map_err(|e| e.to_string())
+}
+
+/// A repo path passed on the command line at first launch (`glimpse <path>`),
+/// held until the frontend consumes it once on mount. Unlike a deep link, the
+/// CLI is a *trusted, local* entry point: the frontend opens this path without
+/// the deep-link confirmation and accepts `\\wsl$` UNC paths (the WSL shim).
+#[cfg(desktop)]
+#[derive(Default)]
+struct CliOpenState(Mutex<Option<String>>);
+
+/// Turn a CLI path argument into an absolute path. Absolute paths (incl. a
+/// `\\wsl.localhost\…` UNC from the WSL shim) pass through; a bare `.` becomes
+/// `cwd`; any other relative path is joined onto `cwd`. `git -C` resolves the
+/// rest, so no canonicalization is needed. A `scheme://` value is rejected: a
+/// deep-link URL must never be treated as a trusted path (that would bypass the
+/// deep-link confirmation), even when clap captures it as the positional.
+#[cfg(desktop)]
+fn resolve_cli_path(raw: &str, cwd: &str) -> Option<String> {
+    let raw = raw.trim();
+    if raw.is_empty() || raw.contains("://") {
+        return None;
+    }
+    if raw == "." {
+        return Some(cwd.to_string());
+    }
+    let p = Path::new(raw);
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        Path::new(cwd).join(p)
+    };
+    Some(abs.to_string_lossy().into_owned())
+}
+
+/// First positional argument in a raw argv (skipping argv[0] and `-`/`--`
+/// flags) — the repo path for a second-instance `glimpse <path>` launch, where
+/// only the raw argv is available (not the CLI plugin's parsed matches).
+#[cfg(desktop)]
+fn first_path_arg(argv: &[String]) -> Option<&str> {
+    argv.iter()
+        .skip(1)
+        .map(String::as_str)
+        .find(|a| !a.starts_with('-'))
+}
+
+/// Resolve the repo path from a second-instance launch's raw argv + cwd.
+#[cfg(desktop)]
+fn resolve_cli_path_from_argv(argv: &[String], cwd: &str) -> Option<String> {
+    resolve_cli_path(first_path_arg(argv)?, cwd)
+}
+
+/// Surface the existing window for a second `glimpse` launch — it should come to
+/// the front, not open a tab silently behind whatever else is focused.
+#[cfg(desktop)]
+fn focus_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+/// Hand the frontend the repo path passed on the CLI this launch, consuming it
+/// so it opens only once. None thereafter, in the browser demo, and when the app
+/// was launched without a path.
+#[cfg(desktop)]
+#[tauri::command]
+fn take_cli_open_path(state: State<'_, CliOpenState>) -> Option<String> {
+    state.0.lock().unwrap().take()
+}
+
+// Mobile has no CLI entry point; a no-op stub keeps the command set identical.
+#[cfg(not(desktop))]
+#[tauri::command]
+fn take_cli_open_path() -> Option<String> {
+    None
+}
+
+/// Install a `glimpse` launcher onto the user's PATH so a repo can be opened
+/// from a terminal (`glimpse .`, like `code .`). Idempotent — re-running just
+/// refreshes it. Returns the installed launcher path. See `install_cli_impl`.
+#[cfg(desktop)]
+#[tauri::command]
+async fn install_cli() -> Result<String, String> {
+    let exe = env::current_exe().map_err(|e| e.to_string())?;
+    install_cli_impl(&exe)
+}
+
+/// Linux/macOS: a `glimpse` symlink onto PATH pointing at this executable.
+/// Replaces an existing one (symlink_metadata also sees a stale/dangling link),
+/// so re-installing is a no-op rather than an "already exists" error.
+#[cfg(all(desktop, unix))]
+fn install_symlink(bin_dir: &Path, exe: &Path) -> Result<std::path::PathBuf, String> {
+    use std::os::unix::fs::symlink;
+    std::fs::create_dir_all(bin_dir)
+        .map_err(|e| format!("cannot create {}: {e}", bin_dir.display()))?;
+    let link = bin_dir.join("glimpse");
+    if std::fs::symlink_metadata(&link).is_ok() {
+        std::fs::remove_file(&link)
+            .map_err(|e| format!("cannot replace {}: {e}", link.display()))?;
+    }
+    symlink(exe, &link).map_err(|e| format!("cannot link {}: {e}", link.display()))?;
+    Ok(link)
+}
+
+#[cfg(all(desktop, unix))]
+fn install_cli_impl(exe: &Path) -> Result<String, String> {
+    let home = env::var_os("HOME").ok_or("HOME is not set")?;
+    // ~/.local/bin is on PATH by default on modern Linux; macOS uses /usr/local/bin.
+    let bin_dir = if cfg!(target_os = "macos") {
+        std::path::PathBuf::from("/usr/local/bin")
+    } else {
+        Path::new(&home).join(".local/bin")
+    };
+    Ok(install_symlink(&bin_dir, exe)?
+        .to_string_lossy()
+        .into_owned())
+}
+
+/// Linux/macOS: installed if the launcher symlink resolves to *this* executable
+/// (a stray `glimpse` from something else doesn't count).
+#[cfg(all(desktop, unix))]
+fn cli_install_status_impl(exe: &Path) -> Option<String> {
+    let home = env::var_os("HOME")?;
+    let bin_dir = if cfg!(target_os = "macos") {
+        std::path::PathBuf::from("/usr/local/bin")
+    } else {
+        Path::new(&home).join(".local/bin")
+    };
+    let link = bin_dir.join("glimpse");
+    match std::fs::read_link(&link) {
+        Ok(target) if target == exe => Some(link.to_string_lossy().into_owned()),
+        _ => None,
+    }
+}
+
+/// Decode `wsl.exe -l -q` output (UTF-16LE, CRLF-separated) into the installed
+/// distro names, dropping blanks and the docker-desktop helper distros (no point
+/// installing a launcher there). Pure, so it's tested off Windows; the live
+/// enumeration that feeds it is Windows-only.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn parse_wsl_distros(utf16le: &[u8]) -> Vec<String> {
+    let units: Vec<u16> = utf16le
+        .chunks_exact(2)
+        .map(|c| u16::from_le_bytes([c[0], c[1]]))
+        .collect();
+    String::from_utf16_lossy(&units)
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with("docker-desktop"))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Bake a fixed `GLIMPSE_EXE` into the WSL launcher so the installed copy locates
+/// glimpse.exe without relying on the Windows PATH propagating into WSL — and so
+/// it works in every shell, zsh included. Injected right after the shim's `set
+/// -eu`; the `${GLIMPSE_EXE:-…}` form still lets an explicit env override win.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn bake_wsl_shim(shim: &str, exe_unix: &str) -> String {
+    shim.replacen(
+        "set -eu",
+        &format!("set -eu\nGLIMPSE_EXE=\"${{GLIMPSE_EXE:-{exe_unix}}}\""),
+        1,
+    )
+}
+
+/// Normalise glimpse.exe's Windows path for a `wsl.exe -- wslpath -u <path>`
+/// call. `wsl.exe` strips backslashes from the args it forwards, so a literal
+/// `C:\Users\…` reaches `wslpath` as `C:Users…` and fails; the forward-slash
+/// form survives the hop and `wslpath` accepts it. Pure, so it's tested off
+/// Windows (the live `wsl.exe` round-trip that consumes it is Windows-only).
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wslpath_arg(win_exe: &str) -> String {
+    win_exe.replace('\\', "/")
+}
+
+/// The WSL launcher script, embedded so the Windows build can drop it into each
+/// distro (see `install_wsl_shims`). Kept byte-for-byte in sync with the repo's
+/// `scripts/glimpse-wsl.sh`.
+#[cfg(all(desktop, windows))]
+const WSL_SHIM: &str = include_str!("../../scripts/glimpse-wsl.sh");
+
+/// CREATE_NO_WINDOW — run a child without flashing a console window.
+#[cfg(all(desktop, windows))]
+const NO_WINDOW: u32 = 0x0800_0000;
+
+/// Windows: add this executable's directory to the *user* PATH so `glimpse`
+/// resolves to glimpse.exe. Uses PowerShell's Environment API — unlike `setx`
+/// (1024-char truncation) or hand-editing the registry it writes the correct
+/// value type and broadcasts the change. The directory is passed via an env var,
+/// never interpolated into the script, so there is no command injection.
+/// (Mechanism is the documented-safe one; verify in a Windows build.)
+///
+/// Then, best-effort, install the WSL launcher into each distro so `glimpse .`
+/// also works from a WSL shell (it opens this same Windows GUI). WSL failures
+/// never fail the Windows install — they just don't extend the returned summary.
+#[cfg(all(desktop, windows))]
+fn install_cli_impl(exe: &Path) -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
+    let dir = exe
+        .parent()
+        .ok_or("cannot determine the install directory")?;
+    let script = r#"$d = $env:GLIMPSE_BIN_DIR
+$p = [Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $p) { $p = '' }
+$parts = $p -split ';' | Where-Object { $_ -ne '' }
+if ($parts -notcontains $d) { [Environment]::SetEnvironmentVariable('Path', ((@($parts) + $d) -join ';'), 'User') }"#;
+    let out = std::process::Command::new("powershell")
+        .creation_flags(NO_WINDOW)
+        .env("GLIMPSE_BIN_DIR", dir)
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .map_err(|e| format!("could not run PowerShell: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    let win_path = dir.join("glimpse.exe").to_string_lossy().into_owned();
+    let distros = install_wsl_shims(exe);
+    Ok(if distros.is_empty() {
+        win_path
+    } else {
+        format!("{win_path} (WSL: {})", distros.join(", "))
+    })
+}
+
+/// Windows: installed if this exe's directory is on the user PATH.
+#[cfg(all(desktop, windows))]
+fn cli_install_status_impl(exe: &Path) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let dir = exe.parent()?;
+    let script = r#"$d = $env:GLIMPSE_BIN_DIR
+$p = [Environment]::GetEnvironmentVariable('Path','User'); if ($null -eq $p) { $p = '' }
+if (($p -split ';') -contains $d) { Write-Output 'yes' }"#;
+    let out = std::process::Command::new("powershell")
+        .creation_flags(NO_WINDOW)
+        .env("GLIMPSE_BIN_DIR", dir)
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .ok()?;
+    (out.status.success() && String::from_utf8_lossy(&out.stdout).trim() == "yes")
+        .then(|| dir.join("glimpse.exe").to_string_lossy().into_owned())
+}
+
+/// Drop the WSL launcher into every installed distro; returns the distros it
+/// reached. Best-effort: a distro that errors is simply skipped.
+#[cfg(all(desktop, windows))]
+fn install_wsl_shims(exe: &Path) -> Vec<String> {
+    use std::os::windows::process::CommandExt;
+    let win_exe = exe.to_string_lossy().to_string();
+    let listed = match std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-l", "-q"])
+        .output()
+    {
+        Ok(o) if o.status.success() => o.stdout,
+        _ => return Vec::new(),
+    };
+    parse_wsl_distros(&listed)
+        .into_iter()
+        .filter(|distro| install_wsl_shim_into(distro, &win_exe).is_ok())
+        .collect()
+}
+
+/// Ask one distro to translate glimpse.exe's Windows path to its in-distro
+/// `/mnt/…` form (via `wslpath -u`, with the path normalised so `wsl.exe`'s arg
+/// forwarding doesn't eat the backslashes). Best-effort: returns None on any
+/// failure, and the caller installs the launcher anyway.
+#[cfg(all(desktop, windows))]
+fn wsl_resolve_exe_path(distro: &str, win_exe: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-d", distro, "--", "wslpath", "-u", &wslpath_arg(win_exe)])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!path.is_empty()).then_some(path)
+}
+
+/// Install the launcher as `/usr/local/bin/glimpse` inside one distro. That dir
+/// is on PATH in every shell (zsh included), and WSL grants passwordless root
+/// from the Windows side, so no prompt. glimpse.exe is resolved to its in-distro
+/// `/mnt/…` path and baked in so the launcher needs no PATH/config to find it —
+/// but resolving is best-effort: if it fails the launcher is still installed and
+/// falls back to `glimpse.exe` on PATH at runtime.
+#[cfg(all(desktop, windows))]
+fn install_wsl_shim_into(distro: &str, win_exe: &str) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::windows::process::CommandExt;
+    let baked = match wsl_resolve_exe_path(distro, win_exe) {
+        Some(exe_unix) => bake_wsl_shim(WSL_SHIM, &exe_unix),
+        None => WSL_SHIM.to_string(),
+    };
+    let mut child = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args([
+            "-d",
+            distro,
+            "-u",
+            "root",
+            "--",
+            "sh",
+            "-c",
+            "cat > /usr/local/bin/glimpse && chmod 0755 /usr/local/bin/glimpse",
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or("no stdin for the WSL writer")?
+        .write_all(baked.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
+// Mobile has no PATH; a no-op stub keeps the command set identical.
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn install_cli() -> Result<String, String> {
+    Err("the command-line launcher is not available on this platform".into())
+}
+
+/// Whether the `glimpse` launcher is already installed for this executable — its
+/// path if so, else None. Lets the settings UI show an installed state and
+/// disable the install action. (The best-effort WSL shim on Windows is not
+/// probed here; this reflects the native launcher.)
+#[cfg(desktop)]
+#[tauri::command]
+async fn cli_install_status() -> Option<String> {
+    let exe = env::current_exe().ok()?;
+    cli_install_status_impl(&exe)
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn cli_install_status() -> Option<String> {
+    None
 }
 
 /// Watch `path` recursively and emit `repo-changed` (debounced) on any change,
@@ -413,8 +761,12 @@ async fn fetch(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn pull(locks: State<'_, RepoLocks>, path: String, rebase: bool) -> Result<String, String> {
-    locked(&locks, &path, || git::Repo::open(&path).pull(rebase))
+async fn pull(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    strategy: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).pull(&strategy))
 }
 
 #[tauri::command]
@@ -517,29 +869,62 @@ fn channel_updater(
     builder.build().map_err(|e| e.to_string())
 }
 
+/// True when SemVer version `b` outranks `a`. A release outranks its own
+/// prereleases (0.2.0 > 0.2.0-beta.3) — this is what graduates beta users to a
+/// shipped stable. An unparseable version sorts low, so a well-formed version
+/// always outranks a malformed one; ties (and two unparseable versions) return
+/// false, keeping the incumbent.
+#[cfg(desktop)]
+fn version_outranks(a: &str, b: &str) -> bool {
+    use semver::Version;
+    match (Version::parse(a), Version::parse(b)) {
+        (Ok(va), Ok(vb)) => vb > va,
+        (Err(_), Ok(_)) => true,
+        _ => false,
+    }
+}
+
+/// Pick the higher-versioned of two update candidates.
+#[cfg(desktop)]
+fn higher_update(
+    a: tauri_plugin_updater::Update,
+    b: tauri_plugin_updater::Update,
+) -> tauri_plugin_updater::Update {
+    if version_outranks(&a.version, &b.version) {
+        b
+    } else {
+        a
+    }
+}
+
 /// Resolve the update to offer for a channel. The beta channel *graduates* to
-/// stable: it prefers a newer beta, but falls back to stable so a beta user
-/// moves to the final release once it's out (0.1.0-beta.2 → 0.1.0) instead of
-/// being stranded until the next beta. Stable / experiment channels check only
-/// themselves.
+/// stable: it offers the highest version across *both* the beta and stable
+/// feeds, so a beta user moves to the final release the moment it's out
+/// (0.2.0-beta.3 → 0.2.0) instead of being offered a now-superseded prerelease
+/// first. Checking the feeds in order and taking the first hit was wrong: it
+/// surfaced the stale beta even when stable already carried a higher version.
+/// Stable / experiment channels check only themselves.
 #[cfg(desktop)]
 async fn resolve_update(
     app: &AppHandle,
     channel: &str,
     force: bool,
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
-    let chain: &[&str] = if channel == "beta" {
-        &["beta", "stable"]
-    } else {
-        std::slice::from_ref(&channel)
-    };
-    for &ch in chain {
+    if channel != "beta" {
+        let updater = channel_updater(app, channel, force)?;
+        return updater.check().await.map_err(|e| e.to_string());
+    }
+    let mut best: Option<tauri_plugin_updater::Update> = None;
+    for ch in ["beta", "stable"] {
         let updater = channel_updater(app, ch, force)?;
-        if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
-            return Ok(Some(update));
+        if let Some(candidate) = updater.check().await.map_err(|e| e.to_string())? {
+            best = Some(match best {
+                Some(current) => higher_update(current, candidate),
+                None => candidate,
+            });
         }
     }
-    Ok(None)
+    Ok(best)
 }
 
 /// Check the given channel for an available update; returns its version string.
@@ -585,7 +970,30 @@ async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
 pub fn run() {
     let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
-        .manage(RepoLocks::default())
+        .manage(RepoLocks::default());
+
+    // Holds a repo path passed on the launch command line until the frontend
+    // consumes it on mount (desktop-only — no CLI entry on mobile).
+    #[cfg(desktop)]
+    let builder = builder.manage(CliOpenState::default());
+
+    // Single instance MUST be the first plugin: a second `glimpse <path>` launch
+    // is funneled into the running window (focus + open in a new tab) instead of
+    // spawning a duplicate process. A `glimpse://` deep link delivered to a
+    // second instance (Linux/Windows route it via CLI args) is forwarded to the
+    // running window's deep-link handling — with its confirmation — rather than
+    // mistaken for a trusted path.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        focus_main_window(app);
+        if let Some(url) = argv.iter().skip(1).find(|a| a.starts_with("glimpse://")) {
+            let _ = app.emit("deep-link-url", url.clone());
+        } else if let Some(path) = resolve_cli_path_from_argv(&argv, &cwd) {
+            let _ = app.emit("open-repo", path);
+        }
+    }));
+
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         // Persists window size/position/maximized state across restarts.
@@ -593,6 +1001,10 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         // `glimpse://` deep links (see tauri.conf.json plugins.deep-link).
         .plugin(tauri_plugin_deep_link::init());
+
+    // CLI argument parsing (the `glimpse <path>` positional) — desktop-only.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_cli::init());
 
     // Auto-update is desktop-only; the plugin needs a signing key + endpoint
     // configured in tauri.conf.json before it can actually fetch updates.
@@ -615,10 +1027,33 @@ pub fn run() {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 let _ = app.deep_link().register_all();
             }
+            // A repo path on the launch command line (`glimpse <path>`) is stashed
+            // for the frontend to open on mount (it calls take_cli_open_path). The
+            // second-instance case is handled by the single-instance callback.
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_cli::CliExt;
+                if let Ok(matches) = app.cli().matches() {
+                    let resolved = matches
+                        .args
+                        .get("path")
+                        .and_then(|arg| arg.value.as_str())
+                        .and_then(|raw| {
+                            let cwd = env::current_dir().ok()?;
+                            resolve_cli_path(raw, &cwd.to_string_lossy())
+                        });
+                    if let Some(path) = resolved {
+                        *app.state::<CliOpenState>().0.lock().unwrap() = Some(path);
+                    }
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             default_repo,
+            take_cli_open_path,
+            install_cli,
+            cli_install_status,
             watch_repo,
             repo_info,
             git_log,
@@ -668,4 +1103,144 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(all(test, desktop))]
+mod tests {
+    use super::{
+        bake_wsl_shim, first_path_arg, parse_wsl_distros, resolve_cli_path, version_outranks,
+        wslpath_arg,
+    };
+
+    fn argv(parts: &[&str]) -> Vec<String> {
+        parts.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn first_path_arg_skips_program_and_flags() {
+        assert_eq!(first_path_arg(&argv(&["glimpse", "."])), Some("."));
+        assert_eq!(first_path_arg(&argv(&["glimpse"])), None);
+        assert_eq!(
+            first_path_arg(&argv(&["glimpse", "--new", "/r"])),
+            Some("/r")
+        );
+        assert_eq!(first_path_arg(&argv(&["glimpse", "-n"])), None);
+    }
+
+    #[test]
+    fn resolve_cli_path_rejects_empty_and_urls() {
+        // A deep-link URL captured as the positional must never become a trusted
+        // path — that would bypass the deep-link confirmation gate.
+        assert_eq!(resolve_cli_path("", "/cwd"), None);
+        assert_eq!(resolve_cli_path("   ", "/cwd"), None);
+        assert_eq!(resolve_cli_path("glimpse://open?path=/x", "/cwd"), None);
+    }
+
+    #[test]
+    fn resolve_cli_path_dot_is_cwd() {
+        assert_eq!(
+            resolve_cli_path(".", "/home/u/p"),
+            Some("/home/u/p".to_string())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolve_cli_path_unix_absolute_and_relative() {
+        assert_eq!(
+            resolve_cli_path("/abs/x", "/cwd"),
+            Some("/abs/x".to_string())
+        );
+        assert_eq!(
+            resolve_cli_path("sub/dir", "/cwd"),
+            Some("/cwd/sub/dir".to_string())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_symlink_points_at_exe_and_is_idempotent() {
+        use super::install_symlink;
+        let base = std::env::temp_dir().join(format!("glimpse-cli-{}", std::process::id()));
+        let bin = base.join("bin");
+        let exe = base.join("glimpse-bin");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(&exe, b"x").unwrap();
+        let link = install_symlink(&bin, &exe).unwrap();
+        assert_eq!(std::fs::read_link(&link).unwrap(), exe);
+        // Re-running over an existing link replaces it instead of erroring.
+        let again = install_symlink(&bin, &exe).unwrap();
+        assert_eq!(again, link);
+        assert_eq!(std::fs::read_link(&again).unwrap(), exe);
+        std::fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn parse_wsl_distros_decodes_and_filters() {
+        // `wsl.exe -l -q` emits UTF-16LE, CRLF-separated; docker-desktop helper
+        // distros and blank lines are dropped.
+        let mut bytes = Vec::new();
+        for line in ["docker-desktop\r\n", "Ubuntu-22.04\r\n", "\r\n"] {
+            for u in line.encode_utf16() {
+                bytes.extend_from_slice(&u.to_le_bytes());
+            }
+        }
+        assert_eq!(parse_wsl_distros(&bytes), vec!["Ubuntu-22.04".to_string()]);
+        assert!(parse_wsl_distros(&[]).is_empty());
+    }
+
+    #[test]
+    fn bake_wsl_shim_injects_exe_once_after_set_eu() {
+        let shim = "#!/bin/sh\nset -eu\necho hi\n";
+        let out = bake_wsl_shim(shim, "/mnt/c/glimpse.exe");
+        assert!(out.starts_with(
+            "#!/bin/sh\nset -eu\nGLIMPSE_EXE=\"${GLIMPSE_EXE:-/mnt/c/glimpse.exe}\"\n"
+        ));
+        // The `${GLIMPSE_EXE:-…}` default leaves an explicit env override able to
+        // win, and the injection happens exactly once.
+        assert_eq!(out.matches("GLIMPSE_EXE=").count(), 1);
+    }
+
+    #[test]
+    fn wslpath_arg_uses_forward_slashes() {
+        // wsl.exe eats backslashes from forwarded args, so the path handed to
+        // `wslpath -u` must use forward slashes (verified live: the `C:\…` form
+        // arrives mangled and wslpath exits 1; the `C:/…` form resolves).
+        assert_eq!(
+            wslpath_arg(r"C:\Users\titus\AppData\Local\glimpse\glimpse.exe"),
+            "C:/Users/titus/AppData/Local/glimpse/glimpse.exe"
+        );
+        // A path with no backslashes is left untouched.
+        assert_eq!(wslpath_arg("/mnt/c/glimpse.exe"), "/mnt/c/glimpse.exe");
+    }
+
+    #[test]
+    fn newer_version_outranks() {
+        assert!(version_outranks("0.2.0", "0.3.0"));
+        assert!(version_outranks("0.2.0-beta.1", "0.2.0-beta.2"));
+        assert!(version_outranks("0.2.0", "0.3.0-beta.1"));
+    }
+
+    #[test]
+    fn release_outranks_its_own_prerelease() {
+        // The bug: a beta user offered the stale 0.2.0-beta.3 even though the
+        // 0.2.0 release already shipped. Stable must win so they graduate to it.
+        assert!(version_outranks("0.2.0-beta.3", "0.2.0"));
+        assert!(!version_outranks("0.2.0", "0.2.0-beta.3"));
+    }
+
+    #[test]
+    fn ties_and_downgrades_keep_incumbent() {
+        assert!(!version_outranks("0.2.0", "0.2.0"));
+        assert!(!version_outranks("0.3.0", "0.2.0"));
+        assert!(!version_outranks("0.2.0-beta.2", "0.2.0-beta.1"));
+    }
+
+    #[test]
+    fn malformed_versions_sort_low() {
+        // A well-formed candidate beats garbage; garbage never beats a real one.
+        assert!(version_outranks("not-a-version", "0.2.0"));
+        assert!(!version_outranks("0.2.0", "not-a-version"));
+        assert!(!version_outranks("nonsense", "also-nonsense"));
+    }
 }

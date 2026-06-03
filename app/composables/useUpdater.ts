@@ -7,19 +7,19 @@ import { toast } from 'vue-sonner';
 
 export function useUpdater() {
   const { t } = useI18n();
-  const layout = useLayoutStore();
+  const settings = useSettingsStore();
   const { version, experiment } = useAppVersion();
   const checking = ref(false);
 
   // The channel string the Rust updater expects. For experiments it carries the
   // selected slug (`experiment:<slug>`) so it hits that experiment's manifest.
   function effectiveChannel(): string {
-    if (layout.releaseChannel === 'experiment') {
-      return layout.selectedExperiment
-        ? `experiment:${layout.selectedExperiment}`
+    if (settings.releaseChannel === 'experiment') {
+      return settings.selectedExperiment
+        ? `experiment:${settings.selectedExperiment}`
         : '';
     }
-    return layout.releaseChannel;
+    return settings.releaseChannel;
   }
 
   // Which channel the running build belongs to, inferred from its version.
@@ -41,7 +41,7 @@ export function useUpdater() {
     // the running build's) installs that channel's current build even if it
     // isn't strictly newer — e.g. beta → the latest stable, a deliberate
     // downgrade. Automatic launch checks never force, so they can't downgrade.
-    const force = manual && runningChannel() !== layout.releaseChannel;
+    const force = manual && runningChannel() !== settings.releaseChannel;
     checking.value = true;
     try {
       const available = await tauriInvoke<string | null>({

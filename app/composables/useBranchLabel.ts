@@ -2,7 +2,7 @@
 // so a long bot branch reads the same everywhere. The full name still lives in
 // the row's tooltip — this only trims what's rendered inline.
 export function useBranchLabel() {
-  const layout = useLayoutStore();
+  const settings = useSettingsStore();
 
   // Compact a long bot branch when the pref is on — guarded to `dependabot/`
   // refs so normal hyphenated branches (feat/my-thing) are left alone. Collapses
@@ -10,7 +10,7 @@ export function useBranchLabel() {
   // the last '-'), keeping a `-…` marker: origin/dependabot/npm_and_yarn/pkg-action-1.2.3
   // -> origin/dependabot/…/pkg-action-…
   function shortenBranch(name: string): string {
-    if (layout.shortenDependabot && /dependabot\//.test(name)) {
+    if (settings.shortenDependabot && /dependabot\//.test(name)) {
       return name
         .replace(/(dependabot)\/.+\/([^/]+)$/, '$1/…/$2')
         .replace(/-[^/-]*$/, '-…');

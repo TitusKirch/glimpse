@@ -6,6 +6,10 @@ const repo = useRepoStore();
 const openRepoDialog = useOverlay('openRepo');
 const { t } = useI18n();
 
+// Suppress tooltips (e.g. a tab's WSL-distro tooltip) while a tab reorder drag
+// is in flight, so the pointer sweeping over tabs doesn't pop them mid-drag.
+const { startReorder, endReorder } = useDragReorder();
+
 // Map a WSL distro name to its brand icon (simple-icons), falling back to the
 // generic Tux penguin when the distro isn't recognised.
 function distroIcon(distro?: string): string {
@@ -21,9 +25,13 @@ function distroIcon(distro?: string): string {
   return 'simple-icons:linux';
 }
 
-// Reorder via SortableJS (vuedraggable): it drives the drag with mouse/pointer
-// events, so it works inside the Tauri webview where native HTML5 drag-and-drop
-// is intercepted by the OS drag handler. Persist the new order by its ids.
+// Reorder via SortableJS (vuedraggable). `forceFallback` makes it drive the drag
+// with its own pointer-based fallback instead of the native HTML5 Drag-and-Drop
+// API. SortableJS uses native DnD by default, but the Windows WebView2 release
+// build's OS-level drag handler swallows those events, so reordering silently
+// dies there (it still works in the browser and the WebKitGTK `tauri dev` shell).
+// `fallbackTolerance` keeps a plain click on a tab from registering as a drag.
+// Persist the new order by its ids.
 function onReorder(tabs: RepoState[]) {
   repo.reorderTabs(tabs.map((tab) => tab.id));
 }
@@ -37,14 +45,18 @@ function onReorder(tabs: RepoState[]) {
       tag="div"
       class="flex items-center gap-1"
       :animation="150"
+      :force-fallback="true"
+      :fallback-tolerance="3"
       ghost-class="opacity-50"
       filter=".tab-close"
       :prevent-on-filter="false"
+      @start="startReorder"
+      @end="endReorder"
       @update:model-value="onReorder"
     >
       <template #item="{ element: tab }">
         <div
-          class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors"
+          class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors select-none"
           :class="
             tab.id === repo.activeTabId
               ? 'bg-accent text-accent-foreground'

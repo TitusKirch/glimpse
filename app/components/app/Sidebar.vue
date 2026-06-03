@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import draggable from 'vuedraggable';
 import { useSidebar } from '@/components/ui/sidebar';
 
 const repo = useRepoStore();
 const settings = useOverlay('settings');
-const remoteDialog = useOverlay('remote');
 const openRepoDialog = useOverlay('openRepo');
 const help = useOverlay('help');
 const { t } = useI18n();
@@ -21,23 +21,27 @@ const isCollapsed = computed(
 );
 
 const layout = useLayoutStore();
+const settingsStore = useSettingsStore();
 // Drag-to-resize the expanded sidebar within [12rem, 32rem] (default 16rem).
-// Width persists in the layout store and feeds --sidebar-width via the
+// Width persists in the settings store and feeds --sidebar-width via the
 // provider. Transitions are suppressed (body class) during the drag so it
 // tracks the pointer crisply.
 const MIN_WIDTH = 192;
 const MAX_WIDTH = 512;
 const canResize = computed(
-  () => layout.sidebarResizable && state.value === 'expanded' && !isMobile.value
+  () =>
+    settingsStore.sidebarResizable &&
+    state.value === 'expanded' &&
+    !isMobile.value
 );
 function startResize(e: PointerEvent) {
   e.preventDefault();
   const startX = e.clientX;
-  const startWidth = layout.sidebarWidth;
+  const startWidth = settingsStore.sidebarWidth;
   document.body.classList.add('resizing-sidebar');
   const onMove = (ev: PointerEvent) => {
     const next = startWidth + (ev.clientX - startX);
-    layout.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
+    settingsStore.sidebarWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
   };
   const onUp = () => {
     document.body.classList.remove('resizing-sidebar');
@@ -48,10 +52,34 @@ function startResize(e: PointerEvent) {
   window.addEventListener('pointerup', onUp);
 }
 
-// Capped lists with gildstone-style "show N more / show less".
-const branchesMore = useSidebarMore({ items: () => repo.branches });
-const remoteBranchesMore = useSidebarMore({ items: () => repo.remoteBranches });
-const tagsMore = useSidebarMore({ items: () => repo.tags });
+// Sidebar sections render in the user's persisted order; each can be collapsed,
+// and in edit mode dragged by its handle to reorder. Only sections that have
+// something to show participate (remote branches hide when there are none), so a
+// reorder of the visible subset is merged back into the full order with the
+// hidden sections pinned to their slots.
+const SECTION_VISIBLE: Record<string, () => boolean> = {
+  branches: () => true,
+  remotes: () => true,
+  remoteBranches: () => repo.remoteBranches.length > 0,
+  tags: () => true,
+  stashes: () => true
+};
+const visibleSections = computed(() =>
+  layout.sidebarSectionOrder.filter((id) => SECTION_VISIBLE[id]?.() ?? false)
+);
+const sectionKey = (id: string) => id;
+function onReorderSections(next: string[]) {
+  const moved = new Set(next);
+  let i = 0;
+  const merged = layout.sidebarSectionOrder.map((id) =>
+    moved.has(id) ? next[i++]! : id
+  );
+  layout.reorderSidebarSections(merged);
+}
+
+// Suppress item tooltips while a section reorder drag is in flight, so the
+// pointer sweeping over branch/tag/stash rows doesn't pop their tooltips.
+const { startReorder, endReorder } = useDragReorder();
 
 // External links pinned to the bottom of the sidebar.
 const links = [
@@ -74,7 +102,7 @@ const links = [
 </script>
 
 <template>
-  <UiSidebar collapsible="icon">
+  <UiSidebar collapsible="icon" class="select-none">
     <UiSidebarHeader>
       <div
         class="flex h-8 items-center gap-2 overflow-hidden text-sm font-bold"
@@ -124,214 +152,47 @@ const links = [
         </UiButton>
       </div>
 
-      <UiSidebarGroup v-if="repo.hasRepos">
-        <UiSidebarGroupLabel>{{ t('sidebar.branches') }}</UiSidebarGroupLabel>
-        <UiTooltip>
-          <UiTooltipTrigger as-child>
-            <UiSidebarGroupAction
-              class="size-6 cursor-pointer"
-              @click="repo.createBranchPrompt()"
-            >
-              <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />
-            </UiSidebarGroupAction>
-          </UiTooltipTrigger>
-          <UiTooltipContent>{{ t('sidebar.newBranch') }}</UiTooltipContent>
-        </UiTooltip>
-        <UiSidebarGroupContent>
-          <UiSidebarMenu>
-            <SidebarBranchItem
-              v-for="b in branchesMore.visible.value"
-              :key="b.name"
-              :branch="b"
-              :collapsed="isCollapsed"
-            />
-            <SidebarMoreButton
-              :hidden-count="branchesMore.hiddenCount.value"
-              :expanded="branchesMore.isExpanded.value"
-              :can-collapse="branchesMore.canCollapse.value"
-              @toggle="branchesMore.toggle()"
-            />
-          </UiSidebarMenu>
-        </UiSidebarGroupContent>
-      </UiSidebarGroup>
-
-      <UiSidebarGroup v-if="repo.hasRepos">
-        <UiSidebarGroupLabel>{{ t('sidebar.remotes') }}</UiSidebarGroupLabel>
-        <UiTooltip>
-          <UiTooltipTrigger as-child>
-            <UiSidebarGroupAction
-              class="size-6 cursor-pointer"
-              @click="remoteDialog.show()"
-            >
-              <NuxtIcon name="lucide:plus" class="shrink-0" />
-            </UiSidebarGroupAction>
-          </UiTooltipTrigger>
-          <UiTooltipContent>{{ t('sidebar.addRemote') }}</UiTooltipContent>
-        </UiTooltip>
-        <UiSidebarGroupContent>
-          <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
-              <UiSidebarMenuButton :tooltip="r">
-                <NuxtIcon name="lucide:cloud" class="shrink-0" />
-                <span>{{ r }}</span>
-              </UiSidebarMenuButton>
-              <UiDropdownMenu>
-                <UiDropdownMenuTrigger as-child>
-                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
-                    <NuxtIcon name="lucide:ellipsis" />
-                  </UiSidebarMenuAction>
-                </UiDropdownMenuTrigger>
-                <UiDropdownMenuContent side="right" align="start">
-                  <UiDropdownMenuItem @click="repo.renameRemote(r)">
-                    <NuxtIcon name="lucide:pencil" />
-                    {{ t('branch.rename') }}
-                  </UiDropdownMenuItem>
-                  <UiDropdownMenuSeparator />
-                  <UiDropdownMenuItem
-                    class="text-destructive focus:text-destructive"
-                    @click="repo.removeRemote(r)"
-                  >
-                    <NuxtIcon name="lucide:trash-2" />
-                    {{ t('branch.delete') }}
-                  </UiDropdownMenuItem>
-                </UiDropdownMenuContent>
-              </UiDropdownMenu>
-            </UiSidebarMenuItem>
-          </UiSidebarMenu>
-        </UiSidebarGroupContent>
-      </UiSidebarGroup>
-
-      <UiSidebarGroup v-if="repo.remoteBranches.length">
-        <UiSidebarGroupLabel>{{
-          t('sidebar.remoteBranches')
-        }}</UiSidebarGroupLabel>
-        <UiSidebarGroupContent>
-          <UiSidebarMenu>
-            <SidebarRemoteBranchItem
-              v-for="rb in remoteBranchesMore.visible.value"
-              :key="rb"
-              :rb="rb"
-              :collapsed="isCollapsed"
-            />
-            <SidebarMoreButton
-              :hidden-count="remoteBranchesMore.hiddenCount.value"
-              :expanded="remoteBranchesMore.isExpanded.value"
-              :can-collapse="remoteBranchesMore.canCollapse.value"
-              @toggle="remoteBranchesMore.toggle()"
-            />
-          </UiSidebarMenu>
-        </UiSidebarGroupContent>
-      </UiSidebarGroup>
-
-      <UiSidebarGroup v-if="repo.hasRepos">
-        <UiSidebarGroupLabel>{{ t('sidebar.tags') }}</UiSidebarGroupLabel>
-        <UiTooltip>
-          <UiTooltipTrigger as-child>
-            <UiSidebarGroupAction
-              class="size-6 cursor-pointer"
-              @click="repo.createTagPrompt()"
-            >
-              <NuxtIcon name="lucide:tag" class="shrink-0" />
-            </UiSidebarGroupAction>
-          </UiTooltipTrigger>
-          <UiTooltipContent>{{ t('sidebar.newTag') }}</UiTooltipContent>
-        </UiTooltip>
-        <UiSidebarGroupContent>
-          <UiSidebarMenu>
-            <SidebarTagItem
-              v-for="tag in tagsMore.visible.value"
-              :key="tag"
-              :tag="tag"
-              :collapsed="isCollapsed"
-            />
-            <SidebarMoreButton
-              :hidden-count="tagsMore.hiddenCount.value"
-              :expanded="tagsMore.isExpanded.value"
-              :can-collapse="tagsMore.canCollapse.value"
-              @toggle="tagsMore.toggle()"
-            />
-          </UiSidebarMenu>
-        </UiSidebarGroupContent>
-      </UiSidebarGroup>
-
-      <UiSidebarGroup v-if="repo.hasRepos">
-        <UiSidebarGroupLabel>{{ t('sidebar.stashes') }}</UiSidebarGroupLabel>
-        <UiTooltip>
-          <UiTooltipTrigger as-child>
-            <UiSidebarGroupAction
-              class="size-6 cursor-pointer"
-              @click="repo.stashSave()"
-            >
-              <NuxtIcon name="lucide:archive" class="shrink-0" />
-            </UiSidebarGroupAction>
-          </UiTooltipTrigger>
-          <UiTooltipContent>{{ t('sidebar.stashPush') }}</UiTooltipContent>
-        </UiTooltip>
-        <UiSidebarGroupContent>
-          <p
-            v-if="!repo.stashes.length"
-            class="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+      <template v-else>
+        <!-- Edit mode: a dashed hint with a quick way back out. Reordering is
+             driven by the per-section drag handles. -->
+        <div
+          v-if="layout.sidebarEditMode"
+          class="mx-2 mt-2 mb-1 flex items-start justify-between gap-2 rounded-md border border-dashed border-sidebar-border px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+        >
+          <span>{{ t('sidebar.editMode.hint') }}</span>
+          <UiButton
+            size="sm"
+            variant="ghost"
+            class="h-6 shrink-0 px-2"
+            @click="layout.setSidebarEditMode(false)"
           >
-            {{ t('sidebar.noStashes') }}
-          </p>
-          <UiSidebarMenu>
-            <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
-              <UiSidebarMenuButton
-                :tooltip="s.message"
-                :is-active="repo.selectedHash === s.reference"
-                @click="repo.selectCommit(s.reference)"
-              >
-                <NuxtIcon name="lucide:archive" class="shrink-0" />
-                <span class="truncate">{{ s.message }}</span>
-              </UiSidebarMenuButton>
-              <UiDropdownMenu>
-                <UiDropdownMenuTrigger as-child>
-                  <UiSidebarMenuAction show-on-hover class="cursor-pointer">
-                    <NuxtIcon name="lucide:ellipsis" />
-                  </UiSidebarMenuAction>
-                </UiDropdownMenuTrigger>
-                <UiDropdownMenuContent side="right" align="start">
-                  <UiDropdownMenuItem
-                    @click="
-                      repo.stashAction({
-                        action: 'pop',
-                        reference: s.reference
-                      })
-                    "
-                  >
-                    <NuxtIcon name="lucide:archive-restore" />
-                    {{ t('sidebar.stashPop') }}
-                  </UiDropdownMenuItem>
-                  <UiDropdownMenuItem
-                    @click="
-                      repo.stashAction({
-                        action: 'apply',
-                        reference: s.reference
-                      })
-                    "
-                  >
-                    <NuxtIcon name="lucide:copy-plus" />
-                    {{ t('sidebar.stashApply') }}
-                  </UiDropdownMenuItem>
-                  <UiDropdownMenuSeparator />
-                  <UiDropdownMenuItem
-                    class="text-destructive focus:text-destructive"
-                    @click="
-                      repo.stashAction({
-                        action: 'drop',
-                        reference: s.reference
-                      })
-                    "
-                  >
-                    <NuxtIcon name="lucide:trash-2" />
-                    {{ t('sidebar.stashDrop') }}
-                  </UiDropdownMenuItem>
-                </UiDropdownMenuContent>
-              </UiDropdownMenu>
-            </UiSidebarMenuItem>
-          </UiSidebarMenu>
-        </UiSidebarGroupContent>
-      </UiSidebarGroup>
+            {{ t('sidebar.editMode.done') }}
+          </UiButton>
+        </div>
+
+        <draggable
+          :model-value="visibleSections"
+          :item-key="sectionKey"
+          tag="div"
+          handle=".sidebar-section-handle"
+          :disabled="!layout.sidebarEditMode || isCollapsed"
+          :force-fallback="true"
+          :fallback-tolerance="3"
+          :animation="150"
+          ghost-class="opacity-50"
+          @start="startReorder"
+          @end="endReorder"
+          @update:model-value="onReorderSections"
+        >
+          <template #item="{ element: id }">
+            <SidebarSectionBranches v-if="id === 'branches'" />
+            <SidebarSectionRemotes v-else-if="id === 'remotes'" />
+            <SidebarSectionRemoteBranches v-else-if="id === 'remoteBranches'" />
+            <SidebarSectionTags v-else-if="id === 'tags'" />
+            <SidebarSectionStashes v-else-if="id === 'stashes'" />
+          </template>
+        </draggable>
+      </template>
     </UiSidebarContent>
 
     <!-- static footer: stays put while the content above scrolls -->

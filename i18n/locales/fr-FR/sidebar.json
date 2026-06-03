@@ -25,6 +25,13 @@
     "localOnly": "locale",
     "localOnlyHint": "Locale uniquement — pas encore sur un remote",
     "experimentBadge": "Expérimental",
+    "reorderHint": "Glisser pour réordonner",
+    "collapseSection": "Réduire la section",
+    "expandSection": "Développer la section",
+    "editMode": {
+      "hint": "Glissez les sections pour les réordonner",
+      "done": "Terminé"
+    },
     "noRepo": {
       "title": "Aucun dépôt ouvert",
       "hint": "Ouvrez un dépôt pour voir ses branches et son historique."

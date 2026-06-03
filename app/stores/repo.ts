@@ -22,6 +22,7 @@ import type {
   StashEntry,
   StatusEntry
 } from '~/types/bindings';
+import type { PullStrategy } from '~/stores/layout';
 
 // Keep loading spinners visible for at least this long so fast actions don't
 // flicker.
@@ -313,9 +314,8 @@ export const useRepoStore = defineStore('repo', {
       const r = this.active;
       if (!r?.selectedHash) return;
       r.selectedFile = file;
-      const layout = useLayoutStore();
-      const ws = layout.ignoreWhitespace;
-      const whole = layout.diffMode === 'whole';
+      const ws = useLayoutStore().ignoreWhitespace;
+      const whole = useSettingsStore().diffMode === 'whole';
       r.diff = await gitClient.commitFileDiff({
         path: r.path,
         hash: r.selectedHash,
@@ -333,9 +333,8 @@ export const useRepoStore = defineStore('repo', {
       r.selectedHash = null;
       r.selectedBody = '';
       r.commitFiles = [];
-      const layout = useLayoutStore();
-      const ws = layout.ignoreWhitespace;
-      const whole = layout.diffMode === 'whole';
+      const ws = useLayoutStore().ignoreWhitespace;
+      const whole = useSettingsStore().diffMode === 'whole';
       r.diff = await gitClient.fileDiff({
         path: r.path,
         file,
@@ -834,22 +833,49 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async doPull() {
-      const rebase = useLayoutStore().pullStrategy === 'rebase';
-      await gitClient.pull({ path: this.repoPath, rebase });
+    // Pull with the given strategy, or the user's configured default when none
+    // is passed (the plain pull-button click). The backend always gets an
+    // explicit strategy, so git never aborts on "how to reconcile".
+    async doPull(strategy?: PullStrategy) {
+      await gitClient.pull({
+        path: this.repoPath,
+        strategy: strategy ?? useSettingsStore().pullStrategy
+      });
     },
 
     // Runs a sync, turning the "no upstream / no tracking" failures into a
-    // helpful prompt (publish branch / set upstream) instead of a raw error.
-    async doSync(command: 'fetch' | 'pull' | 'push') {
+    // helpful prompt (publish branch / set upstream) instead of a raw error,
+    // and a diverged-branches failure into a strategy chooser. `strategy`
+    // overrides the configured default for this one pull.
+    async doSync(command: 'fetch' | 'pull' | 'push', strategy?: PullStrategy) {
       try {
-        if (command === 'pull') await this.doPull();
+        if (command === 'pull') await this.doPull(strategy);
         else if (command === 'push')
           await gitClient.push({ path: this.repoPath });
         else await gitClient.fetch(this.repoPath);
         await this.loadFromBackend(this.active?.path);
       } catch (err) {
         const raw = typeof err === 'string' ? err : String(err);
+        // A pull that can't fast-forward (e.g. --ff-only on diverged branches)
+        // isn't a hard error — let the user pick how to reconcile, then retry.
+        if (
+          command === 'pull' &&
+          /not possible to fast-forward|reconcile divergent|diverging|divergent branches/i.test(
+            raw
+          )
+        ) {
+          const choice = await usePullStrategy().choose({
+            initial: useSettingsStore().pullStrategy
+          });
+          if (!choice) return;
+          try {
+            await this.doPull(choice);
+            await this.loadFromBackend(this.active?.path);
+          } catch (retryErr) {
+            this.lastError = cleanGitError(String(retryErr));
+          }
+          return;
+        }
         if (command === 'push' && /upstream/i.test(raw)) {
           const ok = await useConfirm().confirm({
             titleKey: 'confirm.publishBranch.title',
@@ -889,6 +915,26 @@ export const useRepoStore = defineStore('repo', {
         this.lastError = cleanGitError(raw);
         console.error('sync failed:', err);
       }
+    },
+
+    // Pull with an explicit strategy (the pull-button dropdown), as opposed to
+    // sync('pull') which uses the configured default. Shares the pull spinner/
+    // guard and the same diverged-branches handling via doSync.
+    async pull({ strategy }: { strategy: PullStrategy }) {
+      return this.native(async () => {
+        this.syncing = 'pull';
+        this.busy = true;
+        this.lastError = null;
+        try {
+          await Promise.all([
+            this.doSync('pull', strategy),
+            promiseTimeout(MIN_SPINNER_MS)
+          ]);
+        } finally {
+          this.busy = false;
+          this.syncing = null;
+        }
+      });
     },
 
     // Push with options: publish a new branch (set upstream) and/or force with

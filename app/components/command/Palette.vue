@@ -14,6 +14,7 @@ const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
 const layout = useLayoutStore();
+const settingsStore = useSettingsStore();
 const colorMode = useColorMode();
 const { t, locale } = useI18n();
 
@@ -24,7 +25,7 @@ const mod = navigator.platform.toLowerCase().includes('mac') ? '⌘' : 'Ctrl';
 // already covers). Empty unless the user opts in under Settings → Language, so
 // by default search behaves exactly as before.
 function kw(key: string): string {
-  return (layout.searchLocales ?? [])
+  return (settingsStore.searchLocales ?? [])
     .filter((l) => l !== locale.value)
     .map((l) => t(key, {}, { locale: l }))
     .join(' ');
@@ -127,6 +128,11 @@ interface PaletteAction {
 const actions = computed<PaletteAction[]>(() => {
   const hasRepos = repo.hasRepos;
   const hasBranches = repo.branches.length > 0;
+  // The configured default pull strategy carries the shortcut; the other two
+  // are offered as separate, shortcut-less entries (all labelled "Pull (…)").
+  const defaultPull = PULL_STRATEGIES.find(
+    (s) => s.value === settingsStore.pullStrategy
+  );
   return [
     // Git
     {
@@ -142,11 +148,21 @@ const actions = computed<PaletteAction[]>(() => {
       id: 'pull',
       group: 'git',
       icon: 'lucide:arrow-down',
-      labelKey: 'sync.pull',
+      labelKey: defaultPull?.labelKey ?? 'pull.merge',
       shortcut: `${mod}+⇧+L`,
       run: () => repo.sync('pull'),
       visible: hasRepos
     },
+    ...PULL_STRATEGIES.filter(
+      (s) => s.value !== settingsStore.pullStrategy
+    ).map((s) => ({
+      id: `pull-${s.value}`,
+      group: 'git' as const,
+      icon: s.icon,
+      labelKey: s.labelKey,
+      run: () => repo.pull({ strategy: s.value }),
+      visible: hasRepos
+    })),
     {
       id: 'push',
       group: 'git',
@@ -314,7 +330,7 @@ const recentlyUsed = computed<PaletteAction[]>(() => {
   return recentSnapshot.value
     .map((id) => byId.get(id))
     .filter((a): a is PaletteAction => Boolean(a))
-    .slice(0, layout.recentActionsInSearch);
+    .slice(0, settingsStore.recentActionsInSearch);
 });
 
 // Record the action as recently used, then run it (or open its branch page).
@@ -328,7 +344,7 @@ function selectAction(a: PaletteAction) {
 const recentReposInSearch = computed(() =>
   recent.repos.slice(
     0,
-    Math.min(layout.recentReposInSearch, layout.recentReposMax)
+    Math.min(settingsStore.recentReposInSearch, settingsStore.recentReposMax)
   )
 );
 </script>

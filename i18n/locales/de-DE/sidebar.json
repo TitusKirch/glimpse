@@ -25,6 +25,13 @@
     "localOnly": "lokal",
     "localOnlyHint": "Nur lokal — noch nicht auf einem Remote",
     "experimentBadge": "Experimentell",
+    "reorderHint": "Zum Neuordnen ziehen",
+    "collapseSection": "Bereich einklappen",
+    "expandSection": "Bereich ausklappen",
+    "editMode": {
+      "hint": "Bereiche zum Neuordnen ziehen",
+      "done": "Fertig"
+    },
     "noRepo": {
       "title": "Kein Repository geöffnet",
       "hint": "Öffne ein Repository, um Branches und Verlauf zu sehen."

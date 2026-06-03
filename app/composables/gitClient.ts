@@ -16,12 +16,37 @@ import type {
   RepoInfo,
   StatusEntry
 } from '~/types/bindings';
+import type { PullStrategy } from '~/stores/layout';
 
 // Each method owns its command name, arg shape, and fallback. Read methods fall
 // back to mock data so the browser demo renders; mutations fall back to a no-op.
 export const gitClient = {
   defaultRepo: () =>
     tauriInvoke<string>({ command: 'default_repo', args: {}, fallback: '.' }),
+
+  // Repo path passed on the CLI (`glimpse <path>`) for this launch, consumed
+  // once. Null in the browser demo and when no path was given. A trusted, local
+  // entry point — unlike a deep link it opens without confirmation.
+  takeCliOpenPath: () =>
+    tauriInvoke<string | null>({
+      command: 'take_cli_open_path',
+      args: {},
+      fallback: null
+    }),
+
+  // Install the `glimpse` command-line launcher onto PATH; resolves to the
+  // installed path. No fallback — only ever called from the desktop shell (the
+  // settings row that triggers it is hidden in the browser demo).
+  installCli: () => tauriInvoke<string>({ command: 'install_cli', args: {} }),
+
+  // The installed launcher path if `glimpse` is already on PATH for this build,
+  // else null — lets the settings row show an installed state. Null in the demo.
+  cliInstallStatus: () =>
+    tauriInvoke<string | null>({
+      command: 'cli_install_status',
+      args: {},
+      fallback: null
+    }),
 
   // Start the FS watcher for `path`; the backend emits `repo-changed`.
   watchRepo: (path: string) =>
@@ -396,10 +421,10 @@ export const gitClient = {
   fetch: (path: string) =>
     tauriInvoke<string>({ command: 'fetch', args: { path }, fallback: '' }),
 
-  pull: ({ path, rebase = false }: { path: string; rebase?: boolean }) =>
+  pull: ({ path, strategy }: { path: string; strategy: PullStrategy }) =>
     tauriInvoke<string>({
       command: 'pull',
-      args: { path, rebase },
+      args: { path, strategy },
       fallback: ''
     }),
 

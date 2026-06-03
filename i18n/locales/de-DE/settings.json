@@ -4,6 +4,18 @@
     "general": {
       "title": "Allgemein",
       "gitSection": "Git",
+      "cliSection": "Kommandozeile",
+      "cli": {
+        "label": "Kommandozeilen-Starter",
+        "hint": "Installiere den `glimpse`-Befehl, um ein Repo aus dem Terminal zu öffnen – wie `code .`.",
+        "install": "Installieren",
+        "installing": "Installiere…",
+        "installedLabel": "Installiert",
+        "reinstall": "Neu installieren",
+        "installed": "glimpse installiert unter {path}",
+        "restartHint": "Terminal neu starten, dann „glimpse .“ in einem Repo ausführen.",
+        "failed": "Befehl konnte nicht installiert werden"
+      },
       "autoFetch": {
         "label": "Automatisch fetchen",
         "hint": "Im Hintergrund regelmäßig von Remotes fetchen."
@@ -13,10 +25,11 @@
         "hint": "Wie oft automatisch gefetcht wird."
       },
       "pullStrategy": {
-        "label": "Pull-Strategie",
-        "hint": "Beim Pull mergen oder rebasen.",
+        "label": "Standard-Pull-Strategie",
+        "hint": "Beim Pull mergen, rebasen oder nur Fast-forward.",
         "merge": "Merge",
-        "rebase": "Rebase"
+        "rebase": "Rebase",
+        "ffOnly": "Nur Fast-forward"
       },
       "updatesSection": "Updates",
       "autoUpdate": {
@@ -68,23 +81,60 @@
         "label": "Aktionen in der Suche",
         "hint": "Wie viele unter „Zuletzt verwendet“ erscheinen (höchstens so viele wie gespeichert)."
       },
-      "developer": "Entwickler",
+      "developer": "Entwickler-Einstellungen",
       "devMode": {
-        "label": "Entwickler-Einstellungen",
-        "hint": "Zusätzliche Debugging-Tools in den Einstellungen anzeigen."
+        "label": "Entwickler-Modus",
+        "hint": "Entwickler-Tools freischalten — die Seiten Showcase und Triggers sowie den Beta-Update-Channel."
+      },
+      "experimentsOptIn": {
+        "label": "An Experimenten teilnehmen",
+        "hint": "Experimentelle Builds pro Branch aktivieren. Standardmäßig aus; schaltet den Experiment-Release-Channel frei."
+      },
+      "channelFallback": {
+        "title": "Release-Channel geändert",
+        "description": "Auf {channel} gewechselt."
       }
     },
-    "developer": {
-      "title": "Entwickler"
+    "showcase": {
+      "title": "Showcase",
+      "badges": {
+        "label": "Badges",
+        "hint": "Alle Badge-Varianten auf einen Blick.",
+        "beta": "Beta",
+        "experiment": "Experiment",
+        "withIcon": "Mit Icon"
+      }
     },
-    "dev": {
+    "triggers": {
+      "title": "Triggers",
       "toasts": {
         "label": "Toasts testen",
         "hint": "Je einen Toast pro Art auslösen."
       },
-      "badges": {
-        "label": "Badges",
-        "hint": "Alle Badge-Varianten auf einen Blick."
+      "dialogs": {
+        "label": "Dialoge",
+        "hint": "Die Dialoge öffnen, die man sonst nicht direkt sieht."
+      },
+      "cancelled": "Abgebrochen",
+      "confirm": {
+        "button": "Bestätigungs-Dialog",
+        "title": "Branch löschen?",
+        "description": "Eine Vorschau des Bestätigungs-Dialogs — es passiert nichts wirklich.",
+        "action": "Löschen",
+        "confirmed": "Bestätigt"
+      },
+      "prompt": {
+        "button": "Eingabe-Dialog",
+        "title": "Umbenennen",
+        "label": "Neuer Name",
+        "placeholder": "Etwas eingeben…",
+        "submit": "Speichern",
+        "required": "Pflichtfeld",
+        "saved": "Gespeichert"
+      },
+      "pull": {
+        "button": "Diverged-Dialog",
+        "result": "Gewählte Strategie: {strategy}"
       },
       "info": {
         "label": "Info",
@@ -139,6 +189,10 @@
         "xlarge": "Sehr groß"
       },
       "sidebarSection": "Seitenleiste",
+      "sidebarEdit": {
+        "label": "Layout bearbeiten",
+        "hint": "Bereiche per Drag & Drop neu anordnen. Jeder Bereich lässt sich einzeln einklappen."
+      },
       "sidebarResizable": {
         "label": "Größe veränderbar",
         "hint": "Rechte Kante ziehen, um die Seitenleiste zu verbreitern."
