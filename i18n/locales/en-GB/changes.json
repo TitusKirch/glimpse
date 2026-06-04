@@ -23,6 +23,12 @@
     "markResolved": "Mark resolved",
     "clean": "Working tree clean",
     "cleanHint": "There are no changes to commit.",
-    "lfs": "Tracked by Git LFS"
+    "lfs": "Tracked by Git LFS",
+    "conventional": {
+      "toggle": "Conventional Commit helper",
+      "scope": "scope",
+      "breaking": "Breaking",
+      "closes": "Closes #"
+    }
   }
 }

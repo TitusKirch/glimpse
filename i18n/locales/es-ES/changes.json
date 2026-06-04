@@ -23,6 +23,12 @@
     "markResolved": "Marcar como resuelto",
     "clean": "Árbol de trabajo limpio",
     "cleanHint": "No hay cambios para confirmar.",
-    "lfs": "Gestionado por Git LFS"
+    "lfs": "Gestionado por Git LFS",
+    "conventional": {
+      "toggle": "Asistente de Conventional Commit",
+      "scope": "ámbito",
+      "breaking": "Ruptura",
+      "closes": "Closes #"
+    }
   }
 }

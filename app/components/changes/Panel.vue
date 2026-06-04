@@ -61,6 +61,47 @@ const canCommit = computed(
     !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
 );
 
+// --- Conventional Commit composer (opt-in) ---------------------------------
+// Assembles a `type(scope)!: ` prefix on the subject line. Re-applying is
+// idempotent (it strips any existing prefix first), so changing a control never
+// stacks prefixes and the user's typed subject is preserved.
+const CC_TYPES = [
+  'feat',
+  'fix',
+  'docs',
+  'style',
+  'refactor',
+  'perf',
+  'test',
+  'build',
+  'ci',
+  'chore',
+  'revert'
+];
+const ccType = ref('feat');
+const ccScope = ref('');
+const ccBreaking = ref(false);
+const PREFIX_RE = /^[a-z]+(\([^)]*\))?!?:\s*/i;
+
+function applyConventional() {
+  const lines = repo.commitMessage.split('\n');
+  const subject = (lines[0] ?? '').replace(PREFIX_RE, '');
+  const scope = ccScope.value.trim();
+  lines[0] =
+    `${ccType.value}${scope ? `(${scope})` : ''}${ccBreaking.value ? '!' : ''}: ` +
+    subject;
+  repo.commitMessage = lines.join('\n');
+}
+
+watch([ccType, ccScope, ccBreaking, () => settings.conventionalCommits], () => {
+  if (settings.conventionalCommits) applyConventional();
+});
+
+// Append a `Closes #` footer for the user to complete.
+function insertCloses() {
+  repo.commitMessage = `${repo.commitMessage.replace(/\s*$/, '')}\n\nCloses #`;
+}
+
 // Commit message form (TanStack Form + Zod). The store still owns
 // repo.commitMessage — the commit action, the amend prefill and the Cmd/Ctrl+↵
 // shortcut all read it — so the field two-way syncs with it.
@@ -316,6 +357,38 @@ onMounted(autoResize);
 
     <!-- commit box -->
     <form class="border-t p-2" @submit.prevent="commitForm.handleSubmit">
+      <div
+        v-if="settings.conventionalCommits"
+        class="mb-2 flex flex-wrap items-center gap-1.5"
+      >
+        <select
+          v-model="ccType"
+          class="h-7 rounded-md border bg-transparent px-1 text-xs outline-none"
+        >
+          <option v-for="ty in CC_TYPES" :key="ty" :value="ty">{{ ty }}</option>
+        </select>
+        <input
+          v-model="ccScope"
+          :placeholder="t('changes.conventional.scope')"
+          class="h-7 w-24 rounded-md border bg-transparent px-2 text-xs outline-none"
+        />
+        <label class="flex items-center gap-1 text-xs text-muted-foreground">
+          <UiSwitch
+            :model-value="ccBreaking"
+            @update:model-value="(v) => (ccBreaking = v as boolean)"
+          />
+          {{ t('changes.conventional.breaking') }}
+        </label>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="ghost"
+          class="ml-auto h-7 text-xs"
+          @click="insertCloses"
+        >
+          {{ t('changes.conventional.closes') }}
+        </UiButton>
+      </div>
       <div class="relative">
         <commitForm.Field v-slot="{ field }" name="message">
           <textarea
@@ -337,13 +410,24 @@ onMounted(autoResize);
       </div>
 
       <div class="mt-2 flex items-center justify-between gap-2">
-        <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-          <UiSwitch
-            :model-value="repo.amend"
-            @update:model-value="repo.setAmend($event)"
-          />
-          <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
-        </label>
+        <div class="flex items-center gap-3">
+          <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+            <UiSwitch
+              :model-value="repo.amend"
+              @update:model-value="repo.setAmend($event)"
+            />
+            <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
+          </label>
+          <button
+            type="button"
+            class="text-muted-foreground transition-colors hover:text-foreground"
+            :class="settings.conventionalCommits && 'text-primary'"
+            :title="t('changes.conventional.toggle')"
+            @click="settings.toggleConventionalCommits()"
+          >
+            <NuxtIcon name="lucide:braces" class="size-4" />
+          </button>
+        </div>
         <UiKbd>{{ modLabel }}+↵</UiKbd>
       </div>
 
