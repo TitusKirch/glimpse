@@ -150,6 +150,94 @@ impl GitTarget {
         std::fs::read(path).ok()
     }
 
+    /// Public SSH keys (`*.pub`) under `~/.ssh` in the environment git runs in —
+    /// their contents (the lines pasted into a host). Best-effort; empty on error.
+    pub fn ssh_public_keys(&self) -> Vec<String> {
+        if let Some(distro) = &self.distro {
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            return cmd
+                .args([
+                    "-d",
+                    distro,
+                    "--exec",
+                    "sh",
+                    "-c",
+                    "cat ~/.ssh/*.pub 2>/dev/null",
+                ])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| {
+                    String::from_utf8_lossy(&o.stdout)
+                        .lines()
+                        .map(str::trim)
+                        .filter(|l| !l.is_empty())
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default();
+        }
+        let Some(home) = home_dir() else {
+            return Vec::new();
+        };
+        let mut keys = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(std::path::Path::new(&home).join(".ssh")) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|e| e == "pub") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        let trimmed = content.trim();
+                        if !trimmed.is_empty() {
+                            keys.push(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        keys
+    }
+
+    /// Generate an ed25519 key (no passphrase) at the default path if none exists,
+    /// returning its public key. Errors if a default key is already present (so it
+    /// never clobbers an existing one).
+    pub fn generate_ssh_key(&self) -> Result<String, String> {
+        if let Some(distro) = &self.distro {
+            let script = "test -f ~/.ssh/id_ed25519 && { echo 'a key already exists' >&2; exit 1; }; \
+                 mkdir -p ~/.ssh && ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519 -q && cat ~/.ssh/id_ed25519.pub";
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            let out = cmd
+                .args(["-d", distro, "--exec", "sh", "-c", script])
+                .output()
+                .map_err(|e| e.to_string())?;
+            if !out.status.success() {
+                return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+            }
+            return Ok(String::from_utf8_lossy(&out.stdout).trim().to_string());
+        }
+        let home = home_dir().ok_or("home directory not found")?;
+        let ssh = std::path::Path::new(&home).join(".ssh");
+        let key = ssh.join("id_ed25519");
+        if key.exists() {
+            return Err("an ed25519 key already exists".to_string());
+        }
+        std::fs::create_dir_all(&ssh).map_err(|e| e.to_string())?;
+        let mut cmd = Command::new("ssh-keygen");
+        no_window(&mut cmd);
+        let status = cmd
+            .args(["-t", "ed25519", "-N", "", "-q", "-f"])
+            .arg(&key)
+            .status()
+            .map_err(|e| format!("ssh-keygen not available: {e}"))?;
+        if !status.success() {
+            return Err("ssh-keygen failed".to_string());
+        }
+        std::fs::read_to_string(key.with_extension("pub"))
+            .map(|s| s.trim().to_string())
+            .map_err(|e| e.to_string())
+    }
+
     /// Native `git` on the host OS — the default on every platform.
     fn native(repo_path: &str) -> Self {
         GitTarget {
@@ -160,6 +248,13 @@ impl GitTarget {
             distro: None,
         }
     }
+}
+
+/// The user's home directory (`$HOME`, or `%USERPROFILE%` on Windows).
+fn home_dir() -> Option<String> {
+    std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .ok()
 }
 
 /// Read the `glimpse.target` value from a git config blob. `auto`/empty/unknown

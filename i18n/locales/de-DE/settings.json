@@ -90,6 +90,17 @@
         "distros": "WSL-Distros: {list}",
         "saveFailed": "Git-Ziel konnte nicht gespeichert werden"
       },
+      "ssh": {
+        "section": "SSH & Anmeldedaten",
+        "helper": "Credential-Helper",
+        "none": "keiner",
+        "keys": "Öffentliche SSH-Schlüssel",
+        "noKeys": "Keine SSH-Schlüssel in ~/.ssh gefunden.",
+        "generate": "SSH-Schlüssel erzeugen",
+        "generated": "SSH-Schlüssel erzeugt und öffentlicher Schlüssel kopiert",
+        "generateFailed": "SSH-Schlüssel konnte nicht erzeugt werden",
+        "hint": "Füge einen öffentlichen Schlüssel bei deinem Git-Host (GitHub/GitLab) hinzu, um dich per SSH zu authentifizieren."
+      },
       "updatesSection": "Updates",
       "autoUpdate": {
         "label": "Automatische Updates",

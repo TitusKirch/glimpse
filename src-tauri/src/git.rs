@@ -429,6 +429,16 @@ pub struct RepoStats {
     pub churn: Vec<FileChurn>,
 }
 
+/// SSH / credential setup for the repo's git environment.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SshStatus {
+    /// The configured `credential.helper`, or empty when none is set.
+    pub helper: String,
+    /// Public SSH keys found under `~/.ssh` (their contents).
+    pub public_keys: Vec<String>,
+}
+
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BlameLine {
@@ -727,6 +737,24 @@ impl Repo {
             &["am", "--3way"]
         };
         self.run_stdin(args, &content)
+    }
+
+    /// SSH key + credential-helper status for this repo's git environment.
+    pub fn ssh_status(&self) -> SshStatus {
+        let helper = self
+            .run(&["config", "--get", "credential.helper"])
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        SshStatus {
+            helper,
+            public_keys: self.target.ssh_public_keys(),
+        }
+    }
+
+    /// Generate an ed25519 SSH key in this environment (errors if one exists).
+    pub fn generate_ssh_key(&self) -> Result<String, String> {
+        self.target.generate_ssh_key()
     }
 
     /// All tracked file paths (`git ls-files`) — the corpus for the quick-open
@@ -1699,6 +1727,7 @@ fn export_bindings() {
         ActivityPoint::decl(),
         FileChurn::decl(),
         RepoStats::decl(),
+        SshStatus::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(

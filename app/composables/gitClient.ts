@@ -19,6 +19,7 @@ import type {
   RepoStats,
   RepoInfo,
   SparseStatus,
+  SshStatus,
   StatusEntry,
   Submodule,
   Worktree
@@ -175,6 +176,21 @@ export const gitClient = {
       command: 'blame',
       args: { path, file },
       fallback: []
+    }),
+
+  // SSH keys + credential-helper status for the repo's git environment.
+  sshStatus: (path: string) =>
+    tauriInvoke<SshStatus>({
+      command: 'ssh_status',
+      args: { path },
+      fallback: { helper: '', publicKeys: [] }
+    }),
+  // Generate an ed25519 SSH key (errors if one exists); returns its public key.
+  generateSshKey: (path: string) =>
+    tauriInvoke<string>({
+      command: 'generate_ssh_key',
+      args: { path },
+      fallback: ''
     }),
 
   // Installed WSL distros (Windows; empty elsewhere) for the git-target picker.

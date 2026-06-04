@@ -804,6 +804,18 @@ fn wsl_distros() -> Vec<String> {
     crate::platform::wsl_distros()
 }
 
+/// SSH keys + credential-helper status for the repo's git environment.
+#[tauri::command]
+async fn ssh_status(path: String) -> Result<git::SshStatus, String> {
+    Ok(git::Repo::open(&path).ssh_status())
+}
+
+/// Generate an ed25519 SSH key in the repo's git environment.
+#[tauri::command]
+async fn generate_ssh_key(path: String) -> Result<String, String> {
+    git::Repo::open(&path).generate_ssh_key()
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1475,6 +1487,8 @@ pub fn run() {
             repo_stats,
             list_files,
             wsl_distros,
+            ssh_status,
+            generate_ssh_key,
             export_patch,
             apply_patch,
             bisect_start,

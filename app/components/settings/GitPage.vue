@@ -96,5 +96,6 @@ const settings = useSettingsStore();
     <SettingsGitIdentity />
     <SettingsGitSigning />
     <SettingsGitTarget />
+    <SettingsSshCredentials />
   </section>
 </template>

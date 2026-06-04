@@ -218,3 +218,14 @@ export type RepoStats = {
    */
   churn: Array<FileChurn>;
 };
+
+export type SshStatus = {
+  /**
+   * The configured `credential.helper`, or empty when none is set.
+   */
+  helper: string;
+  /**
+   * Public SSH keys found under `~/.ssh` (their contents).
+   */
+  publicKeys: Array<string>;
+};

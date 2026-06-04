@@ -90,6 +90,17 @@
         "distros": "WSL distros: {list}",
         "saveFailed": "Couldn't save the git target"
       },
+      "ssh": {
+        "section": "SSH & credentials",
+        "helper": "Credential helper",
+        "none": "none",
+        "keys": "SSH public keys",
+        "noKeys": "No SSH keys found in ~/.ssh.",
+        "generate": "Generate SSH key",
+        "generated": "SSH key generated and public key copied",
+        "generateFailed": "Couldn't generate an SSH key",
+        "hint": "Add a public key to your git host (GitHub/GitLab) to authenticate over SSH."
+      },
       "updatesSection": "Updates",
       "autoUpdate": {
         "label": "Automatic updates",

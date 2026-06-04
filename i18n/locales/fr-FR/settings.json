@@ -90,6 +90,17 @@
         "distros": "Distros WSL : {list}",
         "saveFailed": "Impossible d'enregistrer la cible Git"
       },
+      "ssh": {
+        "section": "SSH et identifiants",
+        "helper": "Gestionnaire d'identifiants",
+        "none": "aucun",
+        "keys": "Clés publiques SSH",
+        "noKeys": "Aucune clé SSH trouvée dans ~/.ssh.",
+        "generate": "Générer une clé SSH",
+        "generated": "Clé SSH générée et clé publique copiée",
+        "generateFailed": "Impossible de générer une clé SSH",
+        "hint": "Ajoutez une clé publique à votre hôte git (GitHub/GitLab) pour vous authentifier en SSH."
+      },
       "updatesSection": "Mises à jour",
       "autoUpdate": {
         "label": "Mises à jour automatiques",
