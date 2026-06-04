@@ -15,6 +15,7 @@ const cloneRepo = useOverlay('clone');
 const stashOverlay = useOverlay('stash');
 const reflogOverlay = useOverlay('reflog');
 const compareOverlay = useOverlay('compare');
+const bisectOverlay = useOverlay('bisect');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -297,6 +298,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:arrow-right-left',
       labelKey: 'command.compareRefs',
       run: () => compareOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'bisect',
+      group: 'repository',
+      icon: 'lucide:bug',
+      labelKey: 'command.bisect',
+      run: () => bisectOverlay.show(),
       visible: hasRepos
     },
     {

@@ -75,6 +75,10 @@ export type RepoInfo = {
    * continue / skip / abort.
    */
   rebaseInProgress: boolean;
+  /**
+   * True when a `git bisect` session is active.
+   */
+  bisectInProgress: boolean;
   flavor: string;
   distro: string | null;
 };

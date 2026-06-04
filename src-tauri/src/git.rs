@@ -137,6 +137,8 @@ pub struct RepoInfo {
     /// True when a rebase is paused (e.g. on a conflict) awaiting
     /// continue / skip / abort.
     pub rebase_in_progress: bool,
+    /// True when a `git bisect` session is active.
+    pub bisect_in_progress: bool,
     pub flavor: String,
     pub distro: Option<String>,
 }
@@ -313,6 +315,13 @@ impl Repo {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
+        // `git bisect log` succeeds only while a bisect session is active.
+        let bisect_in_progress = self
+            .target
+            .command(&["bisect", "log"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
 
         Ok(RepoInfo {
             toplevel,
@@ -323,6 +332,7 @@ impl Repo {
             tags,
             stashes,
             rebase_in_progress,
+            bisect_in_progress,
             flavor: self.target.flavor.to_string(),
             distro: self.target.distro.clone(),
         })
@@ -631,6 +641,29 @@ impl Repo {
     /// Abort a paused rebase, restoring the pre-rebase state.
     pub fn rebase_abort(&self) -> Result<(), String> {
         self.run(&["rebase", "--abort"]).map(|_| ())
+    }
+
+    /// Start a `git bisect` between a known-bad and known-good ref. Returns git's
+    /// output (the next commit to test).
+    pub fn bisect_start(&self, bad: &str, good: &str) -> Result<String, String> {
+        reject_option(bad)?;
+        reject_option(good)?;
+        self.run(&["bisect", "start", bad, good])
+    }
+
+    /// Mark the current bisect step `good`, `bad` or `skip` and advance. Returns
+    /// git's output (the next commit, or the identified first-bad commit).
+    pub fn bisect_mark(&self, verdict: &str) -> Result<String, String> {
+        let sub = match verdict {
+            "good" | "bad" | "skip" => verdict,
+            _ => return Err(format!("invalid bisect verdict: {verdict}")),
+        };
+        self.run(&["bisect", sub])
+    }
+
+    /// End the bisect session and return to the original HEAD.
+    pub fn bisect_reset(&self) -> Result<(), String> {
+        self.run(&["bisect", "reset"]).map(|_| ())
     }
 
     /// Discard every working-tree change: restore tracked files to HEAD and

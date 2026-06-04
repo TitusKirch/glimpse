@@ -233,7 +233,8 @@
     "pushTags": "Push de los tags",
     "reflog": "Reflog (recuperar historial)",
     "undoLast": "Deshacer última acción",
-    "compareRefs": "Comparar refs…"
+    "compareRefs": "Comparar refs…",
+    "bisect": "Iniciar bisect…"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -242,6 +243,18 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "bisect": {
+    "title": "Iniciar bisect",
+    "description": "Encuentra el commit que introdujo una regresión marcando cada paso como bueno o malo.",
+    "bad": "Ref malo (con el fallo)",
+    "good": "Ref bueno (antes del fallo)",
+    "start": "Iniciar",
+    "testing": "Bisect — prueba el commit activo y márcalo:",
+    "markGood": "Bueno",
+    "markBad": "Malo",
+    "skip": "Omitir",
+    "reset": "Restablecer"
   },
   "compare": {
     "title": "Comparar refs",

@@ -367,6 +367,40 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Bisect: start between bad/good refs, mark each step, reset when done.
+  bisectStart: ({
+    path,
+    bad,
+    good
+  }: {
+    path: string;
+    bad: string;
+    good: string;
+  }) =>
+    tauriInvoke<string>({
+      command: 'bisect_start',
+      args: { path, bad, good },
+      fallback: ''
+    }),
+  bisectMark: ({
+    path,
+    verdict
+  }: {
+    path: string;
+    verdict: 'good' | 'bad' | 'skip';
+  }) =>
+    tauriInvoke<string>({
+      command: 'bisect_mark',
+      args: { path, verdict },
+      fallback: ''
+    }),
+  bisectReset: (path: string) =>
+    tauriInvoke<null>({
+      command: 'bisect_reset',
+      args: { path },
+      fallback: null
+    }),
+
   discardAll: (path: string) =>
     tauriInvoke<null>({
       command: 'discard_all',

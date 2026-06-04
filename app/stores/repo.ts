@@ -13,6 +13,7 @@
 import { promiseTimeout } from '@vueuse/core';
 import { acceptHMRUpdate } from 'pinia';
 import { z } from 'zod';
+import { toast } from 'vue-sonner';
 import type {
   BlameLine,
   Branch,
@@ -72,6 +73,8 @@ export interface RepoState {
   // True while a rebase is paused (e.g. on a conflict) — drives the rebase
   // banner with continue / skip / abort.
   rebaseInProgress: boolean;
+  // True while a bisect session is active — drives the bisect banner.
+  bisectInProgress: boolean;
 }
 
 // Demo repository shown in the browser (no Tauri shell).
@@ -101,7 +104,8 @@ function demoRepo(): RepoState {
     commitFiles: [],
     diff: gitMock.diff,
     loaded: true,
-    rebaseInProgress: false
+    rebaseInProgress: false,
+    bisectInProgress: false
   };
 }
 
@@ -130,7 +134,8 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     commitFiles: [],
     diff: null,
     loaded: false,
-    rebaseInProgress: false
+    rebaseInProgress: false,
+    bisectInProgress: false
   };
 }
 
@@ -226,6 +231,9 @@ export const useRepoStore = defineStore('repo', {
     },
     rebaseInProgress(): boolean {
       return this.active?.rebaseInProgress ?? false;
+    },
+    bisectInProgress(): boolean {
+      return this.active?.bisectInProgress ?? false;
     },
     selectedHash(): string | null {
       return this.active?.selectedHash ?? null;
@@ -717,6 +725,39 @@ export const useRepoStore = defineStore('repo', {
         this.guarded(async () => {
           try {
             await fn();
+          } finally {
+            await this.loadFromBackend(this.active?.path);
+          }
+        })
+      );
+    },
+
+    // Start a bisect between a known-bad and known-good ref. Git's output (the
+    // next commit to test, or the identified first-bad commit) is toasted.
+    async bisectStart({ bad, good }: { bad: string; good: string }) {
+      return this.runBisectStep(() =>
+        gitClient.bisectStart({ path: this.repoPath, bad, good })
+      );
+    },
+    async bisectMark(verdict: 'good' | 'bad' | 'skip') {
+      return this.runBisectStep(() =>
+        gitClient.bisectMark({ path: this.repoPath, verdict })
+      );
+    },
+    async bisectReset() {
+      return this.mutate({ run: () => gitClient.bisectReset(this.repoPath) });
+    },
+    async runBisectStep(fn: () => Promise<string | undefined>) {
+      return this.native(async () =>
+        this.guarded(async () => {
+          try {
+            const out = await fn();
+            const summary = (out ?? '')
+              .split('\n')
+              .slice(0, 2)
+              .join('\n')
+              .trim();
+            if (summary) toast(summary);
           } finally {
             await this.loadFromBackend(this.active?.path);
           }
@@ -1431,6 +1472,7 @@ export const useRepoStore = defineStore('repo', {
           r.tags = info.tags;
           r.stashes = info.stashes;
           r.rebaseInProgress = info.rebaseInProgress;
+          r.bisectInProgress = info.bisectInProgress;
 
           await Promise.all([this.loadLog(r), this.loadStatus(r)]);
           // Data is in: mark the tab loaded so it won't re-fetch on the next

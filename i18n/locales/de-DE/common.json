@@ -233,7 +233,8 @@
     "pushTags": "Tags pushen",
     "reflog": "Reflog (Verlauf wiederherstellen)",
     "undoLast": "Letzte Aktion rückgängig",
-    "compareRefs": "Refs vergleichen…"
+    "compareRefs": "Refs vergleichen…",
+    "bisect": "Bisect starten…"
   },
   "stash": {
     "title": "Änderungen stashen",
@@ -242,6 +243,18 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "bisect": {
+    "title": "Bisect starten",
+    "description": "Finde den Commit, der einen Regress verursacht hat, indem du jeden Schritt als gut oder schlecht markierst.",
+    "bad": "Schlechter Ref (mit Bug)",
+    "good": "Guter Ref (vor dem Bug)",
+    "start": "Starten",
+    "testing": "Bisect — ausgecheckten Commit testen, dann markieren:",
+    "markGood": "Gut",
+    "markBad": "Schlecht",
+    "skip": "Überspringen",
+    "reset": "Zurücksetzen"
   },
   "compare": {
     "title": "Refs vergleichen",

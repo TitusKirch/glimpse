@@ -715,6 +715,36 @@ async fn rebase_abort(locks: State<'_, RepoLocks>, path: String) -> Result<(), S
     locked(&locks, &path, || git::Repo::open(&path).rebase_abort())
 }
 
+/// Start a bisect session between a bad and good ref.
+#[tauri::command]
+async fn bisect_start(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    bad: String,
+    good: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).bisect_start(&bad, &good)
+    })
+}
+
+/// Mark the current bisect step (`good` / `bad` / `skip`) and advance.
+#[tauri::command]
+async fn bisect_mark(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    verdict: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).bisect_mark(&verdict)
+    })
+}
+
+#[tauri::command]
+async fn bisect_reset(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).bisect_reset())
+}
+
 #[tauri::command]
 async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
@@ -1273,6 +1303,9 @@ pub fn run() {
             rebase_continue,
             rebase_skip,
             rebase_abort,
+            bisect_start,
+            bisect_mark,
+            bisect_reset,
             discard_all,
             create_branch,
             create_branch_at,

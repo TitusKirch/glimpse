@@ -233,7 +233,8 @@
     "pushTags": "Push tags",
     "reflog": "Reflog (recover history)",
     "undoLast": "Undo last action",
-    "compareRefs": "Compare refs…"
+    "compareRefs": "Compare refs…",
+    "bisect": "Start bisect…"
   },
   "stash": {
     "title": "Stash changes",
@@ -242,6 +243,18 @@
     "untracked": "untracked",
     "nothing": "No changes to stash.",
     "submit": "Stash"
+  },
+  "bisect": {
+    "title": "Start bisect",
+    "description": "Find the commit that introduced a regression by marking each step good or bad.",
+    "bad": "Bad ref (has the bug)",
+    "good": "Good ref (before the bug)",
+    "start": "Start",
+    "testing": "Bisecting — test the checked-out commit, then mark it:",
+    "markGood": "Good",
+    "markBad": "Bad",
+    "skip": "Skip",
+    "reset": "Reset"
   },
   "compare": {
     "title": "Compare refs",

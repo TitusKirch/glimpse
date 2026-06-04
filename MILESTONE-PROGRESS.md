@@ -41,11 +41,16 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 - ⏳ #34 Submodule support
 - ⏳ #35 Git LFS support
 - ⏳ #36 Worktree management
-- ⏳ #37 Bisect
+- ✅ #37 Bisect
 - ⏳ #38 Sparse-checkout
 
 ## Log
 
+- Branch `feat/milestone-0-8-0` based on 0-7-0.
+- #37: `bisect_start` / `bisect_mark` (good/bad/skip) / `bisect_reset`;
+  `RepoInfo.bisectInProgress` (`git bisect log` probe) drives a banner in the
+  changes panel; a start dialog picks bad/good refs; command-palette entry
+  "Start bisect…". Git's step output (next commit / first-bad result) is toasted.
 - #27: `compare_files` / `compare_file_diff` between two refs; new Compare dialog
   (two ref pickers + swap) reusing the file tree and diff viewer; command-palette
   entry "Compare refs…".

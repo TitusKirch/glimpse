@@ -233,7 +233,8 @@
     "pushTags": "Push des tags",
     "reflog": "Reflog (récupérer l'historique)",
     "undoLast": "Annuler la dernière action",
-    "compareRefs": "Comparer des réfs…"
+    "compareRefs": "Comparer des réfs…",
+    "bisect": "Lancer un bisect…"
   },
   "stash": {
     "title": "Remiser les modifications",
@@ -242,6 +243,18 @@
     "untracked": "non suivi",
     "nothing": "Aucune modification à remiser.",
     "submit": "Remiser"
+  },
+  "bisect": {
+    "title": "Lancer un bisect",
+    "description": "Trouvez le commit qui a introduit une régression en marquant chaque étape bonne ou mauvaise.",
+    "bad": "Réf mauvaise (avec le bug)",
+    "good": "Réf bonne (avant le bug)",
+    "start": "Lancer",
+    "testing": "Bisect — testez le commit extrait, puis marquez-le :",
+    "markGood": "Bon",
+    "markBad": "Mauvais",
+    "skip": "Ignorer",
+    "reset": "Réinitialiser"
   },
   "compare": {
     "title": "Comparer des réfs",
