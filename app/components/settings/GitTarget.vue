@@ -115,7 +115,7 @@ function setMode(v: string) {
           @blur="save"
         />
       </SettingsRow>
-      <UiAlert variant="info" icon="lucide:terminal">
+      <UiAlert variant="info">
         <p class="min-w-0">
           {{ t('settings.general.gitTarget.resolved', { target: resolved }) }}
           <template v-if="distros.length">

@@ -5,18 +5,20 @@ export { default as Alert } from './Alert.vue';
 export { default as AlertDescription } from './AlertDescription.vue';
 export { default as AlertTitle } from './AlertTitle.vue';
 
+// Flex row: a leading variant icon (rendered by Alert.vue) + a content column.
+// Deliberately not the shadcn grid — it hinged on a bare direct-child <svg>,
+// which NuxtIcon doesn't reliably produce, collapsing the text layout.
 export const alertVariants = cva(
-  'relative w-full rounded-lg border px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current',
+  'relative flex w-full items-start gap-2.5 rounded-lg border px-4 py-3 text-sm',
   {
     variants: {
       variant: {
         default: 'bg-card text-card-foreground',
-        destructive:
-          'text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90',
+        destructive: 'text-destructive bg-card',
         // Soft info box: a 10% blue wash + legible 600/400 text (same palette
         // shades as the badge `info` variant, which read on the wash in both
         // light and dark).
-        info: 'border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400 [&>svg]:text-current *:data-[slot=alert-description]:text-current/90'
+        info: 'border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400'
       }
     },
     defaultVariants: {

@@ -256,46 +256,36 @@ watch(
           </div>
 
           <!-- none found: info box with a search button -->
-          <UiAlert
-            v-else
-            variant="info"
-            :icon="false"
-            class="flex items-center justify-between gap-3"
-          >
-            <div class="flex min-w-0 items-center gap-2.5">
-              <NuxtIcon
-                name="lucide:flask-conical"
-                mode="svg"
-                class="size-4 shrink-0"
-              />
-              <p class="text-sm">
+          <UiAlert v-else variant="info" class="items-center">
+            <div class="flex w-full items-center justify-between gap-3">
+              <p class="min-w-0">
                 {{ t('settings.general.experiment.empty') }}
               </p>
+              <UiButton
+                variant="outline"
+                size="sm"
+                class="shrink-0"
+                :disabled="!expRefresh.canRefresh.value"
+                :pending="refreshingExp"
+                @click="refreshExperiments"
+              >
+                <template #leading="{ pending }">
+                  <NuxtIcon
+                    v-if="pending"
+                    name="lucide:loader-circle"
+                    class="size-3.5 animate-spin"
+                  />
+                  <span
+                    v-else-if="!expRefresh.canRefresh.value"
+                    class="text-xs tabular-nums"
+                  >
+                    {{ expRefresh.cooldown.value }}
+                  </span>
+                  <NuxtIcon v-else name="lucide:refresh-cw" class="size-3.5" />
+                </template>
+                {{ t('settings.general.experiment.search') }}
+              </UiButton>
             </div>
-            <UiButton
-              variant="outline"
-              size="sm"
-              class="shrink-0"
-              :disabled="!expRefresh.canRefresh.value"
-              :pending="refreshingExp"
-              @click="refreshExperiments"
-            >
-              <template #leading="{ pending }">
-                <NuxtIcon
-                  v-if="pending"
-                  name="lucide:loader-circle"
-                  class="size-3.5 animate-spin"
-                />
-                <span
-                  v-else-if="!expRefresh.canRefresh.value"
-                  class="text-xs tabular-nums"
-                >
-                  {{ expRefresh.cooldown.value }}
-                </span>
-                <NuxtIcon v-else name="lucide:refresh-cw" class="size-3.5" />
-              </template>
-              {{ t('settings.general.experiment.search') }}
-            </UiButton>
           </UiAlert>
         </template>
 

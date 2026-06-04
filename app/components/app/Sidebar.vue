@@ -135,7 +135,7 @@ const links = [
         v-if="!repo.hasRepos"
         class="p-2 group-data-[collapsible=icon]:hidden"
       >
-        <UiAlert icon="lucide:folder-open">
+        <UiAlert>
           <UiAlertTitle>{{ t('sidebar.noRepo.title') }}</UiAlertTitle>
           <UiAlertDescription>{{
             t('sidebar.noRepo.hint')
