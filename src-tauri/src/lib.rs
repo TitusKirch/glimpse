@@ -578,6 +578,19 @@ async fn apply_hunk(
     })
 }
 
+/// Discard a single hunk from the working tree (reverse-apply).
+#[tauri::command]
+async fn discard_hunk(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    hunk: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).discard_hunk(&file, &hunk)
+    })
+}
+
 #[tauri::command]
 async fn commit_body(path: String, hash: String) -> Result<String, String> {
     git::Repo::open(&path).commit_body(&hash)
@@ -1201,6 +1214,7 @@ pub fn run() {
             file_history,
             blame,
             apply_hunk,
+            discard_hunk,
             stage,
             unstage,
             commit,

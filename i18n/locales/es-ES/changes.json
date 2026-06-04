@@ -7,6 +7,10 @@
     "unstage": "Quitar de preparación",
     "discard": "Descartar cambios",
     "discardAll": "Descartar todos los cambios",
+    "discardHunk": {
+      "title": "¿Descartar el hunk?",
+      "description": "Descartar permanentemente este hunk del árbol de trabajo."
+    },
     "commit": {
       "label": "Confirmar",
       "placeholder": "Mensaje de confirmación"

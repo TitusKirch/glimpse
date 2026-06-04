@@ -486,6 +486,19 @@ impl Repo {
         self.run_stdin(&args, &patch).map(|_| ())
     }
 
+    /// Discard a single hunk from the working tree by reverse-applying it — the
+    /// worktree counterpart of unstaging a hunk (`apply_hunk` targets the index).
+    pub fn discard_hunk(&self, file: &str, hunk: &str) -> Result<(), String> {
+        reject_unsafe_path(file)?;
+        reject_unsafe_hunk(hunk)?;
+        let patch = format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{hunk}\n");
+        self.run_stdin(
+            &["apply", "--reverse", "--recount", "--whitespace=nowarn"],
+            &patch,
+        )
+        .map(|_| ())
+    }
+
     /// Commits that touched a file, following renames (`git log --follow`).
     pub fn file_history(&self, file: &str) -> Result<Vec<Commit>, String> {
         reject_unsafe_path(file)?;

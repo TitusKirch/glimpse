@@ -189,6 +189,22 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Discard a single hunk from the working tree (reverse-apply).
+  discardHunk: ({
+    path,
+    file,
+    hunk
+  }: {
+    path: string;
+    file: string;
+    hunk: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'discard_hunk',
+      args: { path, file, hunk },
+      fallback: null
+    }),
+
   commitBody: ({ path, hash }: { path: string; hash: string }) =>
     tauriInvoke<string>({
       command: 'commit_body',

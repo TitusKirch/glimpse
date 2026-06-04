@@ -449,6 +449,24 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Discard a single hunk from the working tree (reverse-apply). Destructive,
+    // so it confirms first.
+    async discardHunk({ file, hunk }: { file: string; hunk: string }) {
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'changes.discardHunk.title',
+          descriptionKey: 'changes.discardHunk.description',
+          confirmKey: 'changes.discard',
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () => gitClient.discardHunk({ path: this.repoPath, file, hunk }),
+          refresh: 'status'
+        });
+      });
+    },
+
     async stage(file: string) {
       return this.native(async () => {
         await gitClient.stage({ path: this.repoPath, file });
