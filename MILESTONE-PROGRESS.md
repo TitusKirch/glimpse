@@ -27,7 +27,13 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 ## 0.7.0 — Compare & rebase
 
 - ✅ #25 Rebase the current branch onto another ref
-- ⏳ #26 Interactive rebase
+- 🅿️ #26 Interactive rebase — parked. Largest feature in the set: needs
+  non-interactive `rebase -i` driving (GIT_SEQUENCE_EDITOR injecting a generated
+  todo + GIT_EDITOR feeding per-commit messages for reword/squash/fixup, all
+  cross-platform incl. the WSL `wsl.exe` path), a plan-builder UI
+  (drag-reorder + per-row action + message editors), and continue/abort across
+  the plan. Too large to complete and verify cleanly within this run's budget
+  without risking a broken flagship feature. Left open (not closed).
 - ✅ #27 Compare arbitrary refs
 
 ## 0.8.0 — Advanced / power-user
