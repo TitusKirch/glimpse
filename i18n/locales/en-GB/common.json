@@ -88,7 +88,8 @@
       "required": "Required.",
       "invalidRef": "No spaces or special characters.",
       "invalidRemoteName": "Letters, numbers, dots, dashes and underscores only.",
-      "invalidUrl": "Enter a valid git URL or path."
+      "invalidUrl": "Enter a valid git URL or path.",
+      "mainline": "Enter a valid parent number."
     },
     "branch": {
       "label": "Branch name",
@@ -177,6 +178,14 @@
     "tagHere": "Tag this commit",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "Cherry-pick {n} commits",
+    "revertN": "Revert {n} commits",
+    "revertMerge": {
+      "title": "Revert merge commit",
+      "label": "Mainline parent",
+      "description": "Which parent to keep (1-based). Usually 1.",
+      "placeholder": "1"
+    },
     "reset": "Reset to here",
     "resetSoft": "Soft",
     "resetSoftHint": "keep changes staged",
@@ -219,7 +228,27 @@
     "pushUpstream": "Push and set upstream",
     "pushForce": "Force push (with lease)",
     "stash": "Stash changes",
-    "pushTags": "Push tags"
+    "pushTags": "Push tags",
+    "reflog": "Reflog (recover history)",
+    "undoLast": "Undo last action"
+  },
+  "stash": {
+    "title": "Stash changes",
+    "messagePlaceholder": "Stash message (optional)",
+    "files": "Files",
+    "untracked": "untracked",
+    "nothing": "No changes to stash.",
+    "submit": "Stash"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "No reflog entries.",
+    "checkout": "Check out",
+    "undo": {
+      "title": "Undo last action?",
+      "description": "Move HEAD back to where it was before the last action (reset, rebase, merge or commit). Working-tree changes are discarded.",
+      "confirm": "Undo"
+    }
   },
   "start": {
     "title": "No repository open",

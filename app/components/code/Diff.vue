@@ -26,7 +26,10 @@ const props = defineProps<{
   newContent?: string;
 }>();
 
-const emit = defineEmits<{ stageHunk: [hunk: string] }>();
+const emit = defineEmits<{
+  stageHunk: [hunk: string];
+  discardHunk: [hunk: string];
+}>();
 
 // Pure projection of the raw hunks into the unified + split row models.
 const parsed = computed(() =>
@@ -165,6 +168,13 @@ const rVisible = computed(() =>
           >
             {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
           </button>
+          <button
+            v-if="hunkAction === 'stage'"
+            class="cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-destructive"
+            @click="emit('discardHunk', hunks[row.hunkIndex!]!)"
+          >
+            ✕ discard
+          </button>
         </div>
         <template v-else>
           <span :class="[gutter, 'left-0 w-12']">{{ row.oldNo ?? '' }}</span>
@@ -223,6 +233,13 @@ const rVisible = computed(() =>
                 @click="emit('stageHunk', hunks[r.hunkIndex!]!)"
               >
                 {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+              </button>
+              <button
+                v-if="hunkAction === 'stage'"
+                class="cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-destructive"
+                @click="emit('discardHunk', hunks[r.hunkIndex!]!)"
+              >
+                ✕ discard
               </button>
             </div>
             <template v-else>

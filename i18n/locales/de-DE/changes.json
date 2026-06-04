@@ -7,6 +7,10 @@
     "unstage": "Zurücknehmen",
     "discard": "Änderungen verwerfen",
     "discardAll": "Alle Änderungen verwerfen",
+    "discardHunk": {
+      "title": "Hunk verwerfen?",
+      "description": "Diesen Hunk dauerhaft aus dem Arbeitsverzeichnis verwerfen."
+    },
     "commit": {
       "label": "Committen",
       "placeholder": "Commit-Nachricht"

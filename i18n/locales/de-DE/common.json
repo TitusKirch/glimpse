@@ -88,7 +88,8 @@
       "required": "Pflichtfeld.",
       "invalidRef": "Keine Leerzeichen oder Sonderzeichen.",
       "invalidRemoteName": "Nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche.",
-      "invalidUrl": "Gib eine gültige Git-URL oder einen Pfad ein."
+      "invalidUrl": "Gib eine gültige Git-URL oder einen Pfad ein.",
+      "mainline": "Gib eine gültige Parent-Nummer ein."
     },
     "branch": {
       "label": "Branch-Name",
@@ -177,6 +178,14 @@
     "tagHere": "Diesen Commit taggen",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "{n} Commits cherry-picken",
+    "revertN": "{n} Commits reverten",
+    "revertMerge": {
+      "title": "Merge-Commit reverten",
+      "label": "Mainline-Parent",
+      "description": "Welcher Parent bleibt (1-basiert). Meist 1.",
+      "placeholder": "1"
+    },
     "reset": "Hierhin zurücksetzen",
     "resetSoft": "Soft",
     "resetSoftHint": "Änderungen vorgemerkt lassen",
@@ -219,7 +228,27 @@
     "pushUpstream": "Push & Upstream setzen",
     "pushForce": "Force-Push (mit Lease)",
     "stash": "Änderungen stashen",
-    "pushTags": "Tags pushen"
+    "pushTags": "Tags pushen",
+    "reflog": "Reflog (Verlauf wiederherstellen)",
+    "undoLast": "Letzte Aktion rückgängig"
+  },
+  "stash": {
+    "title": "Änderungen stashen",
+    "messagePlaceholder": "Stash-Nachricht (optional)",
+    "files": "Dateien",
+    "untracked": "untracked",
+    "nothing": "Keine Änderungen zum Stashen.",
+    "submit": "Stashen"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "Keine Reflog-Einträge.",
+    "checkout": "Auschecken",
+    "undo": {
+      "title": "Letzte Aktion rückgängig machen?",
+      "description": "Setzt HEAD auf den Stand vor der letzten Aktion zurück (Reset, Rebase, Merge oder Commit). Änderungen im Arbeitsverzeichnis gehen verloren.",
+      "confirm": "Rückgängig"
+    }
   },
   "start": {
     "title": "Kein Repository geöffnet",

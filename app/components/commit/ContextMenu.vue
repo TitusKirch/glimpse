@@ -2,11 +2,17 @@
 // Right-click menu for a commit row: checkout, branch/tag here, cherry-pick,
 // revert, reset (soft/mixed/hard), copy hash. Wraps the row via the default
 // slot as the trigger.
-defineProps<{ hash: string }>();
+const props = defineProps<{ hash: string }>();
 
 const repo = useRepoStore();
 const { t } = useI18n();
 const copyText = useCopy();
+
+// When several commits are multi-selected (and this row is one of them), the
+// cherry-pick / revert actions operate on the whole selection.
+const bulk = computed(
+  () => repo.multiSel.length > 1 && repo.multiSel.includes(props.hash)
+);
 </script>
 
 <template>
@@ -30,14 +36,26 @@ const copyText = useCopy();
 
       <UiContextMenuSeparator />
 
-      <UiContextMenuItem @select="repo.cherryPick(hash)">
-        <NuxtIcon name="lucide:cherry" />
-        {{ t('commit.cherryPick') }}
-      </UiContextMenuItem>
-      <UiContextMenuItem @select="repo.revert(hash)">
-        <NuxtIcon name="lucide:undo-2" />
-        {{ t('commit.revert') }}
-      </UiContextMenuItem>
+      <template v-if="bulk">
+        <UiContextMenuItem @select="repo.cherryPickSelected()">
+          <NuxtIcon name="lucide:cherry" />
+          {{ t('commit.cherryPickN', { n: repo.multiSel.length }) }}
+        </UiContextMenuItem>
+        <UiContextMenuItem @select="repo.revertSelected()">
+          <NuxtIcon name="lucide:undo-2" />
+          {{ t('commit.revertN', { n: repo.multiSel.length }) }}
+        </UiContextMenuItem>
+      </template>
+      <template v-else>
+        <UiContextMenuItem @select="repo.cherryPick(hash)">
+          <NuxtIcon name="lucide:cherry" />
+          {{ t('commit.cherryPick') }}
+        </UiContextMenuItem>
+        <UiContextMenuItem @select="repo.revert(hash)">
+          <NuxtIcon name="lucide:undo-2" />
+          {{ t('commit.revert') }}
+        </UiContextMenuItem>
+      </template>
       <UiContextMenuSub>
         <UiContextMenuSubTrigger>
           <NuxtIcon name="lucide:rotate-ccw" />

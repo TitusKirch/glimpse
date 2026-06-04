@@ -16,10 +16,13 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## 0.6.0 — Staging, stash & history safety
 
-- ⏳ #28 Stash improvements — preview, partial, include untracked
-- ⏳ #29 Reflog view & "undo last action"
-- ⏳ #30 Line-level staging and discard a hunk
-- ⏳ #32 Cherry-pick / revert multiple or ranges (incl. merge revert)
+- ✅ #28 Stash improvements — preview, partial, include untracked
+- ✅ #29 Reflog view & "undo last action"
+- 🅿️ #30 Line-level staging and discard a hunk — _partial_: discard-hunk done;
+  line-level staging parked (correct patch surgery to stage a subset of a hunk's
+  lines + the line-selection UI is large/risky vs. the remaining budget). Issue
+  left open (`Refs #30`, not closed).
+- ✅ #32 Cherry-pick / revert multiple or ranges (incl. merge revert)
 
 ## 0.7.0 — Compare & rebase
 
@@ -37,6 +40,22 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- #30 (partial): `discard_hunk` reverse-applies a hunk to the working tree; the
+  diff viewer's unstaged hunks gain a "✕ discard" control (confirmed). Line-level
+  staging parked — see above.
+- #29: new `reflog` backend + Reflog dialog (reset/checkout to any entry);
+  "Undo last action" (command palette) resets hard to `HEAD@{1}` with a confirm.
+  Recovers reset/rebase/merge/commit; recovering a _deleted branch_ is out of
+  scope (HEAD reflog doesn't capture it) — the reflog view still exposes the
+  dangling commit to checkout/branch from.
+- #32: cherry-pick/revert take commit arrays; graph Ctrl/Shift-click builds a
+  multi-selection for bulk cherry-pick/revert; reverting a merge prompts for the
+  mainline parent (`-m`). Mid-op conflicts fall to the existing conflict UI.
+- Branch `feat/milestone-0-6-0` based on 0-5-0.
+- #28: stash preview reuses the commit-detail view (click a stash → files +
+  per-file diff via stash-specific backend, since a stash is a merge commit);
+  new Stash dialog stashes everything or selected paths, with untracked files
+  selectable (auto `-u`).
 - Branch `feat/milestone-0-5-0` created from `dev`; progress file added.
 - #45: WSL repos now watched via `PollWatcher` (native events don't cross the
   9P/SMB bridge); native repos keep the OS event backend. Debounce + poll

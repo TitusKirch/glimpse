@@ -88,7 +88,8 @@
       "required": "Obligatorio.",
       "invalidRef": "Sin espacios ni caracteres especiales.",
       "invalidRemoteName": "Solo letras, números, puntos, guiones y guiones bajos.",
-      "invalidUrl": "Introduce una URL o ruta de git válida."
+      "invalidUrl": "Introduce una URL o ruta de git válida.",
+      "mainline": "Introduce un número de padre válido."
     },
     "branch": {
       "label": "Nombre de la rama",
@@ -177,6 +178,14 @@
     "tagHere": "Etiquetar este commit",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "Cherry-pick de {n} commits",
+    "revertN": "Revertir {n} commits",
+    "revertMerge": {
+      "title": "Revertir commit de fusión",
+      "label": "Padre principal",
+      "description": "Qué padre conservar (base 1). Normalmente 1.",
+      "placeholder": "1"
+    },
     "reset": "Reset hasta aquí",
     "resetSoft": "Soft",
     "resetSoftHint": "mantener los cambios en stage",
@@ -219,7 +228,27 @@
     "pushUpstream": "Push y definir upstream",
     "pushForce": "Force push (con lease)",
     "stash": "Guardar cambios en stash",
-    "pushTags": "Push de los tags"
+    "pushTags": "Push de los tags",
+    "reflog": "Reflog (recuperar historial)",
+    "undoLast": "Deshacer última acción"
+  },
+  "stash": {
+    "title": "Guardar cambios en stash",
+    "messagePlaceholder": "Mensaje del stash (opcional)",
+    "files": "Archivos",
+    "untracked": "sin seguimiento",
+    "nothing": "No hay cambios para guardar.",
+    "submit": "Guardar en stash"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "No hay entradas en el reflog.",
+    "checkout": "Cambiar a",
+    "undo": {
+      "title": "¿Deshacer la última acción?",
+      "description": "Mueve HEAD a donde estaba antes de la última acción (reset, rebase, merge o commit). Se descartan los cambios del árbol de trabajo.",
+      "confirm": "Deshacer"
+    }
   },
   "start": {
     "title": "Ningún repositorio abierto",

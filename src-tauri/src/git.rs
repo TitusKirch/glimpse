@@ -181,6 +181,17 @@ pub struct StatusEntry {
     pub conflicted: bool,
 }
 
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ReflogEntry {
+    /// Reflog selector, e.g. `HEAD@{0}`.
+    pub selector: String,
+    /// Abbreviated commit hash the entry points at.
+    pub hash: String,
+    /// Reflog subject, e.g. `reset: moving to HEAD~1`.
+    pub subject: String,
+}
+
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
@@ -325,6 +336,14 @@ impl Repo {
         Ok(parse::log(&out))
     }
 
+    /// Read the HEAD reflog — the recovery trail for resets/rebases/commits.
+    pub fn reflog(&self, limit: u32) -> Result<Vec<ReflogEntry>, String> {
+        let fmt = format!("--format=%gd{US}%h{US}%gs");
+        let n = format!("-n{limit}");
+        let raw = self.run(&["reflog", &fmt, &n])?;
+        Ok(parse::reflog(&raw))
+    }
+
     pub fn status(&self) -> Result<Vec<StatusEntry>, String> {
         let raw = self.run(&["status", "--porcelain=v1", "--untracked-files=all", "-z"])?;
         Ok(parse::status(&raw))
@@ -467,6 +486,19 @@ impl Repo {
         self.run_stdin(&args, &patch).map(|_| ())
     }
 
+    /// Discard a single hunk from the working tree by reverse-applying it — the
+    /// worktree counterpart of unstaging a hunk (`apply_hunk` targets the index).
+    pub fn discard_hunk(&self, file: &str, hunk: &str) -> Result<(), String> {
+        reject_unsafe_path(file)?;
+        reject_unsafe_hunk(hunk)?;
+        let patch = format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{hunk}\n");
+        self.run_stdin(
+            &["apply", "--reverse", "--recount", "--whitespace=nowarn"],
+            &patch,
+        )
+        .map(|_| ())
+    }
+
     /// Commits that touched a file, following renames (`git log --follow`).
     pub fn file_history(&self, file: &str) -> Result<Vec<Commit>, String> {
         reject_unsafe_path(file)?;
@@ -560,15 +592,40 @@ impl Repo {
     }
 
     /// Revert a commit (creates a new inverse commit, no editor).
-    pub fn revert(&self, hash: &str) -> Result<(), String> {
-        reject_option(hash)?;
-        self.run(&["revert", "--no-edit", "--", hash]).map(|_| ())
+    /// Revert one or more commits (no editor). `mainline` (1-based) selects the
+    /// parent to revert against — required when reverting a merge commit.
+    pub fn revert(&self, hashes: &[String], mainline: Option<u32>) -> Result<(), String> {
+        if hashes.is_empty() {
+            return Err("no commits to revert".to_string());
+        }
+        let mut args = vec!["revert".to_string(), "--no-edit".to_string()];
+        if let Some(m) = mainline {
+            args.push("-m".to_string());
+            args.push(m.to_string());
+        }
+        args.push("--".to_string());
+        for h in hashes {
+            reject_option(h)?;
+            args.push(h.clone());
+        }
+        let argv: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.run(&argv).map(|_| ())
     }
 
     /// Cherry-pick a commit onto the current branch.
-    pub fn cherry_pick(&self, hash: &str) -> Result<(), String> {
-        reject_option(hash)?;
-        self.run(&["cherry-pick", "--", hash]).map(|_| ())
+    /// Cherry-pick one or more commits, applied in the given order (oldest
+    /// first). A mid-operation conflict leaves the standard cherry-pick state for
+    /// the existing conflict UI to resolve.
+    pub fn cherry_pick(&self, hashes: &[String]) -> Result<(), String> {
+        if hashes.is_empty() {
+            return Err("no commits to cherry-pick".to_string());
+        }
+        let mut args = vec!["cherry-pick", "--"];
+        for h in hashes {
+            reject_option(h)?;
+            args.push(h.as_str());
+        }
+        self.run(&args).map(|_| ())
     }
 
     /// Move the current branch to `hash`. A hard reset discards working-tree
@@ -654,13 +711,30 @@ impl Repo {
             .collect())
     }
 
-    /// Stash the working tree (optionally with a message).
-    pub fn stash_save(&self, message: &str) -> Result<(), String> {
-        if message.is_empty() {
-            self.run(&["stash", "push"]).map(|_| ())
-        } else {
-            self.run(&["stash", "push", "-m", message]).map(|_| ())
+    /// Stash the working tree. Optionally include untracked files and/or limit to
+    /// specific paths (an empty `paths` stashes everything).
+    pub fn stash_save(
+        &self,
+        message: &str,
+        include_untracked: bool,
+        paths: &[String],
+    ) -> Result<(), String> {
+        let mut args = vec!["stash", "push"];
+        if include_untracked {
+            args.push("--include-untracked");
         }
+        if !message.is_empty() {
+            args.push("-m");
+            args.push(message);
+        }
+        if !paths.is_empty() {
+            for p in paths {
+                reject_unsafe_path(p)?;
+            }
+            args.push("--");
+            args.extend(paths.iter().map(String::as_str));
+        }
+        self.run(&args).map(|_| ())
     }
 
     pub fn stash_pop(&self, reference: &str) -> Result<(), String> {
@@ -676,6 +750,46 @@ impl Repo {
     pub fn stash_drop(&self, reference: &str) -> Result<(), String> {
         reject_option(reference)?;
         self.run(&["stash", "drop", reference]).map(|_| ())
+    }
+
+    /// Files changed by a stash — for previewing its contents before pop/apply.
+    pub fn stash_files(&self, reference: &str) -> Result<Vec<CommitFile>, String> {
+        reject_option(reference)?;
+        let raw = self.run(&["stash", "show", "--name-status", reference])?;
+        Ok(parse::commit_files(&raw))
+    }
+
+    /// Per-file diff of a stash for the preview. A stash is a merge commit, so
+    /// `git show` yields an unusable combined diff; diffing against the stash's
+    /// first parent (the commit it was made on) gives a normal, parseable diff.
+    pub fn stash_file_diff(
+        &self,
+        reference: &str,
+        file: &str,
+        ignore_whitespace: bool,
+        whole: bool,
+    ) -> Result<Option<DiffData>, String> {
+        reject_option(reference)?;
+        reject_unsafe_path(file)?;
+        let base = format!("{reference}^");
+        let mut args = vec!["diff", "--no-color", "--no-ext-diff", "--no-textconv"];
+        if ignore_whitespace {
+            args.push("-w");
+        }
+        if whole {
+            args.push("--unified=100000");
+        }
+        args.push(&base);
+        args.push(reference);
+        args.push("--");
+        args.push(file);
+        let raw = self.run(&args)?;
+        let Some(mut diff) = parse::diff(&raw) else {
+            return Ok(None);
+        };
+        diff.old_content = self.content(&format!("{reference}^:{file}"));
+        diff.new_content = self.content(&format!("{reference}:{file}"));
+        Ok(Some(diff))
     }
 
     pub fn fetch(&self) -> Result<String, String> {
@@ -808,6 +922,7 @@ fn export_bindings() {
     let decls = [
         Commit::decl(),
         Branch::decl(),
+        ReflogEntry::decl(),
         StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),

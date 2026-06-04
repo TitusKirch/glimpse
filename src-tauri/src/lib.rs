@@ -538,6 +538,12 @@ async fn git_status(path: String) -> Result<Vec<git::StatusEntry>, String> {
     git::Repo::open(&path).status()
 }
 
+/// HEAD reflog entries for the recovery view / undo.
+#[tauri::command]
+async fn reflog(path: String, limit: Option<u32>) -> Result<Vec<git::ReflogEntry>, String> {
+    git::Repo::open(&path).reflog(limit.unwrap_or(100).min(1000))
+}
+
 #[tauri::command]
 async fn file_diff(
     path: String,
@@ -569,6 +575,19 @@ async fn apply_hunk(
 ) -> Result<(), String> {
     locked(&locks, &path, || {
         git::Repo::open(&path).apply_hunk(&file, &hunk, reverse)
+    })
+}
+
+/// Discard a single hunk from the working tree (reverse-apply).
+#[tauri::command]
+async fn discard_hunk(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    hunk: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).discard_hunk(&file, &hunk)
     })
 }
 
@@ -743,17 +762,26 @@ async fn delete_branch(
 }
 
 #[tauri::command]
-async fn revert(locks: State<'_, RepoLocks>, path: String, hash: String) -> Result<(), String> {
-    locked(&locks, &path, || git::Repo::open(&path).revert(&hash))
+async fn revert(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    hashes: Vec<String>,
+    mainline: Option<u32>,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).revert(&hashes, mainline)
+    })
 }
 
 #[tauri::command]
 async fn cherry_pick(
     locks: State<'_, RepoLocks>,
     path: String,
-    hash: String,
+    hashes: Vec<String>,
 ) -> Result<(), String> {
-    locked(&locks, &path, || git::Repo::open(&path).cherry_pick(&hash))
+    locked(&locks, &path, || {
+        git::Repo::open(&path).cherry_pick(&hashes)
+    })
 }
 
 #[tauri::command]
@@ -812,10 +840,30 @@ async fn stash_save(
     locks: State<'_, RepoLocks>,
     path: String,
     message: String,
+    include_untracked: bool,
+    paths: Vec<String>,
 ) -> Result<(), String> {
     locked(&locks, &path, || {
-        git::Repo::open(&path).stash_save(&message)
+        git::Repo::open(&path).stash_save(&message, include_untracked, &paths)
     })
+}
+
+/// Files changed by a stash, for the preview shown before pop/apply.
+#[tauri::command]
+async fn stash_files(path: String, reference: String) -> Result<Vec<git::CommitFile>, String> {
+    git::Repo::open(&path).stash_files(&reference)
+}
+
+/// Per-file diff of a stash, for the preview.
+#[tauri::command]
+async fn stash_file_diff(
+    path: String,
+    reference: String,
+    file: String,
+    ignore_whitespace: bool,
+    whole: bool,
+) -> Result<Option<git::DiffData>, String> {
+    git::Repo::open(&path).stash_file_diff(&reference, &file, ignore_whitespace, whole)
 }
 
 #[tauri::command]
@@ -1158,6 +1206,7 @@ pub fn run() {
             init_repo,
             git_log,
             git_status,
+            reflog,
             file_diff,
             commit_body,
             commit_files,
@@ -1165,6 +1214,7 @@ pub fn run() {
             file_history,
             blame,
             apply_hunk,
+            discard_hunk,
             stage,
             unstage,
             commit,
@@ -1189,6 +1239,8 @@ pub fn run() {
             remove_remote,
             rename_remote,
             stash_save,
+            stash_files,
+            stash_file_diff,
             stash_pop,
             stash_apply,
             stash_drop,

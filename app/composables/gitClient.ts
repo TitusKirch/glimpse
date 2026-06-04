@@ -13,6 +13,7 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  ReflogEntry,
   RepoInfo,
   StatusEntry
 } from '~/types/bindings';
@@ -120,6 +121,14 @@ export const gitClient = {
       fallback: []
     }),
 
+  // HEAD reflog entries for the recovery view.
+  reflog: ({ path, limit = 100 }: { path: string; limit?: number }) =>
+    tauriInvoke<ReflogEntry[]>({
+      command: 'reflog',
+      args: { path, limit },
+      fallback: []
+    }),
+
   status: (path: string) =>
     tauriInvoke<StatusEntry[]>({
       command: 'git_status',
@@ -177,6 +186,22 @@ export const gitClient = {
     tauriInvoke<null>({
       command: 'apply_hunk',
       args: { path, file, hunk, reverse },
+      fallback: null
+    }),
+
+  // Discard a single hunk from the working tree (reverse-apply).
+  discardHunk: ({
+    path,
+    file,
+    hunk
+  }: {
+    path: string;
+    file: string;
+    hunk: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'discard_hunk',
+      args: { path, file, hunk },
       fallback: null
     }),
 
@@ -322,17 +347,25 @@ export const gitClient = {
       fallback: null
     }),
 
-  revert: ({ path, hash }: { path: string; hash: string }) =>
+  revert: ({
+    path,
+    hashes,
+    mainline
+  }: {
+    path: string;
+    hashes: string[];
+    mainline?: number;
+  }) =>
     tauriInvoke<null>({
       command: 'revert',
-      args: { path, hash },
+      args: { path, hashes, mainline: mainline ?? null },
       fallback: null
     }),
 
-  cherryPick: ({ path, hash }: { path: string; hash: string }) =>
+  cherryPick: ({ path, hashes }: { path: string; hashes: string[] }) =>
     tauriInvoke<null>({
       command: 'cherry_pick',
-      args: { path, hash },
+      args: { path, hashes },
       fallback: null
     }),
 
@@ -443,10 +476,48 @@ export const gitClient = {
       fallback: null
     }),
 
-  stashSave: ({ path, message = '' }: { path: string; message?: string }) =>
+  stashSave: ({
+    path,
+    message = '',
+    includeUntracked = false,
+    paths = []
+  }: {
+    path: string;
+    message?: string;
+    includeUntracked?: boolean;
+    paths?: string[];
+  }) =>
     tauriInvoke<null>({
       command: 'stash_save',
-      args: { path, message },
+      args: { path, message, includeUntracked, paths },
+      fallback: null
+    }),
+
+  // Files changed by a stash, for the preview before pop/apply.
+  stashFiles: ({ path, reference }: { path: string; reference: string }) =>
+    tauriInvoke<CommitFile[]>({
+      command: 'stash_files',
+      args: { path, reference },
+      fallback: []
+    }),
+
+  // Per-file diff of a stash, for the preview.
+  stashFileDiff: ({
+    path,
+    reference,
+    file,
+    ignoreWhitespace,
+    whole
+  }: {
+    path: string;
+    reference: string;
+    file: string;
+    ignoreWhitespace: boolean;
+    whole: boolean;
+  }) =>
+    tauriInvoke<DiffData | null>({
+      command: 'stash_file_diff',
+      args: { path, reference, file, ignoreWhitespace, whole },
       fallback: null
     }),
 

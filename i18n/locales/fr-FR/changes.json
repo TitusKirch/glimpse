@@ -7,6 +7,10 @@
     "unstage": "Désindexer",
     "discard": "Annuler les modifications",
     "discardAll": "Annuler toutes les modifications",
+    "discardHunk": {
+      "title": "Annuler ce hunk ?",
+      "description": "Annuler définitivement ce hunk dans le répertoire de travail."
+    },
     "commit": {
       "label": "Valider",
       "placeholder": "Message de validation"

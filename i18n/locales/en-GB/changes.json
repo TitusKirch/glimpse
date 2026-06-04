@@ -7,6 +7,10 @@
     "unstage": "Unstage",
     "discard": "Discard changes",
     "discardAll": "Discard all changes",
+    "discardHunk": {
+      "title": "Discard hunk?",
+      "description": "Permanently discard this hunk from the working tree."
+    },
     "commit": {
       "label": "Commit",
       "placeholder": "Commit message"

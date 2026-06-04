@@ -88,7 +88,8 @@
       "required": "Champ obligatoire.",
       "invalidRef": "Aucun espace ni caractère spécial.",
       "invalidRemoteName": "Lettres, chiffres, points, tirets et tirets bas uniquement.",
-      "invalidUrl": "Saisissez une URL ou un chemin git valide."
+      "invalidUrl": "Saisissez une URL ou un chemin git valide.",
+      "mainline": "Saisissez un numéro de parent valide."
     },
     "branch": {
       "label": "Nom de la branche",
@@ -177,6 +178,14 @@
     "tagHere": "Taguer ce commit",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "Cherry-pick de {n} commits",
+    "revertN": "Revert de {n} commits",
+    "revertMerge": {
+      "title": "Revert d'un commit de fusion",
+      "label": "Parent principal",
+      "description": "Quel parent conserver (base 1). Généralement 1.",
+      "placeholder": "1"
+    },
     "reset": "Reset jusqu'ici",
     "resetSoft": "Soft",
     "resetSoftHint": "garder les modifications indexées",
@@ -219,7 +228,27 @@
     "pushUpstream": "Push et définir la branche amont",
     "pushForce": "Force push (avec lease)",
     "stash": "Stasher les modifications",
-    "pushTags": "Push des tags"
+    "pushTags": "Push des tags",
+    "reflog": "Reflog (récupérer l'historique)",
+    "undoLast": "Annuler la dernière action"
+  },
+  "stash": {
+    "title": "Remiser les modifications",
+    "messagePlaceholder": "Message du stash (optionnel)",
+    "files": "Fichiers",
+    "untracked": "non suivi",
+    "nothing": "Aucune modification à remiser.",
+    "submit": "Remiser"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "Aucune entrée de reflog.",
+    "checkout": "Basculer",
+    "undo": {
+      "title": "Annuler la dernière action ?",
+      "description": "Replace HEAD à son état d'avant la dernière action (reset, rebase, merge ou commit). Les modifications du répertoire de travail sont perdues.",
+      "confirm": "Annuler"
+    }
   },
   "start": {
     "title": "Aucun dépôt ouvert",

@@ -39,6 +39,21 @@ export type Branch = {
   published: boolean;
 };
 
+export type ReflogEntry = {
+  /**
+   * Reflog selector, e.g. `HEAD@{0}`.
+   */
+  selector: string;
+  /**
+   * Abbreviated commit hash the entry points at.
+   */
+  hash: string;
+  /**
+   * Reflog subject, e.g. `reset: moving to HEAD~1`.
+   */
+  subject: string;
+};
+
 export type StashEntry = {
   /**
    * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.

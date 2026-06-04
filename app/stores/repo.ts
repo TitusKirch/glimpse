@@ -12,6 +12,7 @@
 // rest of the app keeps importing these names from the store.
 import { promiseTimeout } from '@vueuse/core';
 import { acceptHMRUpdate } from 'pinia';
+import { z } from 'zod';
 import type {
   BlameLine,
   Branch,
@@ -134,6 +135,23 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
 // each open see the tabs the previous one created.
 let openChain: Promise<unknown> = Promise.resolve();
 
+// A stash is referenced as `stash@{N}`. It needs stash-specific diff commands —
+// being a merge commit, `git show` would yield an unusable combined diff.
+function isStashRef(ref: string): boolean {
+  return ref.startsWith('stash@{');
+}
+
+// Validate the 1-based mainline parent entered when reverting a merge commit.
+function mainlineSchema(parents: number): z.ZodType<string> {
+  return z.string().refine(
+    (v) => {
+      const n = Number(v);
+      return Number.isInteger(n) && n >= 1 && n <= parents;
+    },
+    { message: 'form.validation.mainline' }
+  );
+}
+
 export const useRepoStore = defineStore('repo', {
   state: () => ({
     repos: { r1: demoRepo() } as Record<string, RepoState>,
@@ -159,7 +177,10 @@ export const useRepoStore = defineStore('repo', {
     loadingMore: false,
     // Whether the last log fetch hit the limit (i.e. more history exists). Stored
     // rather than derived so it doesn't flip false mid-load and hide the button.
-    hasMore: false
+    hasMore: false,
+    // Multi-selected commit hashes in the graph (Ctrl/Shift-click) for bulk
+    // cherry-pick / revert. Cleared on a plain click or tab switch.
+    multiSel: [] as string[]
   }),
   getters: {
     // The active repository and the tab strip over all open ones. `active` is
@@ -251,6 +272,7 @@ export const useRepoStore = defineStore('repo', {
     async selectTab(id: string) {
       if (!this.repos[id]) return;
       this.activeId = id;
+      this.multiSel = [];
       this.watchActive();
       this.syncSession();
       // Lazy-load a restored placeholder on first activation; cached afterwards,
@@ -338,9 +360,14 @@ export const useRepoStore = defineStore('repo', {
 
     async selectCommit(hash: string) {
       const r = this.active;
+      this.multiSel = [];
       r.selectedHash = hash;
       r.selectedBody = await gitClient.commitBody({ path: r.path, hash });
-      r.commitFiles = await gitClient.commitFiles({ path: r.path, hash });
+      // A stash lists its files via the stash machinery (a merge commit's
+      // name-status from `git show` is unreliable).
+      r.commitFiles = isStashRef(hash)
+        ? await gitClient.stashFiles({ path: r.path, reference: hash })
+        : await gitClient.commitFiles({ path: r.path, hash });
       const first = r.commitFiles[0];
       if (first) {
         await this.selectCommitFile(first.path);
@@ -356,13 +383,21 @@ export const useRepoStore = defineStore('repo', {
       r.selectedFile = file;
       const ws = useLayoutStore().ignoreWhitespace;
       const whole = useSettingsStore().diffMode === 'whole';
-      r.diff = await gitClient.commitFileDiff({
-        path: r.path,
-        hash: r.selectedHash,
-        file,
-        ignoreWhitespace: ws,
-        whole
-      });
+      r.diff = isStashRef(r.selectedHash)
+        ? await gitClient.stashFileDiff({
+            path: r.path,
+            reference: r.selectedHash,
+            file,
+            ignoreWhitespace: ws,
+            whole
+          })
+        : await gitClient.commitFileDiff({
+            path: r.path,
+            hash: r.selectedHash,
+            file,
+            ignoreWhitespace: ws,
+            whole
+          });
     },
 
     async selectFile({ file, staged }: { file: string; staged: boolean }) {
@@ -411,6 +446,24 @@ export const useRepoStore = defineStore('repo', {
         run: () =>
           gitClient.applyHunk({ path: this.repoPath, file, hunk, reverse }),
         refresh: 'status'
+      });
+    },
+
+    // Discard a single hunk from the working tree (reverse-apply). Destructive,
+    // so it confirms first.
+    async discardHunk({ file, hunk }: { file: string; hunk: string }) {
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'changes.discardHunk.title',
+          descriptionKey: 'changes.discardHunk.description',
+          confirmKey: 'changes.discard',
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () => gitClient.discardHunk({ path: this.repoPath, file, hunk }),
+          refresh: 'status'
+        });
       });
     },
 
@@ -746,16 +799,96 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Invert a single commit. Reverting a merge prompts for the mainline parent
+    // (1-based), which git requires (`-m`) there.
     async revert(hash: string) {
-      return this.mutate({
-        run: () => gitClient.revert({ path: this.repoPath, hash })
+      return this.native(async () => {
+        const commit = this.active?.commits.find((c) => c.hash === hash);
+        let mainline: number | undefined;
+        if (commit && commit.parents.length > 1) {
+          const picked = await usePrompt().prompt({
+            titleKey: 'commit.revertMerge.title',
+            labelKey: 'commit.revertMerge.label',
+            descriptionKey: 'commit.revertMerge.description',
+            placeholderKey: 'commit.revertMerge.placeholder',
+            submitKey: 'commit.revert',
+            initial: '1',
+            schema: mainlineSchema(commit.parents.length)
+          });
+          if (!picked) return;
+          mainline = Number(picked);
+        }
+        await this.mutate({
+          run: () =>
+            gitClient.revert({ path: this.repoPath, hashes: [hash], mainline })
+        });
       });
     },
 
     async cherryPick(hash: string) {
       return this.mutate({
-        run: () => gitClient.cherryPick({ path: this.repoPath, hash })
+        run: () => gitClient.cherryPick({ path: this.repoPath, hashes: [hash] })
       });
+    },
+
+    // The multi-selected hashes ordered oldest-first (the order cherry-pick and
+    // revert want), derived from their position in the loaded log.
+    orderedSelection(): string[] {
+      const commits = this.active?.commits ?? [];
+      const index = (h: string) => commits.findIndex((c) => c.hash === h);
+      // commits are newest-first, so a higher index is older → sort descending.
+      return [...this.multiSel].sort((a, b) => index(b) - index(a));
+    },
+
+    async cherryPickSelected() {
+      const hashes = this.orderedSelection();
+      if (!hashes.length) return;
+      await this.mutate({
+        run: () => gitClient.cherryPick({ path: this.repoPath, hashes })
+      });
+      this.multiSel = [];
+    },
+
+    async revertSelected() {
+      const hashes = this.orderedSelection();
+      if (!hashes.length) return;
+      await this.mutate({
+        run: () => gitClient.revert({ path: this.repoPath, hashes })
+      });
+      this.multiSel = [];
+    },
+
+    // Graph row click with modifiers: Ctrl/Cmd toggles a commit in the
+    // multi-selection, Shift extends a contiguous range from the anchor, a plain
+    // click selects a single commit (and shows its diff, clearing the selection).
+    rowClick({
+      hash,
+      additive,
+      range
+    }: {
+      hash: string;
+      additive: boolean;
+      range: boolean;
+    }) {
+      const commits = this.active?.commits ?? [];
+      if (range) {
+        const anchor =
+          this.multiSel.at(-1) ?? this.active?.selectedHash ?? hash;
+        const i = commits.findIndex((c) => c.hash === anchor);
+        const j = commits.findIndex((c) => c.hash === hash);
+        if (i >= 0 && j >= 0) {
+          const [lo, hi] = i <= j ? [i, j] : [j, i];
+          this.multiSel = commits.slice(lo, hi + 1).map((c) => c.hash);
+          return;
+        }
+      }
+      if (additive) {
+        this.multiSel = this.multiSel.includes(hash)
+          ? this.multiSel.filter((h) => h !== hash)
+          : [...this.multiSel, hash];
+        return;
+      }
+      void this.selectCommit(hash);
     },
 
     // Move the current branch to a commit. A hard reset discards working-tree
@@ -778,6 +911,29 @@ export const useRepoStore = defineStore('repo', {
         }
         await this.mutate({
           run: () => gitClient.reset({ path: this.repoPath, hash, mode })
+        });
+      });
+    },
+
+    // Undo the last HEAD-moving action by resetting hard to HEAD@{1} (the
+    // previous reflog position) — recovers from a mistaken reset/rebase/merge/
+    // commit. Working-tree changes are discarded, so it confirms first.
+    async undoLast() {
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'reflog.undo.title',
+          descriptionKey: 'reflog.undo.description',
+          confirmKey: 'reflog.undo.confirm',
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () =>
+            gitClient.reset({
+              path: this.repoPath,
+              hash: 'HEAD@{1}',
+              mode: 'hard'
+            })
         });
       });
     },
@@ -821,9 +977,21 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async stashSave(message = '') {
+    async stashSave(
+      opts: {
+        message?: string;
+        includeUntracked?: boolean;
+        paths?: string[];
+      } = {}
+    ) {
       return this.mutate({
-        run: () => gitClient.stashSave({ path: this.repoPath, message })
+        run: () =>
+          gitClient.stashSave({
+            path: this.repoPath,
+            message: opts.message ?? '',
+            includeUntracked: opts.includeUntracked ?? false,
+            paths: opts.paths ?? []
+          })
       });
     },
 

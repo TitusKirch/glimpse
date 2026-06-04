@@ -49,6 +49,12 @@ function onStageHunk(hunk: string) {
     });
   }
 }
+// Discard a hunk from the working tree (only offered on unstaged files).
+function onDiscardHunk(hunk: string) {
+  if (repo.selectedFile) {
+    void repo.discardHunk({ file: repo.selectedFile, hunk });
+  }
+}
 </script>
 
 <template>
@@ -258,6 +264,7 @@ function onStageHunk(hunk: string) {
         :new-content="repo.diff.newContent"
         :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
         @stage-hunk="onStageHunk"
+        @discard-hunk="onDiscardHunk"
       />
       <div v-else-if="repo.loading" class="space-y-2 p-4">
         <UiSkeleton
