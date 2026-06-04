@@ -28,12 +28,14 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 ## ✨ Features
 
 - **🪶 Featherweight** — built on [Tauri](https://tauri.app/), it uses the OS-native WebView (WebView2 / WebKitGTK) instead of bundling Chromium. Small disk and RAM footprint.
-- **🧬 Git-native** — never reimplements git; it shells out to your real `git` binary and parses its porcelain output. Your config, hooks, and credentials apply unchanged, and glimpse stores no secrets.
+- **🧬 Git-native** — never reimplements git; it shells out to your real `git` binary and parses its porcelain output. Your config, hooks, and credentials apply unchanged, glimpse stores no secrets, and Git LFS-tracked files are detected and surfaced.
 - **🪟 First-class WSL (Windows)** — a `\\wsl$` repository is driven through that distro's git automatically, while Windows-path repos use Windows git. No setup, no per-repo switch.
-- **🌳 Graph & history** — the full multi-branch commit graph, searchable history, and per-commit detail (changed files + diff).
+- **📂 Get a repo** — open a local folder, **clone** a remote, or **init** a brand-new repository.
+- **🌳 Graph & history** — the full multi-branch commit graph, searchable history, per-commit detail (changed files + diff), and GPG/SSH signature verification status.
 - **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, ignore-whitespace, blame, and file history.
-- **✏️ Stage & commit** — stage/unstage by file **or hunk**, discard, commit, amend, and resolve merge conflicts (use ours/theirs).
+- **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend, and resolve merge conflicts (use ours/theirs).
 - **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), tags, and stash save/pop/apply/drop.
+- **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs, reflog recovery with one-click undo, plus worktrees, submodules, and sparse-checkout.
 - **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
 - **⌨️ Fast workflow** — command palette, keyboard shortcuts, drag-reorderable multi-repo tabs, a resizable sidebar, recent repos, and "open in editor / terminal / file manager".
 - **🌓 Themed & localized** — dark/light follows the OS (manually switchable), with a localized UI.
@@ -41,12 +43,14 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 <details>
 <summary>Full feature list</summary>
 
-- **Viewing** — multi-branch commit graph, commit search, side-by-side / unified / whole-file diffs with syntax highlighting and word-level diff, ignore-whitespace, blame, file history, list/tree file view.
-- **Staging & commits** — stage / unstage by file or hunk, discard, discard all, commit, `commit --amend`, conflict resolution (use ours/theirs, mark resolved).
+- **Repositories** — open a local folder, clone a remote, or initialise a new repository.
+- **Viewing** — multi-branch commit graph, commit search, side-by-side / unified / whole-file diffs with syntax highlighting and word-level diff, ignore-whitespace, blame, file history, list/tree file view, compare any two refs, GPG/SSH signature verification status, Git LFS-tracked files flagged.
+- **Staging & commits** — stage / unstage by file, hunk, or line, discard by file or hunk, discard all, commit, `commit --amend`, conflict resolution (use ours/theirs, mark resolved).
 - **Branches & tags** — create / switch / rename / delete branches, branch from a commit, publish (set upstream), merge in either direction, create / delete / push tags, checkout a commit (detached HEAD).
-- **History rewriting** — cherry-pick, revert, reset (soft / mixed / hard).
-- **Stash** — save, pop, apply, drop.
-- **Remotes & sync** — add / rename / remove remotes, fetch, pull (incl. rebase), push (set-upstream, `--force-with-lease`), push tags.
+- **History rewriting** — cherry-pick / revert (one or many commits, incl. merge reverts), reset (soft / mixed / hard), rebase onto another ref or interactively (reword / squash / fixup / drop / reorder), guided bisect, reflog recovery view with undo-last-action.
+- **Stash** — save (selected paths, optionally including untracked), pop, apply, drop, preview contents.
+- **Worktrees, submodules & sparse-checkout** — list / add / remove / open linked worktrees, list / update / sync submodules, enable / disable and edit sparse-checkout paths.
+- **Remotes & sync** — add / rename / remove remotes, fetch, pull (incl. rebase, with per-pull strategy), push (set-upstream, `--force-with-lease`), push tags.
 - **App** — command palette, keyboard shortcuts, drag-reorderable multi-repo tabs, resizable sidebar, recent repositories, open in editor / terminal / file manager, built-in auto-update.
 
 </details>
