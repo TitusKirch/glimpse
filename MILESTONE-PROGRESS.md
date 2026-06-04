@@ -28,7 +28,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 - ✅ #25 Rebase the current branch onto another ref
 - ⏳ #26 Interactive rebase
-- ⏳ #27 Compare arbitrary refs
+- ✅ #27 Compare arbitrary refs
 
 ## 0.8.0 — Advanced / power-user
 
@@ -40,6 +40,9 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- #27: `compare_files` / `compare_file_diff` between two refs; new Compare dialog
+  (two ref pickers + swap) reusing the file tree and diff viewer; command-palette
+  entry "Compare refs…".
 - Branch `feat/milestone-0-7-0` based on 0-6-0.
 - #25: `rebase` onto a ref + continue/skip/abort; `RepoInfo.rebaseInProgress`
   (REBASE_HEAD probe) drives a banner in the changes panel; entry points in the

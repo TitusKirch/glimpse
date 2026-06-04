@@ -238,6 +238,43 @@ export const gitClient = {
       fallback: gitMock.diff
     }),
 
+  // Compare two arbitrary refs: changed files + per-file diff.
+  compareFiles: ({
+    path,
+    from,
+    to
+  }: {
+    path: string;
+    from: string;
+    to: string;
+  }) =>
+    tauriInvoke<CommitFile[]>({
+      command: 'compare_files',
+      args: { path, from, to },
+      fallback: []
+    }),
+
+  compareFileDiff: ({
+    path,
+    from,
+    to,
+    file,
+    ignoreWhitespace = false,
+    whole = false
+  }: {
+    path: string;
+    from: string;
+    to: string;
+    file: string;
+    ignoreWhitespace?: boolean;
+    whole?: boolean;
+  }) =>
+    tauriInvoke<DiffData | null>({
+      command: 'compare_file_diff',
+      args: { path, from, to, file, ignoreWhitespace, whole },
+      fallback: null
+    }),
+
   stage: ({ path, file }: { path: string; file: string }) =>
     tauriInvoke<null>({
       command: 'stage',

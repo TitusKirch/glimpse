@@ -232,7 +232,8 @@
     "stash": "Stasher les modifications",
     "pushTags": "Push des tags",
     "reflog": "Reflog (récupérer l'historique)",
-    "undoLast": "Annuler la dernière action"
+    "undoLast": "Annuler la dernière action",
+    "compareRefs": "Comparer des réfs…"
   },
   "stash": {
     "title": "Remiser les modifications",
@@ -241,6 +242,13 @@
     "untracked": "non suivi",
     "nothing": "Aucune modification à remiser.",
     "submit": "Remiser"
+  },
+  "compare": {
+    "title": "Comparer des réfs",
+    "from": "De",
+    "to": "À",
+    "pick": "Choisissez deux réfs à comparer.",
+    "noDiff": "Aucune différence."
   },
   "rebase": {
     "inProgress": "Rebase en cours — résolvez les conflits, puis continuez.",

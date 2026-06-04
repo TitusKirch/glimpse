@@ -14,6 +14,7 @@ const initRepo = useOverlay('init');
 const cloneRepo = useOverlay('clone');
 const stashOverlay = useOverlay('stash');
 const reflogOverlay = useOverlay('reflog');
+const compareOverlay = useOverlay('compare');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -288,6 +289,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:history',
       labelKey: 'command.reflog',
       run: () => reflogOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'compare-refs',
+      group: 'repository',
+      icon: 'lucide:arrow-right-left',
+      labelKey: 'command.compareRefs',
+      run: () => compareOverlay.show(),
       visible: hasRepos
     },
     {

@@ -232,7 +232,8 @@
     "stash": "Guardar cambios en stash",
     "pushTags": "Push de los tags",
     "reflog": "Reflog (recuperar historial)",
-    "undoLast": "Deshacer última acción"
+    "undoLast": "Deshacer última acción",
+    "compareRefs": "Comparar refs…"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -241,6 +242,13 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "compare": {
+    "title": "Comparar refs",
+    "from": "Desde",
+    "to": "Hasta",
+    "pick": "Elige dos refs para comparar.",
+    "noDiff": "Sin diferencias."
   },
   "rebase": {
     "inProgress": "Rebase en curso — resuelve los conflictos y continúa.",

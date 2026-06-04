@@ -481,6 +481,46 @@ impl Repo {
     /// Stage (or, with `reverse`, unstage) a single hunk by piping a minimal
     /// one-file patch into `git apply --cached`. `--recount` lets git fix the
     /// `@@` line counts, so the rendered hunk text doesn't need to be exact.
+    /// Files changed between two refs (branch/tag/commit) — for the compare view.
+    pub fn compare_files(&self, from: &str, to: &str) -> Result<Vec<CommitFile>, String> {
+        reject_option(from)?;
+        reject_option(to)?;
+        let raw = self.run(&["diff", "--name-status", from, to])?;
+        Ok(parse::commit_files(&raw))
+    }
+
+    /// Per-file diff between two refs (compare view).
+    pub fn compare_file_diff(
+        &self,
+        from: &str,
+        to: &str,
+        file: &str,
+        ignore_whitespace: bool,
+        whole: bool,
+    ) -> Result<Option<DiffData>, String> {
+        reject_option(from)?;
+        reject_option(to)?;
+        reject_unsafe_path(file)?;
+        let mut args = vec!["diff", "--no-color", "--no-ext-diff", "--no-textconv"];
+        if ignore_whitespace {
+            args.push("-w");
+        }
+        if whole {
+            args.push("--unified=100000");
+        }
+        args.push(from);
+        args.push(to);
+        args.push("--");
+        args.push(file);
+        let raw = self.run(&args)?;
+        let Some(mut diff) = parse::diff(&raw) else {
+            return Ok(None);
+        };
+        diff.old_content = self.content(&format!("{from}:{file}"));
+        diff.new_content = self.content(&format!("{to}:{file}"));
+        Ok(Some(diff))
+    }
+
     pub fn apply_hunk(&self, file: &str, hunk: &str, reverse: bool) -> Result<(), String> {
         // Reject CR/LF/`..`/absolute in the file path: it is interpolated raw
         // into the patch headers below, so a newline could inject extra
