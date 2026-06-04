@@ -169,6 +169,7 @@
     "delete": "Supprimer",
     "merge": "Merger dans la branche actuelle",
     "mergeCurrentInto": "Merger l'actuelle dans celle-ci",
+    "rebaseOnto": "Rebaser sur celle-ci",
     "checkoutRemote": "Checkout"
   },
   "commit": {
@@ -213,6 +214,7 @@
     "switchBranch": "Changer de branche…",
     "renameBranch": "Renommer la branche…",
     "mergeBranch": "Merger dans la branche actuelle…",
+    "rebaseBranch": "Rebaser sur…",
     "deleteBranch": "Supprimer la branche…",
     "localBranches": "Branches",
     "remoteBranches": "Branches distantes",
@@ -239,6 +241,12 @@
     "untracked": "non suivi",
     "nothing": "Aucune modification à remiser.",
     "submit": "Remiser"
+  },
+  "rebase": {
+    "inProgress": "Rebase en cours — résolvez les conflits, puis continuez.",
+    "continue": "Continuer",
+    "skip": "Ignorer",
+    "abort": "Abandonner"
   },
   "reflog": {
     "title": "Reflog",

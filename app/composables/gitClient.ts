@@ -304,6 +304,32 @@ export const gitClient = {
       fallback: ''
     }),
 
+  // Rebase the current branch onto `onto`, and drive a paused rebase.
+  rebase: ({ path, onto }: { path: string; onto: string }) =>
+    tauriInvoke<string>({
+      command: 'rebase',
+      args: { path, onto },
+      fallback: ''
+    }),
+  rebaseContinue: (path: string) =>
+    tauriInvoke<string>({
+      command: 'rebase_continue',
+      args: { path },
+      fallback: ''
+    }),
+  rebaseSkip: (path: string) =>
+    tauriInvoke<string>({
+      command: 'rebase_skip',
+      args: { path },
+      fallback: ''
+    }),
+  rebaseAbort: (path: string) =>
+    tauriInvoke<null>({
+      command: 'rebase_abort',
+      args: { path },
+      fallback: null
+    }),
+
   discardAll: (path: string) =>
     tauriInvoke<null>({
       command: 'discard_all',

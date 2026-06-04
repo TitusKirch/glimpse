@@ -169,6 +169,7 @@
     "delete": "Löschen",
     "merge": "In aktuellen mergen",
     "mergeCurrentInto": "Aktuellen hier hineinmergen",
+    "rebaseOnto": "Auf diesen rebasen",
     "checkoutRemote": "Auschecken"
   },
   "commit": {
@@ -213,6 +214,7 @@
     "switchBranch": "Branch wechseln…",
     "renameBranch": "Branch umbenennen…",
     "mergeBranch": "In aktuellen mergen…",
+    "rebaseBranch": "Rebasen auf…",
     "deleteBranch": "Branch löschen…",
     "localBranches": "Branches",
     "remoteBranches": "Remote-Branches",
@@ -239,6 +241,12 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "rebase": {
+    "inProgress": "Rebase läuft — Konflikte lösen, dann fortfahren.",
+    "continue": "Fortfahren",
+    "skip": "Überspringen",
+    "abort": "Abbrechen"
   },
   "reflog": {
     "title": "Reflog",

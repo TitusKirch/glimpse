@@ -38,7 +38,7 @@ function kw(key: string): string {
 // Nested branch verb page: null = root list, otherwise the active branch action.
 // CommandBranchPage renders the branch list for the mode; we keep the page state
 // (plus input + back-navigation) here because the single search input lives here.
-type BranchPage = 'switch' | 'rename' | 'delete' | 'merge';
+type BranchPage = 'switch' | 'rename' | 'delete' | 'merge' | 'rebase';
 const page = ref<BranchPage | null>(null);
 
 // Live search query, mirrored from the command input. The input is a TanStack
@@ -231,6 +231,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:git-merge',
       labelKey: 'command.mergeBranch',
       page: 'merge',
+      visible: hasBranches
+    },
+    {
+      id: 'rebase-branch',
+      group: 'branch',
+      icon: 'lucide:git-graph',
+      labelKey: 'command.rebaseBranch',
+      page: 'rebase',
       visible: hasBranches
     },
     {

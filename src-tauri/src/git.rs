@@ -134,6 +134,9 @@ pub struct RepoInfo {
     pub remotes: Vec<String>,
     pub tags: Vec<String>,
     pub stashes: Vec<StashEntry>,
+    /// True when a rebase is paused (e.g. on a conflict) awaiting
+    /// continue / skip / abort.
+    pub rebase_in_progress: bool,
     pub flavor: String,
     pub distro: Option<String>,
 }
@@ -303,6 +306,13 @@ impl Repo {
             .map(str::to_string)
             .collect();
         let stashes = self.stash_list()?;
+        // A rebase is paused (e.g. stopped on a conflict) when REBASE_HEAD exists.
+        let rebase_in_progress = self
+            .target
+            .command(&["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
 
         Ok(RepoInfo {
             toplevel,
@@ -312,6 +322,7 @@ impl Repo {
             remotes,
             tags,
             stashes,
+            rebase_in_progress,
             flavor: self.target.flavor.to_string(),
             distro: self.target.distro.clone(),
         })
@@ -556,6 +567,30 @@ impl Repo {
         // own lane + merge point in the graph instead of being fast-forwarded
         // into a straight line (which erases the branch topology).
         self.run(&["merge", "--no-ff", "--no-edit", "--", branch])
+    }
+
+    /// Rebase the current branch onto `onto` (a branch, tag or commit). A
+    /// conflict pauses the rebase for the continue / skip / abort controls.
+    pub fn rebase(&self, onto: &str) -> Result<String, String> {
+        reject_option(onto)?;
+        self.run(&["rebase", onto])
+    }
+
+    /// Continue a paused rebase after conflicts are resolved. `core.editor=true`
+    /// keeps the original message rather than opening an editor (which would hang
+    /// the headless invocation).
+    pub fn rebase_continue(&self) -> Result<String, String> {
+        self.run(&["-c", "core.editor=true", "rebase", "--continue"])
+    }
+
+    /// Skip the current commit in a paused rebase.
+    pub fn rebase_skip(&self) -> Result<String, String> {
+        self.run(&["-c", "core.editor=true", "rebase", "--skip"])
+    }
+
+    /// Abort a paused rebase, restoring the pre-rebase state.
+    pub fn rebase_abort(&self) -> Result<(), String> {
+        self.run(&["rebase", "--abort"]).map(|_| ())
     }
 
     /// Discard every working-tree change: restore tracked files to HEAD and

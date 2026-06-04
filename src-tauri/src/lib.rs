@@ -671,6 +671,27 @@ async fn merge(
     locked(&locks, &path, || git::Repo::open(&path).merge(&branch))
 }
 
+/// Rebase the current branch onto `onto` (branch, tag or commit).
+#[tauri::command]
+async fn rebase(locks: State<'_, RepoLocks>, path: String, onto: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase(&onto))
+}
+
+#[tauri::command]
+async fn rebase_continue(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase_continue())
+}
+
+#[tauri::command]
+async fn rebase_skip(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase_skip())
+}
+
+#[tauri::command]
+async fn rebase_abort(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase_abort())
+}
+
 #[tauri::command]
 async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
@@ -1223,6 +1244,10 @@ pub fn run() {
             checkout_branch,
             checkout_commit,
             merge,
+            rebase,
+            rebase_continue,
+            rebase_skip,
+            rebase_abort,
             discard_all,
             create_branch,
             create_branch_at,

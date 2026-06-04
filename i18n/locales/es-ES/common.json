@@ -169,6 +169,7 @@
     "delete": "Eliminar",
     "merge": "Merge en la actual",
     "mergeCurrentInto": "Merge de la actual en esta",
+    "rebaseOnto": "Rebase sobre esta",
     "checkoutRemote": "Checkout"
   },
   "commit": {
@@ -213,6 +214,7 @@
     "switchBranch": "Cambiar de rama…",
     "renameBranch": "Renombrar rama…",
     "mergeBranch": "Merge en la actual…",
+    "rebaseBranch": "Rebase sobre…",
     "deleteBranch": "Eliminar rama…",
     "localBranches": "Ramas",
     "remoteBranches": "Ramas remotas",
@@ -239,6 +241,12 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "rebase": {
+    "inProgress": "Rebase en curso — resuelve los conflictos y continúa.",
+    "continue": "Continuar",
+    "skip": "Omitir",
+    "abort": "Abortar"
   },
   "reflog": {
     "title": "Reflog",
