@@ -7,6 +7,7 @@ const props = defineProps<{ hash: string }>();
 const repo = useRepoStore();
 const { t } = useI18n();
 const copyText = useCopy();
+const rebasePlan = useRebasePlan();
 
 // When several commits are multi-selected (and this row is one of them), the
 // cherry-pick / revert actions operate on the whole selection.
@@ -94,6 +95,10 @@ const bulk = computed(
           </UiContextMenuItem>
         </UiContextMenuSubContent>
       </UiContextMenuSub>
+      <UiContextMenuItem @select="rebasePlan.show(hash)">
+        <NuxtIcon name="lucide:list-ordered" />
+        {{ t('rebasePlan.menu') }}
+      </UiContextMenuItem>
 
       <UiContextMenuSeparator />
 

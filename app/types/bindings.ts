@@ -178,3 +178,9 @@ export type StatusEntry = {
    */
   isLfs: boolean;
 };
+
+export type RebaseStep = {
+  action: string;
+  hash: string;
+  message: string | null;
+};

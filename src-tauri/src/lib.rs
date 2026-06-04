@@ -731,6 +731,26 @@ async fn rebase_abort(locks: State<'_, RepoLocks>, path: String) -> Result<(), S
     locked(&locks, &path, || git::Repo::open(&path).rebase_abort())
 }
 
+/// Run an interactive rebase from a plan (reword/squash/fixup/drop/reorder) over
+/// `base..HEAD`, or the whole history when `base` is empty.
+#[tauri::command]
+async fn interactive_rebase(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    base: String,
+    steps: Vec<git::RebaseStep>,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).interactive_rebase(&base, &steps)
+    })
+}
+
+/// The commits an interactive rebase from `start` would replay (oldest first).
+#[tauri::command]
+async fn rebase_commits(path: String, start: String) -> Result<Vec<git::Commit>, String> {
+    git::Repo::open(&path).rebase_commits(&start)
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1393,6 +1413,8 @@ pub fn run() {
             rebase_continue,
             rebase_skip,
             rebase_abort,
+            interactive_rebase,
+            rebase_commits,
             bisect_start,
             bisect_mark,
             bisect_reset,

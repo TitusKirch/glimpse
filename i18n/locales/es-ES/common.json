@@ -304,6 +304,22 @@
     "skip": "Omitir",
     "abort": "Abortar"
   },
+  "rebasePlan": {
+    "menu": "Rebase interactivo desde aquí…",
+    "title": "Rebase interactivo",
+    "description": "Reordena, reescribe, combina (squash/fixup) o descarta commits y luego ejecuta el rebase.",
+    "publishedWarning": "Estos commits ya están en un remoto: reescribirlos requerirá un push forzado.",
+    "empty": "No hay commits para rebasar.",
+    "messagePlaceholder": "Nuevo mensaje de commit",
+    "run": "Iniciar rebase",
+    "action": {
+      "pick": "Aplicar",
+      "reword": "Reescribir",
+      "squash": "Combinar",
+      "fixup": "Fixup",
+      "drop": "Descartar"
+    }
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "No hay entradas en el reflog.",

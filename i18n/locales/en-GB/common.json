@@ -304,6 +304,22 @@
     "skip": "Skip",
     "abort": "Abort"
   },
+  "rebasePlan": {
+    "menu": "Interactive rebase from here…",
+    "title": "Interactive rebase",
+    "description": "Reorder, reword, squash, fixup, or drop commits, then run the rebase.",
+    "publishedWarning": "These commits are already on a remote — rewriting them will require a force-push.",
+    "empty": "No commits to rebase.",
+    "messagePlaceholder": "New commit message",
+    "run": "Start rebase",
+    "action": {
+      "pick": "Pick",
+      "reword": "Reword",
+      "squash": "Squash",
+      "fixup": "Fixup",
+      "drop": "Drop"
+    }
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "No reflog entries.",

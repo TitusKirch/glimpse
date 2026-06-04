@@ -304,6 +304,22 @@
     "skip": "Überspringen",
     "abort": "Abbrechen"
   },
+  "rebasePlan": {
+    "menu": "Interaktiver Rebase ab hier…",
+    "title": "Interaktiver Rebase",
+    "description": "Commits neu anordnen, umbenennen, zusammenführen (squash/fixup) oder verwerfen und dann den Rebase ausführen.",
+    "publishedWarning": "Diese Commits liegen bereits auf einem Remote — sie umzuschreiben erfordert einen Force-Push.",
+    "empty": "Keine Commits zum Rebasen.",
+    "messagePlaceholder": "Neue Commit-Nachricht",
+    "run": "Rebase starten",
+    "action": {
+      "pick": "Übernehmen",
+      "reword": "Umbenennen",
+      "squash": "Squash",
+      "fixup": "Fixup",
+      "drop": "Verwerfen"
+    }
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "Keine Reflog-Einträge.",

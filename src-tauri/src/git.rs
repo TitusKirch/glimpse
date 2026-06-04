@@ -155,6 +155,36 @@ fn lfs_from_check_attr(out: &str) -> std::collections::HashSet<String> {
     set
 }
 
+/// Build a `git rebase -i` todo list from a plan, plus the message files it
+/// references. `reword` becomes a `pick` and `squash`/`reword` with a new message
+/// get an `exec git commit --amend --file=<path>` line right after, so the
+/// message is applied from a file (no shell-quoting of free text) and no editor
+/// opens. `msg_prefix` is the absolute path stem of those files *as git sees it*
+/// (a Linux path inside WSL). Returns the todo and the `(path, message)` pairs
+/// the caller must write. An unknown action is treated as `pick`.
+fn build_rebase_todo(steps: &[RebaseStep], msg_prefix: &str) -> (String, Vec<(String, String)>) {
+    let mut todo = String::new();
+    let mut msgs = Vec::new();
+    for (i, step) in steps.iter().enumerate() {
+        let action = match step.action.as_str() {
+            "drop" => "drop",
+            "squash" => "squash",
+            "fixup" => "fixup",
+            // `reword` is realised as pick + exec-amend; anything else is a pick.
+            _ => "pick",
+        };
+        todo.push_str(&format!("{action} {}\n", step.hash));
+        if matches!(step.action.as_str(), "reword" | "squash") {
+            if let Some(message) = &step.message {
+                let path = format!("{msg_prefix}{i}");
+                todo.push_str(&format!("exec git commit --amend --file=\"{path}\"\n"));
+                msgs.push((path, message.clone()));
+            }
+        }
+    }
+    (todo, msgs)
+}
+
 /// Derive the directory `git clone` creates from a remote URL — git's "humanish"
 /// name: the last path segment with a trailing `.git` removed.
 /// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
@@ -316,6 +346,18 @@ pub struct SparseStatus {
     pub enabled: bool,
     /// The included path patterns (cone-mode directories), empty when disabled.
     pub patterns: Vec<String>,
+}
+
+/// One line of an interactive-rebase plan sent from the frontend, in apply order
+/// (oldest first). `action` is `pick` | `reword` | `squash` | `fixup` | `drop`;
+/// `message` carries the new message for a `reword` (and an overridden combined
+/// message for a `squash`), applied without opening an editor.
+#[derive(Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RebaseStep {
+    pub action: String,
+    pub hash: String,
+    pub message: Option<String>,
 }
 
 /// How far `git reset` rewinds. Deserialized from the frontend's
@@ -819,6 +861,75 @@ impl Repo {
         self.run(&["rebase", "--abort"]).map(|_| ())
     }
 
+    /// Run an interactive rebase from a frontend plan (reword / squash / fixup /
+    /// drop / reorder) over `base..HEAD`, or the whole history when `base` is
+    /// empty (`--root`). `steps` are in apply order.
+    ///
+    /// Non-interactive without an editor: the todo and any reword/squash messages
+    /// are written into the git dir, then `-c sequence.editor='cp <todo>'` feeds
+    /// the plan and `exec … --amend --file=…` lines apply the messages. Config is
+    /// passed as `-c` flags (not env) so it crosses into WSL git too, and every
+    /// path is the absolute path *as git sees it* so it is cwd-independent. A
+    /// conflict pauses the rebase exactly like [`rebase`], reusing the existing
+    /// continue / skip / abort flow.
+    pub fn interactive_rebase(&self, base: &str, steps: &[RebaseStep]) -> Result<String, String> {
+        if steps.is_empty() {
+            return Err("empty rebase plan".to_string());
+        }
+        for step in steps {
+            reject_option(&step.hash)?;
+        }
+        if !base.is_empty() {
+            reject_option(base)?;
+        }
+        let git_dir = self
+            .run(&["rev-parse", "--absolute-git-dir"])?
+            .trim()
+            .to_string();
+        let todo_view = format!("{git_dir}/glimpse-rebase-todo");
+        let msg_prefix = format!("{git_dir}/glimpse-rebase-msg-");
+        let (todo, msgs) = build_rebase_todo(steps, &msg_prefix);
+        // Write through the host-visible path (the WSL share on Windows); the
+        // todo/exec lines reference the git-visible path written above.
+        std::fs::write(self.target.host_path(&todo_view), &todo)
+            .map_err(|e| format!("failed to write rebase plan: {e}"))?;
+        for (path, message) in &msgs {
+            std::fs::write(self.target.host_path(path), message)
+                .map_err(|e| format!("failed to write rebase message: {e}"))?;
+        }
+        let editor = format!("sequence.editor=cp \"{todo_view}\"");
+        let base_arg = if base.is_empty() { "--root" } else { base };
+        self.run(&[
+            "-c",
+            &editor,
+            "-c",
+            "core.editor=true",
+            "rebase",
+            "-i",
+            base_arg,
+        ])
+    }
+
+    /// Commits an interactive rebase from `start` would replay — `start` and its
+    /// descendants up to HEAD, oldest first, so the plan dialog can list them in
+    /// apply order. Falls back to the whole history when `start` is the root.
+    pub fn rebase_commits(&self, start: &str) -> Result<Vec<Commit>, String> {
+        reject_option(start)?;
+        let parent = format!("{start}^");
+        let has_parent = self
+            .run(&["rev-parse", "--verify", "--quiet", &parent])
+            .is_ok();
+        let range = if has_parent {
+            format!("{parent}..HEAD")
+        } else {
+            "HEAD".to_string()
+        };
+        let fmt =
+            format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
+        let out = self.run(&["log", "--reverse", "--date=short", &fmt, &range])?;
+        Ok(parse::log(&out))
+    }
+
     /// Start a `git bisect` between a known-bad and known-good ref. Returns git's
     /// output (the next commit to test).
     pub fn bisect_start(&self, bad: &str, good: &str) -> Result<String, String> {
@@ -1303,6 +1414,7 @@ fn export_bindings() {
         CommitFile::decl(),
         BlameLine::decl(),
         StatusEntry::decl(),
+        RebaseStep::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
@@ -1375,6 +1487,41 @@ mod validate_tests {
         assert_eq!(set.len(), 1);
         assert!(set.contains("big.bin"));
         assert!(lfs_from_check_attr("").is_empty());
+    }
+
+    #[test]
+    fn build_rebase_todo_maps_actions_and_amend_execs() {
+        use super::{build_rebase_todo, RebaseStep};
+        let step = |action: &str, hash: &str, message: Option<&str>| RebaseStep {
+            action: action.to_string(),
+            hash: hash.to_string(),
+            message: message.map(str::to_string),
+        };
+        let steps = [
+            step("pick", "aaa", None),
+            step("reword", "bbb", Some("new subject")),
+            step("squash", "ccc", Some("merged")),
+            step("fixup", "ddd", None),
+            step("drop", "eee", None),
+        ];
+        let (todo, msgs) = build_rebase_todo(&steps, "/g/.git/m-");
+        assert_eq!(
+            todo,
+            "pick aaa\n\
+             pick bbb\n\
+             exec git commit --amend --file=\"/g/.git/m-1\"\n\
+             squash ccc\n\
+             exec git commit --amend --file=\"/g/.git/m-2\"\n\
+             fixup ddd\n\
+             drop eee\n"
+        );
+        assert_eq!(
+            msgs,
+            vec![
+                ("/g/.git/m-1".to_string(), "new subject".to_string()),
+                ("/g/.git/m-2".to_string(), "merged".to_string()),
+            ]
+        );
     }
 
     #[test]

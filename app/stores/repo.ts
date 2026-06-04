@@ -20,6 +20,7 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  RebaseStep,
   RepoInfo,
   StashEntry,
   StatusEntry
@@ -742,6 +743,24 @@ export const useRepoStore = defineStore('repo', {
     },
     async rebaseAbort() {
       return this.runRebaseStep(() => gitClient.rebaseAbort(this.repoPath));
+    },
+    // Run an interactive rebase from a built plan (reword/squash/fixup/drop/
+    // reorder). Like the other steps, a conflict pauses into the same banner.
+    async interactiveRebase({
+      base,
+      steps
+    }: {
+      base: string;
+      steps: RebaseStep[];
+    }) {
+      return this.runRebaseStep(() =>
+        gitClient.interactiveRebase({ path: this.repoPath, base, steps })
+      );
+    },
+    // Commits an interactive rebase from `start` would replay (oldest first) —
+    // read-only, used by the plan dialog to populate its rows.
+    async rebaseCommits(start: string): Promise<Commit[]> {
+      return gitClient.rebaseCommits({ path: this.repoPath, start });
     },
     // Run a rebase step, then reload even on failure: a conflict throws but the
     // banner + status still need the fresh rebase-in-progress flag and conflicts.
