@@ -65,6 +65,9 @@ export interface RepoState {
   selectedFileStaged: boolean;
   commitFiles: CommitFile[];
   diff: DiffData | null;
+  // False until this tab's git data has been fetched. Restored tabs start as
+  // unloaded placeholders and lazy-load on first activation.
+  loaded: boolean;
 }
 
 // Demo repository shown in the browser (no Tauri shell).
@@ -92,7 +95,8 @@ function demoRepo(): RepoState {
     selectedFile: 'app/stores/repo.ts',
     selectedFileStaged: false,
     commitFiles: [],
-    diff: gitMock.diff
+    diff: gitMock.diff,
+    loaded: true
   };
 }
 
@@ -102,7 +106,9 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     id,
     name: path.split(/[\\/]/).pop() || 'repo',
     path,
-    flavor: 'linux',
+    // Guess the flavor from the path so a restored placeholder shows a sensible
+    // badge before it loads; corrected from real git output on load.
+    flavor: /^[\\/]{2}wsl/i.test(path) ? 'wsl' : 'linux',
     distro: undefined,
     branches: [],
     remoteBranches: [],
@@ -117,7 +123,8 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     selectedFile: null,
     selectedFileStaged: false,
     commitFiles: [],
-    diff: null
+    diff: null,
+    loaded: false
   };
 }
 
@@ -241,11 +248,16 @@ export const useRepoStore = defineStore('repo', {
     }
   },
   actions: {
-    selectTab(id: string) {
+    async selectTab(id: string) {
       if (!this.repos[id]) return;
       this.activeId = id;
       this.watchActive();
       this.syncSession();
+      // Lazy-load a restored placeholder on first activation; cached afterwards,
+      // so re-selecting an already-loaded tab is instant.
+      if (!this.repos[id]!.loaded) {
+        await this.loadFromBackend(this.repos[id]!.path);
+      }
     },
 
     // Persist the open repo paths + active path so the tabs reopen next launch.
@@ -271,15 +283,23 @@ export const useRepoStore = defineStore('repo', {
         }
         const paths = [...s.openPaths];
         const activePath = s.activePath;
-        // Rebuild from saved paths; openRepo validates each (invalid ones are
-        // skipped) and the demo tab is dropped.
+        // Rebuild instantly as lightweight placeholders (no backend call) so the
+        // tab strip paints immediately — no start-screen flash and no waiting for
+        // every repo to load. Only the active repo loads now; the rest lazy-load
+        // on first activation. Validation is deferred too: an invalid repo shows
+        // an inline error on its tab instead of silently vanishing here.
         this.repos = {};
         this.order = [];
         this.activeId = '';
-        for (const p of paths) await this.openRepo(p);
-        const target = this.tabs.find((t) => t.path === activePath);
-        if (target) this.selectTab(target.id);
-        else if (this.order[0]) this.selectTab(this.order[0]);
+        for (const p of paths) {
+          this.seq += 1;
+          const id = `r${this.seq}`;
+          this.repos[id] = blankRepo({ id, path: p });
+          this.order.push(id);
+        }
+        const target =
+          this.tabs.find((t) => t.path === activePath) ?? this.tabs[0];
+        if (target) await this.selectTab(target.id);
         this.syncSession();
       });
     },
@@ -1205,6 +1225,9 @@ export const useRepoStore = defineStore('repo', {
           r.stashes = info.stashes;
 
           await Promise.all([this.loadLog(r), this.loadStatus(r)]);
+          // Data is in: mark the tab loaded so it won't re-fetch on the next
+          // activation (the selection below is incidental).
+          r.loaded = true;
 
           // Bail if the active repo changed while we were loading (e.g. the
           // user opened another project): the selection below reads
