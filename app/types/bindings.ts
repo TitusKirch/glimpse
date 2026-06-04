@@ -82,6 +82,17 @@ export type Submodule = {
   state: string;
 };
 
+export type SparseStatus = {
+  /**
+   * Whether sparse-checkout is active for this worktree.
+   */
+  enabled: boolean;
+  /**
+   * The included path patterns (cone-mode directories), empty when disabled.
+   */
+  patterns: Array<string>;
+};
+
 export type StashEntry = {
   /**
    * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.

@@ -18,6 +18,7 @@ const compareOverlay = useOverlay('compare');
 const bisectOverlay = useOverlay('bisect');
 const worktreesOverlay = useOverlay('worktrees');
 const submodulesOverlay = useOverlay('submodules');
+const sparseOverlay = useOverlay('sparse');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -324,6 +325,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:box',
       labelKey: 'command.submodules',
       run: () => submodulesOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'sparse-checkout',
+      group: 'repository',
+      icon: 'lucide:scissors',
+      labelKey: 'command.sparse',
+      run: () => sparseOverlay.show(),
       visible: hasRepos
     },
     {

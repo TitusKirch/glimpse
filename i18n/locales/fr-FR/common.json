@@ -236,7 +236,8 @@
     "compareRefs": "Comparer des réfs…",
     "bisect": "Lancer un bisect…",
     "worktrees": "Worktrees…",
-    "submodules": "Sous-modules…"
+    "submodules": "Sous-modules…",
+    "sparse": "Sparse-checkout…"
   },
   "stash": {
     "title": "Remiser les modifications",
@@ -245,6 +246,15 @@
     "untracked": "non suivi",
     "nothing": "Aucune modification à remiser.",
     "submit": "Remiser"
+  },
+  "sparse": {
+    "title": "Sparse-checkout",
+    "description": "Limiter le répertoire de travail à un sous-ensemble de dossiers.",
+    "enabled": "Le sparse-checkout est activé.",
+    "disabled": "Le sparse-checkout est désactivé (répertoire complet).",
+    "placeholder": "Un dossier par ligne, p. ex. src",
+    "apply": "Appliquer",
+    "disable": "Désactiver"
   },
   "submodule": {
     "title": "Sous-modules",

@@ -236,7 +236,8 @@
     "compareRefs": "Refs vergleichen…",
     "bisect": "Bisect starten…",
     "worktrees": "Worktrees…",
-    "submodules": "Submodule…"
+    "submodules": "Submodule…",
+    "sparse": "Sparse-Checkout…"
   },
   "stash": {
     "title": "Änderungen stashen",
@@ -245,6 +246,15 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "sparse": {
+    "title": "Sparse-Checkout",
+    "description": "Das Arbeitsverzeichnis auf eine Teilmenge von Verzeichnissen beschränken.",
+    "enabled": "Sparse-Checkout ist aktiv.",
+    "disabled": "Sparse-Checkout ist deaktiviert (volles Arbeitsverzeichnis).",
+    "placeholder": "Ein Verzeichnis pro Zeile, z. B. src",
+    "apply": "Anwenden",
+    "disable": "Deaktivieren"
   },
   "submodule": {
     "title": "Submodule",

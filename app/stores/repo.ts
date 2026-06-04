@@ -801,6 +801,19 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Sparse-checkout changes which files are in the working tree, so a full
+    // reload refreshes the file views to the new sparse set.
+    async sparseSet(patterns: string[]) {
+      return this.mutate({
+        run: () => gitClient.sparseSet({ path: this.repoPath, patterns })
+      });
+    },
+    async sparseDisable() {
+      return this.mutate({
+        run: () => gitClient.sparseDisable(this.repoPath)
+      });
+    },
+
     // Discard every working-tree change (confirms first — irreversible).
     async discardAll() {
       if (!this.status.length) return;

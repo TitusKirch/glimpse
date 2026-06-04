@@ -15,6 +15,7 @@ import type {
   DiffData,
   ReflogEntry,
   RepoInfo,
+  SparseStatus,
   StatusEntry,
   Submodule,
   Worktree
@@ -447,6 +448,26 @@ export const gitClient = {
   submoduleSync: (path: string) =>
     tauriInvoke<null>({
       command: 'submodule_sync',
+      args: { path },
+      fallback: null
+    }),
+
+  // Sparse-checkout: status, set included patterns, disable.
+  sparseStatus: (path: string) =>
+    tauriInvoke<SparseStatus>({
+      command: 'sparse_status',
+      args: { path },
+      fallback: { enabled: false, patterns: [] }
+    }),
+  sparseSet: ({ path, patterns }: { path: string; patterns: string[] }) =>
+    tauriInvoke<null>({
+      command: 'sparse_set',
+      args: { path, patterns },
+      fallback: null
+    }),
+  sparseDisable: (path: string) =>
+    tauriInvoke<null>({
+      command: 'sparse_disable',
       args: { path },
       fallback: null
     }),

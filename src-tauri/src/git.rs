@@ -221,6 +221,15 @@ pub struct Submodule {
     pub state: String,
 }
 
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SparseStatus {
+    /// Whether sparse-checkout is active for this worktree.
+    pub enabled: bool,
+    /// The included path patterns (cone-mode directories), empty when disabled.
+    pub patterns: Vec<String>,
+}
+
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
@@ -737,6 +746,46 @@ impl Repo {
         self.run(&["submodule", "sync", "--recursive"]).map(|_| ())
     }
 
+    /// Sparse-checkout state: `git sparse-checkout list` succeeds only when it's
+    /// active, listing the included patterns.
+    pub fn sparse_status(&self) -> Result<SparseStatus, String> {
+        let out = self
+            .target
+            .command(&["sparse-checkout", "list"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if out.status.success() {
+            let raw = String::from_utf8_lossy(&out.stdout);
+            Ok(SparseStatus {
+                enabled: true,
+                patterns: lines(&raw).map(str::to_string).collect(),
+            })
+        } else {
+            Ok(SparseStatus {
+                enabled: false,
+                patterns: Vec::new(),
+            })
+        }
+    }
+
+    /// Enable (cone-mode) sparse-checkout limited to `patterns` (directories).
+    pub fn sparse_set(&self, patterns: &[String]) -> Result<(), String> {
+        if patterns.is_empty() {
+            return Err("no paths to include".to_string());
+        }
+        let mut args = vec!["sparse-checkout", "set", "--"];
+        for p in patterns {
+            reject_option(p)?;
+            args.push(p.as_str());
+        }
+        self.run(&args).map(|_| ())
+    }
+
+    /// Disable sparse-checkout, restoring the full working tree.
+    pub fn sparse_disable(&self) -> Result<(), String> {
+        self.run(&["sparse-checkout", "disable"]).map(|_| ())
+    }
+
     /// Discard every working-tree change: restore tracked files to HEAD and
     /// remove untracked files/dirs.
     pub fn discard_all(&self) -> Result<(), String> {
@@ -1104,6 +1153,7 @@ fn export_bindings() {
         ReflogEntry::decl(),
         Worktree::decl(),
         Submodule::decl(),
+        SparseStatus::decl(),
         StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),

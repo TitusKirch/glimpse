@@ -407,5 +407,6 @@ const otherPullStrategies = computed(() =>
   <BisectDialog />
   <WorktreesDialog />
   <SubmodulesDialog />
+  <SparseDialog />
   <UiSonner />
 </template>

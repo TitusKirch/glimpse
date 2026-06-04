@@ -42,10 +42,13 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 - ⏳ #35 Git LFS support
 - ✅ #36 Worktree management
 - ✅ #37 Bisect
-- ⏳ #38 Sparse-checkout
+- ✅ #38 Sparse-checkout
 
 ## Log
 
+- #38: `sparse_status` / `sparse_set` (cone) / `sparse_disable`; Sparse-checkout
+  dialog (status + editable path list); applying reloads the repo so the file
+  views reflect the new sparse set automatically. Command-palette entry.
 - #34: `submodules` (status parse) + `submodule_update` (`--init --recursive`) +
   `submodule_sync`; Submodules dialog lists each with a status badge and
   update/sync actions; command-palette entry. Pointer changes already render in

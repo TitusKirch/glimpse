@@ -236,7 +236,8 @@
     "compareRefs": "Compare refs…",
     "bisect": "Start bisect…",
     "worktrees": "Worktrees…",
-    "submodules": "Submodules…"
+    "submodules": "Submodules…",
+    "sparse": "Sparse-checkout…"
   },
   "stash": {
     "title": "Stash changes",
@@ -245,6 +246,15 @@
     "untracked": "untracked",
     "nothing": "No changes to stash.",
     "submit": "Stash"
+  },
+  "sparse": {
+    "title": "Sparse-checkout",
+    "description": "Limit the working tree to a subset of directories.",
+    "enabled": "Sparse-checkout is enabled.",
+    "disabled": "Sparse-checkout is disabled (full working tree).",
+    "placeholder": "One directory per line, e.g. src",
+    "apply": "Apply",
+    "disable": "Disable"
   },
   "submodule": {
     "title": "Submodules",

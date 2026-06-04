@@ -236,7 +236,8 @@
     "compareRefs": "Comparar refs…",
     "bisect": "Iniciar bisect…",
     "worktrees": "Worktrees…",
-    "submodules": "Submódulos…"
+    "submodules": "Submódulos…",
+    "sparse": "Sparse-checkout…"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -245,6 +246,15 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "sparse": {
+    "title": "Sparse-checkout",
+    "description": "Limita el árbol de trabajo a un subconjunto de directorios.",
+    "enabled": "Sparse-checkout está activado.",
+    "disabled": "Sparse-checkout está desactivado (árbol completo).",
+    "placeholder": "Un directorio por línea, p. ej. src",
+    "apply": "Aplicar",
+    "disable": "Desactivar"
   },
   "submodule": {
     "title": "Submódulos",
