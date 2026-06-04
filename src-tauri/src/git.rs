@@ -654,13 +654,30 @@ impl Repo {
             .collect())
     }
 
-    /// Stash the working tree (optionally with a message).
-    pub fn stash_save(&self, message: &str) -> Result<(), String> {
-        if message.is_empty() {
-            self.run(&["stash", "push"]).map(|_| ())
-        } else {
-            self.run(&["stash", "push", "-m", message]).map(|_| ())
+    /// Stash the working tree. Optionally include untracked files and/or limit to
+    /// specific paths (an empty `paths` stashes everything).
+    pub fn stash_save(
+        &self,
+        message: &str,
+        include_untracked: bool,
+        paths: &[String],
+    ) -> Result<(), String> {
+        let mut args = vec!["stash", "push"];
+        if include_untracked {
+            args.push("--include-untracked");
         }
+        if !message.is_empty() {
+            args.push("-m");
+            args.push(message);
+        }
+        if !paths.is_empty() {
+            for p in paths {
+                reject_unsafe_path(p)?;
+            }
+            args.push("--");
+            args.extend(paths.iter().map(String::as_str));
+        }
+        self.run(&args).map(|_| ())
     }
 
     pub fn stash_pop(&self, reference: &str) -> Result<(), String> {
@@ -676,6 +693,46 @@ impl Repo {
     pub fn stash_drop(&self, reference: &str) -> Result<(), String> {
         reject_option(reference)?;
         self.run(&["stash", "drop", reference]).map(|_| ())
+    }
+
+    /// Files changed by a stash — for previewing its contents before pop/apply.
+    pub fn stash_files(&self, reference: &str) -> Result<Vec<CommitFile>, String> {
+        reject_option(reference)?;
+        let raw = self.run(&["stash", "show", "--name-status", reference])?;
+        Ok(parse::commit_files(&raw))
+    }
+
+    /// Per-file diff of a stash for the preview. A stash is a merge commit, so
+    /// `git show` yields an unusable combined diff; diffing against the stash's
+    /// first parent (the commit it was made on) gives a normal, parseable diff.
+    pub fn stash_file_diff(
+        &self,
+        reference: &str,
+        file: &str,
+        ignore_whitespace: bool,
+        whole: bool,
+    ) -> Result<Option<DiffData>, String> {
+        reject_option(reference)?;
+        reject_unsafe_path(file)?;
+        let base = format!("{reference}^");
+        let mut args = vec!["diff", "--no-color", "--no-ext-diff", "--no-textconv"];
+        if ignore_whitespace {
+            args.push("-w");
+        }
+        if whole {
+            args.push("--unified=100000");
+        }
+        args.push(&base);
+        args.push(reference);
+        args.push("--");
+        args.push(file);
+        let raw = self.run(&args)?;
+        let Some(mut diff) = parse::diff(&raw) else {
+            return Ok(None);
+        };
+        diff.old_content = self.content(&format!("{reference}^:{file}"));
+        diff.new_content = self.content(&format!("{reference}:{file}"));
+        Ok(Some(diff))
     }
 
     pub fn fetch(&self) -> Result<String, String> {

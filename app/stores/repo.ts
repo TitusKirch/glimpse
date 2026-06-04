@@ -134,6 +134,12 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
 // each open see the tabs the previous one created.
 let openChain: Promise<unknown> = Promise.resolve();
 
+// A stash is referenced as `stash@{N}`. It needs stash-specific diff commands —
+// being a merge commit, `git show` would yield an unusable combined diff.
+function isStashRef(ref: string): boolean {
+  return ref.startsWith('stash@{');
+}
+
 export const useRepoStore = defineStore('repo', {
   state: () => ({
     repos: { r1: demoRepo() } as Record<string, RepoState>,
@@ -340,7 +346,11 @@ export const useRepoStore = defineStore('repo', {
       const r = this.active;
       r.selectedHash = hash;
       r.selectedBody = await gitClient.commitBody({ path: r.path, hash });
-      r.commitFiles = await gitClient.commitFiles({ path: r.path, hash });
+      // A stash lists its files via the stash machinery (a merge commit's
+      // name-status from `git show` is unreliable).
+      r.commitFiles = isStashRef(hash)
+        ? await gitClient.stashFiles({ path: r.path, reference: hash })
+        : await gitClient.commitFiles({ path: r.path, hash });
       const first = r.commitFiles[0];
       if (first) {
         await this.selectCommitFile(first.path);
@@ -356,13 +366,21 @@ export const useRepoStore = defineStore('repo', {
       r.selectedFile = file;
       const ws = useLayoutStore().ignoreWhitespace;
       const whole = useSettingsStore().diffMode === 'whole';
-      r.diff = await gitClient.commitFileDiff({
-        path: r.path,
-        hash: r.selectedHash,
-        file,
-        ignoreWhitespace: ws,
-        whole
-      });
+      r.diff = isStashRef(r.selectedHash)
+        ? await gitClient.stashFileDiff({
+            path: r.path,
+            reference: r.selectedHash,
+            file,
+            ignoreWhitespace: ws,
+            whole
+          })
+        : await gitClient.commitFileDiff({
+            path: r.path,
+            hash: r.selectedHash,
+            file,
+            ignoreWhitespace: ws,
+            whole
+          });
     },
 
     async selectFile({ file, staged }: { file: string; staged: boolean }) {
@@ -821,9 +839,21 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    async stashSave(message = '') {
+    async stashSave(
+      opts: {
+        message?: string;
+        includeUntracked?: boolean;
+        paths?: string[];
+      } = {}
+    ) {
       return this.mutate({
-        run: () => gitClient.stashSave({ path: this.repoPath, message })
+        run: () =>
+          gitClient.stashSave({
+            path: this.repoPath,
+            message: opts.message ?? '',
+            includeUntracked: opts.includeUntracked ?? false,
+            paths: opts.paths ?? []
+          })
       });
     },
 

@@ -221,6 +221,14 @@
     "stash": "Guardar cambios en stash",
     "pushTags": "Push de los tags"
   },
+  "stash": {
+    "title": "Guardar cambios en stash",
+    "messagePlaceholder": "Mensaje del stash (opcional)",
+    "files": "Archivos",
+    "untracked": "sin seguimiento",
+    "nothing": "No hay cambios para guardar.",
+    "submit": "Guardar en stash"
+  },
   "start": {
     "title": "Ningún repositorio abierto",
     "subtitle": "Abre una carpeta para explorar su historial, o elige uno reciente.",

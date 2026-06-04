@@ -221,6 +221,14 @@
     "stash": "Stasher les modifications",
     "pushTags": "Push des tags"
   },
+  "stash": {
+    "title": "Remiser les modifications",
+    "messagePlaceholder": "Message du stash (optionnel)",
+    "files": "Fichiers",
+    "untracked": "non suivi",
+    "nothing": "Aucune modification à remiser.",
+    "submit": "Remiser"
+  },
   "start": {
     "title": "Aucun dépôt ouvert",
     "subtitle": "Ouvrez un dossier pour explorer son historique, ou choisissez-en un récent.",

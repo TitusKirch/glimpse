@@ -221,6 +221,14 @@
     "stash": "Stash changes",
     "pushTags": "Push tags"
   },
+  "stash": {
+    "title": "Stash changes",
+    "messagePlaceholder": "Stash message (optional)",
+    "files": "Files",
+    "untracked": "untracked",
+    "nothing": "No changes to stash.",
+    "submit": "Stash"
+  },
   "start": {
     "title": "No repository open",
     "subtitle": "Open a folder to start exploring its history, or pick a recent one.",

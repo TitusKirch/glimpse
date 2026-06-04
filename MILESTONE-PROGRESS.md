@@ -16,7 +16,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## 0.6.0 — Staging, stash & history safety
 
-- ⏳ #28 Stash improvements — preview, partial, include untracked
+- ✅ #28 Stash improvements — preview, partial, include untracked
 - ⏳ #29 Reflog view & "undo last action"
 - ⏳ #30 Line-level staging and discard a hunk
 - ⏳ #32 Cherry-pick / revert multiple or ranges (incl. merge revert)
@@ -37,6 +37,11 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- Branch `feat/milestone-0-6-0` based on 0-5-0.
+- #28: stash preview reuses the commit-detail view (click a stash → files +
+  per-file diff via stash-specific backend, since a stash is a merge commit);
+  new Stash dialog stashes everything or selected paths, with untracked files
+  selectable (auto `-u`).
 - Branch `feat/milestone-0-5-0` created from `dev`; progress file added.
 - #45: WSL repos now watched via `PollWatcher` (native events don't cross the
   9P/SMB bridge); native repos keep the OS event backend. Debounce + poll

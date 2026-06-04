@@ -812,10 +812,30 @@ async fn stash_save(
     locks: State<'_, RepoLocks>,
     path: String,
     message: String,
+    include_untracked: bool,
+    paths: Vec<String>,
 ) -> Result<(), String> {
     locked(&locks, &path, || {
-        git::Repo::open(&path).stash_save(&message)
+        git::Repo::open(&path).stash_save(&message, include_untracked, &paths)
     })
+}
+
+/// Files changed by a stash, for the preview shown before pop/apply.
+#[tauri::command]
+async fn stash_files(path: String, reference: String) -> Result<Vec<git::CommitFile>, String> {
+    git::Repo::open(&path).stash_files(&reference)
+}
+
+/// Per-file diff of a stash, for the preview.
+#[tauri::command]
+async fn stash_file_diff(
+    path: String,
+    reference: String,
+    file: String,
+    ignore_whitespace: bool,
+    whole: bool,
+) -> Result<Option<git::DiffData>, String> {
+    git::Repo::open(&path).stash_file_diff(&reference, &file, ignore_whitespace, whole)
 }
 
 #[tauri::command]
@@ -1189,6 +1209,8 @@ pub fn run() {
             remove_remote,
             rename_remote,
             stash_save,
+            stash_files,
+            stash_file_diff,
             stash_pop,
             stash_apply,
             stash_drop,

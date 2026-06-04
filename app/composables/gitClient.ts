@@ -443,10 +443,48 @@ export const gitClient = {
       fallback: null
     }),
 
-  stashSave: ({ path, message = '' }: { path: string; message?: string }) =>
+  stashSave: ({
+    path,
+    message = '',
+    includeUntracked = false,
+    paths = []
+  }: {
+    path: string;
+    message?: string;
+    includeUntracked?: boolean;
+    paths?: string[];
+  }) =>
     tauriInvoke<null>({
       command: 'stash_save',
-      args: { path, message },
+      args: { path, message, includeUntracked, paths },
+      fallback: null
+    }),
+
+  // Files changed by a stash, for the preview before pop/apply.
+  stashFiles: ({ path, reference }: { path: string; reference: string }) =>
+    tauriInvoke<CommitFile[]>({
+      command: 'stash_files',
+      args: { path, reference },
+      fallback: []
+    }),
+
+  // Per-file diff of a stash, for the preview.
+  stashFileDiff: ({
+    path,
+    reference,
+    file,
+    ignoreWhitespace,
+    whole
+  }: {
+    path: string;
+    reference: string;
+    file: string;
+    ignoreWhitespace: boolean;
+    whole: boolean;
+  }) =>
+    tauriInvoke<DiffData | null>({
+      command: 'stash_file_diff',
+      args: { path, reference, file, ignoreWhitespace, whole },
       fallback: null
     }),
 

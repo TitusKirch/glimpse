@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const repo = useRepoStore();
+const stashOverlay = useOverlay('stash');
 const { t } = useI18n();
 </script>
 
@@ -10,7 +11,7 @@ const { t } = useI18n();
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
-            @click="repo.stashSave()"
+            @click="stashOverlay.show()"
           >
             <NuxtIcon name="lucide:archive" class="shrink-0" />
           </UiSidebarGroupAction>

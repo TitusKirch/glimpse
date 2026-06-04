@@ -401,5 +401,6 @@ const otherPullStrategies = computed(() =>
   <OpenRepoDialog />
   <InitDialog />
   <CloneDialog />
+  <StashDialog />
   <UiSonner />
 </template>

@@ -12,6 +12,7 @@ const settings = useOverlay('settings');
 const help = useOverlay('help');
 const initRepo = useOverlay('init');
 const cloneRepo = useOverlay('clone');
+const stashOverlay = useOverlay('stash');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -195,7 +196,7 @@ const actions = computed<PaletteAction[]>(() => {
       group: 'git',
       icon: 'lucide:archive',
       labelKey: 'command.stash',
-      run: () => repo.stashSave(),
+      run: () => stashOverlay.show(),
       visible: hasRepos
     },
     {

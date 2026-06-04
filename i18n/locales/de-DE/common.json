@@ -221,6 +221,14 @@
     "stash": "Änderungen stashen",
     "pushTags": "Tags pushen"
   },
+  "stash": {
+    "title": "Änderungen stashen",
+    "messagePlaceholder": "Stash-Nachricht (optional)",
+    "files": "Dateien",
+    "untracked": "untracked",
+    "nothing": "Keine Änderungen zum Stashen.",
+    "submit": "Stashen"
+  },
   "start": {
     "title": "Kein Repository geöffnet",
     "subtitle": "Öffne einen Ordner, um seinen Verlauf zu erkunden, oder wähle ein zuletzt geöffnetes.",
