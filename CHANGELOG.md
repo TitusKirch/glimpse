@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0](https://github.com/TitusKirch/glimpse/compare/v0.8.0...v0.9.0) (2026-06-04)
+
+
+### Features
+
+* **commit:** explain the unverifiable signature status ([732afe1](https://github.com/TitusKirch/glimpse/commit/732afe19465d35bf0555bd742f3ef7372d2d60a1)), closes [#50](https://github.com/TitusKirch/glimpse/issues/50)
+* **diff:** line-level (sub-hunk) staging ([27ad0b8](https://github.com/TitusKirch/glimpse/commit/27ad0b8e9b028f4d459fb2c532af8ea3b7b08467)), closes [#49](https://github.com/TitusKirch/glimpse/issues/49)
+* **lfs:** detect and surface Git LFS-tracked files ([9479242](https://github.com/TitusKirch/glimpse/commit/9479242acf9820ac9fb91e224dc47219bc9284a8)), closes [#35](https://github.com/TitusKirch/glimpse/issues/35)
+* **rebase:** interactive rebase (reword/squash/fixup/drop/reorder) ([648c51a](https://github.com/TitusKirch/glimpse/commit/648c51acb4de6785f3080ee40cc4c62136d13971)), closes [#26](https://github.com/TitusKirch/glimpse/issues/26)
+
 ## [0.8.0](https://github.com/TitusKirch/glimpse/compare/v0.7.0...v0.8.0) (2026-06-04)
 
 
