@@ -96,14 +96,13 @@ async function save(key: string, value: string, global: boolean) {
     <h3
       class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
     >
-      {{ t('settings.general.gitIdentity.section')
-      }}<span v-if="env" class="ml-1 normal-case">· {{ env }}</span>
+      {{ t('settings.general.gitIdentity.section') }}
     </h3>
 
     <!-- what the next commit in this repo will actually use -->
     <div
       v-if="hasRepo"
-      class="mb-4 rounded-md border px-3 py-2 text-sm"
+      class="mb-5 rounded-md border px-3 py-2 text-sm"
       :class="
         missing
           ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
@@ -122,11 +121,18 @@ async function save(key: string, value: string, global: boolean) {
       </template>
     </div>
 
-    <div class="space-y-4">
-      <SettingsRow
-        label="settings.general.gitIdentity.name.label"
-        hint="settings.general.gitIdentity.globalHint"
+    <!-- Global identity (the config this repo's git uses for every repo) -->
+    <h4 class="mb-1 text-sm font-medium">
+      {{ t('settings.general.gitIdentity.globalSection') }}
+      <span v-if="env" class="font-normal text-muted-foreground"
+        >· {{ env }}</span
       >
+    </h4>
+    <p class="mb-3 text-xs text-muted-foreground">
+      {{ t('settings.general.gitIdentity.globalHint') }}
+    </p>
+    <div class="space-y-4">
+      <SettingsRow label="settings.general.gitIdentity.name.label">
         <UiInput
           class="w-56 shrink-0"
           :model-value="globalName"
@@ -150,14 +156,14 @@ async function save(key: string, value: string, global: boolean) {
     <!-- Optional per-repository override (local git config), only when a repo
          is open. -->
     <template v-if="hasRepo">
-      <h4 class="mt-6 mb-3 text-xs font-medium text-muted-foreground">
+      <h4 class="mt-6 mb-1 text-sm font-medium">
         {{ t('settings.general.gitIdentity.overrideSection') }}
       </h4>
+      <p class="mb-3 text-xs text-muted-foreground">
+        {{ t('settings.general.gitIdentity.overrideHint') }}
+      </p>
       <div class="space-y-4">
-        <SettingsRow
-          label="settings.general.gitIdentity.name.label"
-          hint="settings.general.gitIdentity.overrideHint"
-        >
+        <SettingsRow label="settings.general.gitIdentity.name.label">
           <UiInput
             class="w-56 shrink-0"
             :model-value="localName"

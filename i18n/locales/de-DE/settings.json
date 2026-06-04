@@ -36,6 +36,7 @@
       },
       "gitIdentity": {
         "section": "Git-Identität",
+        "globalSection": "Global",
         "effective": "Dieses Repository committet als",
         "effectiveMissing": "Für dieses Repository ist keine Identität auflösbar — ein Commit würde hier fehlschlagen. Lege unten eine fest.",
         "globalHint": "Wird für alle Repositories verwendet.",
@@ -93,12 +94,15 @@
       "ssh": {
         "section": "SSH & Anmeldedaten",
         "helper": "Credential-Helper",
-        "none": "keiner",
+        "helperHint": "Speichert Anmeldedaten für HTTPS-Remotes; SSH-Remotes nutzen die Schlüssel unten.",
+        "none": "keiner konfiguriert",
         "keys": "Öffentliche SSH-Schlüssel",
         "noKeys": "Keine SSH-Schlüssel in ~/.ssh gefunden.",
+        "copy": "Öffentlichen Schlüssel kopieren",
         "generate": "SSH-Schlüssel erzeugen",
         "generated": "SSH-Schlüssel erzeugt und öffentlicher Schlüssel kopiert",
         "generateFailed": "SSH-Schlüssel konnte nicht erzeugt werden",
+        "hasKey": "Du hast bereits einen ed25519-Schlüssel.",
         "hint": "Füge einen öffentlichen Schlüssel bei deinem Git-Host (GitHub/GitLab) hinzu, um dich per SSH zu authentifizieren."
       },
       "updatesSection": "Updates",

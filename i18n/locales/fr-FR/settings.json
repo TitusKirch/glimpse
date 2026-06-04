@@ -36,6 +36,7 @@
       },
       "gitIdentity": {
         "section": "Identité Git",
+        "globalSection": "Global",
         "effective": "Ce dépôt valide en tant que",
         "effectiveMissing": "Aucune identité n'est résolue pour ce dépôt — un commit échouerait ici. Définissez-en une ci-dessous.",
         "globalHint": "Utilisée pour tous les dépôts.",
@@ -93,12 +94,15 @@
       "ssh": {
         "section": "SSH et identifiants",
         "helper": "Gestionnaire d'identifiants",
-        "none": "aucun",
+        "helperHint": "Stocke les identifiants pour les dépôts distants HTTPS ; les distants SSH utilisent les clés ci-dessous.",
+        "none": "aucun configuré",
         "keys": "Clés publiques SSH",
         "noKeys": "Aucune clé SSH trouvée dans ~/.ssh.",
+        "copy": "Copier la clé publique",
         "generate": "Générer une clé SSH",
         "generated": "Clé SSH générée et clé publique copiée",
         "generateFailed": "Impossible de générer une clé SSH",
+        "hasKey": "Vous avez déjà une clé ed25519.",
         "hint": "Ajoutez une clé publique à votre hôte git (GitHub/GitLab) pour vous authentifier en SSH."
       },
       "updatesSection": "Mises à jour",

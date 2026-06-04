@@ -36,6 +36,7 @@
       },
       "gitIdentity": {
         "section": "Git identity",
+        "globalSection": "Global",
         "effective": "This repository commits as",
         "effectiveMissing": "No identity resolves for this repository — a commit here would fail. Set one below.",
         "globalHint": "Used for all repositories.",
@@ -93,12 +94,15 @@
       "ssh": {
         "section": "SSH & credentials",
         "helper": "Credential helper",
-        "none": "none",
+        "helperHint": "Stores credentials for HTTPS remotes; SSH remotes use the keys below.",
+        "none": "none configured",
         "keys": "SSH public keys",
         "noKeys": "No SSH keys found in ~/.ssh.",
+        "copy": "Copy public key",
         "generate": "Generate SSH key",
         "generated": "SSH key generated and public key copied",
         "generateFailed": "Couldn't generate an SSH key",
+        "hasKey": "You already have an ed25519 key.",
         "hint": "Add a public key to your git host (GitHub/GitLab) to authenticate over SSH."
       },
       "updatesSection": "Updates",
