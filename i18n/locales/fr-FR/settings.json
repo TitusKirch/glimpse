@@ -6,11 +6,13 @@
     },
     "repository": {
       "title": "Dépôt",
-      "noRepo": "Ouvrez un dépôt pour modifier ses paramètres."
-    },
-    "authentication": {
-      "title": "Authentification",
-      "noRepo": "Ouvrez un dépôt pour gérer l'authentification."
+      "noRepo": "Ouvrez un dépôt pour modifier ses paramètres.",
+      "override": {
+        "label": "Remplacer les réglages git globaux",
+        "hint": "Utiliser des réglages propres à ce dépôt au lieu des globaux.",
+        "failed": "Impossible de mettre à jour le remplacement du dépôt"
+      },
+      "usesGlobal": "Ce dépôt utilise vos réglages git globaux."
     },
     "general": {
       "title": "Général",
@@ -60,7 +62,8 @@
           "placeholder": "vous{'@'}example.com"
         },
         "loadFailed": "Impossible de lire votre identité Git",
-        "saveFailed": "Impossible d'enregistrer votre identité Git"
+        "saveFailed": "Impossible d'enregistrer votre identité Git",
+        "localHint": "Remplace l'identité globale pour ce dépôt. Laisser vide pour hériter de la valeur globale."
       },
       "gitSigning": {
         "section": "Signature des commits",
@@ -114,7 +117,8 @@
         "useKey": {
           "label": "Clé SSH pour ce dépôt",
           "hint": "Utiliser une clé spécifique pour fetch, pull et push dans ce dépôt.",
-          "default": "Par défaut"
+          "default": "Par défaut",
+          "section": "Clé SSH"
         },
         "useKeyFailed": "Impossible de définir la clé SSH pour ce dépôt",
         "generate": "Générer une clé SSH",
@@ -185,6 +189,20 @@
       "channelFallback": {
         "title": "Canal de diffusion modifié",
         "description": "Basculé sur {channel}."
+      },
+      "override": {
+        "inherit": "Hériter (global)",
+        "on": "Activé",
+        "off": "Désactivé"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Assistant de commit",
+          "hint": "Afficher l'assistant Conventional Commit dans la zone de commit."
+        },
+        "loadFailed": "Impossible de lire le réglage de l'assistant de commit",
+        "saveFailed": "Impossible d'enregistrer le réglage de l'assistant de commit"
       }
     },
     "showcase": {

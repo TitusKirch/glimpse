@@ -84,6 +84,41 @@ const ccScope = ref('');
 const ccBreaking = ref(false);
 const PREFIX_RE = /^[a-z]+(\([^)]*\))?!?:\s*/i;
 
+// The composer's on/off lives in git config (glimpse.conventionalCommits):
+// effective for the active repo (local override, else global). The braces button
+// writes the scope in effect — local when this repo overrides globals.
+const ccEnabled = ref(false);
+
+async function loadConventional() {
+  if (!isTauri() || !repo.active) return;
+  ccEnabled.value =
+    (await gitClient.getConfig({
+      path: repo.active.path,
+      key: 'glimpse.conventionalCommits',
+      scope: ''
+    })) === 'true';
+}
+onMounted(loadConventional);
+watch(() => repo.active?.path, loadConventional);
+
+async function toggleConventional() {
+  ccEnabled.value = !ccEnabled.value;
+  if (!isTauri() || !repo.active) return;
+  const path = repo.active.path;
+  const overriding =
+    (await gitClient.getConfig({
+      path,
+      key: 'glimpse.override',
+      scope: 'local'
+    })) === 'true';
+  await gitClient.setConfig({
+    path,
+    key: 'glimpse.conventionalCommits',
+    value: ccEnabled.value ? 'true' : 'false',
+    global: !overriding
+  });
+}
+
 function applyConventional() {
   const lines = repo.commitMessage.split('\n');
   const subject = (lines[0] ?? '').replace(PREFIX_RE, '');
@@ -94,8 +129,8 @@ function applyConventional() {
   repo.commitMessage = lines.join('\n');
 }
 
-watch([ccType, ccScope, ccBreaking, () => settings.conventionalCommits], () => {
-  if (settings.conventionalCommits) applyConventional();
+watch([ccType, ccScope, ccBreaking, ccEnabled], () => {
+  if (ccEnabled.value) applyConventional();
 });
 
 // Append a `Closes #` footer for the user to complete.
@@ -363,16 +398,29 @@ onMounted(autoResize);
 
     <!-- commit box -->
     <form class="border-t p-2" @submit.prevent="commitForm.handleSubmit">
-      <div
-        v-if="settings.conventionalCommits"
-        class="mb-2 flex flex-wrap items-center gap-1.5"
-      >
-        <select
-          v-model="ccType"
-          class="h-7 rounded-md border bg-transparent px-1 text-xs outline-none"
-        >
-          <option v-for="ty in CC_TYPES" :key="ty" :value="ty">{{ ty }}</option>
-        </select>
+      <div v-if="ccEnabled" class="mb-2 flex flex-wrap items-center gap-1.5">
+        <UiDropdownMenu>
+          <UiDropdownMenuTrigger as-child>
+            <UiButton
+              type="button"
+              variant="outline"
+              size="sm"
+              class="h-7 gap-1 px-2 text-xs"
+            >
+              {{ ccType }}
+              <NuxtIcon name="lucide:chevron-down" class="size-3 opacity-60" />
+            </UiButton>
+          </UiDropdownMenuTrigger>
+          <UiDropdownMenuContent align="start">
+            <UiDropdownMenuItem
+              v-for="ty in CC_TYPES"
+              :key="ty"
+              @click="ccType = ty"
+            >
+              {{ ty }}
+            </UiDropdownMenuItem>
+          </UiDropdownMenuContent>
+        </UiDropdownMenu>
         <input
           v-model="ccScope"
           :placeholder="t('changes.conventional.scope')"
@@ -427,9 +475,9 @@ onMounted(autoResize);
           <button
             type="button"
             class="text-muted-foreground transition-colors hover:text-foreground"
-            :class="settings.conventionalCommits && 'text-primary'"
+            :class="ccEnabled && 'text-primary'"
             :title="t('changes.conventional.toggle')"
-            @click="settings.toggleConventionalCommits()"
+            @click="toggleConventional()"
           >
             <NuxtIcon name="lucide:braces" class="size-4" />
           </button>

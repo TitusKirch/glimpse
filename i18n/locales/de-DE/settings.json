@@ -6,11 +6,13 @@
     },
     "repository": {
       "title": "Repository",
-      "noRepo": "Öffne ein Repository, um seine Einstellungen zu bearbeiten."
-    },
-    "authentication": {
-      "title": "Authentifizierung",
-      "noRepo": "Öffne ein Repository, um die Authentifizierung zu verwalten."
+      "noRepo": "Öffne ein Repository, um seine Einstellungen zu bearbeiten.",
+      "override": {
+        "label": "Globale Git-Einstellungen überschreiben",
+        "hint": "Für dieses Repository eigene Einstellungen statt der globalen verwenden.",
+        "failed": "Repository-Override konnte nicht aktualisiert werden"
+      },
+      "usesGlobal": "Dieses Repository verwendet deine globalen Git-Einstellungen."
     },
     "general": {
       "title": "Allgemein",
@@ -60,7 +62,8 @@
           "placeholder": "du{'@'}example.com"
         },
         "loadFailed": "Git-Identität konnte nicht gelesen werden",
-        "saveFailed": "Git-Identität konnte nicht gespeichert werden"
+        "saveFailed": "Git-Identität konnte nicht gespeichert werden",
+        "localHint": "Überschreibt die globale Identität für dieses Repository. Leer lassen, um den globalen Wert zu erben."
       },
       "gitSigning": {
         "section": "Commit-Signierung",
@@ -114,7 +117,8 @@
         "useKey": {
           "label": "SSH-Schlüssel für dieses Repository",
           "hint": "Verwende einen bestimmten Schlüssel für Fetch, Pull und Push in diesem Repository.",
-          "default": "Standard"
+          "default": "Standard",
+          "section": "SSH-Schlüssel"
         },
         "useKeyFailed": "SSH-Schlüssel für dieses Repository konnte nicht gesetzt werden",
         "generate": "SSH-Schlüssel erzeugen",
@@ -185,6 +189,20 @@
       "channelFallback": {
         "title": "Release-Channel geändert",
         "description": "Auf {channel} gewechselt."
+      },
+      "override": {
+        "inherit": "Erben (global)",
+        "on": "An",
+        "off": "Aus"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Commit-Assistent",
+          "hint": "Den Conventional-Commit-Assistenten im Commit-Feld anzeigen."
+        },
+        "loadFailed": "Commit-Assistent-Einstellung konnte nicht gelesen werden",
+        "saveFailed": "Commit-Assistent-Einstellung konnte nicht gespeichert werden"
       }
     },
     "showcase": {

@@ -6,11 +6,13 @@
     },
     "repository": {
       "title": "Repositorio",
-      "noRepo": "Abre un repositorio para editar su configuración."
-    },
-    "authentication": {
-      "title": "Autenticación",
-      "noRepo": "Abre un repositorio para gestionar la autenticación."
+      "noRepo": "Abre un repositorio para editar su configuración.",
+      "override": {
+        "label": "Sobrescribir la configuración global de git",
+        "hint": "Usar ajustes propios de este repositorio en lugar de los globales.",
+        "failed": "No se pudo actualizar la anulación del repositorio"
+      },
+      "usesGlobal": "Este repositorio usa tu configuración global de git."
     },
     "general": {
       "title": "General",
@@ -60,7 +62,8 @@
           "placeholder": "tu{'@'}example.com"
         },
         "loadFailed": "No se pudo leer tu identidad de Git",
-        "saveFailed": "No se pudo guardar tu identidad de Git"
+        "saveFailed": "No se pudo guardar tu identidad de Git",
+        "localHint": "Sobrescribe la identidad global para este repositorio. Déjalo vacío para heredar el valor global."
       },
       "gitSigning": {
         "section": "Firma de commits",
@@ -114,7 +117,8 @@
         "useKey": {
           "label": "Clave SSH para este repositorio",
           "hint": "Usa una clave concreta para fetch, pull y push en este repositorio.",
-          "default": "Predeterminada"
+          "default": "Predeterminada",
+          "section": "Clave SSH"
         },
         "useKeyFailed": "No se pudo establecer la clave SSH para este repositorio",
         "generate": "Generar clave SSH",
@@ -185,6 +189,20 @@
       "channelFallback": {
         "title": "Canal de versiones cambiado",
         "description": "Se cambió a {channel}."
+      },
+      "override": {
+        "inherit": "Heredar (global)",
+        "on": "Activado",
+        "off": "Desactivado"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Asistente de commits",
+          "hint": "Mostrar el asistente de Conventional Commits en el cuadro de commit."
+        },
+        "loadFailed": "No se pudo leer la configuración del asistente de commits",
+        "saveFailed": "No se pudo guardar la configuración del asistente de commits"
       }
     },
     "showcase": {

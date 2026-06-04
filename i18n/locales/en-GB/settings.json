@@ -6,11 +6,13 @@
     },
     "repository": {
       "title": "Repository",
-      "noRepo": "Open a repository to edit its settings."
-    },
-    "authentication": {
-      "title": "Authentication",
-      "noRepo": "Open a repository to manage authentication."
+      "noRepo": "Open a repository to edit its settings.",
+      "override": {
+        "label": "Override global git settings",
+        "hint": "Use settings specific to this repository instead of the global ones.",
+        "failed": "Couldn't update the repository override"
+      },
+      "usesGlobal": "This repository uses your global git settings."
     },
     "general": {
       "title": "General",
@@ -60,7 +62,8 @@
           "placeholder": "you{'@'}example.com"
         },
         "loadFailed": "Couldn't read your git identity",
-        "saveFailed": "Couldn't save your git identity"
+        "saveFailed": "Couldn't save your git identity",
+        "localHint": "Overrides the global identity for this repository. Leave empty to inherit the global value."
       },
       "gitSigning": {
         "section": "Commit signing",
@@ -114,7 +117,8 @@
         "useKey": {
           "label": "SSH key for this repository",
           "hint": "Use a specific key for fetch, pull and push in this repository.",
-          "default": "Default"
+          "default": "Default",
+          "section": "SSH key"
         },
         "useKeyFailed": "Couldn't set the SSH key for this repository",
         "generate": "Generate SSH key",
@@ -185,6 +189,20 @@
       "channelFallback": {
         "title": "Release channel changed",
         "description": "Switched to {channel}."
+      },
+      "override": {
+        "inherit": "Inherit (global)",
+        "on": "On",
+        "off": "Off"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Commit composer",
+          "hint": "Show the Conventional Commit composer in the commit box."
+        },
+        "loadFailed": "Couldn't read the commit composer setting",
+        "saveFailed": "Couldn't save the commit composer setting"
       }
     },
     "showcase": {

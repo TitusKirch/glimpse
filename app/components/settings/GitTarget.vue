@@ -1,19 +1,26 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
 
-// Per-repo git target override, stored as `glimpse.target` in the repo's local
-// git config and honoured by platform::resolve(): Auto (path-based), Native
-// (force the host git, even for a \\wsl$ repo) or a Custom git binary path.
-// Shows the resolved target and any detected WSL distros for context.
+// Git target (`glimpse.target`) at a given scope, honoured by platform::resolve().
+// `global` is the default for every repo (Auto = automatic per-repo detection,
+// Native = force the host git, Custom = an explicit git binary). `local` is a
+// per-repo override (Inherit = use the global default; Native / Custom force this
+// repo). The resolved banner (which git actually runs) is shown for a repo.
+const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
+  scope: 'global'
+});
 const { t } = useI18n();
 const repo = useRepoStore();
 
-const mode = ref<'auto' | 'native' | 'custom'>('auto');
+const isGlobal = computed(() => props.scope === 'global');
+// global's "no override" is Auto; local's is Inherit.
+const baseMode = computed(() => (isGlobal.value ? 'auto' : 'inherit'));
+
+const mode = ref<'auto' | 'inherit' | 'native' | 'custom'>('auto');
 const customPath = ref('');
 const distros = ref<string[]>([]);
 
 const activePath = computed(() => repo.active?.path ?? '');
-const hasRepo = computed(() => !!activePath.value);
 // A human label for the git that currently runs for this repo.
 const resolved = computed(() => {
   const a = repo.active;
@@ -28,34 +35,50 @@ const resolved = computed(() => {
   return `${t('settings.general.gitTarget.nativeGit')} (${os})`;
 });
 
+async function routingPath() {
+  return repo.active?.path ?? (await gitClient.defaultRepo());
+}
+
 async function load() {
-  if (!isTauri() || !hasRepo.value) return;
+  if (!isTauri()) return;
+  mode.value = baseMode.value;
   distros.value = await gitClient.wslDistros();
   const v = await gitClient.getConfig({
-    path: activePath.value,
+    path: await routingPath(),
     key: 'glimpse.target',
-    scope: 'local'
+    scope: props.scope
   });
   if (v === 'native') mode.value = 'native';
   else if (v && v !== 'auto') {
     mode.value = 'custom';
     customPath.value = v;
-  } else mode.value = 'auto';
+  } else mode.value = baseMode.value;
 }
 
 onMounted(load);
-watch(activePath, load);
+watch([() => repo.active?.path, () => props.scope], load);
 
 async function save() {
-  if (!isTauri() || !hasRepo.value) return;
-  const value = mode.value === 'custom' ? customPath.value.trim() : mode.value;
-  if (!value) return;
+  if (!isTauri()) return;
   try {
+    const path = await routingPath();
+    // The "no override" choice clears the value (global → automatic; local →
+    // inherit the global default).
+    if (mode.value === 'auto' || mode.value === 'inherit') {
+      await gitClient.unsetConfig({
+        path,
+        key: 'glimpse.target',
+        scope: props.scope
+      });
+      return;
+    }
+    const value = mode.value === 'custom' ? customPath.value.trim() : 'native';
+    if (!value) return;
     await gitClient.setConfig({
-      path: activePath.value,
+      path,
       key: 'glimpse.target',
       value,
-      global: false
+      global: isGlobal.value
     });
   } catch (e) {
     toast.error(t('settings.general.gitTarget.saveFailed'), {
@@ -71,7 +94,7 @@ function setMode(v: string) {
 </script>
 
 <template>
-  <div v-if="hasRepo">
+  <div>
     <h3
       class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
     >
@@ -90,8 +113,11 @@ function setMode(v: string) {
             <UiSelectValue />
           </UiSelectTrigger>
           <UiSelectContent>
-            <UiSelectItem value="auto">
+            <UiSelectItem v-if="isGlobal" value="auto">
               {{ t('settings.general.gitTarget.auto') }}
+            </UiSelectItem>
+            <UiSelectItem v-else value="inherit">
+              {{ t('settings.general.override.inherit') }}
             </UiSelectItem>
             <UiSelectItem value="native">
               {{ t('settings.general.gitTarget.native') }}
@@ -115,7 +141,8 @@ function setMode(v: string) {
           @blur="save"
         />
       </SettingsRow>
-      <UiAlert variant="info">
+      <!-- which git actually runs for this repo (only meaningful with a repo) -->
+      <UiAlert v-if="!isGlobal && activePath" variant="info">
         <p class="min-w-0">
           {{ t('settings.general.gitTarget.resolved', { target: resolved }) }}
           <template v-if="distros.length">

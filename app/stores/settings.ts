@@ -41,8 +41,6 @@ export interface SettingsValues {
   diffMode: DiffMode;
   // Soft-wrap long lines in the diff viewer (unified view).
   diffWrap: boolean;
-  // Show the opt-in Conventional Commit composer in the commit box.
-  conventionalCommits: boolean;
   fileView: FileView;
   monoScale: number;
   accent: Accent;
@@ -76,7 +74,6 @@ const MIGRATED_KEYS = [
   'sidebarWidth',
   'diffMode',
   'diffWrap',
-  'conventionalCommits',
   'fileView',
   'monoScale',
   'accent',
@@ -142,7 +139,6 @@ export const useSettingsStore = defineStore('settings', {
     sidebarWidth: 256,
     diffMode: 'split',
     diffWrap: false,
-    conventionalCommits: false,
     fileView: 'tree',
     monoScale: 1,
     accent: 'default',
@@ -181,9 +177,6 @@ export const useSettingsStore = defineStore('settings', {
     },
     toggleDiffWrap() {
       this.diffWrap = !this.diffWrap;
-    },
-    toggleConventionalCommits() {
-      this.conventionalCommits = !this.conventionalCommits;
     },
     setFileView(view: FileView) {
       this.fileView = view;

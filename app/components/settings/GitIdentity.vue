@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
 
-// Global git identity (~/.gitconfig) — applies to every repository. Read/written
-// through the active repo's git, so a WSL repo edits the WSL global config; the
-// `· <env>` label names which one. Per-repo overrides live on the Repository
-// page.
+// Git identity (user.name / user.email) at a given scope. `global` edits
+// ~/.gitconfig (applies to every repo); `local` edits this repo's .git/config —
+// an override, where an empty field clears it so the global value is inherited.
+// Read & written through the active repo's git, so a WSL repo edits the WSL
+// config; the `· <env>` label names which one.
+const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
+  scope: 'global'
+});
 const { t } = useI18n();
 const repo = useRepoStore();
 
-const globalName = ref('');
-const globalEmail = ref('');
+const name = ref('');
+const email = ref('');
 
+const isGlobal = computed(() => props.scope === 'global');
 const env = computed(() => {
   const a = repo.active;
   if (!a) return '';
@@ -25,9 +30,9 @@ async function load() {
   if (!isTauri()) return;
   try {
     const path = await routingPath();
-    [globalName.value, globalEmail.value] = await Promise.all([
-      gitClient.getConfig({ path, key: 'user.name', scope: 'global' }),
-      gitClient.getConfig({ path, key: 'user.email', scope: 'global' })
+    [name.value, email.value] = await Promise.all([
+      gitClient.getConfig({ path, key: 'user.name', scope: props.scope }),
+      gitClient.getConfig({ path, key: 'user.email', scope: props.scope })
     ]);
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.loadFailed'), {
@@ -37,19 +42,24 @@ async function load() {
 }
 
 onMounted(load);
-watch(() => repo.active?.path, load);
+watch([() => repo.active?.path, () => props.scope], load);
 
-// Persist on blur. An empty field is left untouched rather than clearing it.
+// global: an empty field is left untouched (never wipe the global identity).
+// local: an empty field clears the override so the global value is inherited.
 async function save(key: string, value: string) {
   if (!isTauri()) return;
   const trimmed = value.trim();
-  if (!trimmed) return;
   try {
+    const path = await routingPath();
+    if (!trimmed) {
+      if (!isGlobal.value) await gitClient.unsetConfig({ path, key });
+      return;
+    }
     await gitClient.setConfig({
-      path: await routingPath(),
+      path,
       key,
       value: trimmed,
-      global: true
+      global: isGlobal.value
     });
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.saveFailed'), {
@@ -65,29 +75,35 @@ async function save(key: string, value: string) {
       class="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
     >
       {{ t('settings.general.gitIdentity.section')
-      }}<span v-if="env" class="ml-1 normal-case">· {{ env }}</span>
+      }}<span v-if="isGlobal && env" class="ml-1 normal-case">· {{ env }}</span>
     </h3>
     <p class="mb-3 text-xs text-muted-foreground">
-      {{ t('settings.general.gitIdentity.globalHint') }}
+      {{
+        t(
+          isGlobal
+            ? 'settings.general.gitIdentity.globalHint'
+            : 'settings.general.gitIdentity.localHint'
+        )
+      }}
     </p>
     <div class="space-y-4">
       <SettingsRow label="settings.general.gitIdentity.name.label">
         <UiInput
           class="w-56 shrink-0"
-          :model-value="globalName"
+          :model-value="name"
           :placeholder="t('settings.general.gitIdentity.name.placeholder')"
-          @input="globalName = ($event.target as HTMLInputElement).value"
-          @blur="save('user.name', globalName)"
+          @input="name = ($event.target as HTMLInputElement).value"
+          @blur="save('user.name', name)"
         />
       </SettingsRow>
       <SettingsRow label="settings.general.gitIdentity.email.label">
         <UiInput
           type="email"
           class="w-56 shrink-0"
-          :model-value="globalEmail"
+          :model-value="email"
           :placeholder="t('settings.general.gitIdentity.email.placeholder')"
-          @input="globalEmail = ($event.target as HTMLInputElement).value"
-          @blur="save('user.email', globalEmail)"
+          @input="email = ($event.target as HTMLInputElement).value"
+          @blur="save('user.email', email)"
         />
       </SettingsRow>
     </div>

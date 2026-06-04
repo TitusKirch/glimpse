@@ -288,14 +288,12 @@ fn parse_config_target(config: &str) -> Option<String> {
     None
 }
 
-/// Per-repo git target override from `<repo>/.git/config` (`glimpse.target`).
-/// `native` forces native git (even on a `\\wsl$` path); a value containing a
-/// path separator is used as an explicit git binary. Best-effort: a missing or
-/// unreadable config just means "no override".
-fn target_override(repo_path: &str) -> Option<GitTarget> {
-    let config = std::fs::read_to_string(format!("{repo_path}/.git/config")).ok()?;
-    let value = parse_config_target(&config)?;
-    match value.as_str() {
+/// Map a `glimpse.target` value to a [`GitTarget`] for `repo_path`. `native`
+/// forces native git (even on a `\\wsl$` path); a value containing a path
+/// separator is used as an explicit git binary; anything else (`auto`/unknown)
+/// → None (use the automatic decision). Pure so it is unit-testable.
+fn map_target_value(value: &str, repo_path: &str) -> Option<GitTarget> {
+    match value {
         "native" => Some(GitTarget::native(repo_path)),
         path if path.contains('/') || path.contains('\\') => Some(GitTarget {
             program: path.to_string(),
@@ -308,10 +306,39 @@ fn target_override(repo_path: &str) -> Option<GitTarget> {
     }
 }
 
+/// Per-repo git target override from `<repo>/.git/config` (`glimpse.target`).
+/// Best-effort: a missing or unreadable config just means "no override".
+fn target_override(repo_path: &str) -> Option<GitTarget> {
+    let config = std::fs::read_to_string(format!("{repo_path}/.git/config")).ok()?;
+    map_target_value(&parse_config_target(&config)?, repo_path)
+}
+
+/// A global `glimpse.target` default from the host's global git config
+/// (`~/.gitconfig`, then `$XDG_CONFIG_HOME/git/config` / `~/.config/git/config`).
+/// Lets a user force native git or a custom binary for *every* repo, while a
+/// per-repo `glimpse.target` still wins. Best-effort.
+fn global_target_override(repo_path: &str) -> Option<GitTarget> {
+    let home = home_dir()?;
+    let xdg = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
+    // `~/.gitconfig` first: git lets it override the XDG file.
+    for path in [format!("{home}/.gitconfig"), format!("{xdg}/git/config")] {
+        if let Ok(cfg) = std::fs::read_to_string(&path) {
+            if let Some(value) = parse_config_target(&cfg) {
+                return map_target_value(&value, repo_path);
+            }
+        }
+    }
+    None
+}
+
 /// Decide how to run `git` for `repo_path` on this platform.
 pub fn resolve(repo_path: &str) -> GitTarget {
     // An explicit per-repo override wins over the automatic decision.
     if let Some(target) = target_override(repo_path) {
+        return target;
+    }
+    // Then a global glimpse.target default (host gitconfig) applies everywhere.
+    if let Some(target) = global_target_override(repo_path) {
         return target;
     }
     // WSL interop only exists on Windows; everywhere else git is always native.
@@ -511,7 +538,7 @@ fn parse_wsl_path(path: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_config_target, parse_wsl_path};
+    use super::{map_target_value, parse_config_target, parse_wsl_path};
 
     #[test]
     fn parses_glimpse_target_override() {
@@ -526,6 +553,21 @@ mod tests {
         // No glimpse section, or no target, → None.
         assert_eq!(parse_config_target("[core]\n\tbare = false\n"), None);
         assert_eq!(parse_config_target("[glimpse]\n\tother = x\n"), None);
+    }
+
+    #[test]
+    fn maps_target_value_to_a_git_target() {
+        // `native` forces native git, even for a \\wsl$ path.
+        let t = map_target_value("native", "/repo").expect("native → target");
+        assert!(t.distro.is_none());
+        // A path value becomes an explicit git binary.
+        let t = map_target_value("/opt/git/bin/git", "/repo").expect("path → target");
+        assert_eq!(t.program, "/opt/git/bin/git");
+        assert!(t.distro.is_none());
+        // `auto` / unknown / empty → no override (use the automatic decision).
+        assert!(map_target_value("auto", "/repo").is_none());
+        assert!(map_target_value("wat", "/repo").is_none());
+        assert!(map_target_value("", "/repo").is_none());
     }
 
     #[test]

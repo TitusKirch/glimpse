@@ -2,17 +2,33 @@
 import { toast } from 'vue-sonner';
 import type { SshKey } from '~/types/bindings';
 
-// Global commit-signing config (commit.gpgsign / gpg.format / user.signingkey),
-// read & written through the active repo's git. Commits then sign automatically
-// (git honours commit.gpgsign). With SSH format, the key can be picked from the
-// detected public keys rather than typed.
+// Commit-signing config (commit.gpgsign / gpg.format / user.signingkey) at a
+// given scope. `global` is a plain on/off applying to every repo; `local` is a
+// tri-state override for this repo (Inherit / On / Off) — Inherit clears the
+// local keys so the global setting applies. Read & written through the active
+// repo's git. With SSH format the key can be picked from detected public keys.
+const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
+  scope: 'global'
+});
 const { t } = useI18n();
 const repo = useRepoStore();
 
-const sign = ref(false);
+const isGlobal = computed(() => props.scope === 'global');
+
+const sign = ref(false); // global on/off
+const signMode = ref<'inherit' | 'on' | 'off'>('inherit'); // local tri-state
 const format = ref('openpgp');
 const signingKey = ref('');
 const sshKeys = ref<SshKey[]>([]);
+
+// Whether signing details (format + key) are editable: global → when on; local
+// → only when explicitly overriding to On (Inherit/Off use the global details).
+const showDetails = computed(() =>
+  isGlobal.value ? sign.value : signMode.value === 'on'
+);
+const useSshPicker = computed(
+  () => format.value === 'ssh' && sshKeys.value.length > 0
+);
 
 function keyInfo(key: string): { type: string; comment: string } {
   const parts = key.trim().split(/\s+/);
@@ -31,14 +47,16 @@ async function load() {
   try {
     const path = await routingPath();
     const [gpgsign, fmt, key, ssh] = await Promise.all([
-      gitClient.getConfig({ path, key: 'commit.gpgsign', scope: 'global' }),
-      gitClient.getConfig({ path, key: 'gpg.format', scope: 'global' }),
-      gitClient.getConfig({ path, key: 'user.signingkey', scope: 'global' }),
+      gitClient.getConfig({ path, key: 'commit.gpgsign', scope: props.scope }),
+      gitClient.getConfig({ path, key: 'gpg.format', scope: props.scope }),
+      gitClient.getConfig({ path, key: 'user.signingkey', scope: props.scope }),
       repo.active?.path
         ? gitClient.sshStatus(repo.active.path)
         : Promise.resolve(null)
     ]);
-    sign.value = gpgsign === 'true';
+    if (isGlobal.value) sign.value = gpgsign === 'true';
+    else
+      signMode.value = gpgsign === 'true' ? 'on' : gpgsign ? 'off' : 'inherit';
     format.value = fmt === 'ssh' ? 'ssh' : 'openpgp';
     signingKey.value = key;
     sshKeys.value = ssh?.publicKeys ?? [];
@@ -50,45 +68,65 @@ async function load() {
 }
 
 onMounted(load);
-watch(() => repo.active?.path, load);
+watch([() => repo.active?.path, () => props.scope], load);
 
-async function set(key: string, value: string) {
-  if (!isTauri()) return;
-  try {
-    await gitClient.setConfig({
-      path: await routingPath(),
-      key,
-      value,
-      global: true
-    });
-  } catch (e) {
-    toast.error(t('settings.general.gitSigning.saveFailed'), {
-      description: String(e)
-    });
-  }
+async function setCfg(key: string, value: string) {
+  await gitClient.setConfig({
+    path: await routingPath(),
+    key,
+    value,
+    global: isGlobal.value
+  });
+}
+async function unsetCfg(key: string) {
+  await gitClient.unsetConfig({ path: await routingPath(), key });
+}
+
+function fail(e: unknown) {
+  toast.error(t('settings.general.gitSigning.saveFailed'), {
+    description: String(e)
+  });
 }
 
 function toggleSign(on: boolean) {
   sign.value = on;
-  void set('commit.gpgsign', on ? 'true' : 'false');
+  setCfg('commit.gpgsign', on ? 'true' : 'false').catch(fail);
 }
+
+async function setSignMode(v: 'inherit' | 'on' | 'off') {
+  signMode.value = v;
+  try {
+    if (v === 'inherit') {
+      // Drop the whole local signing override. Sequential — concurrent unsets
+      // race on .git/config.lock.
+      await unsetCfg('commit.gpgsign');
+      await unsetCfg('gpg.format');
+      await unsetCfg('user.signingkey');
+    } else {
+      await setCfg('commit.gpgsign', v === 'on' ? 'true' : 'false');
+    }
+  } catch (e) {
+    fail(e);
+  }
+}
+
 function setFormat(v: string) {
   format.value = v;
-  void set('gpg.format', v);
+  setCfg('gpg.format', v).catch(fail);
 }
 function pickKey(v: string) {
   signingKey.value = v;
-  void set('user.signingkey', v);
+  setCfg('user.signingkey', v).catch(fail);
 }
-// An empty key is left untouched — the backend rejects an empty config value.
-function saveKey() {
+async function saveKey() {
   const trimmed = signingKey.value.trim();
-  if (trimmed) void set('user.signingkey', trimmed);
+  try {
+    if (trimmed) await setCfg('user.signingkey', trimmed);
+    else if (!isGlobal.value) await unsetCfg('user.signingkey');
+  } catch (e) {
+    fail(e);
+  }
 }
-
-const useSshPicker = computed(
-  () => format.value === 'ssh' && sshKeys.value.length > 0
-);
 </script>
 
 <template>
@@ -99,17 +137,42 @@ const useSshPicker = computed(
       {{ t('settings.general.gitSigning.section') }}
     </h3>
     <div class="space-y-4">
+      <!-- enable: global = switch, local = tri-state override -->
       <SettingsRow
         label="settings.general.gitSigning.enable.label"
         hint="settings.general.gitSigning.enable.hint"
       >
         <UiSwitch
+          v-if="isGlobal"
           :model-value="sign"
           class="shrink-0"
           @update:model-value="(v) => toggleSign(v as boolean)"
         />
+        <UiSelect
+          v-else
+          :model-value="signMode"
+          @update:model-value="
+            (v) => setSignMode(v as 'inherit' | 'on' | 'off')
+          "
+        >
+          <UiSelectTrigger class="w-44 shrink-0">
+            <UiSelectValue />
+          </UiSelectTrigger>
+          <UiSelectContent>
+            <UiSelectItem value="inherit">
+              {{ t('settings.general.override.inherit') }}
+            </UiSelectItem>
+            <UiSelectItem value="on">
+              {{ t('settings.general.override.on') }}
+            </UiSelectItem>
+            <UiSelectItem value="off">
+              {{ t('settings.general.override.off') }}
+            </UiSelectItem>
+          </UiSelectContent>
+        </UiSelect>
       </SettingsRow>
-      <template v-if="sign">
+
+      <template v-if="showDetails">
         <SettingsRow
           label="settings.general.gitSigning.format.label"
           hint="settings.general.gitSigning.format.hint"
