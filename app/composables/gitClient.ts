@@ -185,6 +185,37 @@ export const gitClient = {
       fallback: []
     }),
 
+  // Export a commit to a .patch file at `dest`.
+  exportPatch: ({
+    path,
+    hash,
+    dest
+  }: {
+    path: string;
+    hash: string;
+    dest: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'export_patch',
+      args: { path, hash, dest },
+      fallback: null
+    }),
+  // Apply a patch file via `am` (recreate commits) or `apply` (working tree).
+  applyPatch: ({
+    path,
+    src,
+    mode
+  }: {
+    path: string;
+    src: string;
+    mode: string;
+  }) =>
+    tauriInvoke<string>({
+      command: 'apply_patch',
+      args: { path, src, mode },
+      fallback: ''
+    }),
+
   // All tracked file paths — the corpus for the quick-open fuzzy finder.
   listFiles: (path: string) =>
     tauriInvoke<string[]>({

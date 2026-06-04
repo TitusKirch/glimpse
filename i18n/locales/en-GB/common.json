@@ -320,6 +320,10 @@
       "drop": "Drop"
     }
   },
+  "patch": {
+    "export": "Export as patch…",
+    "apply": "Apply patch…"
+  },
   "quickOpen": {
     "menu": "Quick open…",
     "title": "Quick open",

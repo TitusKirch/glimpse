@@ -320,6 +320,10 @@
       "drop": "Verwerfen"
     }
   },
+  "patch": {
+    "export": "Als Patch exportieren…",
+    "apply": "Patch anwenden…"
+  },
   "quickOpen": {
     "menu": "Schnellöffnen…",
     "title": "Schnellöffnen",

@@ -779,6 +779,25 @@ async fn list_files(path: String) -> Result<Vec<String>, String> {
     git::Repo::open(&path).list_files()
 }
 
+/// Export a commit to a `.patch` file at `dest`.
+#[tauri::command]
+async fn export_patch(path: String, hash: String, dest: String) -> Result<(), String> {
+    git::Repo::open(&path).export_patch(&hash, &dest)
+}
+
+/// Apply a patch file via `am` (recreate commits) or `apply` (working tree).
+#[tauri::command]
+async fn apply_patch(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    src: String,
+    mode: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).apply_patch(&src, &mode)
+    })
+}
+
 /// Installed WSL distros (for the per-repo git-target picker); empty off Windows.
 #[tauri::command]
 fn wsl_distros() -> Vec<String> {
@@ -1456,6 +1475,8 @@ pub fn run() {
             repo_stats,
             list_files,
             wsl_distros,
+            export_patch,
+            apply_patch,
             bisect_start,
             bisect_mark,
             bisect_reset,

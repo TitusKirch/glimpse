@@ -1133,6 +1133,20 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Export a commit to a .patch file (the caller picks `dest` via a dialog).
+    async exportPatch({ hash, dest }: { hash: string; dest: string }) {
+      return this.native(() =>
+        gitClient.exportPatch({ path: this.repoPath, hash, dest })
+      );
+    },
+    // Apply a patch file (`git am`) and reload — a conflict surfaces as an error.
+    async applyPatch({ src }: { src: string }) {
+      return this.native(async () => {
+        await gitClient.applyPatch({ path: this.repoPath, src, mode: 'am' });
+        await this.loadFromBackend(this.active?.path);
+      });
+    },
+
     async deleteTag(name: string) {
       return this.native(async () => {
         const ok = await useConfirm().confirm({

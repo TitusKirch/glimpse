@@ -2,12 +2,23 @@
 // Right-click menu for a commit row: checkout, branch/tag here, cherry-pick,
 // revert, reset (soft/mixed/hard), copy hash. Wraps the row via the default
 // slot as the trigger.
+import { save } from '@tauri-apps/plugin-dialog';
+
 const props = defineProps<{ hash: string }>();
 
 const repo = useRepoStore();
 const { t } = useI18n();
 const copyText = useCopy();
 const rebasePlan = useRebasePlan();
+
+// Export this commit to a .patch file the user picks.
+async function exportPatch() {
+  const dest = await save({
+    defaultPath: `${props.hash.slice(0, 7)}.patch`,
+    filters: [{ name: 'Patch', extensions: ['patch'] }]
+  });
+  if (dest) await repo.exportPatch({ hash: props.hash, dest });
+}
 
 // When several commits are multi-selected (and this row is one of them), the
 // cherry-pick / revert actions operate on the whole selection.
@@ -102,6 +113,10 @@ const bulk = computed(
 
       <UiContextMenuSeparator />
 
+      <UiContextMenuItem @select="exportPatch">
+        <NuxtIcon name="lucide:file-down" />
+        {{ t('patch.export') }}
+      </UiContextMenuItem>
       <UiContextMenuItem @select="copyText(hash)">
         <NuxtIcon name="lucide:copy" />
         {{ t('commit.copyHash') }}

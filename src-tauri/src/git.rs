@@ -707,6 +707,28 @@ impl Repo {
         Ok(parse::log(&out))
     }
 
+    /// Write a commit as a `.patch` (mailbox) file to `dest` (an absolute path
+    /// the user picked in a native dialog — not an in-repo path, so the in-repo
+    /// guard does not apply). `git format-patch -1 --stdout`.
+    pub fn export_patch(&self, hash: &str, dest: &str) -> Result<(), String> {
+        reject_option(hash)?;
+        let content = self.run(&["format-patch", "-1", "--stdout", hash])?;
+        std::fs::write(dest, content).map_err(|e| format!("failed to write patch: {e}"))
+    }
+
+    /// Apply a patch file picked by the user. `am` (`--3way`) recreates commits
+    /// from a mailbox; `apply` patches only the working tree.
+    pub fn apply_patch(&self, src: &str, mode: &str) -> Result<String, String> {
+        let content =
+            std::fs::read_to_string(src).map_err(|e| format!("failed to read patch: {e}"))?;
+        let args: &[&str] = if mode == "apply" {
+            &["apply", "--whitespace=nowarn"]
+        } else {
+            &["am", "--3way"]
+        };
+        self.run_stdin(args, &content)
+    }
+
     /// All tracked file paths (`git ls-files`) — the corpus for the quick-open
     /// fuzzy finder.
     pub fn list_files(&self) -> Result<Vec<String>, String> {
