@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@tanstack/vue-form": "^1.33.0",
-    "@tanstack/vue-virtual": "^3.13.26",
+    "@tanstack/vue-virtual": "^3.13.27",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-deep-link": "^2.4.9",
     "@tauri-apps/plugin-dialog": "^2.7.1",
@@ -76,10 +76,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.0.1",
-    "@commitlint/config-conventional": "^21.0.1",
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
     "@iconify-json/flag": "^1.2.12",
-    "@iconify-json/lucide": "^1.2.110",
+    "@iconify-json/lucide": "^1.2.111",
     "@iconify-json/simple-icons": "^1.2.84",
     "@nuxt/icon": "^2.2.2",
     "@nuxtjs/color-mode": "^4.0.0",
@@ -88,17 +88,17 @@
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/cli": "^2.11.2",
     "@vitejs/plugin-vue": "^6.0.7",
-    "@vitest/coverage-v8": "4.1.7",
+    "@vitest/coverage-v8": "4.1.8",
     "@vue/test-utils": "^2.4.10",
     "happy-dom": "^20.9.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.5",
-    "oxfmt": "0.51.0",
-    "oxlint": "1.66.0",
+    "lint-staged": "^17.0.7",
+    "oxfmt": "0.53.0",
+    "oxlint": "1.68.0",
     "pinia-plugin-persistedstate": "^4.7.1",
     "shadcn-nuxt": "^2.7.3",
-    "taze": "^19.13.0",
-    "vitest": "^4.1.7"
+    "taze": "^19.14.1",
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=24"
