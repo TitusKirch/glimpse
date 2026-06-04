@@ -7,13 +7,45 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
-use notify_debouncer_mini::{new_debouncer, DebounceEventResult, Debouncer};
+use notify_debouncer_mini::notify::{
+    Config as NotifyConfig, PollWatcher, RecommendedWatcher, RecursiveMode,
+};
+use notify_debouncer_mini::{
+    new_debouncer, new_debouncer_opt, Config as DebouncerConfig, DebounceEventResult, Debouncer,
+};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-/// Holds the active filesystem watcher so it stays alive (dropping it stops
-/// watching). Only the most recently watched repo is tracked.
-struct WatcherState(Mutex<Option<Debouncer<RecommendedWatcher>>>);
+/// Default debounce window that coalesces a burst of FS events into a single
+/// refresh, and the poll cadence for the WSL fallback. Both are overridable via
+/// env vars (`GLIMPSE_WATCH_DEBOUNCE_MS`, `GLIMPSE_WSL_POLL_MS`) so they can be
+/// tuned without a rebuild, defaulting to these sensible values.
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(400);
+const WSL_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+/// Read a millisecond duration from `key`, falling back to `default` when unset
+/// or unparseable.
+fn duration_from_env(key: &str, default: Duration) -> Duration {
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(Duration::from_millis)
+        .unwrap_or(default)
+}
+
+/// The active filesystem watcher, kept alive so events keep flowing (dropping it
+/// stops watching). Native repos use the OS event backend; a `\\wsl$` repo uses
+/// a polling backend because native events aren't delivered over the 9P/SMB
+/// bridge. The two debouncers are distinct concrete types, hence the enum.
+/// The held debouncer is a drop-guard — never read, only kept alive.
+#[allow(dead_code)]
+enum RepoWatcher {
+    Native(Debouncer<RecommendedWatcher>),
+    Poll(Debouncer<PollWatcher>),
+}
+
+/// Holds the active filesystem watcher. Only the most recently watched repo is
+/// tracked.
+struct WatcherState(Mutex<Option<RepoWatcher>>);
 
 /// Per-repository write serialization. Every mutating git command takes its
 /// repo's lock, so two never run at once and can't collide on `index.lock`
@@ -404,8 +436,9 @@ async fn cli_install_status() -> Option<String> {
 }
 
 /// Watch `path` recursively and emit `repo-changed` (debounced) on any change,
-/// so the frontend can live-refresh. Replaces any previous watcher. Best-effort
-/// over `\\wsl$` shares — the on-focus refresh remains the fallback.
+/// so the frontend can live-refresh. Replaces any previous watcher. A `\\wsl$`
+/// repo is watched by polling (native FS events don't cross the 9P/SMB bridge);
+/// native repos use the efficient OS event backend.
 #[tauri::command]
 async fn watch_repo(
     app: AppHandle,
@@ -413,20 +446,37 @@ async fn watch_repo(
     path: String,
 ) -> Result<(), String> {
     let handle = app.clone();
-    let mut debouncer = new_debouncer(
-        Duration::from_millis(400),
-        move |res: DebounceEventResult| {
-            if res.is_ok() {
-                let _ = handle.emit("repo-changed", ());
-            }
-        },
-    )
-    .map_err(|e| e.to_string())?;
-    debouncer
-        .watcher()
-        .watch(Path::new(&path), RecursiveMode::Recursive)
-        .map_err(|e| e.to_string())?;
-    *state.0.lock().unwrap() = Some(debouncer);
+    let on_change = move |res: DebounceEventResult| {
+        if res.is_ok() {
+            let _ = handle.emit("repo-changed", ());
+        }
+    };
+    let debounce = duration_from_env("GLIMPSE_WATCH_DEBOUNCE_MS", WATCH_DEBOUNCE);
+
+    // Pick the backend per repo: polling for WSL (its native events are lost over
+    // the share), OS events otherwise. The debouncer coalesces a burst of changes
+    // into one `repo-changed` either way.
+    let watcher = if platform::resolve(&path).flavor == "wsl" {
+        let poll = duration_from_env("GLIMPSE_WSL_POLL_MS", WSL_POLL_INTERVAL);
+        let config = DebouncerConfig::default()
+            .with_timeout(debounce)
+            .with_notify_config(NotifyConfig::default().with_poll_interval(poll));
+        let mut debouncer =
+            new_debouncer_opt::<_, PollWatcher>(config, on_change).map_err(|e| e.to_string())?;
+        debouncer
+            .watcher()
+            .watch(Path::new(&path), RecursiveMode::Recursive)
+            .map_err(|e| e.to_string())?;
+        RepoWatcher::Poll(debouncer)
+    } else {
+        let mut debouncer = new_debouncer(debounce, on_change).map_err(|e| e.to_string())?;
+        debouncer
+            .watcher()
+            .watch(Path::new(&path), RecursiveMode::Recursive)
+            .map_err(|e| e.to_string())?;
+        RepoWatcher::Native(debouncer)
+    };
+    *state.0.lock().unwrap() = Some(watcher);
     Ok(())
 }
 

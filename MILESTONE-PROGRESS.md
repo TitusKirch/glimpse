@@ -11,7 +11,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## 0.5.0 — Performance & startup UX
 
-- ⏳ #45 Faster, reliable filesystem watching (polling fallback for WSL)
+- ✅ #45 Faster, reliable filesystem watching (polling fallback for WSL)
 - ⏳ #47 Faster session restore — instant tabs + lazy-load
 
 ## 0.6.0 — Staging, stash & history safety
@@ -38,3 +38,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 ## Log
 
 - Branch `feat/milestone-0-5-0` created from `dev`; progress file added.
+- #45: WSL repos now watched via `PollWatcher` (native events don't cross the
+  9P/SMB bridge); native repos keep the OS event backend. Debounce + poll
+  interval overridable via env. Live `\\wsl$` burst test needs a Windows build
+  (only buildable/observable there).
