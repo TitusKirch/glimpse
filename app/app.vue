@@ -400,5 +400,6 @@ const otherPullStrategies = computed(() =>
   <AddRemoteDialog />
   <OpenRepoDialog />
   <InitDialog />
+  <CloneDialog />
   <UiSonner />
 </template>

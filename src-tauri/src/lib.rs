@@ -449,6 +449,19 @@ async fn set_config(path: String, key: String, value: String, global: bool) -> R
     git::Repo::open(&path).config_set(&key, &value, global)
 }
 
+/// Clone `url` into the existing directory `path`, returning the new repo's host
+/// path so the frontend can open it in a tab.
+#[tauri::command]
+async fn clone_repo(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    url: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).clone_repo(&url, &path)
+    })
+}
+
 /// Initialise a new repository in the existing directory `path` (optional initial
 /// branch), returning its toplevel host path.
 #[tauri::command]
@@ -1091,6 +1104,7 @@ pub fn run() {
             repo_info,
             get_config,
             set_config,
+            clone_repo,
             init_repo,
             git_log,
             git_status,

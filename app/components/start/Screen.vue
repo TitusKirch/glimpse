@@ -7,6 +7,7 @@ const repo = useRepoStore();
 const recent = useRecentStore();
 const settings = useSettingsStore();
 const initOverlay = useOverlay('init');
+const cloneOverlay = useOverlay('clone');
 const { t } = useI18n();
 
 // Recent repos shown on the start screen, capped (and never more than stored).
@@ -48,6 +49,13 @@ async function pick() {
         @click="initOverlay.show()"
       >
         {{ t('actions.initRepo') }}
+      </UiButton>
+      <UiButton
+        variant="outline"
+        icon="lucide:cloud-download"
+        @click="cloneOverlay.show()"
+      >
+        {{ t('actions.cloneRepo') }}
       </UiButton>
     </div>
 

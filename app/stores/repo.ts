@@ -294,6 +294,16 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Clone `url` into `parent` and open the new repo in a tab. Returns the new
+    // path; errors propagate so the dialog can toast.
+    async cloneRepo({ url, parent }: { url: string; parent: string }) {
+      return this.native(async () => {
+        const path = await gitClient.cloneRepo({ path: parent, url });
+        if (path) await this.openRepo(path);
+        return path;
+      });
+    },
+
     // Point the backend FS watcher at the active repo (live-refresh source).
     watchActive() {
       if (isTauri() && this.active) void gitClient.watchRepo(this.active.path);

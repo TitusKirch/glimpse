@@ -29,7 +29,8 @@
     "refresh": "Aktualisieren",
     "openRepo": "Repository öffnen",
     "closeRepo": "Repository schließen",
-    "initRepo": "Repository initialisieren"
+    "initRepo": "Repository initialisieren",
+    "cloneRepo": "Repository klonen"
   },
   "theme": {
     "toggle": "Theme umschalten"
@@ -63,6 +64,21 @@
       "label": "Initialer Branch (optional)",
       "placeholder": "main",
       "description": "Leer lassen für den git-Standard."
+    }
+  },
+  "clone": {
+    "title": "Repository klonen",
+    "submit": "Klonen",
+    "failed": "Repository konnte nicht geklont werden",
+    "url": {
+      "label": "Repository-URL",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "HTTPS- oder SSH-URL."
+    },
+    "folder": {
+      "label": "Klonen nach",
+      "placeholder": "Ordner wählen…",
+      "description": "Ein Unterordner wird aus dem Repository-Namen erstellt."
     }
   },
   "form": {

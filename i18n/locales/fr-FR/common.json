@@ -29,7 +29,8 @@
     "refresh": "Actualiser",
     "openRepo": "Ouvrir un dépôt",
     "closeRepo": "Fermer le dépôt",
-    "initRepo": "Initialiser un dépôt"
+    "initRepo": "Initialiser un dépôt",
+    "cloneRepo": "Cloner un dépôt"
   },
   "theme": {
     "toggle": "Changer de thème"
@@ -63,6 +64,21 @@
       "label": "Branche initiale (optionnel)",
       "placeholder": "main",
       "description": "Laisser vide pour utiliser la valeur par défaut de git."
+    }
+  },
+  "clone": {
+    "title": "Cloner un dépôt",
+    "submit": "Cloner",
+    "failed": "Impossible de cloner le dépôt",
+    "url": {
+      "label": "URL du dépôt",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "URL HTTPS ou SSH."
+    },
+    "folder": {
+      "label": "Cloner dans",
+      "placeholder": "Choisir un dossier…",
+      "description": "Un sous-dossier est créé à partir du nom du dépôt."
     }
   },
   "form": {

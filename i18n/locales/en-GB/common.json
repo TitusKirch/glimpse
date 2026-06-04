@@ -29,7 +29,8 @@
     "refresh": "Refresh",
     "openRepo": "Open repository",
     "closeRepo": "Close repository",
-    "initRepo": "Initialise repository"
+    "initRepo": "Initialise repository",
+    "cloneRepo": "Clone repository"
   },
   "theme": {
     "toggle": "Toggle theme"
@@ -63,6 +64,21 @@
       "label": "Initial branch (optional)",
       "placeholder": "main",
       "description": "Leave empty to use git's default."
+    }
+  },
+  "clone": {
+    "title": "Clone repository",
+    "submit": "Clone",
+    "failed": "Couldn't clone the repository",
+    "url": {
+      "label": "Repository URL",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "HTTPS or SSH URL."
+    },
+    "folder": {
+      "label": "Clone into",
+      "placeholder": "Choose a folder…",
+      "description": "A subfolder is created from the repository name."
     }
   },
   "form": {

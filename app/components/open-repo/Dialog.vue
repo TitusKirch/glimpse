@@ -5,6 +5,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const { open, hide } = useOverlay('openRepo');
 const initOverlay = useOverlay('init');
+const cloneOverlay = useOverlay('clone');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const settings = useSettingsStore();
@@ -39,6 +40,11 @@ function startInit() {
   hide();
   initOverlay.show();
 }
+
+function startClone() {
+  hide();
+  cloneOverlay.show();
+}
 </script>
 
 <template>
@@ -62,6 +68,15 @@ function startInit() {
         @click="startInit"
       >
         {{ t('actions.initRepo') }}
+      </UiButton>
+
+      <UiButton
+        class="w-full"
+        variant="outline"
+        icon="lucide:cloud-download"
+        @click="startClone"
+      >
+        {{ t('actions.cloneRepo') }}
       </UiButton>
 
       <div v-if="recent.repos.length" class="min-w-0">

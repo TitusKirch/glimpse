@@ -104,6 +104,15 @@ export const gitClient = {
       fallback: ''
     }),
 
+  // Clone `url` into the existing folder `path`; resolves to the new repo's path
+  // so the caller can open it.
+  cloneRepo: ({ path, url }: { path: string; url: string }) =>
+    tauriInvoke<string>({
+      command: 'clone_repo',
+      args: { path, url },
+      fallback: ''
+    }),
+
   log: ({ path, limit = 100 }: { path: string; limit?: number }) =>
     tauriInvoke<Commit[]>({
       command: 'git_log',

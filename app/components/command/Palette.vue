@@ -11,6 +11,7 @@ const { open, hide } = useOverlay('commandPalette');
 const settings = useOverlay('settings');
 const help = useOverlay('help');
 const initRepo = useOverlay('init');
+const cloneRepo = useOverlay('clone');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -253,6 +254,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:folder-plus',
       labelKey: 'actions.initRepo',
       run: () => initRepo.show(),
+      visible: true
+    },
+    {
+      id: 'clone-repository',
+      group: 'repository',
+      icon: 'lucide:cloud-download',
+      labelKey: 'actions.cloneRepo',
+      run: () => cloneRepo.show(),
       visible: true
     },
     {

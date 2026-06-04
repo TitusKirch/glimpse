@@ -75,6 +75,15 @@ pub fn is_unsafe_path(v: &str) -> bool {
         || v.bytes().any(|b| b == b'\n' || b == b'\r' || b == 0)
 }
 
+/// Derive the directory `git clone` creates from a remote URL — git's "humanish"
+/// name: the last path segment with a trailing `.git` removed.
+/// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
+fn clone_dir_name(url: &str) -> &str {
+    let trimmed = url.trim_end_matches('/');
+    let last = trimmed.rsplit(['/', ':']).next().unwrap_or(trimmed);
+    last.strip_suffix(".git").unwrap_or(last)
+}
+
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Commit {
@@ -759,6 +768,19 @@ impl Repo {
         args.push(key);
         args.push(value);
         self.run(&args).map(|_| ())
+    }
+
+    /// Clone `url` into `parent` (an existing directory), returning the host path
+    /// of the freshly created repo so the caller can open it. Routed through
+    /// `parent`, so a `\\wsl$` parent clones inside the distro.
+    pub fn clone_repo(&self, url: &str, parent: &str) -> Result<String, String> {
+        reject_option(url)?;
+        self.run(&["clone", "--", url])?;
+        let name = clone_dir_name(url);
+        let name = if name.is_empty() { "repo" } else { name };
+        // `parse_wsl_path` normalises separators, so a `/` join round-trips for
+        // both native and `\\wsl$` parents.
+        Ok(format!("{}/{}", parent.trim_end_matches(['/', '\\']), name))
     }
 
     /// Initialise a new repository in this directory (which must exist), with an

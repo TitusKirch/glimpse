@@ -29,7 +29,8 @@
     "refresh": "Actualizar",
     "openRepo": "Abrir repositorio",
     "closeRepo": "Cerrar repositorio",
-    "initRepo": "Inicializar repositorio"
+    "initRepo": "Inicializar repositorio",
+    "cloneRepo": "Clonar repositorio"
   },
   "theme": {
     "toggle": "Cambiar tema"
@@ -63,6 +64,21 @@
       "label": "Rama inicial (opcional)",
       "placeholder": "main",
       "description": "Déjalo vacío para usar el valor predeterminado de git."
+    }
+  },
+  "clone": {
+    "title": "Clonar repositorio",
+    "submit": "Clonar",
+    "failed": "No se pudo clonar el repositorio",
+    "url": {
+      "label": "URL del repositorio",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "URL HTTPS o SSH."
+    },
+    "folder": {
+      "label": "Clonar en",
+      "placeholder": "Elige una carpeta…",
+      "description": "Se crea una subcarpeta con el nombre del repositorio."
     }
   },
   "form": {
