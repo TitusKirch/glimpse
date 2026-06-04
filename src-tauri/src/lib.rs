@@ -751,6 +751,16 @@ async fn rebase_commits(path: String, start: String) -> Result<Vec<git::Commit>,
     git::Repo::open(&path).rebase_commits(&start)
 }
 
+/// Pickaxe search: commits that add/remove `query` (`-S`, or `-G` regex).
+#[tauri::command]
+async fn search_commits(
+    path: String,
+    query: String,
+    regex: bool,
+) -> Result<Vec<git::Commit>, String> {
+    git::Repo::open(&path).search_commits(&query, regex)
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1417,6 +1427,7 @@ pub fn run() {
             rebase_abort,
             interactive_rebase,
             rebase_commits,
+            search_commits,
             bisect_start,
             bisect_mark,
             bisect_reset,

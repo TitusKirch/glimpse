@@ -2,6 +2,7 @@
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useForm } from '@tanstack/vue-form';
 import { z } from 'zod';
+import type { Commit } from '~/types/bindings';
 
 const repo = useRepoStore();
 const { refLabel, fullRefLabel } = useBranchLabel();
@@ -65,6 +66,43 @@ const filtered = computed(() => {
   );
 });
 
+// Content (pickaxe) search: -S / -G over the actual diffs, run on the backend
+// and toggled from the message search. It runs on Enter (a git call per query)
+// and feeds its own results into the same flat list.
+const content = ref(false);
+const regex = ref(false);
+const pickaxeResults = ref<Commit[]>([]);
+
+async function runPickaxe() {
+  const q = query.value.trim();
+  if (!content.value || !q) {
+    pickaxeResults.value = [];
+    return;
+  }
+  pickaxeResults.value = await gitClient.searchCommits({
+    path: repo.repoPath,
+    query: q,
+    regex: regex.value
+  });
+}
+function toggleContent() {
+  content.value = !content.value;
+  void runPickaxe();
+}
+function toggleRegex() {
+  regex.value = !regex.value;
+  void runPickaxe();
+}
+
+// The flat list shows pickaxe hits in content mode, else the message filter.
+const results = computed(() =>
+  content.value ? pickaxeResults.value : filtered.value
+);
+// Leaving content mode or clearing the query drops stale pickaxe hits.
+watch([content, query], () => {
+  if (!content.value || !query.value.trim()) pickaxeResults.value = [];
+});
+
 // Map a ref type to a semantic badge variant (no per-call colour classes):
 // HEAD = success, tag = warning, remote-tracking = outline, local = info.
 function refVariant(ref: string) {
@@ -102,22 +140,53 @@ function refVariant(ref: string) {
       <searchForm.Field v-slot="{ field }" name="query">
         <UiInput
           :model-value="field.state.value"
-          :placeholder="t('history.search')"
-          class="h-8 pl-8 text-sm"
+          :placeholder="
+            content ? t('history.searchContent') : t('history.search')
+          "
+          class="h-8 pr-16 pl-8 text-sm"
           @input="field.handleChange(($event.target as HTMLInputElement).value)"
+          @keydown.enter="runPickaxe"
         />
       </searchForm.Field>
+      <div
+        class="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-0.5"
+      >
+        <UiTooltip v-if="content">
+          <UiTooltipTrigger as-child>
+            <UiButton
+              variant="ghost"
+              size="icon-sm"
+              icon="lucide:regex"
+              :class="regex && 'text-primary'"
+              @click="toggleRegex"
+            />
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('history.regex') }}</UiTooltipContent>
+        </UiTooltip>
+        <UiTooltip>
+          <UiTooltipTrigger as-child>
+            <UiButton
+              variant="ghost"
+              size="icon-sm"
+              icon="lucide:file-search"
+              :class="content && 'text-primary'"
+              @click="toggleContent"
+            />
+          </UiTooltipTrigger>
+          <UiTooltipContent>{{ t('history.contentSearch') }}</UiTooltipContent>
+        </UiTooltip>
+      </div>
     </div>
 
     <!-- filtered flat list -->
     <div v-if="query" class="min-h-0 flex-1 overflow-auto">
       <EmptyState
-        v-if="!filtered.length"
+        v-if="!results.length"
         icon="lucide:search-x"
         :title="t('history.noMatches')"
       />
       <ul v-else>
-        <CommitContextMenu v-for="c in filtered" :key="c.hash" :hash="c.hash">
+        <CommitContextMenu v-for="c in results" :key="c.hash" :hash="c.hash">
           <li
             class="flex cursor-pointer items-center gap-3 border-l py-2 pr-3 pl-3 transition-colors"
             :class="

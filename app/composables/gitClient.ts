@@ -398,6 +398,21 @@ export const gitClient = {
       args: { path, start },
       fallback: []
     }),
+  // Pickaxe search: commits that add/remove `query` (-S, or -G when regex).
+  searchCommits: ({
+    path,
+    query,
+    regex
+  }: {
+    path: string;
+    query: string;
+    regex: boolean;
+  }) =>
+    tauriInvoke<Commit[]>({
+      command: 'search_commits',
+      args: { path, query, regex },
+      fallback: []
+    }),
   // Run an interactive rebase from a plan; `base` is the parent to replay onto
   // (empty for a root rebase).
   interactiveRebase: ({

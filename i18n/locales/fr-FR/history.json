@@ -8,6 +8,9 @@
     "empty": "Aucun commit pour le moment",
     "emptyHint": "Cette branche n'a aucun historique à afficher.",
     "search": "Rechercher des commits…",
+    "searchContent": "Rechercher dans le contenu… (Entrée)",
+    "contentSearch": "Rechercher dans le contenu (pickaxe)",
+    "regex": "Traiter la requête comme une regex (-G)",
     "noMatches": "Aucun commit correspondant",
     "loadMore": "Charger plus d'historique"
   }

@@ -520,6 +520,25 @@ impl Repo {
         Ok(parse::log(&out))
     }
 
+    /// Pickaxe history search: commits that change the number of occurrences of
+    /// `query` (`-S`), or — when `regex` — whose diff has a line matching it as a
+    /// regex (`-G`). `query` is concatenated onto the flag so it is always the
+    /// search value, never a separate option. Capped and newest-first.
+    pub fn search_commits(&self, query: &str, regex: bool) -> Result<Vec<Commit>, String> {
+        if query.is_empty() {
+            return Ok(Vec::new());
+        }
+        let flag = if regex {
+            format!("-G{query}")
+        } else {
+            format!("-S{query}")
+        };
+        let fmt =
+            format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
+        let out = self.run(&["log", "--all", "--date=short", "-n200", &fmt, &flag])?;
+        Ok(parse::log(&out))
+    }
+
     /// Read the HEAD reflog — the recovery trail for resets/rebases/commits.
     pub fn reflog(&self, limit: u32) -> Result<Vec<ReflogEntry>, String> {
         let fmt = format!("--format=%gd{US}%h{US}%gs");
