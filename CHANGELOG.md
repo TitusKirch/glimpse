@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/TitusKirch/glimpse/compare/v0.6.0...v0.7.0) (2026-06-04)
+
+
+### Features
+
+* **compare:** compare two arbitrary refs ([60e7cda](https://github.com/TitusKirch/glimpse/commit/60e7cdaa7fcfa25a26621f9f0554fb2dbb82209e)), closes [#27](https://github.com/TitusKirch/glimpse/issues/27)
+* **rebase:** rebase the current branch onto another ref ([cd34b41](https://github.com/TitusKirch/glimpse/commit/cd34b41f999072174e3d2b86dbccddc0903cb405)), closes [#25](https://github.com/TitusKirch/glimpse/issues/25)
+
 ## [0.6.0](https://github.com/TitusKirch/glimpse/compare/v0.5.0...v0.6.0) (2026-06-04)
 
 
