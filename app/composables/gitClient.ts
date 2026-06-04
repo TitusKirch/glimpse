@@ -15,7 +15,8 @@ import type {
   DiffData,
   ReflogEntry,
   RepoInfo,
-  StatusEntry
+  StatusEntry,
+  Worktree
 } from '~/types/bindings';
 import type { PullStrategy } from '~/stores/layout';
 
@@ -398,6 +399,34 @@ export const gitClient = {
     tauriInvoke<null>({
       command: 'bisect_reset',
       args: { path },
+      fallback: null
+    }),
+
+  // Worktrees: list, add (optional ref), remove.
+  worktrees: (path: string) =>
+    tauriInvoke<Worktree[]>({
+      command: 'worktrees',
+      args: { path },
+      fallback: []
+    }),
+  worktreeAdd: ({
+    path,
+    wtPath,
+    reference
+  }: {
+    path: string;
+    wtPath: string;
+    reference: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'worktree_add',
+      args: { path, wtPath, reference },
+      fallback: null
+    }),
+  worktreeRemove: ({ path, wtPath }: { path: string; wtPath: string }) =>
+    tauriInvoke<null>({
+      command: 'worktree_remove',
+      args: { path, wtPath },
       fallback: null
     }),
 

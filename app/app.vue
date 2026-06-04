@@ -405,5 +405,6 @@ const otherPullStrategies = computed(() =>
   <ReflogDialog />
   <CompareDialog />
   <BisectDialog />
+  <WorktreesDialog />
   <UiSonner />
 </template>

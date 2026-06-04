@@ -765,6 +765,27 @@ export const useRepoStore = defineStore('repo', {
       );
     },
 
+    // Worktrees affect the linked-worktree set, not the active repo's view, so
+    // these don't reload it; the worktrees dialog refetches its own list.
+    async worktreeAdd({ path, ref }: { path: string; ref?: string }) {
+      return this.mutate({
+        run: () =>
+          gitClient.worktreeAdd({
+            path: this.repoPath,
+            wtPath: path,
+            reference: ref ?? ''
+          }),
+        refresh: 'none'
+      });
+    },
+    async worktreeRemove(path: string) {
+      return this.mutate({
+        run: () =>
+          gitClient.worktreeRemove({ path: this.repoPath, wtPath: path }),
+        refresh: 'none'
+      });
+    },
+
     // Discard every working-tree change (confirms first — irreversible).
     async discardAll() {
       if (!this.status.length) return;

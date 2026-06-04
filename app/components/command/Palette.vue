@@ -16,6 +16,7 @@ const stashOverlay = useOverlay('stash');
 const reflogOverlay = useOverlay('reflog');
 const compareOverlay = useOverlay('compare');
 const bisectOverlay = useOverlay('bisect');
+const worktreesOverlay = useOverlay('worktrees');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -306,6 +307,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:bug',
       labelKey: 'command.bisect',
       run: () => bisectOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'worktrees',
+      group: 'repository',
+      icon: 'lucide:folder-git-2',
+      labelKey: 'command.worktrees',
+      run: () => worktreesOverlay.show(),
       visible: hasRepos
     },
     {

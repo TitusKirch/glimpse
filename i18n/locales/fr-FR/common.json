@@ -234,7 +234,8 @@
     "reflog": "Reflog (récupérer l'historique)",
     "undoLast": "Annuler la dernière action",
     "compareRefs": "Comparer des réfs…",
-    "bisect": "Lancer un bisect…"
+    "bisect": "Lancer un bisect…",
+    "worktrees": "Worktrees…"
   },
   "stash": {
     "title": "Remiser les modifications",
@@ -243,6 +244,19 @@
     "untracked": "non suivi",
     "nothing": "Aucune modification à remiser.",
     "submit": "Remiser"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Ajouter un worktree",
+    "addHint": "Choisissez un dossier neuf ou vide ; un réf optionnel y est extrait.",
+    "refOptional": "Branche / réf (optionnel)",
+    "open": "Ouvrir",
+    "remove": "Supprimer",
+    "locked": "verrouillé",
+    "removeConfirm": {
+      "title": "Supprimer le worktree ?",
+      "description": "Supprime le worktree lié (ses fichiers extraits). La branche et l'historique sont conservés."
+    }
   },
   "bisect": {
     "title": "Lancer un bisect",

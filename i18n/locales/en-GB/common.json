@@ -234,7 +234,8 @@
     "reflog": "Reflog (recover history)",
     "undoLast": "Undo last action",
     "compareRefs": "Compare refs…",
-    "bisect": "Start bisect…"
+    "bisect": "Start bisect…",
+    "worktrees": "Worktrees…"
   },
   "stash": {
     "title": "Stash changes",
@@ -243,6 +244,19 @@
     "untracked": "untracked",
     "nothing": "No changes to stash.",
     "submit": "Stash"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Add worktree",
+    "addHint": "Pick a new or empty folder; an optional ref is checked out there.",
+    "refOptional": "Branch / ref (optional)",
+    "open": "Open",
+    "remove": "Remove",
+    "locked": "locked",
+    "removeConfirm": {
+      "title": "Remove worktree?",
+      "description": "Removes the linked worktree (its checked-out files). The branch and history are kept."
+    }
   },
   "bisect": {
     "title": "Start bisect",

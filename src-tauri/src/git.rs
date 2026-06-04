@@ -197,6 +197,19 @@ pub struct ReflogEntry {
     pub subject: String,
 }
 
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Worktree {
+    pub path: String,
+    /// Short branch name, or empty when detached/bare.
+    pub branch: String,
+    /// Abbreviated HEAD hash (empty for a bare worktree).
+    pub head: String,
+    pub bare: bool,
+    pub detached: bool,
+    pub locked: bool,
+}
+
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
@@ -666,6 +679,37 @@ impl Repo {
         self.run(&["bisect", "reset"]).map(|_| ())
     }
 
+    /// List linked worktrees. Paths are mapped back to host paths so they can be
+    /// opened as their own repo tab (round-trips a `\\wsl$` worktree).
+    pub fn worktrees(&self) -> Result<Vec<Worktree>, String> {
+        let raw = self.run(&["worktree", "list", "--porcelain"])?;
+        let mut worktrees = parse::worktrees(&raw);
+        for wt in &mut worktrees {
+            wt.path = self.target.host_path(&wt.path);
+        }
+        Ok(worktrees)
+    }
+
+    /// Add a worktree at `path`, optionally checking out `reference` (an existing
+    /// branch/commit; empty creates one on a new branch named after the path).
+    /// `path` is a filesystem location the user picked, so a leading-dash guard —
+    /// not the repo-relative path guard — is the right check.
+    pub fn worktree_add(&self, path: &str, reference: &str) -> Result<(), String> {
+        reject_option(path)?;
+        let mut args = vec!["worktree", "add", path];
+        if !reference.is_empty() {
+            reject_option(reference)?;
+            args.push(reference);
+        }
+        self.run(&args).map(|_| ())
+    }
+
+    /// Remove a linked worktree.
+    pub fn worktree_remove(&self, path: &str) -> Result<(), String> {
+        reject_option(path)?;
+        self.run(&["worktree", "remove", path]).map(|_| ())
+    }
+
     /// Discard every working-tree change: restore tracked files to HEAD and
     /// remove untracked files/dirs.
     pub fn discard_all(&self) -> Result<(), String> {
@@ -1031,6 +1075,7 @@ fn export_bindings() {
         Commit::decl(),
         Branch::decl(),
         ReflogEntry::decl(),
+        Worktree::decl(),
         StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),

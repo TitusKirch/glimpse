@@ -234,7 +234,8 @@
     "reflog": "Reflog (Verlauf wiederherstellen)",
     "undoLast": "Letzte Aktion rückgängig",
     "compareRefs": "Refs vergleichen…",
-    "bisect": "Bisect starten…"
+    "bisect": "Bisect starten…",
+    "worktrees": "Worktrees…"
   },
   "stash": {
     "title": "Änderungen stashen",
@@ -243,6 +244,19 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Worktree hinzufügen",
+    "addHint": "Wähle einen neuen oder leeren Ordner; ein optionaler Ref wird dort ausgecheckt.",
+    "refOptional": "Branch / Ref (optional)",
+    "open": "Öffnen",
+    "remove": "Entfernen",
+    "locked": "gesperrt",
+    "removeConfirm": {
+      "title": "Worktree entfernen?",
+      "description": "Entfernt den verknüpften Worktree (seine ausgecheckten Dateien). Branch und Verlauf bleiben erhalten."
+    }
   },
   "bisect": {
     "title": "Bisect starten",

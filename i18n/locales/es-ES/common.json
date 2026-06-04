@@ -234,7 +234,8 @@
     "reflog": "Reflog (recuperar historial)",
     "undoLast": "Deshacer última acción",
     "compareRefs": "Comparar refs…",
-    "bisect": "Iniciar bisect…"
+    "bisect": "Iniciar bisect…",
+    "worktrees": "Worktrees…"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -243,6 +244,19 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Añadir worktree",
+    "addHint": "Elige una carpeta nueva o vacía; se hace checkout de un ref opcional allí.",
+    "refOptional": "Rama / ref (opcional)",
+    "open": "Abrir",
+    "remove": "Eliminar",
+    "locked": "bloqueado",
+    "removeConfirm": {
+      "title": "¿Eliminar worktree?",
+      "description": "Elimina el worktree vinculado (sus archivos). La rama y el historial se conservan."
+    }
   },
   "bisect": {
     "title": "Iniciar bisect",

@@ -745,6 +745,37 @@ async fn bisect_reset(locks: State<'_, RepoLocks>, path: String) -> Result<(), S
     locked(&locks, &path, || git::Repo::open(&path).bisect_reset())
 }
 
+/// List linked worktrees.
+#[tauri::command]
+async fn worktrees(path: String) -> Result<Vec<git::Worktree>, String> {
+    git::Repo::open(&path).worktrees()
+}
+
+/// Add a worktree at `wt_path`, optionally checking out `reference`.
+#[tauri::command]
+async fn worktree_add(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    wt_path: String,
+    reference: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).worktree_add(&wt_path, &reference)
+    })
+}
+
+/// Remove a linked worktree.
+#[tauri::command]
+async fn worktree_remove(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    wt_path: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).worktree_remove(&wt_path)
+    })
+}
+
 #[tauri::command]
 async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
@@ -1306,6 +1337,9 @@ pub fn run() {
             bisect_start,
             bisect_mark,
             bisect_reset,
+            worktrees,
+            worktree_add,
+            worktree_remove,
             discard_all,
             create_branch,
             create_branch_at,

@@ -54,6 +54,21 @@ export type ReflogEntry = {
   subject: string;
 };
 
+export type Worktree = {
+  path: string;
+  /**
+   * Short branch name, or empty when detached/bare.
+   */
+  branch: string;
+  /**
+   * Abbreviated HEAD hash (empty for a bare worktree).
+   */
+  head: string;
+  bare: boolean;
+  detached: boolean;
+  locked: boolean;
+};
+
 export type StashEntry = {
   /**
    * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.

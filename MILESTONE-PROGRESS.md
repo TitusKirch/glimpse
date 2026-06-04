@@ -40,12 +40,17 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 - ⏳ #34 Submodule support
 - ⏳ #35 Git LFS support
-- ⏳ #36 Worktree management
+- ✅ #36 Worktree management
 - ✅ #37 Bisect
 - ⏳ #38 Sparse-checkout
 
 ## Log
 
+- #36: `worktrees` (porcelain parse, paths host-mapped) + `worktree_add` /
+  `worktree_remove`; Worktrees dialog lists them with open-as-tab + remove and an
+  add (folder picker + optional ref); command-palette entry. List + open work on
+  WSL (paths round-trip); add/remove on WSL is best-effort (a `\\wsl$` target
+  may need a distro-local path) — native is fully correct.
 - Branch `feat/milestone-0-8-0` based on 0-7-0.
 - #37: `bisect_start` / `bisect_mark` (good/bad/skip) / `bisect_reset`;
   `RepoInfo.bisectInProgress` (`git bisect log` probe) drives a banner in the
