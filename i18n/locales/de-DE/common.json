@@ -321,6 +321,17 @@
       "drop": "Verwerfen"
     }
   },
+  "merge": {
+    "open": "Merge-Editor…",
+    "title": "Konflikte lösen",
+    "region": "Konflikt",
+    "ours": "Unsere",
+    "theirs": "Ihre",
+    "both": "Beide",
+    "base": "Basis",
+    "save": "Lösung speichern",
+    "regions": "{n} Konflikte"
+  },
   "patch": {
     "export": "Als Patch exportieren…",
     "apply": "Patch anwenden…"

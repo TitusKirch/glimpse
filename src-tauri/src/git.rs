@@ -1615,6 +1615,26 @@ impl Repo {
         self.run(&["add", "--", file]).map(|_| ())
     }
 
+    /// The working-tree content of a conflicted file, with its conflict markers,
+    /// for the merge editor to parse into regions.
+    pub fn conflict_content(&self, file: &str) -> Result<String, String> {
+        reject_unsafe_path(file)?;
+        Ok(self.target.read_file(file).unwrap_or_default())
+    }
+
+    /// Write a resolved file (from the merge editor) and stage it. The path is
+    /// written through the host view so it works natively and over `\\wsl$`.
+    pub fn resolve_conflict_save(&self, file: &str, content: &str) -> Result<(), String> {
+        reject_unsafe_path(file)?;
+        let top = self
+            .run(&["rev-parse", "--show-toplevel"])?
+            .trim()
+            .to_string();
+        let host = self.target.host_path(&format!("{top}/{file}"));
+        std::fs::write(&host, content).map_err(|e| format!("failed to write file: {e}"))?;
+        self.run(&["add", "--", file]).map(|_| ())
+    }
+
     /// Push the current branch. `set_upstream` publishes a new branch and
     /// records its upstream (`-u origin HEAD`); `force` uses the safe
     /// `--force-with-lease` (never the unconditional `--force`).

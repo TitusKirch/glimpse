@@ -767,6 +767,25 @@ async fn image_diff(path: String, file: String) -> Result<git::ImageDiff, String
     git::Repo::open(&path).image_diff(&file)
 }
 
+/// The conflicted working file's content (with markers) for the merge editor.
+#[tauri::command]
+async fn conflict_content(path: String, file: String) -> Result<String, String> {
+    git::Repo::open(&path).conflict_content(&file)
+}
+
+/// Save a merge-editor resolution and stage the file.
+#[tauri::command]
+async fn resolve_conflict_save(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    content: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).resolve_conflict_save(&file, &content)
+    })
+}
+
 /// Repository insights (contributors, activity, churn) from `git log`.
 #[tauri::command]
 async fn repo_stats(path: String) -> Result<git::RepoStats, String> {
@@ -1466,6 +1485,8 @@ pub fn run() {
             file_history,
             blame,
             image_diff,
+            conflict_content,
+            resolve_conflict_save,
             apply_hunk,
             discard_hunk,
             apply_lines,

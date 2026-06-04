@@ -321,6 +321,17 @@
       "drop": "Drop"
     }
   },
+  "merge": {
+    "open": "Merge editor…",
+    "title": "Resolve conflicts",
+    "region": "Conflict",
+    "ours": "Ours",
+    "theirs": "Theirs",
+    "both": "Both",
+    "base": "Base",
+    "save": "Save resolution",
+    "regions": "{n} conflicts"
+  },
   "patch": {
     "export": "Export as patch…",
     "apply": "Apply patch…"

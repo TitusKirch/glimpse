@@ -608,6 +608,15 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Save a resolution built in the merge editor and stage the file.
+    async saveResolution({ file, content }: { file: string; content: string }) {
+      return this.mutate({
+        run: () =>
+          gitClient.resolveConflictSave({ path: this.repoPath, file, content }),
+        refresh: 'status'
+      });
+    },
+
     async createBranch(name: string) {
       const trimmed = name.trim();
       if (!trimmed) return;

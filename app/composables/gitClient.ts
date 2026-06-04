@@ -248,6 +248,29 @@ export const gitClient = {
       fallback: { totalCommits: 0, contributors: [], activity: [], churn: [] }
     }),
 
+  // The conflicted working file's content (with markers) for the merge editor.
+  conflictContent: ({ path, file }: { path: string; file: string }) =>
+    tauriInvoke<string>({
+      command: 'conflict_content',
+      args: { path, file },
+      fallback: ''
+    }),
+  // Save a merge-editor resolution and stage the file.
+  resolveConflictSave: ({
+    path,
+    file,
+    content
+  }: {
+    path: string;
+    file: string;
+    content: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'resolve_conflict_save',
+      args: { path, file, content },
+      fallback: null
+    }),
+
   // Both sides of an image file as data: URLs (committed vs working tree).
   imageDiff: ({ path, file }: { path: string; file: string }) =>
     tauriInvoke<ImageDiff>({

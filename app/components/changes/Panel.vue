@@ -5,6 +5,7 @@ import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
 const settings = useSettingsStore();
+const mergeEditor = useMergeEditor();
 const { t } = useI18n();
 
 const modLabel = navigator.platform.toLowerCase().includes('mac')
@@ -227,6 +228,11 @@ onMounted(autoResize);
                 />
               </UiDropdownMenuTrigger>
               <UiDropdownMenuContent align="end">
+                <UiDropdownMenuItem @click="mergeEditor.show(file.path)">
+                  <NuxtIcon name="lucide:git-merge" />
+                  {{ t('merge.open') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuSeparator />
                 <UiDropdownMenuItem
                   @click="
                     repo.resolveConflict({ file: file.path, side: 'ours' })

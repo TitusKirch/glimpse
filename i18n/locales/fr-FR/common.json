@@ -321,6 +321,17 @@
       "drop": "Supprimer"
     }
   },
+  "merge": {
+    "open": "Éditeur de fusion…",
+    "title": "Résoudre les conflits",
+    "region": "Conflit",
+    "ours": "Nôtres",
+    "theirs": "Leurs",
+    "both": "Les deux",
+    "base": "Base",
+    "save": "Enregistrer la résolution",
+    "regions": "{n} conflits"
+  },
   "patch": {
     "export": "Exporter en patch…",
     "apply": "Appliquer un patch…"
