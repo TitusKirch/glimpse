@@ -10,25 +10,26 @@ defineProps<{ form: SettingsForm; persist: SettingsPersist }>();
 const { t } = useI18n();
 const settings = useSettingsStore();
 
-// Install the `glimpse` command-line launcher onto PATH (desktop only — the row
-// is hidden in the browser demo). Idempotent; re-running just refreshes it (and
-// reaches the WSL distros), so the inline "reinstall" link stays available even
-// once `glimpse` is detected on PATH. The button shows a spinner while it works
-// and disables itself once installed; the status is re-checked when the page
-// mounts (each time the dialog opens on General).
+// The `glimpse` command-line launcher onto PATH (desktop only — the row is
+// hidden in the browser demo). Its installed state is cached (checked on boot),
+// so `installedPath` is already correct when the dialog opens — no enabled→
+// disabled flash; we just re-check in the background on mount. Installing is
+// idempotent and re-running reaches the WSL distros, so the inline "reinstall"
+// link stays available even once `glimpse` is detected on PATH. The button shows
+// a spinner while it works and disables itself once installed.
+const {
+  installedPath,
+  refresh: refreshCli,
+  install: installCliLauncher
+} = useCliInstall();
 const installingCli = ref(false);
-const cliInstalledPath = ref<string | null>(null);
 
-onMounted(async () => {
-  if (!isTauri()) return;
-  cliInstalledPath.value = await gitClient.cliInstallStatus();
-});
+onMounted(refreshCli);
 
 async function installCli() {
   installingCli.value = true;
   try {
-    const path = await gitClient.installCli();
-    cliInstalledPath.value = path;
+    const path = await installCliLauncher();
     toast.success(t('settings.general.cli.installed', { path }), {
       description: t('settings.general.cli.restartHint')
     });
@@ -177,7 +178,7 @@ watch(
         >
           <!-- once installed the button locks; re-installing (e.g. to reach a
                WSL distro the first run missed) stays one inline link away -->
-          <template v-if="cliInstalledPath" #hint>
+          <template v-if="installedPath" #hint>
             {{ ' ' }}
             <button
               type="button"
@@ -195,14 +196,14 @@ watch(
           <UiButton
             variant="outline"
             size="sm"
-            :icon="cliInstalledPath ? 'lucide:check' : 'lucide:terminal'"
+            :icon="installedPath ? 'lucide:check' : 'lucide:terminal'"
             class="shrink-0"
             :pending="installingCli"
-            :disabled="!!cliInstalledPath"
+            :disabled="!!installedPath"
             @click="installCli"
           >
             {{
-              cliInstalledPath
+              installedPath
                 ? t('settings.general.cli.installedLabel')
                 : t('settings.general.cli.install')
             }}

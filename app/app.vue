@@ -12,6 +12,7 @@ const palette = useOverlay('commandPalette');
 const help = useOverlay('help');
 const { checkForUpdates } = useUpdater();
 const experiments = useExperiments();
+const cli = useCliInstall();
 const { t, locale } = useI18n();
 
 // First-launch default for the command palette's extra search languages, keyed
@@ -104,6 +105,9 @@ onMounted(async () => {
   }
   // Populate the experiment list once on boot when that channel is active.
   if (settingsStore.releaseChannel === 'experiment') void experiments.refresh();
+  // Refresh the cached CLI-launcher install state once on boot, so the settings
+  // button is already correct when first opened (self-guards to desktop).
+  void cli.refresh();
   // Live-refresh on filesystem changes emitted by the Rust watcher.
   await whenTauri(async () => {
     unlisten = await listen('repo-changed', () => void repo.reloadActive());
