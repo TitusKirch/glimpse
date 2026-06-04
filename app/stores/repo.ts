@@ -618,19 +618,21 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async deleteBranch(name: string) {
-      return this.native(async () => {
-        const ok = await useConfirm().confirm({
+      return this.native(async () =>
+        // The confirm dialog stays open with a busy button until the delete
+        // settles (action form of useConfirm).
+        useConfirm().confirm({
           titleKey: 'confirm.deleteBranch.title',
           descriptionKey: 'confirm.deleteBranch.description',
           confirmKey: 'branch.delete',
           params: { name },
-          destructive: true
-        });
-        if (!ok) return;
-        await this.mutate({
-          run: () => gitClient.deleteBranch({ path: this.repoPath, name })
-        });
-      });
+          destructive: true,
+          action: () =>
+            this.mutate({
+              run: () => gitClient.deleteBranch({ path: this.repoPath, name })
+            })
+        })
+      );
     },
 
     // Create a branch via a name prompt (replaces the inline sidebar input).

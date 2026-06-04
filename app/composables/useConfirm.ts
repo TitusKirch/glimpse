@@ -10,6 +10,10 @@ interface ConfirmOptions {
   confirmKey: string;
   params?: Record<string, unknown>;
   destructive?: boolean;
+  // When set, the dialog runs this while staying open with the confirm button in
+  // a busy state, and only closes once it settles (resolving `true` on success).
+  // Closing / cancelling is blocked while it runs. Errors keep the dialog open.
+  action?: () => Promise<unknown>;
 }
 
 const dialog = createPromiseDialog<ConfirmOptions, boolean>();
