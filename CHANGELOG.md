@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.0](https://github.com/TitusKirch/glimpse/compare/v0.2.0...v0.3.0) (2026-06-04)
+
+
+### Features
+
+* **cli:** add WSL launcher that opens the Windows app ([ab7b20e](https://github.com/TitusKirch/glimpse/commit/ab7b20e18d16ff01de819d34703db511bbe09751))
+* **cli:** install the launcher onto PATH from settings ([788b046](https://github.com/TitusKirch/glimpse/commit/788b046c730e27d0cd976e97e81f65ccde73fbe8))
+* **cli:** install the WSL launcher and reflect install state ([4fe7b4f](https://github.com/TitusKirch/glimpse/commit/4fe7b4f41a191ed2354c60d14ad53cdae5675f34))
+* **cli:** open a repo from the command line ([fef8abf](https://github.com/TitusKirch/glimpse/commit/fef8abf80df4e36503420195f83ec9ff10605c78))
+* **pull:** per-pull strategy via split button, palette & diverged dialog ([5d5496b](https://github.com/TitusKirch/glimpse/commit/5d5496b614c487eb95faa3b4cf436a184f42ce91))
+* **settings:** add sidebar "Edit layout" toggle ([5ab0256](https://github.com/TitusKirch/glimpse/commit/5ab02569eb98ea72059dbb7fcf2a38a3c803d406))
+* **settings:** split developer settings into mode + experiments opt-in ([0ccbe2b](https://github.com/TitusKirch/glimpse/commit/0ccbe2b255f8dd097a6b8a776cbcf50fc04b35ab))
+* **sidebar:** collapsible, reorderable sections ([e2aff28](https://github.com/TitusKirch/glimpse/commit/e2aff280585e7116faf83cf5125e6dfbdf049640))
+
+
+### Bug Fixes
+
+* **ci:** resolve signtool path for Azure signing; verbose beta build ([ce0f520](https://github.com/TitusKirch/glimpse/commit/ce0f5207bb85848f4420fbdf25b0d16125ec115b))
+* **cli:** cache the install state so the settings button doesn't flicker ([4fb7cab](https://github.com/TitusKirch/glimpse/commit/4fb7cab306fe06606fdcf53babe513ec1bb13ec8))
+* **cli:** keep the WSL launcher LF so its shebang stays valid ([9e98832](https://github.com/TitusKirch/glimpse/commit/9e988326fa53b642c622c42cddf6efb920e7d920))
+* **cli:** normalise the path for wslpath so the WSL launcher installs ([b59e6e3](https://github.com/TitusKirch/glimpse/commit/b59e6e3737f875807fb44054d0233ae5ed89c5ca))
+* **command-palette:** vertically center the close button ([97ad819](https://github.com/TitusKirch/glimpse/commit/97ad81901a7aa4eacb5e825a1207cb8e1ff8b67a)), closes [#41](https://github.com/TitusKirch/glimpse/issues/41)
+* **dnd:** suppress tooltips while reordering tabs or sidebar sections ([e815bdd](https://github.com/TitusKirch/glimpse/commit/e815bdd012a1bb9c6e464b0a13968419d0e8e4bf)), closes [#39](https://github.com/TitusKirch/glimpse/issues/39)
+* **navbar:** force SortableJS pointer fallback for tab reordering ([e95ada8](https://github.com/TitusKirch/glimpse/commit/e95ada8810c15a1e76287122693e0aa461535928))
+* **sidebar:** let the reorder hint wrap instead of being clipped ([c16b580](https://github.com/TitusKirch/glimpse/commit/c16b5807ff8d03bc722fd6823c42b07ff17eb42f)), closes [#40](https://github.com/TitusKirch/glimpse/issues/40)
+* **ui:** disable text selection on navbar tabs and the sidebar ([1c91f64](https://github.com/TitusKirch/glimpse/commit/1c91f6406832b1bd198c31b158eac43abe8bfb9a))
+* **ui:** pointer cursor on dropdown menu items ([332017c](https://github.com/TitusKirch/glimpse/commit/332017ca562340a398b6a3b6fd5523ee0a67e4fe))
+* **updater:** offer the highest version across beta and stable feeds ([ea1133f](https://github.com/TitusKirch/glimpse/commit/ea1133f47e6355f2b0b583b0ce57f7a675392b61))
+
 ## [0.2.0](https://github.com/TitusKirch/glimpse/compare/v0.1.0...v0.2.0) (2026-06-02)
 
 
