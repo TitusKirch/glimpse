@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/TitusKirch/glimpse/compare/v0.3.0...v0.4.0) (2026-06-04)
+
+
+### Features
+
+* **commit:** show GPG/SSH signature verification status ([e1fbc3c](https://github.com/TitusKirch/glimpse/commit/e1fbc3c36b9c8810fe63075c912161e4fe8f5b4f)), closes [#31](https://github.com/TitusKirch/glimpse/issues/31)
+* **repo:** clone a remote repository (git clone) ([1485cb8](https://github.com/TitusKirch/glimpse/commit/1485cb8f1820b74501b28016b9e390780b20d4b5)), closes [#23](https://github.com/TitusKirch/glimpse/issues/23)
+* **repo:** initialise a new repository (git init) ([f1b4f08](https://github.com/TitusKirch/glimpse/commit/f1b4f089129fbe605f03aaa8affea8e180c8734b)), closes [#24](https://github.com/TitusKirch/glimpse/issues/24)
+* **settings:** edit git identity in a dedicated Git settings tab ([53993bf](https://github.com/TitusKirch/glimpse/commit/53993bf4bb70cc26bd3fd809f55522bd09edac5d)), closes [#33](https://github.com/TitusKirch/glimpse/issues/33)
+
 ## [0.3.0](https://github.com/TitusKirch/glimpse/compare/v0.2.0...v0.3.0) (2026-06-04)
 
 
