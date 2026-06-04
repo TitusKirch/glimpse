@@ -43,6 +43,11 @@ export interface SettingsValues {
   monoScale: number;
   accent: Accent;
   shortenDependabot: boolean;
+  // Cached installed path of the `glimpse` CLI launcher (null = not on PATH /
+  // not yet checked). Not a user setting — persisted only so the settings button
+  // shows the right state instantly, with no enabled→disabled flash. Refreshed on
+  // boot and on each dialog open (see useCliInstall).
+  cliInstalled: string | null;
 }
 
 // The keys copied over on first upgrade from the old combined `layout` store.
@@ -133,7 +138,8 @@ export const useSettingsStore = defineStore('settings', {
     fileView: 'tree',
     monoScale: 1,
     accent: 'default',
-    shortenDependabot: true
+    shortenDependabot: true,
+    cliInstalled: null
   }),
   getters: {
     // Generic, dependency-aware accessor: read any setting by name and get its
