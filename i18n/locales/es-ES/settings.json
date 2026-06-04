@@ -4,6 +4,14 @@
     "git": {
       "title": "Git"
     },
+    "repository": {
+      "title": "Repositorio",
+      "noRepo": "Abre un repositorio para editar su configuración."
+    },
+    "authentication": {
+      "title": "Autenticación",
+      "noRepo": "Abre un repositorio para gestionar la autenticación."
+    },
     "general": {
       "title": "General",
       "gitSection": "Git",

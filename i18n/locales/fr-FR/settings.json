@@ -4,6 +4,14 @@
     "git": {
       "title": "Git"
     },
+    "repository": {
+      "title": "Dépôt",
+      "noRepo": "Ouvrez un dépôt pour modifier ses paramètres."
+    },
+    "authentication": {
+      "title": "Authentification",
+      "noRepo": "Ouvrez un dépôt pour gérer l'authentification."
+    },
     "general": {
       "title": "Général",
       "gitSection": "Git",
