@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0](https://github.com/TitusKirch/glimpse/compare/v0.5.0...v0.6.0) (2026-06-04)
+
+
+### Features
+
+* **diff:** discard a single hunk from the working tree ([b812f3d](https://github.com/TitusKirch/glimpse/commit/b812f3dd576e051ed3f1cd9d4ac9d59cea141875)), closes [#30](https://github.com/TitusKirch/glimpse/issues/30)
+* **history:** cherry-pick/revert multiple commits and merge reverts ([d1d5983](https://github.com/TitusKirch/glimpse/commit/d1d59831a0682b93a7124bb8d9c712ea8c912bc8)), closes [#32](https://github.com/TitusKirch/glimpse/issues/32)
+* **reflog:** reflog recovery view and undo last action ([22cbece](https://github.com/TitusKirch/glimpse/commit/22cbecea785856d19b2fe74bad2278515d3d81b8)), closes [#29](https://github.com/TitusKirch/glimpse/issues/29)
+* **stash:** preview contents, stash selected paths, include untracked ([982ae5a](https://github.com/TitusKirch/glimpse/commit/982ae5a39e664c04b7a47d609bf5faa5232c172b)), closes [#28](https://github.com/TitusKirch/glimpse/issues/28)
+
 ## [0.5.0](https://github.com/TitusKirch/glimpse/compare/v0.4.0...v0.5.0) (2026-06-04)
 
 
