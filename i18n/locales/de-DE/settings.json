@@ -36,6 +36,8 @@
       },
       "gitIdentity": {
         "section": "Git-Identität",
+        "effective": "Dieses Repository committet als",
+        "effectiveMissing": "Für dieses Repository ist keine Identität auflösbar — ein Commit würde hier fehlschlagen. Lege unten eine fest.",
         "globalHint": "Wird für alle Repositories verwendet.",
         "overrideSection": "Dieses Repository",
         "overrideHint": "Identität nur für das aktuelle Repository überschreiben.",

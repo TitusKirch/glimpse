@@ -36,6 +36,8 @@
       },
       "gitIdentity": {
         "section": "Identidad de Git",
+        "effective": "Este repositorio confirma como",
+        "effectiveMissing": "No se resuelve ninguna identidad para este repositorio: un commit aquí fallaría. Define una abajo.",
         "globalHint": "Se usa para todos los repositorios.",
         "overrideSection": "Este repositorio",
         "overrideHint": "Anular la identidad solo para el repositorio actual.",

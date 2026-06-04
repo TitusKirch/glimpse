@@ -12,9 +12,27 @@ const globalName = ref('');
 const globalEmail = ref('');
 const localName = ref('');
 const localEmail = ref('');
+// The identity the next commit here will actually use (config with no scope =
+// full system → global → local precedence), captured at load so it doesn't move
+// while editing the fields below.
+const effectiveName = ref('');
+const effectiveEmail = ref('');
 
 const activePath = computed(() => repo.active?.path ?? '');
 const hasRepo = computed(() => !!activePath.value);
+
+// Which git environment this repo's config belongs to. A WSL repo reads/writes a
+// different global config than Windows git, so name it explicitly.
+const env = computed(() => {
+  const a = repo.active;
+  if (!a) return '';
+  return a.flavor === 'wsl' && a.distro ? `WSL · ${a.distro}` : a.flavor;
+});
+
+// A repo with no resolvable identity can't commit — surface it loudly.
+const missing = computed(
+  () => hasRepo.value && (!effectiveName.value || !effectiveEmail.value)
+);
 
 async function routingPath() {
   return activePath.value || (await gitClient.defaultRepo());
@@ -41,6 +59,11 @@ async function load() {
           global: false
         })
       ]);
+      effectiveName.value = localName.value;
+      effectiveEmail.value = localEmail.value;
+    } else {
+      effectiveName.value = globalName.value;
+      effectiveEmail.value = globalEmail.value;
     }
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.loadFailed'), {
@@ -73,8 +96,32 @@ async function save(key: string, value: string, global: boolean) {
     <h3
       class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
     >
-      {{ t('settings.general.gitIdentity.section') }}
+      {{ t('settings.general.gitIdentity.section')
+      }}<span v-if="env" class="ml-1 normal-case">· {{ env }}</span>
     </h3>
+
+    <!-- what the next commit in this repo will actually use -->
+    <div
+      v-if="hasRepo"
+      class="mb-4 rounded-md border px-3 py-2 text-sm"
+      :class="
+        missing
+          ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+          : 'text-muted-foreground'
+      "
+    >
+      <template v-if="missing">
+        <NuxtIcon name="lucide:triangle-alert" class="mr-1 inline size-4" />
+        {{ t('settings.general.gitIdentity.effectiveMissing') }}
+      </template>
+      <template v-else>
+        {{ t('settings.general.gitIdentity.effective') }}
+        <span class="font-medium text-foreground"
+          >{{ effectiveName }} &lt;{{ effectiveEmail }}&gt;</span
+        >
+      </template>
+    </div>
+
     <div class="space-y-4">
       <SettingsRow
         label="settings.general.gitIdentity.name.label"

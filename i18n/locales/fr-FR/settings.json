@@ -36,6 +36,8 @@
       },
       "gitIdentity": {
         "section": "Identité Git",
+        "effective": "Ce dépôt valide en tant que",
+        "effectiveMissing": "Aucune identité n'est résolue pour ce dépôt — un commit échouerait ici. Définissez-en une ci-dessous.",
         "globalHint": "Utilisée pour tous les dépôts.",
         "overrideSection": "Ce dépôt",
         "overrideHint": "Remplacer l'identité pour le dépôt actuel uniquement.",
