@@ -196,3 +196,25 @@ export type ImageDiff = {
    */
   new: string | null;
 };
+
+export type Contributor = { name: string; email: string; commits: number };
+
+export type ActivityPoint = { date: string; count: number };
+
+export type FileChurn = { path: string; changes: number };
+
+export type RepoStats = {
+  totalCommits: number;
+  /**
+   * Authors by commit count, descending.
+   */
+  contributors: Array<Contributor>;
+  /**
+   * Commits per day, ascending by date.
+   */
+  activity: Array<ActivityPoint>;
+  /**
+   * Most-changed files, descending (top 20).
+   */
+  churn: Array<FileChurn>;
+};

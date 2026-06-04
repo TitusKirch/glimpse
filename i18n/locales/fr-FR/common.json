@@ -320,6 +320,15 @@
       "drop": "Supprimer"
     }
   },
+  "stats": {
+    "menu": "Statistiques…",
+    "title": "Statistiques du dépôt",
+    "totalCommits": "commits",
+    "contributors": "Principaux contributeurs",
+    "activity": "Activité récente",
+    "churn": "Fichiers les plus modifiés",
+    "empty": "Aucun commit pour le moment."
+  },
   "tag": {
     "title": "Créer une étiquette",
     "description": "Étiqueter un commit. Ajoutez un message pour une étiquette annotée, ou signez-la.",

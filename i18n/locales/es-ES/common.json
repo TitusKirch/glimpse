@@ -320,6 +320,15 @@
       "drop": "Descartar"
     }
   },
+  "stats": {
+    "menu": "Estadísticas…",
+    "title": "Estadísticas del repositorio",
+    "totalCommits": "commits",
+    "contributors": "Principales colaboradores",
+    "activity": "Actividad reciente",
+    "churn": "Archivos más modificados",
+    "empty": "Aún no hay commits."
+  },
   "tag": {
     "title": "Crear etiqueta",
     "description": "Etiqueta un commit. Añade un mensaje para una etiqueta anotada, o fírmala.",

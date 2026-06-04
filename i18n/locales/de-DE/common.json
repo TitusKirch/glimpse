@@ -320,6 +320,15 @@
       "drop": "Verwerfen"
     }
   },
+  "stats": {
+    "menu": "Statistiken…",
+    "title": "Repository-Statistiken",
+    "totalCommits": "Commits",
+    "contributors": "Top-Mitwirkende",
+    "activity": "Letzte Aktivität",
+    "churn": "Meistgeänderte Dateien",
+    "empty": "Noch keine Commits."
+  },
   "tag": {
     "title": "Tag erstellen",
     "description": "Einen Commit taggen. Mit Nachricht wird es ein annotiertes Tag, optional signiert.",

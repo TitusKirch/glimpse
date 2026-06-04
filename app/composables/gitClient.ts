@@ -16,6 +16,7 @@ import type {
   ImageDiff,
   RebaseStep,
   ReflogEntry,
+  RepoStats,
   RepoInfo,
   SparseStatus,
   StatusEntry,
@@ -174,6 +175,14 @@ export const gitClient = {
       command: 'blame',
       args: { path, file },
       fallback: []
+    }),
+
+  // Repository insights (contributors, activity, churn) from git log.
+  repoStats: (path: string) =>
+    tauriInvoke<RepoStats>({
+      command: 'repo_stats',
+      args: { path },
+      fallback: { totalCommits: 0, contributors: [], activity: [], churn: [] }
     }),
 
   // Both sides of an image file as data: URLs (committed vs working tree).

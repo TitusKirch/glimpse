@@ -320,6 +320,15 @@
       "drop": "Drop"
     }
   },
+  "stats": {
+    "menu": "Statistics…",
+    "title": "Repository statistics",
+    "totalCommits": "commits",
+    "contributors": "Top contributors",
+    "activity": "Recent activity",
+    "churn": "Most-changed files",
+    "empty": "No commits yet."
+  },
   "tag": {
     "title": "Create tag",
     "description": "Tag a commit. Add a message for an annotated tag, or sign it.",

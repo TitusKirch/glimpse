@@ -767,6 +767,12 @@ async fn image_diff(path: String, file: String) -> Result<git::ImageDiff, String
     git::Repo::open(&path).image_diff(&file)
 }
 
+/// Repository insights (contributors, activity, churn) from `git log`.
+#[tauri::command]
+async fn repo_stats(path: String) -> Result<git::RepoStats, String> {
+    git::Repo::open(&path).repo_stats()
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1435,6 +1441,7 @@ pub fn run() {
             interactive_rebase,
             rebase_commits,
             search_commits,
+            repo_stats,
             bisect_start,
             bisect_mark,
             bisect_reset,

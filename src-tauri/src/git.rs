@@ -231,6 +231,66 @@ fn image_mime(file: &str) -> Option<&'static str> {
     }
 }
 
+/// Aggregate `git log` author/date lines (`name US email US date`) into the total
+/// commit count, contributors (by commit count, desc) and per-day activity (by
+/// date, asc). Pure so it is unit-testable; map order is non-deterministic but the
+/// outputs are sorted.
+fn aggregate_stats(raw: &str) -> (u32, Vec<Contributor>, Vec<ActivityPoint>) {
+    use std::collections::HashMap;
+    let mut total = 0u32;
+    let mut authors: HashMap<(String, String), u32> = HashMap::new();
+    let mut days: HashMap<String, u32> = HashMap::new();
+    for line in raw.lines() {
+        let mut f = line.split(US);
+        let (Some(name), Some(email), Some(date)) = (f.next(), f.next(), f.next()) else {
+            continue;
+        };
+        total += 1;
+        *authors
+            .entry((name.to_string(), email.to_string()))
+            .or_default() += 1;
+        *days.entry(date.to_string()).or_default() += 1;
+    }
+    let mut contributors: Vec<Contributor> = authors
+        .into_iter()
+        .map(|((name, email), commits)| Contributor {
+            name,
+            email,
+            commits,
+        })
+        .collect();
+    contributors.sort_by(|a, b| b.commits.cmp(&a.commits).then(a.name.cmp(&b.name)));
+    let mut activity: Vec<ActivityPoint> = days
+        .into_iter()
+        .map(|(date, count)| ActivityPoint { date, count })
+        .collect();
+    activity.sort_by(|a, b| a.date.cmp(&b.date));
+    (total, contributors, activity)
+}
+
+/// Count file occurrences across `git log --name-only` output, returning the
+/// `top` most-changed paths (desc). Pure / unit-testable.
+fn aggregate_churn(raw: &str, top: usize) -> Vec<FileChurn> {
+    use std::collections::HashMap;
+    let mut counts: HashMap<&str, u32> = HashMap::new();
+    for line in raw.lines() {
+        let path = line.trim();
+        if !path.is_empty() {
+            *counts.entry(path).or_default() += 1;
+        }
+    }
+    let mut churn: Vec<FileChurn> = counts
+        .into_iter()
+        .map(|(path, changes)| FileChurn {
+            path: path.to_string(),
+            changes,
+        })
+        .collect();
+    churn.sort_by(|a, b| b.changes.cmp(&a.changes).then(a.path.cmp(&b.path)));
+    churn.truncate(top);
+    churn
+}
+
 /// Derive the directory `git clone` creates from a remote URL — git's "humanish"
 /// name: the last path segment with a trailing `.git` removed.
 /// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
@@ -331,6 +391,42 @@ pub struct CommitFile {
     pub path: String,
     /// Single-letter change status: M, A, D, R, C.
     pub status: String,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Contributor {
+    pub name: String,
+    pub email: String,
+    pub commits: u32,
+}
+
+/// Commits authored on a given `YYYY-MM-DD` day.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityPoint {
+    pub date: String,
+    pub count: u32,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct FileChurn {
+    pub path: String,
+    pub changes: u32,
+}
+
+/// Repository insights derived from `git log` (read-only, no heavy deps).
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoStats {
+    pub total_commits: u32,
+    /// Authors by commit count, descending.
+    pub contributors: Vec<Contributor>,
+    /// Commits per day, ascending by date.
+    pub activity: Vec<ActivityPoint>,
+    /// Most-changed files, descending (top 20).
+    pub churn: Vec<FileChurn>,
 }
 
 #[derive(Serialize, TS)]
@@ -609,6 +705,32 @@ impl Repo {
             format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
         let out = self.run(&["log", "--all", "--date=short", "-n200", &fmt, &flag])?;
         Ok(parse::log(&out))
+    }
+
+    /// Repository insights: total commits, contributors, per-day activity and the
+    /// most-changed files. All derived from two `git log` passes (no extra deps).
+    pub fn repo_stats(&self) -> Result<RepoStats, String> {
+        if self.run(&["rev-parse", "--all"])?.trim().is_empty() {
+            return Ok(RepoStats {
+                total_commits: 0,
+                contributors: Vec::new(),
+                activity: Vec::new(),
+                churn: Vec::new(),
+            });
+        }
+        let fmt = format!("--format=%an{US}%ae{US}%ad");
+        let log = self.run(&["log", "--all", "--date=short", &fmt])?;
+        let (total_commits, contributors, activity) = aggregate_stats(&log);
+        let names = self
+            .run(&["log", "--all", "--format=", "--name-only"])
+            .unwrap_or_default();
+        let churn = aggregate_churn(&names, 20);
+        Ok(RepoStats {
+            total_commits,
+            contributors,
+            activity,
+            churn,
+        })
     }
 
     /// Read the HEAD reflog — the recovery trail for resets/rebases/commits.
@@ -1543,6 +1665,10 @@ fn export_bindings() {
         StatusEntry::decl(),
         RebaseStep::decl(),
         ImageDiff::decl(),
+        Contributor::decl(),
+        ActivityPoint::decl(),
+        FileChurn::decl(),
+        RepoStats::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
@@ -1601,6 +1727,37 @@ mod validate_tests {
         // Nothing selected → only context survives (caller rejects this upfront).
         let got = build_partial_hunk(HUNK, &[], false);
         assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n");
+    }
+
+    #[test]
+    fn aggregate_stats_counts_and_sorts() {
+        use super::aggregate_stats;
+        let us = '\u{1f}';
+        let raw = format!(
+            "Ann{us}a@x{us}2024-01-02\n\
+             Bob{us}b@x{us}2024-01-02\n\
+             Ann{us}a@x{us}2024-01-01\n\
+             Ann{us}a@x{us}2024-01-02\n"
+        );
+        let (total, contributors, activity) = aggregate_stats(&raw);
+        assert_eq!(total, 4);
+        assert_eq!(contributors[0].name, "Ann");
+        assert_eq!(contributors[0].commits, 3);
+        assert_eq!(contributors[1].commits, 1);
+        // activity is ascending by date, counted per day
+        assert_eq!(activity[0].date, "2024-01-01");
+        assert_eq!(activity[1].date, "2024-01-02");
+        assert_eq!(activity[1].count, 3);
+    }
+
+    #[test]
+    fn aggregate_churn_ranks_top_files() {
+        use super::aggregate_churn;
+        let raw = "a.rs\nb.rs\n\na.rs\n\na.rs\nb.rs\n";
+        let churn = aggregate_churn(raw, 1);
+        assert_eq!(churn.len(), 1);
+        assert_eq!(churn[0].path, "a.rs");
+        assert_eq!(churn[0].changes, 3);
     }
 
     #[test]
