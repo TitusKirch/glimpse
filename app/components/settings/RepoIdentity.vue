@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
 
-// Per-repository identity: the effective value the next commit here will use
-// (config resolved with no scope → system → global → local), plus a local
-// (`.git/config`) override. Only rendered with a repo open.
+// Per-repository identity: an info banner with the effective value the next
+// commit here will use, plus a toggle-gated local (`.git/config`) override.
+// Turning the override off drops the local keys so it falls back to the
+// inherited (global) identity. Only rendered with a repo open.
 const { t } = useI18n();
 const repo = useRepoStore();
 
@@ -11,6 +12,7 @@ const localName = ref('');
 const localEmail = ref('');
 const effectiveName = ref('');
 const effectiveEmail = ref('');
+const override = ref(false);
 
 const activePath = computed(() => repo.active?.path ?? '');
 const missing = computed(() => !effectiveName.value || !effectiveEmail.value);
@@ -31,6 +33,7 @@ async function load() {
     effectiveEmail.value = effE;
     localName.value = locN;
     localEmail.value = locE;
+    override.value = !!(locN || locE);
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.loadFailed'), {
       description: String(e)
@@ -58,6 +61,25 @@ async function save(key: string, value: string) {
     });
   }
 }
+
+async function toggleOverride(on: boolean) {
+  override.value = on;
+  if (on || !isTauri() || !activePath.value) return;
+  // Off → drop the local override and fall back to the inherited identity.
+  // Sequential, not Promise.all: concurrent writes race on `.git/config.lock`
+  // ("could not lock config file: File exists").
+  try {
+    await gitClient.unsetConfig({ path: activePath.value, key: 'user.name' });
+    await gitClient.unsetConfig({ path: activePath.value, key: 'user.email' });
+    localName.value = '';
+    localEmail.value = '';
+    await load();
+  } catch (e) {
+    toast.error(t('settings.general.gitIdentity.saveFailed'), {
+      description: String(e)
+    });
+  }
+}
 </script>
 
 <template>
@@ -69,33 +91,32 @@ async function save(key: string, value: string) {
     </h3>
 
     <!-- what the next commit in this repo will actually use -->
-    <div
-      class="mb-5 rounded-md border px-3 py-2 text-sm"
-      :class="
-        missing
-          ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-          : 'text-muted-foreground'
-      "
-    >
-      <template v-if="missing">
-        <NuxtIcon name="lucide:triangle-alert" class="mr-1 inline size-4" />
-        {{ t('settings.general.gitIdentity.effectiveMissing') }}
-      </template>
-      <template v-else>
-        {{ t('settings.general.gitIdentity.effective') }}
-        <span class="font-medium text-foreground"
-          >{{ effectiveName }} &lt;{{ effectiveEmail }}&gt;</span
-        >
-      </template>
-    </div>
+    <UiAlert :variant="missing ? 'destructive' : 'info'" class="mb-5">
+      <p class="min-w-0">
+        <template v-if="missing">{{
+          t('settings.general.gitIdentity.effectiveMissing')
+        }}</template>
+        <template v-else>
+          {{ t('settings.general.gitIdentity.effective') }}
+          <span class="font-medium"
+            >{{ effectiveName }} &lt;{{ effectiveEmail }}&gt;</span
+          >
+        </template>
+      </p>
+    </UiAlert>
 
-    <h4 class="mb-1 text-sm font-medium">
-      {{ t('settings.general.gitIdentity.overrideSection') }}
-    </h4>
-    <p class="mb-3 text-xs text-muted-foreground">
-      {{ t('settings.general.gitIdentity.overrideHint') }}
-    </p>
-    <div class="space-y-4">
+    <SettingsRow
+      label="settings.general.gitIdentity.overrideToggle"
+      hint="settings.general.gitIdentity.overrideHint"
+    >
+      <UiSwitch
+        :model-value="override"
+        class="shrink-0"
+        @update:model-value="(v) => toggleOverride(v as boolean)"
+      />
+    </SettingsRow>
+
+    <div v-if="override" class="mt-4 space-y-4">
       <SettingsRow label="settings.general.gitIdentity.name.label">
         <UiInput
           class="w-56 shrink-0"

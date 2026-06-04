@@ -135,8 +135,7 @@ const links = [
         v-if="!repo.hasRepos"
         class="p-2 group-data-[collapsible=icon]:hidden"
       >
-        <UiAlert>
-          <NuxtIcon name="lucide:folder-open" mode="svg" class="size-4" />
+        <UiAlert icon="lucide:folder-open">
           <UiAlertTitle>{{ t('sidebar.noRepo.title') }}</UiAlertTitle>
           <UiAlertDescription>{{
             t('sidebar.noRepo.hint')

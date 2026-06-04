@@ -115,17 +115,19 @@ function setMode(v: string) {
           @blur="save"
         />
       </SettingsRow>
-      <p class="text-xs text-muted-foreground">
-        {{ t('settings.general.gitTarget.resolved', { target: resolved }) }}
-        <template v-if="distros.length">
-          ·
-          {{
-            t('settings.general.gitTarget.distros', {
-              list: distros.join(', ')
-            })
-          }}
-        </template>
-      </p>
+      <UiAlert variant="info" icon="lucide:terminal">
+        <p class="min-w-0">
+          {{ t('settings.general.gitTarget.resolved', { target: resolved }) }}
+          <template v-if="distros.length">
+            ·
+            {{
+              t('settings.general.gitTarget.distros', {
+                list: distros.join(', ')
+              })
+            }}
+          </template>
+        </p>
+      </UiAlert>
     </div>
   </div>
 </template>

@@ -104,6 +104,22 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Remove a git config value at `scope` (default local) — drops an override.
+  unsetConfig: ({
+    path,
+    key,
+    scope = 'local'
+  }: {
+    path: string;
+    key: string;
+    scope?: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'unset_config',
+      args: { path, key, scope },
+      fallback: null
+    }),
+
   // Initialise a new repository in `path` (optional initial branch); resolves to
   // the new repo's toplevel path so the caller can open it.
   initRepo: ({ path, branch }: { path: string; branch?: string }) =>

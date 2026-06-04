@@ -1700,6 +1700,29 @@ impl Repo {
         self.run(&args).map(|_| ())
     }
 
+    /// Remove a config key at `scope` (defaults to `local`). Tolerates a missing
+    /// key (git exit 5) so toggling a per-repo override off is idempotent.
+    pub fn config_unset(&self, key: &str, scope: &str) -> Result<(), String> {
+        reject_option(key)?;
+        let mut args = vec!["config"];
+        match scope {
+            "global" => args.push("--global"),
+            "system" => args.push("--system"),
+            _ => args.push("--local"),
+        }
+        args.push("--unset");
+        args.push(key);
+        let output = self
+            .target
+            .command(&args)
+            .output()
+            .map_err(|e| format!("failed to run git: {e}"))?;
+        match output.status.code() {
+            Some(0) | Some(5) => Ok(()),
+            _ => Err(String::from_utf8_lossy(&output.stderr).trim().to_string()),
+        }
+    }
+
     /// Clone `url` into `parent` (an existing directory), returning the host path
     /// of the freshly created repo so the caller can open it. Routed through
     /// `parent`, so a `\\wsl$` parent clones inside the distro.

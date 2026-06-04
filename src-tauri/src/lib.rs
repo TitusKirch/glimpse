@@ -500,6 +500,12 @@ async fn set_config(path: String, key: String, value: String, global: bool) -> R
     git::Repo::open(&path).config_set(&key, &value, global)
 }
 
+/// Remove a git config value at `scope` (e.g. drop a per-repo identity override).
+#[tauri::command]
+async fn unset_config(path: String, key: String, scope: String) -> Result<(), String> {
+    git::Repo::open(&path).config_unset(&key, &scope)
+}
+
 /// Clone `url` into the existing directory `path`, returning the new repo's host
 /// path so the frontend can open it in a tab.
 #[tauri::command]
@@ -1472,6 +1478,7 @@ pub fn run() {
             repo_info,
             get_config,
             set_config,
+            unset_config,
             clone_repo,
             init_repo,
             git_log,

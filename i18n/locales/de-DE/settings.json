@@ -49,6 +49,7 @@
         "effectiveMissing": "Für dieses Repository ist keine Identität auflösbar — ein Commit würde hier fehlschlagen. Lege unten eine fest.",
         "globalHint": "Wird für alle Repositories verwendet.",
         "overrideSection": "Dieses Repository",
+        "overrideToggle": "Für dieses Repository überschreiben",
         "overrideHint": "Identität nur für das aktuelle Repository überschreiben.",
         "name": {
           "label": "Name",

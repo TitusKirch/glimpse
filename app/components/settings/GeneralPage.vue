@@ -259,6 +259,7 @@ watch(
           <UiAlert
             v-else
             variant="info"
+            :icon="false"
             class="flex items-center justify-between gap-3"
           >
             <div class="flex min-w-0 items-center gap-2.5">

@@ -49,6 +49,7 @@
         "effectiveMissing": "Aucune identité n'est résolue pour ce dépôt — un commit échouerait ici. Définissez-en une ci-dessous.",
         "globalHint": "Utilisée pour tous les dépôts.",
         "overrideSection": "Ce dépôt",
+        "overrideToggle": "Remplacer pour ce dépôt",
         "overrideHint": "Remplacer l'identité pour le dépôt actuel uniquement.",
         "name": {
           "label": "Nom",

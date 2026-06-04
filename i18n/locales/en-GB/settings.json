@@ -49,6 +49,7 @@
         "effectiveMissing": "No identity resolves for this repository — a commit here would fail. Set one below.",
         "globalHint": "Used for all repositories.",
         "overrideSection": "This repository",
+        "overrideToggle": "Override for this repository",
         "overrideHint": "Override the identity for the current repository only.",
         "name": {
           "label": "Name",
