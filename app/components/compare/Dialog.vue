@@ -3,7 +3,7 @@
 // diff, reusing the file tree and diff viewer. Mounted once in app.vue.
 import type { CommitFile, DiffData } from '~/types/bindings';
 
-const { open } = useOverlay('compare');
+const { open, presetFrom, presetTo } = useCompare();
 const repo = useRepoStore();
 const settings = useSettingsStore();
 const layout = useLayoutStore();
@@ -16,11 +16,18 @@ const selectedFile = ref<string | null>(null);
 const diff = ref<DiffData | null>(null);
 const loading = ref(false);
 
-// Every ref the user can compare: local branches, remote branches, tags.
+// Every ref the user can compare: local branches, remote branches, tags — plus
+// the current from/to so a preset commit hash shows as a selectable item.
 const refs = computed(() => [
-  ...repo.branches.map((b) => b.name),
-  ...repo.remoteBranches,
-  ...repo.tags
+  ...new Set(
+    [
+      from.value,
+      to.value,
+      ...repo.branches.map((b) => b.name),
+      ...repo.remoteBranches,
+      ...repo.tags
+    ].filter(Boolean)
+  )
 ]);
 
 const effectiveMode = computed(() =>
@@ -29,8 +36,11 @@ const effectiveMode = computed(() =>
 
 watch(open, (isOpen) => {
   if (!isOpen) return;
-  from.value = repo.currentBranch;
-  to.value = '';
+  // Consume any preset (comparing two selected commits), else default.
+  from.value = presetFrom.value ?? repo.currentBranch;
+  to.value = presetTo.value ?? '';
+  presetFrom.value = null;
+  presetTo.value = null;
   files.value = [];
   selectedFile.value = null;
   diff.value = null;

@@ -296,7 +296,8 @@
     "from": "De",
     "to": "À",
     "pick": "Choisissez deux réfs à comparer.",
-    "noDiff": "Aucune différence."
+    "noDiff": "Aucune différence.",
+    "selected": "Comparer ces deux"
   },
   "rebase": {
     "inProgress": "Rebase en cours — résolvez les conflits, puis continuez.",

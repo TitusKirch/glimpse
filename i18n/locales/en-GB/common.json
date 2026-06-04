@@ -296,7 +296,8 @@
     "from": "From",
     "to": "To",
     "pick": "Pick two refs to compare.",
-    "noDiff": "No differences."
+    "noDiff": "No differences.",
+    "selected": "Compare these two"
   },
   "rebase": {
     "inProgress": "Rebase in progress — resolve conflicts, then continue.",

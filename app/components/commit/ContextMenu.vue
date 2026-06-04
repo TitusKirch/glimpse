@@ -10,6 +10,7 @@ const repo = useRepoStore();
 const { t } = useI18n();
 const copyText = useCopy();
 const rebasePlan = useRebasePlan();
+const compare = useCompare();
 
 // Export this commit to a .patch file the user picks.
 async function exportPatch() {
@@ -56,6 +57,13 @@ const bulk = computed(
         <UiContextMenuItem @select="repo.revertSelected()">
           <NuxtIcon name="lucide:undo-2" />
           {{ t('commit.revertN', { n: repo.multiSel.length }) }}
+        </UiContextMenuItem>
+        <UiContextMenuItem
+          v-if="repo.multiSel.length === 2"
+          @select="compare.compareRefs(repo.multiSel[0]!, repo.multiSel[1]!)"
+        >
+          <NuxtIcon name="lucide:arrow-right-left" />
+          {{ t('compare.selected') }}
         </UiContextMenuItem>
       </template>
       <template v-else>
