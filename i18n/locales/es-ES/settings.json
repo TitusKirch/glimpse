@@ -72,6 +72,24 @@
         "loadFailed": "No se pudo leer tu configuración de firma",
         "saveFailed": "No se pudo guardar tu configuración de firma"
       },
+      "gitTarget": {
+        "section": "Destino de Git",
+        "mode": {
+          "label": "Resolución",
+          "hint": "Cómo glimpse ejecuta git para este repositorio."
+        },
+        "auto": "Automático",
+        "native": "Nativo (git del host)",
+        "custom": "Ruta de git personalizada",
+        "path": {
+          "label": "Ruta de git",
+          "hint": "Ruta al binario de git que se usará.",
+          "placeholder": "p. ej. /usr/bin/git"
+        },
+        "resolved": "Actualmente: {target}",
+        "distros": "Distros WSL: {list}",
+        "saveFailed": "No se pudo guardar el destino de Git"
+      },
       "updatesSection": "Actualizaciones",
       "autoUpdate": {
         "label": "Actualizaciones automáticas",

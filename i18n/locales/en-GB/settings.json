@@ -72,6 +72,24 @@
         "loadFailed": "Couldn't read your signing settings",
         "saveFailed": "Couldn't save your signing settings"
       },
+      "gitTarget": {
+        "section": "Git target",
+        "mode": {
+          "label": "Resolution",
+          "hint": "How glimpse runs git for this repository."
+        },
+        "auto": "Automatic",
+        "native": "Native (host git)",
+        "custom": "Custom git path",
+        "path": {
+          "label": "Git path",
+          "hint": "Path to the git binary to use.",
+          "placeholder": "e.g. /usr/bin/git"
+        },
+        "resolved": "Currently: {target}",
+        "distros": "WSL distros: {list}",
+        "saveFailed": "Couldn't save the git target"
+      },
       "updatesSection": "Updates",
       "autoUpdate": {
         "label": "Automatic updates",

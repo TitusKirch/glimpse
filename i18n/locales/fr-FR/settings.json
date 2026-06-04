@@ -72,6 +72,24 @@
         "loadFailed": "Impossible de lire vos paramètres de signature",
         "saveFailed": "Impossible d'enregistrer vos paramètres de signature"
       },
+      "gitTarget": {
+        "section": "Cible Git",
+        "mode": {
+          "label": "Résolution",
+          "hint": "Comment glimpse exécute git pour ce dépôt."
+        },
+        "auto": "Automatique",
+        "native": "Natif (git de l'hôte)",
+        "custom": "Chemin git personnalisé",
+        "path": {
+          "label": "Chemin git",
+          "hint": "Chemin du binaire git à utiliser.",
+          "placeholder": "ex. /usr/bin/git"
+        },
+        "resolved": "Actuellement : {target}",
+        "distros": "Distros WSL : {list}",
+        "saveFailed": "Impossible d'enregistrer la cible Git"
+      },
       "updatesSection": "Mises à jour",
       "autoUpdate": {
         "label": "Mises à jour automatiques",

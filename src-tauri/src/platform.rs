@@ -162,8 +162,56 @@ impl GitTarget {
     }
 }
 
+/// Read the `glimpse.target` value from a git config blob. `auto`/empty/unknown
+/// → None (use the automatic decision); `native` or an explicit git path → that
+/// override. Pure so it is unit-testable.
+fn parse_config_target(config: &str) -> Option<String> {
+    let mut in_glimpse = false;
+    for line in config.lines() {
+        let t = line.trim();
+        if let Some(section) = t.strip_prefix('[') {
+            in_glimpse = section
+                .trim_end_matches(']')
+                .trim()
+                .eq_ignore_ascii_case("glimpse");
+            continue;
+        }
+        if in_glimpse {
+            if let Some(rest) = t.strip_prefix("target") {
+                let value = rest.trim_start().strip_prefix('=')?.trim();
+                return (!value.is_empty()).then(|| value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Per-repo git target override from `<repo>/.git/config` (`glimpse.target`).
+/// `native` forces native git (even on a `\\wsl$` path); a value containing a
+/// path separator is used as an explicit git binary. Best-effort: a missing or
+/// unreadable config just means "no override".
+fn target_override(repo_path: &str) -> Option<GitTarget> {
+    let config = std::fs::read_to_string(format!("{repo_path}/.git/config")).ok()?;
+    let value = parse_config_target(&config)?;
+    match value.as_str() {
+        "native" => Some(GitTarget::native(repo_path)),
+        path if path.contains('/') || path.contains('\\') => Some(GitTarget {
+            program: path.to_string(),
+            prefix_args: Vec::new(),
+            repo_arg: repo_path.to_string(),
+            flavor: native_flavor(),
+            distro: None,
+        }),
+        _ => None,
+    }
+}
+
 /// Decide how to run `git` for `repo_path` on this platform.
 pub fn resolve(repo_path: &str) -> GitTarget {
+    // An explicit per-repo override wins over the automatic decision.
+    if let Some(target) = target_override(repo_path) {
+        return target;
+    }
     // WSL interop only exists on Windows; everywhere else git is always native.
     #[cfg(windows)]
     if let Some((distro, linux_path)) = parse_wsl_path(repo_path) {
@@ -194,6 +242,36 @@ pub fn resolve(repo_path: &str) -> GitTarget {
     }
 
     GitTarget::native(repo_path)
+}
+
+/// Installed WSL distro names (`wsl.exe -l -q`), for the per-repo target picker.
+/// Empty off Windows or when WSL isn't present. `wsl.exe` emits UTF-16LE.
+pub fn wsl_distros() -> Vec<String> {
+    #[cfg(windows)]
+    {
+        let mut cmd = Command::new("wsl.exe");
+        no_window(&mut cmd);
+        let Ok(out) = cmd.args(["-l", "-q"]).output() else {
+            return Vec::new();
+        };
+        if !out.status.success() {
+            return Vec::new();
+        }
+        let utf16: Vec<u16> = out
+            .stdout
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        String::from_utf16_lossy(&utf16)
+            .lines()
+            .map(|l| l.trim().trim_matches('\0').trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    }
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
 }
 
 /// Launch an external app rooted at the repo `path`. `app` is one of "files"
@@ -331,7 +409,22 @@ fn parse_wsl_path(path: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_wsl_path;
+    use super::{parse_config_target, parse_wsl_path};
+
+    #[test]
+    fn parses_glimpse_target_override() {
+        let cfg = "[core]\n\tbare = false\n[glimpse]\n\ttarget = native\n";
+        assert_eq!(parse_config_target(cfg).as_deref(), Some("native"));
+        // A path value survives intact.
+        let cfg = "[glimpse]\ntarget = /opt/git/bin/git\n";
+        assert_eq!(
+            parse_config_target(cfg).as_deref(),
+            Some("/opt/git/bin/git")
+        );
+        // No glimpse section, or no target, → None.
+        assert_eq!(parse_config_target("[core]\n\tbare = false\n"), None);
+        assert_eq!(parse_config_target("[glimpse]\n\tother = x\n"), None);
+    }
 
     #[test]
     fn parses_wsl_unc_path() {

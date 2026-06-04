@@ -72,6 +72,24 @@
         "loadFailed": "Signatureinstellungen konnten nicht gelesen werden",
         "saveFailed": "Signatureinstellungen konnten nicht gespeichert werden"
       },
+      "gitTarget": {
+        "section": "Git-Ziel",
+        "mode": {
+          "label": "Auflösung",
+          "hint": "Wie glimpse git für dieses Repository ausführt."
+        },
+        "auto": "Automatisch",
+        "native": "Nativ (Host-Git)",
+        "custom": "Eigener Git-Pfad",
+        "path": {
+          "label": "Git-Pfad",
+          "hint": "Pfad zur zu verwendenden git-Binärdatei.",
+          "placeholder": "z. B. /usr/bin/git"
+        },
+        "resolved": "Aktuell: {target}",
+        "distros": "WSL-Distros: {list}",
+        "saveFailed": "Git-Ziel konnte nicht gespeichert werden"
+      },
       "updatesSection": "Updates",
       "autoUpdate": {
         "label": "Automatische Updates",

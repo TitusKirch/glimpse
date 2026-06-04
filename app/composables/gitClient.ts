@@ -177,6 +177,14 @@ export const gitClient = {
       fallback: []
     }),
 
+  // Installed WSL distros (Windows; empty elsewhere) for the git-target picker.
+  wslDistros: () =>
+    tauriInvoke<string[]>({
+      command: 'wsl_distros',
+      args: {},
+      fallback: []
+    }),
+
   // All tracked file paths — the corpus for the quick-open fuzzy finder.
   listFiles: (path: string) =>
     tauriInvoke<string[]>({

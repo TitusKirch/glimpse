@@ -779,6 +779,12 @@ async fn list_files(path: String) -> Result<Vec<String>, String> {
     git::Repo::open(&path).list_files()
 }
 
+/// Installed WSL distros (for the per-repo git-target picker); empty off Windows.
+#[tauri::command]
+fn wsl_distros() -> Vec<String> {
+    crate::platform::wsl_distros()
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1449,6 +1455,7 @@ pub fn run() {
             search_commits,
             repo_stats,
             list_files,
+            wsl_distros,
             bisect_start,
             bisect_mark,
             bisect_reset,
