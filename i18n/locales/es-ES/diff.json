@@ -19,7 +19,13 @@
     "lfs": "Objeto Git LFS",
     "lfsNote": "Este archivo se gestiona con Git LFS: su contenido binario se almacena fuera del repositorio.",
     "lfsSize": "Tamaño",
-    "lfsOid": "ID de objeto"
+    "lfsOid": "ID de objeto",
+    "image": {
+      "old": "Confirmado",
+      "new": "Árbol de trabajo",
+      "absent": "No presente",
+      "onionSkin": "Superposición"
+    }
   },
   "fileView": {
     "list": "Vista de lista",

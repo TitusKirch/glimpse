@@ -282,6 +282,10 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
         v-else-if="repo.diff && repo.diff.isLfs"
         :hunks="repo.diff.hunks"
       />
+      <DiffImage
+        v-else-if="repo.selectedFile && isImageFile(repo.selectedFile)"
+        :file="repo.selectedFile"
+      />
       <CodeDiff
         v-else-if="repo.diff && repo.diff.hunks.length"
         :hunks="repo.diff.hunks"

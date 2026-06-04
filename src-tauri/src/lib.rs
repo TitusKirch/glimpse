@@ -761,6 +761,12 @@ async fn search_commits(
     git::Repo::open(&path).search_commits(&query, regex)
 }
 
+/// Both sides of an image file as `data:` URLs (committed vs working tree).
+#[tauri::command]
+async fn image_diff(path: String, file: String) -> Result<git::ImageDiff, String> {
+    git::Repo::open(&path).image_diff(&file)
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1410,6 +1416,7 @@ pub fn run() {
             compare_file_diff,
             file_history,
             blame,
+            image_diff,
             apply_hunk,
             discard_hunk,
             apply_lines,

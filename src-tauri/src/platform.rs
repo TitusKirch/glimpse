@@ -130,6 +130,26 @@ impl GitTarget {
         std::fs::read_to_string(path).ok()
     }
 
+    /// Raw bytes of a working-tree file (native fs, or `cat` inside WSL) — the
+    /// binary counterpart of [`read_file`], for images and other blobs.
+    pub fn read_file_bytes(&self, rel: &str) -> Option<Vec<u8>> {
+        if rel.is_empty() || crate::git::is_unsafe_path(rel) {
+            return None;
+        }
+        if let Some(distro) = &self.distro {
+            let path = format!("{}/{}", self.repo_arg, rel);
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            let out = cmd
+                .args(["-d", distro, "--cd", &self.repo_arg, "--exec", "cat", &path])
+                .output()
+                .ok()?;
+            return out.status.success().then_some(out.stdout);
+        }
+        let path = std::path::Path::new(&self.repo_arg).join(rel);
+        std::fs::read(path).ok()
+    }
+
     /// Native `git` on the host OS — the default on every platform.
     fn native(repo_path: &str) -> Self {
         GitTarget {

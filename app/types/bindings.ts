@@ -184,3 +184,15 @@ export type RebaseStep = {
   hash: string;
   message: string | null;
 };
+
+export type ImageDiff = {
+  mime: string;
+  /**
+   * The committed (HEAD) image; null when the file is newly added.
+   */
+  old: string | null;
+  /**
+   * The working-tree image; null when the file was deleted.
+   */
+  new: string | null;
+};

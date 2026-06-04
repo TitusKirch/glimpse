@@ -13,6 +13,7 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  ImageDiff,
   RebaseStep,
   ReflogEntry,
   RepoInfo,
@@ -173,6 +174,14 @@ export const gitClient = {
       command: 'blame',
       args: { path, file },
       fallback: []
+    }),
+
+  // Both sides of an image file as data: URLs (committed vs working tree).
+  imageDiff: ({ path, file }: { path: string; file: string }) =>
+    tauriInvoke<ImageDiff>({
+      command: 'image_diff',
+      args: { path, file },
+      fallback: { mime: '', old: null, new: null }
     }),
 
   // Stage (or unstage with reverse) a single hunk.

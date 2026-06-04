@@ -185,6 +185,52 @@ fn build_rebase_todo(steps: &[RebaseStep], msg_prefix: &str) -> (String, Vec<(St
     (todo, msgs)
 }
 
+/// Standard base64 (with `=` padding) — to embed image bytes in a `data:` URL.
+/// Dependency-free so the careful dep policy stays intact.
+fn base64_encode(input: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
+    for chunk in input.chunks(3) {
+        let b1 = chunk.get(1).copied().unwrap_or(0);
+        let b2 = chunk.get(2).copied().unwrap_or(0);
+        let n = ((chunk[0] as u32) << 16) | ((b1 as u32) << 8) | b2 as u32;
+        out.push(T[((n >> 18) & 63) as usize] as char);
+        out.push(T[((n >> 12) & 63) as usize] as char);
+        out.push(if chunk.len() > 1 {
+            T[((n >> 6) & 63) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            T[(n & 63) as usize] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
+/// Map a file extension to an image MIME type, or `None` for non-images.
+fn image_mime(file: &str) -> Option<&'static str> {
+    match file
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "avif" => Some("image/avif"),
+        "bmp" => Some("image/bmp"),
+        "ico" => Some("image/x-icon"),
+        "svg" => Some("image/svg+xml"),
+        _ => None,
+    }
+}
+
 /// Derive the directory `git clone` creates from a remote URL — git's "humanish"
 /// name: the last path segment with a trailing `.git` removed.
 /// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
@@ -265,6 +311,18 @@ pub struct DiffData {
     /// LFS object instead of rendering it as source, and `old_content` /
     /// `new_content` are left empty so the smudged binary is never shipped.
     pub is_lfs: bool,
+}
+
+/// The two sides of an image file's change, each a `data:` URL (or null when the
+/// file is added / deleted), so the viewer can render them visually.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageDiff {
+    pub mime: String,
+    /// The committed (HEAD) image; null when the file is newly added.
+    pub old: Option<String>,
+    /// The working-tree image; null when the file was deleted.
+    pub new: Option<String>,
 }
 
 #[derive(Serialize, TS)]
@@ -408,6 +466,20 @@ impl Repo {
             }
             _ => String::new(),
         }
+    }
+
+    /// Like [`run`], but returns raw stdout bytes — for binary blobs (e.g. an
+    /// image's committed contents) that must not go through lossy UTF-8 decoding.
+    fn run_bytes(&self, args: &[&str]) -> Result<Vec<u8>, String> {
+        let output = self
+            .target
+            .command(args)
+            .output()
+            .map_err(|e| format!("failed to run git: {e}"))?;
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+        }
+        Ok(output.stdout)
     }
 
     /// Run `git <args>` feeding `input` on stdin (used to pipe a patch into
@@ -639,6 +711,25 @@ impl Repo {
             diff.new_content = self.target.read_file(file).unwrap_or_default();
         }
         Ok(Some(diff))
+    }
+
+    /// Both sides of an image file as `data:` URLs: the committed (HEAD) blob and
+    /// the current working-tree file. Either side is null when absent (added or
+    /// deleted), so the viewer can show them visually instead of "no text diff".
+    pub fn image_diff(&self, file: &str) -> Result<ImageDiff, String> {
+        reject_unsafe_path(file)?;
+        let mime = image_mime(file).unwrap_or("application/octet-stream");
+        let url = |bytes: &[u8]| format!("data:{mime};base64,{}", base64_encode(bytes));
+        let old = self
+            .run_bytes(&["show", &format!("HEAD:{file}")])
+            .ok()
+            .filter(|b| !b.is_empty());
+        let new = self.target.read_file_bytes(file);
+        Ok(ImageDiff {
+            mime: mime.to_string(),
+            old: old.as_deref().map(url),
+            new: new.as_deref().map(url),
+        })
     }
 
     /// Full commit message (subject + body) for the detail panel.
@@ -1451,6 +1542,7 @@ fn export_bindings() {
         BlameLine::decl(),
         StatusEntry::decl(),
         RebaseStep::decl(),
+        ImageDiff::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
@@ -1509,6 +1601,17 @@ mod validate_tests {
         // Nothing selected → only context survives (caller rejects this upfront).
         let got = build_partial_hunk(HUNK, &[], false);
         assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n");
+    }
+
+    #[test]
+    fn base64_encode_matches_known_vectors() {
+        use super::base64_encode;
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
     }
 
     #[test]
