@@ -109,6 +109,18 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
               t('diff.ignoreWhitespace')
             }}</UiTooltipContent>
           </UiTooltip>
+          <UiTooltip v-if="effectiveMode === 'unified'">
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon-sm"
+                icon="lucide:wrap-text"
+                :class="settings.diffWrap && 'text-primary'"
+                @click="settings.toggleDiffWrap()"
+              />
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('diff.wrap') }}</UiTooltipContent>
+          </UiTooltip>
           <UiTooltip>
             <UiTooltipTrigger as-child>
               <UiButton
@@ -248,6 +260,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
           v-if="repo.diff && repo.diff.hunks.length"
           :hunks="repo.diff.hunks"
           :mode="effectiveMode"
+          :wrap="settings.diffWrap"
           :hide-hunk-header="hideHunkHeader"
           :file-name="repo.diff.fileName"
           :old-content="repo.diff.oldContent"

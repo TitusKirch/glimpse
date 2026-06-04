@@ -14,6 +14,8 @@
     "fileHistory": "Historique du fichier",
     "copyPath": "Copier le chemin",
     "copyDiff": "Copier le diff",
+    "wrap": "Renvoyer les longues lignes",
+    "expand": "Afficher {n} lignes inchangées",
     "lfs": "Objet Git LFS",
     "lfsNote": "Ce fichier est géré par Git LFS — son contenu binaire est stocké hors du dépôt.",
     "lfsSize": "Taille",

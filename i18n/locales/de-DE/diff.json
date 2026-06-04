@@ -14,6 +14,8 @@
     "fileHistory": "Datei-Verlauf",
     "copyPath": "Pfad kopieren",
     "copyDiff": "Diff kopieren",
+    "wrap": "Lange Zeilen umbrechen",
+    "expand": "{n} unveränderte Zeilen anzeigen",
     "lfs": "Git-LFS-Objekt",
     "lfsNote": "Diese Datei wird von Git LFS verwaltet — ihr Binärinhalt liegt außerhalb des Repositorys.",
     "lfsSize": "Größe",

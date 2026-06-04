@@ -25,6 +25,9 @@ const props = defineProps<{
   // and looked up by line number, instead of highlighted in isolation.
   oldContent?: string;
   newContent?: string;
+  // Soft-wrap long lines (unified view); rows then become variable-height and
+  // are measured by the virtualizer instead of pinned to a fixed box.
+  wrap?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -32,6 +35,16 @@ const emit = defineEmits<{
   discardHunk: [hunk: string];
   stageLines: [{ hunk: string; lines: number[] }];
 }>();
+
+const { t } = useI18n();
+
+// A collapsed "… N unchanged lines" marker injected between context runs.
+interface ExpanderRow {
+  type: 'expander';
+  key: string;
+  count: number;
+}
+type DisplayRow = UnifiedRow | ExpanderRow;
 
 // Pure projection of the raw hunks into the unified + split row models.
 const parsed = computed(() =>
@@ -52,8 +65,10 @@ const selHunk = ref<number | null>(null);
 const selLines = ref<Set<number>>(new Set());
 const lastSel = ref<number | null>(null);
 
-const canSelect = (row: UnifiedRow) =>
-  !!props.hunkAction && (row.type === 'add' || row.type === 'del');
+const canSelect = (row: DisplayRow) =>
+  row.type !== 'expander' &&
+  !!props.hunkAction &&
+  (row.type === 'add' || row.type === 'del');
 
 // Body indices of the selectable (+/-) lines of a hunk, in display order — the
 // span a shift-click range is filled across.
@@ -67,8 +82,9 @@ const selectableInHunk = (hunkIndex: number): number[] =>
     )
     .map((r) => r.lineIndex!);
 
-function toggleLine(row: UnifiedRow, ev: MouseEvent) {
+function toggleLine(row: DisplayRow, ev: MouseEvent) {
   if (
+    row.type === 'expander' ||
     !canSelect(row) ||
     row.lineIndex === undefined ||
     row.hunkIndex === undefined
@@ -101,7 +117,8 @@ function toggleLine(row: UnifiedRow, ev: MouseEvent) {
   }
 }
 
-const isSelected = (row: UnifiedRow) =>
+const isSelected = (row: DisplayRow) =>
+  row.type !== 'expander' &&
   selHunk.value === row.hunkIndex &&
   row.lineIndex !== undefined &&
   selLines.value.has(row.lineIndex);
@@ -129,6 +146,7 @@ watch(
     selLines.value = new Set();
     selHunk.value = null;
     lastSel.value = null;
+    expanded.value = new Set();
   }
 );
 
@@ -166,13 +184,55 @@ const gutter =
 const ROW_H = 20;
 
 // Only the active mode feeds rows to its virtualizer (the hidden one stays at
-// count 0 and does no work).
+// count 0 and does no work). Whole-file view drops the single `@@` header row.
 const unifiedRows = computed(() => {
   if (props.mode !== 'unified') return [];
   return props.hideHunkHeader
     ? parsed.value.unified.filter((r) => r.type !== 'hunk')
     : parsed.value.unified;
 });
+
+// --- Collapse long unchanged runs (whole-file view) -------------------------
+const COLLAPSE_MIN = 8; // only fold a context run longer than this …
+const COLLAPSE_PAD = 3; // … keeping this many lines visible at each edge
+const expanded = ref<Set<string>>(new Set());
+const expandRegion = (key: string) => {
+  expanded.value = new Set(expanded.value).add(key);
+};
+
+// The unified rows actually rendered: in whole-file view, long stretches of
+// unchanged context fold into one "… N unchanged lines" expander (until the user
+// expands them). Hunk view already ships minimal context, so it's left as-is.
+const unifiedDisplay = computed<DisplayRow[]>(() => {
+  const rows = unifiedRows.value;
+  if (!props.hideHunkHeader) return rows;
+  const out: DisplayRow[] = [];
+  let run: UnifiedRow[] = [];
+  const flush = () => {
+    const hidden = run.length - COLLAPSE_PAD * 2;
+    const key = `c${run[0]?.oldNo ?? ''}`;
+    if (run.length > COLLAPSE_MIN && hidden >= 2 && !expanded.value.has(key)) {
+      out.push(
+        ...run.slice(0, COLLAPSE_PAD),
+        { type: 'expander', key, count: hidden },
+        ...run.slice(-COLLAPSE_PAD)
+      );
+    } else {
+      out.push(...run);
+    }
+    run = [];
+  };
+  for (const r of rows) {
+    if (r.type === 'context') run.push(r);
+    else {
+      flush();
+      out.push(r);
+    }
+  }
+  flush();
+  return out;
+});
+
 const splitRows = computed(() =>
   props.mode === 'split' ? parsed.value.split : []
 );
@@ -200,10 +260,15 @@ function makeVirtualizer({
     const last = items.value[items.value.length - 1];
     return last ? virt.value.getTotalSize() - last.end : 0;
   });
-  return reactive({ items, padTop, padBottom });
+  // Measure a row's real height — wired only when word-wrap makes rows variable.
+  // With wrap off rows are a fixed `h-5`, so this reports a steady 20px.
+  const measure = (el: Element | null) => {
+    if (el) virt.value.measureElement(el);
+  };
+  return reactive({ items, padTop, padBottom, measure });
 }
 
-const unifiedCount = computed(() => unifiedRows.value.length);
+const unifiedCount = computed(() => unifiedDisplay.value.length);
 const splitCount = computed(() => splitRows.value.length);
 
 const uv = makeVirtualizer({
@@ -215,7 +280,7 @@ const rv = makeVirtualizer({ count: splitCount, getEl: () => rightPane.value });
 
 // Pair each on-screen virtual item with its row data for the template.
 const uVisible = computed(() =>
-  uv.items.map((vi) => ({ vi, row: parsed.value.unified[vi.index]! }))
+  uv.items.map((vi) => ({ vi, row: unifiedDisplay.value[vi.index]! }))
 );
 const lVisible = computed(() =>
   lv.items.map((vi) => ({ vi, row: parsed.value.split[vi.index]! }))
@@ -233,77 +298,100 @@ const rVisible = computed(() =>
     class="hljs-diff h-full overflow-auto font-mono text-xs leading-[1.6]"
   >
     <div
-      class="w-max min-w-full"
+      :class="wrap ? 'w-full' : 'w-max min-w-full'"
       :style="{
         paddingTop: `${uv.padTop}px`,
         paddingBottom: `${uv.padBottom}px`
       }"
     >
-      <div
-        v-for="{ vi, row } in uVisible"
-        :key="vi.key"
-        class="flex h-5 leading-5"
-        :class="canSelect(row) && 'cursor-pointer'"
-        @click="toggleLine(row, $event)"
-      >
-        <div
-          v-if="row.type === 'hunk'"
-          class="sticky left-0 flex w-full items-center bg-accent"
+      <template v-for="{ vi, row } in uVisible" :key="vi.key">
+        <!-- a folded run of unchanged lines (whole-file view) -->
+        <button
+          v-if="row.type === 'expander'"
+          :ref="uv.measure"
+          :data-index="vi.index"
+          type="button"
+          class="flex h-5 w-full items-center gap-2 bg-muted/40 px-2 text-[11px] text-muted-foreground italic hover:bg-muted/70"
+          @click="expandRegion(row.key)"
         >
-          <span
-            class="px-2 whitespace-pre text-muted-foreground"
-            v-html="row.html"
-          />
-          <button
-            v-if="hunkAction"
-            class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-            @click="emit('stageHunk', hunks[row.hunkIndex!]!)"
+          <NuxtIcon name="lucide:unfold-vertical" class="size-3 shrink-0" />
+          {{ t('diff.expand', { n: row.count }) }}
+        </button>
+        <div
+          v-else
+          :ref="uv.measure"
+          :data-index="vi.index"
+          :class="[
+            'flex leading-5',
+            wrap ? 'min-h-5' : 'h-5',
+            canSelect(row) && 'cursor-pointer'
+          ]"
+          @click="toggleLine(row, $event)"
+        >
+          <div
+            v-if="row.type === 'hunk'"
+            class="sticky left-0 flex w-full items-center bg-accent"
           >
-            {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
-          </button>
-          <button
-            v-if="hunkAction === 'stage'"
-            class="cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-destructive"
-            @click="emit('discardHunk', hunks[row.hunkIndex!]!)"
-          >
-            ✕ discard
-          </button>
-          <button
-            v-if="hunkAction && selHunk === row.hunkIndex && selectedCount > 0"
-            class="cursor-pointer px-2 text-[10px] font-medium text-primary hover:underline"
-            @click="stageSelected"
-          >
-            {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
-            {{ selectedCount }}
-          </button>
+            <span
+              class="px-2 whitespace-pre text-muted-foreground"
+              v-html="row.html"
+            />
+            <button
+              v-if="hunkAction"
+              class="ml-auto cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+              @click="emit('stageHunk', hunks[row.hunkIndex!]!)"
+            >
+              {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+            </button>
+            <button
+              v-if="hunkAction === 'stage'"
+              class="cursor-pointer px-2 text-[10px] font-medium text-muted-foreground hover:text-destructive"
+              @click="emit('discardHunk', hunks[row.hunkIndex!]!)"
+            >
+              ✕ discard
+            </button>
+            <button
+              v-if="
+                hunkAction && selHunk === row.hunkIndex && selectedCount > 0
+              "
+              class="cursor-pointer px-2 text-[10px] font-medium text-primary hover:underline"
+              @click="stageSelected"
+            >
+              {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+              {{ selectedCount }}
+            </button>
+          </div>
+          <template v-else>
+            <span :class="[gutter, 'left-0 w-12']">{{ row.oldNo ?? '' }}</span>
+            <span :class="[gutter, 'left-12 w-12']">{{ row.newNo ?? '' }}</span>
+            <span
+              class="sticky left-24 z-10 w-4 shrink-0 bg-background text-center select-none"
+              :class="
+                isSelected(row)
+                  ? 'font-bold text-primary'
+                  : 'text-muted-foreground'
+              "
+              >{{
+                isSelected(row)
+                  ? '✓'
+                  : row.type === 'add'
+                    ? '+'
+                    : row.type === 'del'
+                      ? '-'
+                      : ''
+              }}</span
+            >
+            <span
+              class="grow px-1"
+              :class="[
+                wrap ? 'break-words whitespace-pre-wrap' : 'whitespace-pre',
+                isSelected(row) ? 'bg-primary/25' : rowBg[row.type]
+              ]"
+              v-html="row.html"
+            />
+          </template>
         </div>
-        <template v-else>
-          <span :class="[gutter, 'left-0 w-12']">{{ row.oldNo ?? '' }}</span>
-          <span :class="[gutter, 'left-12 w-12']">{{ row.newNo ?? '' }}</span>
-          <span
-            class="sticky left-24 z-10 w-4 shrink-0 bg-background text-center select-none"
-            :class="
-              isSelected(row)
-                ? 'font-bold text-primary'
-                : 'text-muted-foreground'
-            "
-            >{{
-              isSelected(row)
-                ? '✓'
-                : row.type === 'add'
-                  ? '+'
-                  : row.type === 'del'
-                    ? '-'
-                    : ''
-            }}</span
-          >
-          <span
-            class="grow px-1 whitespace-pre"
-            :class="isSelected(row) ? 'bg-primary/25' : rowBg[row.type]"
-            v-html="row.html"
-          />
-        </template>
-      </div>
+      </template>
     </div>
   </div>
 

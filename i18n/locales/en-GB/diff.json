@@ -14,6 +14,8 @@
     "fileHistory": "File history",
     "copyPath": "Copy path",
     "copyDiff": "Copy diff",
+    "wrap": "Wrap long lines",
+    "expand": "Show {n} unchanged lines",
     "lfs": "Git LFS object",
     "lfsNote": "This file is tracked by Git LFS — its binary content is stored outside the repository.",
     "lfsSize": "Size",
