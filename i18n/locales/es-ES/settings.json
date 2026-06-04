@@ -52,6 +52,26 @@
         "loadFailed": "No se pudo leer tu identidad de Git",
         "saveFailed": "No se pudo guardar tu identidad de Git"
       },
+      "gitSigning": {
+        "section": "Firma de commits",
+        "enable": {
+          "label": "Firmar commits",
+          "hint": "Firma los nuevos commits con tu clave GPG o SSH."
+        },
+        "format": {
+          "label": "Formato de firma",
+          "hint": "Usa una clave OpenPGP (GPG) o SSH.",
+          "openpgp": "OpenPGP (GPG)",
+          "ssh": "SSH"
+        },
+        "key": {
+          "label": "Clave de firma",
+          "hint": "ID de clave o ruta para firmar.",
+          "placeholder": "p. ej. ABCD1234 o ~/.ssh/id_ed25519.pub"
+        },
+        "loadFailed": "No se pudo leer tu configuración de firma",
+        "saveFailed": "No se pudo guardar tu configuración de firma"
+      },
       "updatesSection": "Actualizaciones",
       "autoUpdate": {
         "label": "Actualizaciones automáticas",

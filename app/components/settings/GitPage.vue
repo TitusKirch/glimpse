@@ -94,5 +94,6 @@ const settings = useSettingsStore();
     </div>
 
     <SettingsGitIdentity />
+    <SettingsGitSigning />
   </section>
 </template>
