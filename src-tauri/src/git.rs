@@ -181,6 +181,17 @@ pub struct StatusEntry {
     pub conflicted: bool,
 }
 
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ReflogEntry {
+    /// Reflog selector, e.g. `HEAD@{0}`.
+    pub selector: String,
+    /// Abbreviated commit hash the entry points at.
+    pub hash: String,
+    /// Reflog subject, e.g. `reset: moving to HEAD~1`.
+    pub subject: String,
+}
+
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
@@ -323,6 +334,14 @@ impl Repo {
         // `--topo-order` keeps a branch's commits contiguous for a clean graph.
         let out = self.run(&["log", "--all", "--topo-order", "--date=short", &fmt, &n])?;
         Ok(parse::log(&out))
+    }
+
+    /// Read the HEAD reflog — the recovery trail for resets/rebases/commits.
+    pub fn reflog(&self, limit: u32) -> Result<Vec<ReflogEntry>, String> {
+        let fmt = format!("--format=%gd{US}%h{US}%gs");
+        let n = format!("-n{limit}");
+        let raw = self.run(&["reflog", &fmt, &n])?;
+        Ok(parse::reflog(&raw))
     }
 
     pub fn status(&self) -> Result<Vec<StatusEntry>, String> {
@@ -890,6 +909,7 @@ fn export_bindings() {
     let decls = [
         Commit::decl(),
         Branch::decl(),
+        ReflogEntry::decl(),
         StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),

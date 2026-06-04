@@ -538,6 +538,12 @@ async fn git_status(path: String) -> Result<Vec<git::StatusEntry>, String> {
     git::Repo::open(&path).status()
 }
 
+/// HEAD reflog entries for the recovery view / undo.
+#[tauri::command]
+async fn reflog(path: String, limit: Option<u32>) -> Result<Vec<git::ReflogEntry>, String> {
+    git::Repo::open(&path).reflog(limit.unwrap_or(100).min(1000))
+}
+
 #[tauri::command]
 async fn file_diff(
     path: String,
@@ -1187,6 +1193,7 @@ pub fn run() {
             init_repo,
             git_log,
             git_status,
+            reflog,
             file_diff,
             commit_body,
             commit_files,

@@ -3,7 +3,7 @@
 //! lives here so it is testable through a string interface. See
 //! `docs/ARCHITECTURE.md` §9.
 
-use super::{lines, BlameLine, Branch, Commit, CommitFile, DiffData, StatusEntry, US};
+use super::{lines, BlameLine, Branch, Commit, CommitFile, DiffData, ReflogEntry, StatusEntry, US};
 use std::collections::HashMap;
 
 /// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)␟%(upstream)`.
@@ -119,6 +119,23 @@ pub fn log(raw: &str) -> Vec<Commit> {
 
     assign_lanes(&mut commits);
     commits
+}
+
+/// Decode `reflog --format=%gd␟%h␟%gs` into selector / hash / subject rows.
+pub fn reflog(raw: &str) -> Vec<ReflogEntry> {
+    lines(raw)
+        .filter_map(|line| {
+            let mut f = line.split(US);
+            let selector = f.next()?.to_string();
+            let hash = f.next().unwrap_or("").to_string();
+            let subject = f.next().unwrap_or("").to_string();
+            Some(ReflogEntry {
+                selector,
+                hash,
+                subject,
+            })
+        })
+        .collect()
 }
 
 /// Assign a column ("lane") to each commit so the frontend can draw a

@@ -13,6 +13,7 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  ReflogEntry,
   RepoInfo,
   StatusEntry
 } from '~/types/bindings';
@@ -116,6 +117,14 @@ export const gitClient = {
   log: ({ path, limit = 100 }: { path: string; limit?: number }) =>
     tauriInvoke<Commit[]>({
       command: 'git_log',
+      args: { path, limit },
+      fallback: []
+    }),
+
+  // HEAD reflog entries for the recovery view.
+  reflog: ({ path, limit = 100 }: { path: string; limit?: number }) =>
+    tauriInvoke<ReflogEntry[]>({
+      command: 'reflog',
       args: { path, limit },
       fallback: []
     }),

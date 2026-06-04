@@ -402,5 +402,6 @@ const otherPullStrategies = computed(() =>
   <InitDialog />
   <CloneDialog />
   <StashDialog />
+  <ReflogDialog />
   <UiSonner />
 </template>

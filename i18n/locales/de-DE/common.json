@@ -228,7 +228,9 @@
     "pushUpstream": "Push & Upstream setzen",
     "pushForce": "Force-Push (mit Lease)",
     "stash": "Änderungen stashen",
-    "pushTags": "Tags pushen"
+    "pushTags": "Tags pushen",
+    "reflog": "Reflog (Verlauf wiederherstellen)",
+    "undoLast": "Letzte Aktion rückgängig"
   },
   "stash": {
     "title": "Änderungen stashen",
@@ -237,6 +239,16 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "Keine Reflog-Einträge.",
+    "checkout": "Auschecken",
+    "undo": {
+      "title": "Letzte Aktion rückgängig machen?",
+      "description": "Setzt HEAD auf den Stand vor der letzten Aktion zurück (Reset, Rebase, Merge oder Commit). Änderungen im Arbeitsverzeichnis gehen verloren.",
+      "confirm": "Rückgängig"
+    }
   },
   "start": {
     "title": "Kein Repository geöffnet",

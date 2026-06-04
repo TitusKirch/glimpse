@@ -897,6 +897,29 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Undo the last HEAD-moving action by resetting hard to HEAD@{1} (the
+    // previous reflog position) — recovers from a mistaken reset/rebase/merge/
+    // commit. Working-tree changes are discarded, so it confirms first.
+    async undoLast() {
+      return this.native(async () => {
+        const ok = await useConfirm().confirm({
+          titleKey: 'reflog.undo.title',
+          descriptionKey: 'reflog.undo.description',
+          confirmKey: 'reflog.undo.confirm',
+          destructive: true
+        });
+        if (!ok) return;
+        await this.mutate({
+          run: () =>
+            gitClient.reset({
+              path: this.repoPath,
+              hash: 'HEAD@{1}',
+              mode: 'hard'
+            })
+        });
+      });
+    },
+
     // Create a tag on HEAD via a name prompt.
     async createTagPrompt() {
       return this.native(async () => {

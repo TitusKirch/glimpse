@@ -13,6 +13,7 @@ const help = useOverlay('help');
 const initRepo = useOverlay('init');
 const cloneRepo = useOverlay('clone');
 const stashOverlay = useOverlay('stash');
+const reflogOverlay = useOverlay('reflog');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -271,6 +272,22 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:refresh-cw',
       labelKey: 'actions.refresh',
       run: () => repo.refresh(),
+      visible: hasRepos
+    },
+    {
+      id: 'reflog',
+      group: 'repository',
+      icon: 'lucide:history',
+      labelKey: 'command.reflog',
+      run: () => reflogOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'undo-last',
+      group: 'repository',
+      icon: 'lucide:undo-2',
+      labelKey: 'command.undoLast',
+      run: () => repo.undoLast(),
       visible: hasRepos
     },
     {

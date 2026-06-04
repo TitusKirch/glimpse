@@ -228,7 +228,9 @@
     "pushUpstream": "Push and set upstream",
     "pushForce": "Force push (with lease)",
     "stash": "Stash changes",
-    "pushTags": "Push tags"
+    "pushTags": "Push tags",
+    "reflog": "Reflog (recover history)",
+    "undoLast": "Undo last action"
   },
   "stash": {
     "title": "Stash changes",
@@ -237,6 +239,16 @@
     "untracked": "untracked",
     "nothing": "No changes to stash.",
     "submit": "Stash"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "No reflog entries.",
+    "checkout": "Check out",
+    "undo": {
+      "title": "Undo last action?",
+      "description": "Move HEAD back to where it was before the last action (reset, rebase, merge or commit). Working-tree changes are discarded.",
+      "confirm": "Undo"
+    }
   },
   "start": {
     "title": "No repository open",

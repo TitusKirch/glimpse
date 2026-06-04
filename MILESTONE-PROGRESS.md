@@ -17,7 +17,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 ## 0.6.0 — Staging, stash & history safety
 
 - ✅ #28 Stash improvements — preview, partial, include untracked
-- ⏳ #29 Reflog view & "undo last action"
+- ✅ #29 Reflog view & "undo last action"
 - ⏳ #30 Line-level staging and discard a hunk
 - ✅ #32 Cherry-pick / revert multiple or ranges (incl. merge revert)
 
@@ -37,6 +37,11 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- #29: new `reflog` backend + Reflog dialog (reset/checkout to any entry);
+  "Undo last action" (command palette) resets hard to `HEAD@{1}` with a confirm.
+  Recovers reset/rebase/merge/commit; recovering a _deleted branch_ is out of
+  scope (HEAD reflog doesn't capture it) — the reflog view still exposes the
+  dangling commit to checkout/branch from.
 - #32: cherry-pick/revert take commit arrays; graph Ctrl/Shift-click builds a
   multi-selection for bulk cherry-pick/revert; reverting a merge prompts for the
   mainline parent (`-m`). Mid-op conflicts fall to the existing conflict UI.

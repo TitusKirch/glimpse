@@ -228,7 +228,9 @@
     "pushUpstream": "Push y definir upstream",
     "pushForce": "Force push (con lease)",
     "stash": "Guardar cambios en stash",
-    "pushTags": "Push de los tags"
+    "pushTags": "Push de los tags",
+    "reflog": "Reflog (recuperar historial)",
+    "undoLast": "Deshacer última acción"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -237,6 +239,16 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "reflog": {
+    "title": "Reflog",
+    "empty": "No hay entradas en el reflog.",
+    "checkout": "Cambiar a",
+    "undo": {
+      "title": "¿Deshacer la última acción?",
+      "description": "Mueve HEAD a donde estaba antes de la última acción (reset, rebase, merge o commit). Se descartan los cambios del árbol de trabajo.",
+      "confirm": "Deshacer"
+    }
   },
   "start": {
     "title": "Ningún repositorio abierto",
