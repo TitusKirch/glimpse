@@ -97,6 +97,11 @@ pub fn log(raw: &str) -> Vec<Commit> {
                 .map(str::to_string)
                 .collect();
             let subject = f.next().unwrap_or("").to_string();
+            // Signature fields are optional: callers using the shorter log format
+            // (e.g. file history) simply leave these empty.
+            let signature_status = f.next().unwrap_or("").to_string();
+            let signer_name = f.next().unwrap_or("").to_string();
+            let signer_key = f.next().unwrap_or("").to_string();
             Some(Commit {
                 hash,
                 subject,
@@ -105,6 +110,9 @@ pub fn log(raw: &str) -> Vec<Commit> {
                 refs,
                 parents,
                 lane: 0,
+                signature_status,
+                signer_name,
+                signer_key,
             })
         })
         .collect();

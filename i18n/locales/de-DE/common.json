@@ -28,7 +28,9 @@
   "actions": {
     "refresh": "Aktualisieren",
     "openRepo": "Repository öffnen",
-    "closeRepo": "Repository schließen"
+    "closeRepo": "Repository schließen",
+    "initRepo": "Repository initialisieren",
+    "cloneRepo": "Repository klonen"
   },
   "theme": {
     "toggle": "Theme umschalten"
@@ -47,7 +49,37 @@
     "contextHint": "Tipp: Rechtsklick auf einen Commit für weitere Aktionen."
   },
   "common": {
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "browse": "Durchsuchen…"
+  },
+  "init": {
+    "title": "Repository initialisieren",
+    "submit": "Initialisieren",
+    "failed": "Repository konnte nicht initialisiert werden",
+    "folder": {
+      "label": "Speicherort",
+      "placeholder": "Ordner wählen…"
+    },
+    "branch": {
+      "label": "Initialer Branch (optional)",
+      "placeholder": "main",
+      "description": "Leer lassen für den git-Standard."
+    }
+  },
+  "clone": {
+    "title": "Repository klonen",
+    "submit": "Klonen",
+    "failed": "Repository konnte nicht geklont werden",
+    "url": {
+      "label": "Repository-URL",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "HTTPS- oder SSH-URL."
+    },
+    "folder": {
+      "label": "Klonen nach",
+      "placeholder": "Ordner wählen…",
+      "description": "Ein Unterordner wird aus dem Repository-Namen erstellt."
+    }
   },
   "form": {
     "create": "Erstellen",
@@ -151,7 +183,13 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "Änderungen unstaged behalten",
     "resetHard": "Hard",
-    "resetHardHint": "Alle Änderungen verwerfen"
+    "resetHardHint": "Alle Änderungen verwerfen",
+    "signature": {
+      "verified": "Verifiziert · {signer}",
+      "untrusted": "Signiert von {signer} · Schlüssel nicht verifiziert",
+      "cannotVerify": "Signatur nicht überprüfbar",
+      "invalid": "Ungültige Signatur"
+    }
   },
   "command": {
     "open": "Befehlspalette",

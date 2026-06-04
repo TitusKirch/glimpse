@@ -1,6 +1,9 @@
 {
   "settings": {
     "title": "Ajustes",
+    "git": {
+      "title": "Git"
+    },
     "general": {
       "title": "General",
       "gitSection": "Git",
@@ -30,6 +33,22 @@
         "merge": "Merge",
         "rebase": "Rebase",
         "ffOnly": "Solo fast-forward"
+      },
+      "gitIdentity": {
+        "section": "Identidad de Git",
+        "globalHint": "Se usa para todos los repositorios.",
+        "overrideSection": "Este repositorio",
+        "overrideHint": "Anular la identidad solo para el repositorio actual.",
+        "name": {
+          "label": "Nombre",
+          "placeholder": "Tu nombre"
+        },
+        "email": {
+          "label": "Correo electrónico",
+          "placeholder": "tu{'@'}example.com"
+        },
+        "loadFailed": "No se pudo leer tu identidad de Git",
+        "saveFailed": "No se pudo guardar tu identidad de Git"
       },
       "updatesSection": "Actualizaciones",
       "autoUpdate": {

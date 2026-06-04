@@ -60,6 +60,59 @@ export const gitClient = {
   info: (path: string) =>
     tauriInvoke<RepoInfo>({ command: 'repo_info', args: { path } }),
 
+  // Read a git config value (e.g. `user.name`). `global` reads ~/.gitconfig;
+  // empty string means unset. Falls back to empty in the browser demo.
+  getConfig: ({
+    path,
+    key,
+    global = true
+  }: {
+    path: string;
+    key: string;
+    global?: boolean;
+  }) =>
+    tauriInvoke<string>({
+      command: 'get_config',
+      args: { path, key, global },
+      fallback: ''
+    }),
+
+  // Write a git config value (used for the user's identity).
+  setConfig: ({
+    path,
+    key,
+    value,
+    global = true
+  }: {
+    path: string;
+    key: string;
+    value: string;
+    global?: boolean;
+  }) =>
+    tauriInvoke<null>({
+      command: 'set_config',
+      args: { path, key, value, global },
+      fallback: null
+    }),
+
+  // Initialise a new repository in `path` (optional initial branch); resolves to
+  // the new repo's toplevel path so the caller can open it.
+  initRepo: ({ path, branch }: { path: string; branch?: string }) =>
+    tauriInvoke<string>({
+      command: 'init_repo',
+      args: { path, branch: branch ?? null },
+      fallback: ''
+    }),
+
+  // Clone `url` into the existing folder `path`; resolves to the new repo's path
+  // so the caller can open it.
+  cloneRepo: ({ path, url }: { path: string; url: string }) =>
+    tauriInvoke<string>({
+      command: 'clone_repo',
+      args: { path, url },
+      fallback: ''
+    }),
+
   log: ({ path, limit = 100 }: { path: string; limit?: number }) =>
     tauriInvoke<Commit[]>({
       command: 'git_log',

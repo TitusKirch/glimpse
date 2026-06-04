@@ -75,7 +75,17 @@ pub fn is_unsafe_path(v: &str) -> bool {
         || v.bytes().any(|b| b == b'\n' || b == b'\r' || b == 0)
 }
 
+/// Derive the directory `git clone` creates from a remote URL — git's "humanish"
+/// name: the last path segment with a trailing `.git` removed.
+/// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
+fn clone_dir_name(url: &str) -> &str {
+    let trimmed = url.trim_end_matches('/');
+    let last = trimmed.rsplit(['/', ':']).next().unwrap_or(trimmed);
+    last.strip_suffix(".git").unwrap_or(last)
+}
+
 #[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Commit {
     pub hash: String,
     pub subject: String,
@@ -84,6 +94,14 @@ pub struct Commit {
     pub refs: Vec<String>,
     pub parents: Vec<String>,
     pub lane: u32,
+    /// GPG/SSH signature verification status from `%G?`: `G` good, `U` good but
+    /// of unknown validity, `B` bad, `X`/`Y`/`R` expired/revoked, `E` cannot
+    /// check, `N` unsigned (empty when git reports nothing).
+    pub signature_status: String,
+    /// Signer name (`%GS`) when the commit is signed, else empty.
+    pub signer_name: String,
+    /// Signing key / fingerprint (`%GK`) when available, else empty.
+    pub signer_key: String,
 }
 
 #[derive(Serialize, TS)]
@@ -249,10 +267,14 @@ impl Repo {
         // — otherwise the WSL distro is lost and the next call hits native git.
         let raw_top = self.run(&["rev-parse", "--show-toplevel"])?;
         let toplevel = self.target.host_path(raw_top.trim());
+        // `rev-parse --abbrev-ref HEAD` resolves a branch name (or "HEAD" when
+        // detached), but fails on a freshly-initialised repo whose branch is
+        // still unborn — fall back to the symbolic ref so empty repos open.
         let current_branch = self
-            .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
-            .trim()
-            .to_string();
+            .run(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .or_else(|_| self.run(&["symbolic-ref", "--short", "HEAD"]))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
         // Per-branch ahead/behind comes from %(upstream:track), e.g.
         // "[ahead 2, behind 1]".
         let branch_fmt = format!("--format=%(refname:short){US}%(upstream:track){US}%(upstream)");
@@ -285,7 +307,17 @@ impl Repo {
     }
 
     pub fn log(&self, limit: u32) -> Result<Vec<Commit>, String> {
-        let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
+        // A freshly-initialised repo has no commits yet; `git log` would fail
+        // hard, so short-circuit to an empty history when there are no refs.
+        if self.run(&["rev-parse", "--all"])?.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        // `%G?`/`%GS`/`%GK` carry the signature verification status, signer name
+        // and signing key so the graph can badge signed commits. Trailing fields
+        // stay optional in the parser, so other callers (file history) that use
+        // the shorter format decode fine.
+        let fmt =
+            format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
         let n = format!("-n{limit}");
         // `--all` so every branch/remote/tag tip shows as its own parallel lane;
         // `--topo-order` keeps a branch's commits contiguous for a clean graph.
@@ -692,6 +724,77 @@ impl Repo {
             args.extend(["--set-upstream", "origin", "HEAD"]);
         }
         self.run(&args)
+    }
+
+    /// Read a git config value (`git config [--global] --get <key>`). git reports
+    /// an unset key with exit code 1; map that to an empty string so "not
+    /// configured" is a normal result rather than an error.
+    pub fn config_get(&self, key: &str, global: bool) -> Result<String, String> {
+        reject_option(key)?;
+        let mut args = vec!["config"];
+        if global {
+            args.push("--global");
+        }
+        args.push("--get");
+        args.push(key);
+        let output = self.target.command(&args).output().map_err(|e| {
+            format!(
+                "failed to run git: {e}\n\n$ {}",
+                self.target.describe(&args)
+            )
+        })?;
+        match output.status.code() {
+            Some(0) => Ok(String::from_utf8_lossy(&output.stdout).trim().to_string()),
+            Some(1) => Ok(String::new()),
+            _ => Err(format!(
+                "{}\n\n$ {}",
+                String::from_utf8_lossy(&output.stderr).trim(),
+                self.target.describe(&args)
+            )),
+        }
+    }
+
+    /// Write a git config value (`git config [--global] <key> <value>`). `value`
+    /// runs through the same option-injection guard as a ref (no leading `-`, no
+    /// control characters) while still allowing the spaces and `@`/`.` a name or
+    /// email needs.
+    pub fn config_set(&self, key: &str, value: &str, global: bool) -> Result<(), String> {
+        reject_option(key)?;
+        reject_option(value)?;
+        let mut args = vec!["config"];
+        if global {
+            args.push("--global");
+        }
+        args.push(key);
+        args.push(value);
+        self.run(&args).map(|_| ())
+    }
+
+    /// Clone `url` into `parent` (an existing directory), returning the host path
+    /// of the freshly created repo so the caller can open it. Routed through
+    /// `parent`, so a `\\wsl$` parent clones inside the distro.
+    pub fn clone_repo(&self, url: &str, parent: &str) -> Result<String, String> {
+        reject_option(url)?;
+        self.run(&["clone", "--", url])?;
+        let name = clone_dir_name(url);
+        let name = if name.is_empty() { "repo" } else { name };
+        // `parse_wsl_path` normalises separators, so a `/` join round-trips for
+        // both native and `\\wsl$` parents.
+        Ok(format!("{}/{}", parent.trim_end_matches(['/', '\\']), name))
+    }
+
+    /// Initialise a new repository in this directory (which must exist), with an
+    /// optional initial branch name. Returns the canonical toplevel host path.
+    pub fn init_repo(&self, branch: Option<&str>) -> Result<String, String> {
+        let mut args = vec!["init"];
+        if let Some(b) = branch {
+            reject_option(b)?;
+            args.push("-b");
+            args.push(b);
+        }
+        self.run(&args)?;
+        let top = self.run(&["rev-parse", "--show-toplevel"])?;
+        Ok(self.target.host_path(top.trim()))
     }
 }
 

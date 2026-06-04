@@ -435,6 +435,46 @@ async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
     git::Repo::open(&path).info()
 }
 
+/// Read a git config value. `global` selects `~/.gitconfig` over the repo's
+/// local config; `path` still routes the call (native vs. WSL git).
+#[tauri::command]
+async fn get_config(path: String, key: String, global: bool) -> Result<String, String> {
+    git::Repo::open(&path).config_get(&key, global)
+}
+
+/// Write a git config value (used for the user's `user.name` / `user.email`
+/// identity). Touches a config file, not the index, so it needs no repo lock.
+#[tauri::command]
+async fn set_config(path: String, key: String, value: String, global: bool) -> Result<(), String> {
+    git::Repo::open(&path).config_set(&key, &value, global)
+}
+
+/// Clone `url` into the existing directory `path`, returning the new repo's host
+/// path so the frontend can open it in a tab.
+#[tauri::command]
+async fn clone_repo(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    url: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).clone_repo(&url, &path)
+    })
+}
+
+/// Initialise a new repository in the existing directory `path` (optional initial
+/// branch), returning its toplevel host path.
+#[tauri::command]
+async fn init_repo(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    branch: Option<String>,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).init_repo(branch.as_deref())
+    })
+}
+
 #[tauri::command]
 async fn git_log(path: String, limit: Option<u32>) -> Result<Vec<git::Commit>, String> {
     // Clamp the window: the frontend raises `limit` 200 at a time with no
@@ -1062,6 +1102,10 @@ pub fn run() {
             cli_install_status,
             watch_repo,
             repo_info,
+            get_config,
+            set_config,
+            clone_repo,
+            init_repo,
             git_log,
             git_status,
             file_diff,

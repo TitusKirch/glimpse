@@ -28,7 +28,9 @@
   "actions": {
     "refresh": "Actualizar",
     "openRepo": "Abrir repositorio",
-    "closeRepo": "Cerrar repositorio"
+    "closeRepo": "Cerrar repositorio",
+    "initRepo": "Inicializar repositorio",
+    "cloneRepo": "Clonar repositorio"
   },
   "theme": {
     "toggle": "Cambiar tema"
@@ -47,7 +49,37 @@
     "contextHint": "Consejo: haz clic derecho en un commit para más acciones."
   },
   "common": {
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "browse": "Examinar…"
+  },
+  "init": {
+    "title": "Inicializar repositorio",
+    "submit": "Inicializar",
+    "failed": "No se pudo inicializar el repositorio",
+    "folder": {
+      "label": "Ubicación",
+      "placeholder": "Elige una carpeta…"
+    },
+    "branch": {
+      "label": "Rama inicial (opcional)",
+      "placeholder": "main",
+      "description": "Déjalo vacío para usar el valor predeterminado de git."
+    }
+  },
+  "clone": {
+    "title": "Clonar repositorio",
+    "submit": "Clonar",
+    "failed": "No se pudo clonar el repositorio",
+    "url": {
+      "label": "URL del repositorio",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "URL HTTPS o SSH."
+    },
+    "folder": {
+      "label": "Clonar en",
+      "placeholder": "Elige una carpeta…",
+      "description": "Se crea una subcarpeta con el nombre del repositorio."
+    }
   },
   "form": {
     "create": "Crear",
@@ -151,7 +183,13 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "mantener los cambios fuera de stage",
     "resetHard": "Hard",
-    "resetHardHint": "descartar todos los cambios"
+    "resetHardHint": "descartar todos los cambios",
+    "signature": {
+      "verified": "Verificada · {signer}",
+      "untrusted": "Firmado por {signer} · clave sin verificar",
+      "cannotVerify": "No se puede verificar la firma",
+      "invalid": "Firma no válida"
+    }
   },
   "command": {
     "open": "Paleta de comandos",

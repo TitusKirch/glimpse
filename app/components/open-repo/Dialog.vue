@@ -4,6 +4,8 @@
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 
 const { open, hide } = useOverlay('openRepo');
+const initOverlay = useOverlay('init');
+const cloneOverlay = useOverlay('clone');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const settings = useSettingsStore();
@@ -33,6 +35,16 @@ async function reopen(path: string) {
   hide();
   await repo.openRepo(path);
 }
+
+function startInit() {
+  hide();
+  initOverlay.show();
+}
+
+function startClone() {
+  hide();
+  cloneOverlay.show();
+}
 </script>
 
 <template>
@@ -47,6 +59,24 @@ async function reopen(path: string) {
 
       <UiButton class="w-full" icon="lucide:folder-open" @click="pick">
         {{ t('actions.openRepo') }}
+      </UiButton>
+
+      <UiButton
+        class="w-full"
+        variant="outline"
+        icon="lucide:folder-plus"
+        @click="startInit"
+      >
+        {{ t('actions.initRepo') }}
+      </UiButton>
+
+      <UiButton
+        class="w-full"
+        variant="outline"
+        icon="lucide:cloud-download"
+        @click="startClone"
+      >
+        {{ t('actions.cloneRepo') }}
       </UiButton>
 
       <div v-if="recent.repos.length" class="min-w-0">

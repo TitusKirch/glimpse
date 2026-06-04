@@ -28,7 +28,9 @@
   "actions": {
     "refresh": "Actualiser",
     "openRepo": "Ouvrir un dépôt",
-    "closeRepo": "Fermer le dépôt"
+    "closeRepo": "Fermer le dépôt",
+    "initRepo": "Initialiser un dépôt",
+    "cloneRepo": "Cloner un dépôt"
   },
   "theme": {
     "toggle": "Changer de thème"
@@ -47,7 +49,37 @@
     "contextHint": "Astuce : faites un clic droit sur un commit pour plus d'actions."
   },
   "common": {
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "browse": "Parcourir…"
+  },
+  "init": {
+    "title": "Initialiser un dépôt",
+    "submit": "Initialiser",
+    "failed": "Impossible d'initialiser le dépôt",
+    "folder": {
+      "label": "Emplacement",
+      "placeholder": "Choisir un dossier…"
+    },
+    "branch": {
+      "label": "Branche initiale (optionnel)",
+      "placeholder": "main",
+      "description": "Laisser vide pour utiliser la valeur par défaut de git."
+    }
+  },
+  "clone": {
+    "title": "Cloner un dépôt",
+    "submit": "Cloner",
+    "failed": "Impossible de cloner le dépôt",
+    "url": {
+      "label": "URL du dépôt",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "URL HTTPS ou SSH."
+    },
+    "folder": {
+      "label": "Cloner dans",
+      "placeholder": "Choisir un dossier…",
+      "description": "Un sous-dossier est créé à partir du nom du dépôt."
+    }
   },
   "form": {
     "create": "Créer",
@@ -151,7 +183,13 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "garder les modifications non indexées",
     "resetHard": "Hard",
-    "resetHardHint": "abandonner toutes les modifications"
+    "resetHardHint": "abandonner toutes les modifications",
+    "signature": {
+      "verified": "Vérifiée · {signer}",
+      "untrusted": "Signé par {signer} · clé non vérifiée",
+      "cannotVerify": "Signature non vérifiable",
+      "invalid": "Signature invalide"
+    }
   },
   "command": {
     "open": "Palette de commandes",

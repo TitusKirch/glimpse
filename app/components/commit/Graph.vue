@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 const repo = useRepoStore();
 const { refLabel, fullRefLabel } = useBranchLabel();
+const sig = useCommitSignature();
 const { t } = useI18n();
 
 // All geometry comes from the pure layout module; this component only binds it.
@@ -207,8 +208,24 @@ function refVariant(ref: string) {
                     vr.commit.subject
                   }}</span>
                 </div>
-                <div class="mt-1 truncate text-xs text-muted-foreground">
-                  {{ vr.commit.author }} · {{ vr.commit.date }}
+                <div
+                  class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"
+                >
+                  <span class="truncate"
+                    >{{ vr.commit.author }} · {{ vr.commit.date }}</span
+                  >
+                  <UiTooltip v-if="sig.isSigned(vr.commit)">
+                    <UiTooltipTrigger as-child>
+                      <NuxtIcon
+                        :name="sig.icon(vr.commit.signatureStatus)"
+                        class="size-3.5 shrink-0"
+                        :class="sig.colorClass(vr.commit.signatureStatus)"
+                      />
+                    </UiTooltipTrigger>
+                    <UiTooltipContent>{{
+                      sig.label(vr.commit)
+                    }}</UiTooltipContent>
+                  </UiTooltip>
                 </div>
               </div>
               <code

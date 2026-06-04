@@ -28,7 +28,9 @@
   "actions": {
     "refresh": "Refresh",
     "openRepo": "Open repository",
-    "closeRepo": "Close repository"
+    "closeRepo": "Close repository",
+    "initRepo": "Initialise repository",
+    "cloneRepo": "Clone repository"
   },
   "theme": {
     "toggle": "Toggle theme"
@@ -47,7 +49,37 @@
     "contextHint": "Tip: right-click a commit for more actions."
   },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "browse": "Browse…"
+  },
+  "init": {
+    "title": "Initialise repository",
+    "submit": "Initialise",
+    "failed": "Couldn't initialise the repository",
+    "folder": {
+      "label": "Location",
+      "placeholder": "Choose a folder…"
+    },
+    "branch": {
+      "label": "Initial branch (optional)",
+      "placeholder": "main",
+      "description": "Leave empty to use git's default."
+    }
+  },
+  "clone": {
+    "title": "Clone repository",
+    "submit": "Clone",
+    "failed": "Couldn't clone the repository",
+    "url": {
+      "label": "Repository URL",
+      "placeholder": "https://github.com/user/repo.git",
+      "description": "HTTPS or SSH URL."
+    },
+    "folder": {
+      "label": "Clone into",
+      "placeholder": "Choose a folder…",
+      "description": "A subfolder is created from the repository name."
+    }
   },
   "form": {
     "create": "Create",
@@ -151,7 +183,13 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "keep changes unstaged",
     "resetHard": "Hard",
-    "resetHardHint": "discard all changes"
+    "resetHardHint": "discard all changes",
+    "signature": {
+      "verified": "Verified · {signer}",
+      "untrusted": "Signed by {signer} · key not verified",
+      "cannotVerify": "Signature can't be verified",
+      "invalid": "Invalid signature"
+    }
   },
   "command": {
     "open": "Command palette",
