@@ -13,6 +13,7 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  RebaseStep,
   ReflogEntry,
   RepoInfo,
   SparseStatus,
@@ -192,6 +193,27 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Stage (or unstage with reverse) only the selected body-line indices of a
+  // single hunk — line-level staging.
+  applyLines: ({
+    path,
+    file,
+    hunk,
+    lines,
+    reverse
+  }: {
+    path: string;
+    file: string;
+    hunk: string;
+    lines: number[];
+    reverse: boolean;
+  }) =>
+    tauriInvoke<null>({
+      command: 'apply_lines',
+      args: { path, file, hunk, lines, reverse },
+      fallback: null
+    }),
+
   // Discard a single hunk from the working tree (reverse-apply).
   discardHunk: ({
     path,
@@ -368,6 +390,29 @@ export const gitClient = {
       command: 'rebase_abort',
       args: { path },
       fallback: null
+    }),
+  // Commits an interactive rebase from `start` would replay (oldest first).
+  rebaseCommits: ({ path, start }: { path: string; start: string }) =>
+    tauriInvoke<Commit[]>({
+      command: 'rebase_commits',
+      args: { path, start },
+      fallback: []
+    }),
+  // Run an interactive rebase from a plan; `base` is the parent to replay onto
+  // (empty for a root rebase).
+  interactiveRebase: ({
+    path,
+    base,
+    steps
+  }: {
+    path: string;
+    base: string;
+    steps: RebaseStep[];
+  }) =>
+    tauriInvoke<string>({
+      command: 'interactive_rebase',
+      args: { path, base, steps },
+      fallback: ''
     }),
 
   // Bisect: start between bad/good refs, mark each step, reset when done.

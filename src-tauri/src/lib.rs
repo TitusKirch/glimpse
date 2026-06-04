@@ -614,6 +614,22 @@ async fn discard_hunk(
     })
 }
 
+/// Stage (or unstage, when `reverse`) only the selected body-line indices of a
+/// single hunk — line-level staging.
+#[tauri::command]
+async fn apply_lines(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    hunk: String,
+    lines: Vec<u32>,
+    reverse: bool,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).apply_lines(&file, &hunk, &lines, reverse)
+    })
+}
+
 #[tauri::command]
 async fn commit_body(path: String, hash: String) -> Result<String, String> {
     git::Repo::open(&path).commit_body(&hash)
@@ -713,6 +729,26 @@ async fn rebase_skip(locks: State<'_, RepoLocks>, path: String) -> Result<String
 #[tauri::command]
 async fn rebase_abort(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
     locked(&locks, &path, || git::Repo::open(&path).rebase_abort())
+}
+
+/// Run an interactive rebase from a plan (reword/squash/fixup/drop/reorder) over
+/// `base..HEAD`, or the whole history when `base` is empty.
+#[tauri::command]
+async fn interactive_rebase(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    base: String,
+    steps: Vec<git::RebaseStep>,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).interactive_rebase(&base, &steps)
+    })
+}
+
+/// The commits an interactive rebase from `start` would replay (oldest first).
+#[tauri::command]
+async fn rebase_commits(path: String, start: String) -> Result<Vec<git::Commit>, String> {
+    git::Repo::open(&path).rebase_commits(&start)
 }
 
 /// Start a bisect session between a bad and good ref.
@@ -1364,6 +1400,7 @@ pub fn run() {
             blame,
             apply_hunk,
             discard_hunk,
+            apply_lines,
             stage,
             unstage,
             commit,
@@ -1376,6 +1413,8 @@ pub fn run() {
             rebase_continue,
             rebase_skip,
             rebase_abort,
+            interactive_rebase,
+            rebase_commits,
             bisect_start,
             bisect_mark,
             bisect_reset,

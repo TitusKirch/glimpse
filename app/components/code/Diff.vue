@@ -9,6 +9,7 @@
 // because absolute rows can't push a `w-max` track wider than the viewport and
 // would kill horizontal scrolling of long lines.
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import type { UnifiedRow } from '~/types/diff';
 
 const props = defineProps<{
   hunks: string[];
@@ -29,6 +30,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   stageHunk: [hunk: string];
   discardHunk: [hunk: string];
+  stageLines: [{ hunk: string; lines: number[] }];
 }>();
 
 // Pure projection of the raw hunks into the unified + split row models.
@@ -39,6 +41,95 @@ const parsed = computed(() =>
     oldContent: props.oldContent,
     newContent: props.newContent
   })
+);
+
+// --- Line-level selection (unified mode) ------------------------------------
+// Sub-hunk staging: pick individual +/- lines, then stage/unstage just those.
+// Selection is scoped to a single hunk — clicking a line in another hunk starts
+// fresh — which keeps the emitted patch a clean single-hunk apply. Only the
+// unified view is selectable; split keeps whole-hunk staging.
+const selHunk = ref<number | null>(null);
+const selLines = ref<Set<number>>(new Set());
+const lastSel = ref<number | null>(null);
+
+const canSelect = (row: UnifiedRow) =>
+  !!props.hunkAction && (row.type === 'add' || row.type === 'del');
+
+// Body indices of the selectable (+/-) lines of a hunk, in display order — the
+// span a shift-click range is filled across.
+const selectableInHunk = (hunkIndex: number): number[] =>
+  parsed.value.unified
+    .filter(
+      (r) =>
+        r.hunkIndex === hunkIndex &&
+        (r.type === 'add' || r.type === 'del') &&
+        r.lineIndex !== undefined
+    )
+    .map((r) => r.lineIndex!);
+
+function toggleLine(row: UnifiedRow, ev: MouseEvent) {
+  if (
+    !canSelect(row) ||
+    row.lineIndex === undefined ||
+    row.hunkIndex === undefined
+  )
+    return;
+  if (selHunk.value !== row.hunkIndex) {
+    selHunk.value = row.hunkIndex;
+    selLines.value = new Set();
+    lastSel.value = null;
+  }
+  const next = new Set(selLines.value);
+  if (ev.shiftKey && lastSel.value !== null) {
+    const all = selectableInHunk(row.hunkIndex);
+    const a = all.indexOf(lastSel.value);
+    const b = all.indexOf(row.lineIndex);
+    if (a !== -1 && b !== -1) {
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      for (let i = lo; i <= hi; i++) next.add(all[i]!);
+    }
+  } else if (next.has(row.lineIndex)) {
+    next.delete(row.lineIndex);
+  } else {
+    next.add(row.lineIndex);
+  }
+  lastSel.value = row.lineIndex;
+  selLines.value = next;
+  if (next.size === 0) {
+    selHunk.value = null;
+    lastSel.value = null;
+  }
+}
+
+const isSelected = (row: UnifiedRow) =>
+  selHunk.value === row.hunkIndex &&
+  row.lineIndex !== undefined &&
+  selLines.value.has(row.lineIndex);
+
+const selectedCount = computed(() => selLines.value.size);
+
+function stageSelected() {
+  if (selHunk.value === null || selLines.value.size === 0) return;
+  const hunk = props.hunks[selHunk.value];
+  if (!hunk) return;
+  emit('stageLines', {
+    hunk,
+    lines: [...selLines.value].sort((a, b) => a - b)
+  });
+  selLines.value = new Set();
+  selHunk.value = null;
+  lastSel.value = null;
+}
+
+// A re-diff (after any stage/unstage) swaps the hunks array out; drop the now
+// meaningless selection so stale indices can't be applied.
+watch(
+  () => props.hunks,
+  () => {
+    selLines.value = new Set();
+    selHunk.value = null;
+    lastSel.value = null;
+  }
 );
 
 const rowBg: Record<string, string> = {
@@ -152,6 +243,8 @@ const rVisible = computed(() =>
         v-for="{ vi, row } in uVisible"
         :key="vi.key"
         class="flex h-5 leading-5"
+        :class="canSelect(row) && 'cursor-pointer'"
+        @click="toggleLine(row, $event)"
       >
         <div
           v-if="row.type === 'hunk'"
@@ -175,19 +268,38 @@ const rVisible = computed(() =>
           >
             ✕ discard
           </button>
+          <button
+            v-if="hunkAction && selHunk === row.hunkIndex && selectedCount > 0"
+            class="cursor-pointer px-2 text-[10px] font-medium text-primary hover:underline"
+            @click="stageSelected"
+          >
+            {{ hunkAction === 'stage' ? '+ stage' : '− unstage' }}
+            {{ selectedCount }}
+          </button>
         </div>
         <template v-else>
           <span :class="[gutter, 'left-0 w-12']">{{ row.oldNo ?? '' }}</span>
           <span :class="[gutter, 'left-12 w-12']">{{ row.newNo ?? '' }}</span>
           <span
-            class="sticky left-24 z-10 w-4 shrink-0 bg-background text-center text-muted-foreground select-none"
+            class="sticky left-24 z-10 w-4 shrink-0 bg-background text-center select-none"
+            :class="
+              isSelected(row)
+                ? 'font-bold text-primary'
+                : 'text-muted-foreground'
+            "
             >{{
-              row.type === 'add' ? '+' : row.type === 'del' ? '-' : ''
+              isSelected(row)
+                ? '✓'
+                : row.type === 'add'
+                  ? '+'
+                  : row.type === 'del'
+                    ? '-'
+                    : ''
             }}</span
           >
           <span
             class="grow px-1 whitespace-pre"
-            :class="rowBg[row.type]"
+            :class="isSelected(row) ? 'bg-primary/25' : rowBg[row.type]"
             v-html="row.html"
           />
         </template>

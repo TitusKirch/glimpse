@@ -13,7 +13,11 @@
     "blameViewCommit": "Diesen Commit ansehen",
     "fileHistory": "Datei-Verlauf",
     "copyPath": "Pfad kopieren",
-    "copyDiff": "Diff kopieren"
+    "copyDiff": "Diff kopieren",
+    "lfs": "Git-LFS-Objekt",
+    "lfsNote": "Diese Datei wird von Git LFS verwaltet — ihr Binärinhalt liegt außerhalb des Repositorys.",
+    "lfsSize": "Größe",
+    "lfsOid": "Objekt-ID"
   },
   "fileView": {
     "list": "Listenansicht",

@@ -69,7 +69,8 @@ export const gitMock = {
       staged: false,
       unstaged: true,
       untracked: false,
-      conflicted: false
+      conflicted: false,
+      isLfs: false
     },
     {
       path: 'src-tauri/src/git.rs',
@@ -78,7 +79,8 @@ export const gitMock = {
       staged: true,
       unstaged: false,
       untracked: false,
-      conflicted: false
+      conflicted: false,
+      isLfs: false
     },
     {
       path: 'docs/NOTES.md',
@@ -87,7 +89,8 @@ export const gitMock = {
       staged: false,
       unstaged: false,
       untracked: true,
-      conflicted: false
+      conflicted: false,
+      isLfs: false
     }
   ] satisfies StatusEntry[],
   diff: {
@@ -101,6 +104,7 @@ export const gitMock = {
 +  state: () => ({ commits: [], status: [] }),
 +  // now talks to the real git backend
  })`
-    ]
+    ],
+    isLfs: false
   } satisfies DiffData
 };

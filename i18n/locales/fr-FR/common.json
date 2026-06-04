@@ -197,7 +197,7 @@
     "signature": {
       "verified": "Vérifiée · {signer}",
       "untrusted": "Signé par {signer} · clé non vérifiée",
-      "cannotVerify": "Signature non vérifiable",
+      "cannotVerify": "Signature non vérifiable (clé indisponible)",
       "invalid": "Signature invalide"
     }
   },
@@ -303,6 +303,22 @@
     "continue": "Continuer",
     "skip": "Ignorer",
     "abort": "Abandonner"
+  },
+  "rebasePlan": {
+    "menu": "Rebase interactif à partir d'ici…",
+    "title": "Rebase interactif",
+    "description": "Réordonnez, reformulez, fusionnez (squash/fixup) ou supprimez des commits, puis lancez le rebase.",
+    "publishedWarning": "Ces commits sont déjà sur un dépôt distant — les réécrire nécessitera un push forcé.",
+    "empty": "Aucun commit à rebaser.",
+    "messagePlaceholder": "Nouveau message de commit",
+    "run": "Lancer le rebase",
+    "action": {
+      "pick": "Garder",
+      "reword": "Reformuler",
+      "squash": "Fusionner",
+      "fixup": "Fixup",
+      "drop": "Supprimer"
+    }
   },
   "reflog": {
     "title": "Reflog",

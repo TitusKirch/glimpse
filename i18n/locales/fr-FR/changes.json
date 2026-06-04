@@ -22,6 +22,7 @@
     "useTheirs": "Garder les leurs",
     "markResolved": "Marquer comme résolu",
     "clean": "Arbre de travail propre",
-    "cleanHint": "Aucune modification à valider."
+    "cleanHint": "Aucune modification à valider.",
+    "lfs": "Géré par Git LFS"
   }
 }

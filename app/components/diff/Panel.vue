@@ -55,6 +55,17 @@ function onDiscardHunk(hunk: string) {
     void repo.discardHunk({ file: repo.selectedFile, hunk });
   }
 }
+// Stage (or unstage, for a staged file) only the selected lines of a hunk.
+function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
+  if (repo.selectedFile) {
+    void repo.applyLines({
+      file: repo.selectedFile,
+      hunk,
+      lines,
+      reverse: repo.selectedFileStaged
+    });
+  }
+}
 </script>
 
 <template>
@@ -254,6 +265,10 @@ function onDiscardHunk(hunk: string) {
         v-if="blame && canBlame && repo.selectedFile"
         :file="repo.selectedFile"
       />
+      <DiffLfs
+        v-else-if="repo.diff && repo.diff.isLfs"
+        :hunks="repo.diff.hunks"
+      />
       <CodeDiff
         v-else-if="repo.diff && repo.diff.hunks.length"
         :hunks="repo.diff.hunks"
@@ -265,6 +280,7 @@ function onDiscardHunk(hunk: string) {
         :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
         @stage-hunk="onStageHunk"
         @discard-hunk="onDiscardHunk"
+        @stage-lines="onStageLines"
       />
       <div v-else-if="repo.loading" class="space-y-2 p-4">
         <UiSkeleton

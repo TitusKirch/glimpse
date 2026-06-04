@@ -127,6 +127,13 @@ export type DiffData = {
   oldContent: string;
   newContent: string;
   hunks: Array<string>;
+  /**
+   * The file is tracked by Git LFS: the hunks show the small text *pointer*
+   * (version / oid / size), not the real binary. The viewer frames it as an
+   * LFS object instead of rendering it as source, and `old_content` /
+   * `new_content` are left empty so the smudged binary is never shipped.
+   */
+  isLfs: boolean;
 };
 
 export type CommitFile = {
@@ -165,4 +172,15 @@ export type StatusEntry = {
    * Unmerged (merge-conflict) entry — shown in its own section.
    */
   conflicted: boolean;
+  /**
+   * Path is managed by Git LFS (its `filter` attribute is `lfs`) — surfaced
+   * as a badge so a pointer change isn't mistaken for a tiny text edit.
+   */
+  isLfs: boolean;
+};
+
+export type RebaseStep = {
+  action: string;
+  hash: string;
+  message: string | null;
 };

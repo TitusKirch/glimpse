@@ -76,10 +76,14 @@ export function parseDiff({
     let newNo = m ? Number(m[2]) : 1;
     unified.push({ type: 'hunk', html: escapeHtml(header), hunkIndex });
 
+    // 0-based line position within this hunk body (context/add/remove count;
+    // `\ No newline` does not), threaded onto each row so line-level staging can
+    // map a selected row back to the body index the backend expects.
+    let bodyIdx = 0;
     // Buffer consecutive removals/additions so a modified line (a -/+ pair) can
     // be word-diffed — the changed substring gets emphasised like in split mode.
-    let dels: { text: string; oldNo: number }[] = [];
-    let adds: { text: string; newNo: number }[] = [];
+    let dels: { text: string; oldNo: number; lineIndex: number }[] = [];
+    let adds: { text: string; newNo: number; lineIndex: number }[] = [];
     const flush = () => {
       const n = Math.max(dels.length, adds.length);
       const delHtml: string[] = [];
@@ -99,7 +103,9 @@ export function parseDiff({
           type: 'del',
           oldNo: d.oldNo,
           html: delHtml[i]!,
-          text: d.text
+          text: d.text,
+          hunkIndex,
+          lineIndex: d.lineIndex
         })
       );
       adds.forEach((a, i) =>
@@ -107,7 +113,9 @@ export function parseDiff({
           type: 'add',
           newNo: a.newNo,
           html: addHtml[i]!,
-          text: a.text
+          text: a.text,
+          hunkIndex,
+          lineIndex: a.lineIndex
         })
       );
       dels = [];
@@ -119,8 +127,9 @@ export function parseDiff({
       const c = l[0];
       const text = l.slice(1);
       if (c === '\\') continue;
-      if (c === '+') adds.push({ text, newNo: newNo++ });
-      else if (c === '-') dels.push({ text, oldNo: oldNo++ });
+      if (c === '+') adds.push({ text, newNo: newNo++, lineIndex: bodyIdx++ });
+      else if (c === '-')
+        dels.push({ text, oldNo: oldNo++, lineIndex: bodyIdx++ });
       else {
         flush();
         const o = oldNo++;
@@ -130,7 +139,9 @@ export function parseDiff({
           oldNo: o,
           newNo: nn,
           html: hlNew({ no: nn, text }),
-          text
+          text,
+          hunkIndex,
+          lineIndex: bodyIdx++
         });
       }
     }

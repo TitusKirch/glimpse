@@ -7,6 +7,8 @@
 interface FileItem {
   path: string;
   status: string;
+  // Present on working-tree status entries; absent on commit file lists.
+  isLfs?: boolean;
   [key: string]: unknown;
 }
 
@@ -130,6 +132,7 @@ const rows = computed<Row[]>(() => {
       :key="f.path"
       :path="f.path"
       :status="f.status"
+      :is-lfs="f.isLfs"
       :active="selected === f.path"
       @select="emit('select', f.path)"
     >
@@ -169,6 +172,7 @@ const rows = computed<Row[]>(() => {
         v-else
         :path="r.file.path"
         :status="r.file.status"
+        :is-lfs="r.file.isLfs"
         :active="selected === r.file.path"
         name-only
         :depth="r.depth"

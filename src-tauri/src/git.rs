@@ -75,6 +75,116 @@ pub fn is_unsafe_path(v: &str) -> bool {
         || v.bytes().any(|b| b == b'\n' || b == b'\r' || b == 0)
 }
 
+/// Reduce a unified-diff hunk to only the user-selected `+`/`-` lines, for
+/// line-level (sub-hunk) staging. `selected` holds 0-based indices into the hunk
+/// body — every context / add / remove line counts; the `@@` header and any
+/// `\ No newline` marker do not. The transform is direction-dependent:
+///
+/// * Staging (`reverse == false`, forward `git apply --cached`): keep context
+///   and selected lines; **drop** unselected additions (they must not land in
+///   the index) and demote unselected removals to context (the line still exists
+///   on the index/old side, so it stays).
+/// * Unstaging (`reverse == true`, `git apply --cached --reverse`): the patch is
+///   applied backwards, so the roles flip — demote unselected additions to
+///   context (they stay staged) and **drop** unselected removals.
+///
+/// The `@@` line counts are left as-is and recomputed by `git apply --recount`;
+/// only the start offsets matter and those are unchanged by the reduction.
+fn build_partial_hunk(hunk: &str, selected: &[u32], reverse: bool) -> String {
+    let mut out = String::new();
+    let mut body: u32 = 0;
+    for (i, line) in hunk.lines().enumerate() {
+        if i == 0 {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        let Some(&marker) = line.as_bytes().first() else {
+            continue; // a blank separator line carries no diff content
+        };
+        if marker == b'\\' {
+            // "\ No newline at end of file" — metadata for the preceding line.
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        let rest = &line[1..];
+        let idx = body;
+        body += 1;
+        let keep = selected.contains(&idx);
+        let mut push = |m: char| {
+            out.push(m);
+            out.push_str(rest);
+            out.push('\n');
+        };
+        match marker {
+            b' ' => push(' '),
+            b'+' => {
+                if keep {
+                    push('+');
+                } else if reverse {
+                    push(' ');
+                }
+            }
+            b'-' => {
+                if keep {
+                    push('-');
+                } else if !reverse {
+                    push(' ');
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// Parse `git check-attr --stdin -z filter` output into the set of paths whose
+/// `filter` attribute is `lfs`. The `-z` stream is flat NUL-separated fields in
+/// `path\0 attr\0 value\0` triplets.
+fn lfs_from_check_attr(out: &str) -> std::collections::HashSet<String> {
+    let fields: Vec<&str> = out.split('\u{0}').collect();
+    let mut set = std::collections::HashSet::new();
+    let mut i = 0;
+    while i + 2 < fields.len() {
+        if fields[i + 1] == "filter" && fields[i + 2] == "lfs" {
+            set.insert(fields[i].to_string());
+        }
+        i += 3;
+    }
+    set
+}
+
+/// Build a `git rebase -i` todo list from a plan, plus the message files it
+/// references. `reword` becomes a `pick` and `squash`/`reword` with a new message
+/// get an `exec git commit --amend --file=<path>` line right after, so the
+/// message is applied from a file (no shell-quoting of free text) and no editor
+/// opens. `msg_prefix` is the absolute path stem of those files *as git sees it*
+/// (a Linux path inside WSL). Returns the todo and the `(path, message)` pairs
+/// the caller must write. An unknown action is treated as `pick`.
+fn build_rebase_todo(steps: &[RebaseStep], msg_prefix: &str) -> (String, Vec<(String, String)>) {
+    let mut todo = String::new();
+    let mut msgs = Vec::new();
+    for (i, step) in steps.iter().enumerate() {
+        let action = match step.action.as_str() {
+            "drop" => "drop",
+            "squash" => "squash",
+            "fixup" => "fixup",
+            // `reword` is realised as pick + exec-amend; anything else is a pick.
+            _ => "pick",
+        };
+        todo.push_str(&format!("{action} {}\n", step.hash));
+        if matches!(step.action.as_str(), "reword" | "squash") {
+            if let Some(message) = &step.message {
+                let path = format!("{msg_prefix}{i}");
+                todo.push_str(&format!("exec git commit --amend --file=\"{path}\"\n"));
+                msgs.push((path, message.clone()));
+            }
+        }
+    }
+    (todo, msgs)
+}
+
 /// Derive the directory `git clone` creates from a remote URL — git's "humanish"
 /// name: the last path segment with a trailing `.git` removed.
 /// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
@@ -150,6 +260,11 @@ pub struct DiffData {
     pub old_content: String,
     pub new_content: String,
     pub hunks: Vec<String>,
+    /// The file is tracked by Git LFS: the hunks show the small text *pointer*
+    /// (version / oid / size), not the real binary. The viewer frames it as an
+    /// LFS object instead of rendering it as source, and `old_content` /
+    /// `new_content` are left empty so the smudged binary is never shipped.
+    pub is_lfs: bool,
 }
 
 #[derive(Serialize, TS)]
@@ -184,6 +299,9 @@ pub struct StatusEntry {
     pub untracked: bool,
     /// Unmerged (merge-conflict) entry — shown in its own section.
     pub conflicted: bool,
+    /// Path is managed by Git LFS (its `filter` attribute is `lfs`) — surfaced
+    /// as a badge so a pointer change isn't mistaken for a tiny text edit.
+    pub is_lfs: bool,
 }
 
 #[derive(Serialize, TS)]
@@ -228,6 +346,18 @@ pub struct SparseStatus {
     pub enabled: bool,
     /// The included path patterns (cone-mode directories), empty when disabled.
     pub patterns: Vec<String>,
+}
+
+/// One line of an interactive-rebase plan sent from the frontend, in apply order
+/// (oldest first). `action` is `pick` | `reword` | `squash` | `fixup` | `drop`;
+/// `message` carries the new message for a `reword` (and an overridden combined
+/// message for a `squash`), applied without opening an editor.
+#[derive(Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct RebaseStep {
+    pub action: String,
+    pub hash: String,
+    pub message: Option<String>,
 }
 
 /// How far `git reset` rewinds. Deserialized from the frontend's
@@ -398,9 +528,32 @@ impl Repo {
         Ok(parse::reflog(&raw))
     }
 
+    /// Which of `files` Git LFS manages — their `filter` attribute resolves to
+    /// `lfs`. One `git check-attr` pass over NUL-separated paths on stdin (its
+    /// `-z` output is `path\0 filter\0 value\0` triplets). Detection reads
+    /// `.gitattributes` only, so it works even without the `git-lfs` binary
+    /// installed; it is best-effort and returns empty on any error so a stray
+    /// failure never breaks status or diff.
+    fn lfs_paths(&self, files: &[String]) -> std::collections::HashSet<String> {
+        if files.is_empty() {
+            return std::collections::HashSet::new();
+        }
+        let input = files.join("\u{0}");
+        let Ok(out) = self.run_stdin(&["check-attr", "--stdin", "-z", "filter"], &input) else {
+            return std::collections::HashSet::new();
+        };
+        lfs_from_check_attr(&out)
+    }
+
     pub fn status(&self) -> Result<Vec<StatusEntry>, String> {
         let raw = self.run(&["status", "--porcelain=v1", "--untracked-files=all", "-z"])?;
-        Ok(parse::status(&raw))
+        let mut entries = parse::status(&raw);
+        let files: Vec<String> = entries.iter().map(|e| e.path.clone()).collect();
+        let lfs = self.lfs_paths(&files);
+        for entry in &mut entries {
+            entry.is_lfs = lfs.contains(&entry.path);
+        }
+        Ok(entries)
     }
 
     /// Diff of a single file, either the staged version or the working-tree
@@ -452,6 +605,13 @@ impl Repo {
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
+        // For an LFS file the hunks already hold the small text pointer; flag it
+        // and skip loading full contents — the working side is the smudged binary
+        // and shipping it would be wasteful and unrenderable.
+        if self.lfs_paths(&[file.to_string()]).contains(file) {
+            diff.is_lfs = true;
+            return Ok(Some(diff));
+        }
         if staged {
             diff.old_content = self.content(&format!("HEAD:{file}"));
             diff.new_content = self.content(&format!(":{file}"));
@@ -593,6 +753,31 @@ impl Repo {
         .map(|_| ())
     }
 
+    /// Stage or unstage only the user-selected lines within a single hunk
+    /// (line-level / sub-hunk staging). `lines` are 0-based indices into the
+    /// hunk body; the reduced hunk is built by [`build_partial_hunk`] and applied
+    /// to the index exactly like [`apply_hunk`] (`--reverse` unstages).
+    pub fn apply_lines(
+        &self,
+        file: &str,
+        hunk: &str,
+        lines: &[u32],
+        reverse: bool,
+    ) -> Result<(), String> {
+        reject_unsafe_path(file)?;
+        reject_unsafe_hunk(hunk)?;
+        if lines.is_empty() {
+            return Err("no lines selected".to_string());
+        }
+        let partial = build_partial_hunk(hunk, lines, reverse);
+        let patch = format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{partial}");
+        let mut args = vec!["apply", "--cached", "--recount", "--whitespace=nowarn"];
+        if reverse {
+            args.push("--reverse");
+        }
+        self.run_stdin(&args, &patch).map(|_| ())
+    }
+
     /// Commits that touched a file, following renames (`git log --follow`).
     pub fn file_history(&self, file: &str) -> Result<Vec<Commit>, String> {
         reject_unsafe_path(file)?;
@@ -674,6 +859,75 @@ impl Repo {
     /// Abort a paused rebase, restoring the pre-rebase state.
     pub fn rebase_abort(&self) -> Result<(), String> {
         self.run(&["rebase", "--abort"]).map(|_| ())
+    }
+
+    /// Run an interactive rebase from a frontend plan (reword / squash / fixup /
+    /// drop / reorder) over `base..HEAD`, or the whole history when `base` is
+    /// empty (`--root`). `steps` are in apply order.
+    ///
+    /// Non-interactive without an editor: the todo and any reword/squash messages
+    /// are written into the git dir, then `-c sequence.editor='cp <todo>'` feeds
+    /// the plan and `exec … --amend --file=…` lines apply the messages. Config is
+    /// passed as `-c` flags (not env) so it crosses into WSL git too, and every
+    /// path is the absolute path *as git sees it* so it is cwd-independent. A
+    /// conflict pauses the rebase exactly like [`rebase`], reusing the existing
+    /// continue / skip / abort flow.
+    pub fn interactive_rebase(&self, base: &str, steps: &[RebaseStep]) -> Result<String, String> {
+        if steps.is_empty() {
+            return Err("empty rebase plan".to_string());
+        }
+        for step in steps {
+            reject_option(&step.hash)?;
+        }
+        if !base.is_empty() {
+            reject_option(base)?;
+        }
+        let git_dir = self
+            .run(&["rev-parse", "--absolute-git-dir"])?
+            .trim()
+            .to_string();
+        let todo_view = format!("{git_dir}/glimpse-rebase-todo");
+        let msg_prefix = format!("{git_dir}/glimpse-rebase-msg-");
+        let (todo, msgs) = build_rebase_todo(steps, &msg_prefix);
+        // Write through the host-visible path (the WSL share on Windows); the
+        // todo/exec lines reference the git-visible path written above.
+        std::fs::write(self.target.host_path(&todo_view), &todo)
+            .map_err(|e| format!("failed to write rebase plan: {e}"))?;
+        for (path, message) in &msgs {
+            std::fs::write(self.target.host_path(path), message)
+                .map_err(|e| format!("failed to write rebase message: {e}"))?;
+        }
+        let editor = format!("sequence.editor=cp \"{todo_view}\"");
+        let base_arg = if base.is_empty() { "--root" } else { base };
+        self.run(&[
+            "-c",
+            &editor,
+            "-c",
+            "core.editor=true",
+            "rebase",
+            "-i",
+            base_arg,
+        ])
+    }
+
+    /// Commits an interactive rebase from `start` would replay — `start` and its
+    /// descendants up to HEAD, oldest first, so the plan dialog can list them in
+    /// apply order. Falls back to the whole history when `start` is the root.
+    pub fn rebase_commits(&self, start: &str) -> Result<Vec<Commit>, String> {
+        reject_option(start)?;
+        let parent = format!("{start}^");
+        let has_parent = self
+            .run(&["rev-parse", "--verify", "--quiet", &parent])
+            .is_ok();
+        let range = if has_parent {
+            format!("{parent}..HEAD")
+        } else {
+            "HEAD".to_string()
+        };
+        let fmt =
+            format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
+        let out = self.run(&["log", "--reverse", "--date=short", &fmt, &range])?;
+        Ok(parse::log(&out))
     }
 
     /// Start a `git bisect` between a known-bad and known-good ref. Returns git's
@@ -1160,6 +1414,7 @@ fn export_bindings() {
         CommitFile::decl(),
         BlameLine::decl(),
         StatusEntry::decl(),
+        RebaseStep::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
@@ -1172,7 +1427,102 @@ fn export_bindings() {
 
 #[cfg(test)]
 mod validate_tests {
-    use super::{reject_option, reject_unsafe_hunk, reject_unsafe_path};
+    use super::{build_partial_hunk, reject_option, reject_unsafe_hunk, reject_unsafe_path};
+
+    // A hunk body indexed 0..=3: context, removal, addition, addition.
+    const HUNK: &str = "@@ -1,3 +1,4 @@\n ctx\n-removed\n+added1\n+added2";
+
+    #[test]
+    fn build_partial_hunk_stages_only_selected_addition() {
+        // Stage just `+added1` (body index 2): the unselected removal becomes
+        // context (it stays in the index) and the unselected addition is dropped.
+        let got = build_partial_hunk(HUNK, &[2], false);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n+added1\n");
+        // The reduced hunk is still a structurally valid patch body.
+        assert!(reject_unsafe_hunk(got.trim_end()).is_ok());
+    }
+
+    #[test]
+    fn build_partial_hunk_stages_only_selected_removal() {
+        // Stage just the removal (index 1): both additions are dropped.
+        let got = build_partial_hunk(HUNK, &[1], false);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n-removed\n");
+    }
+
+    #[test]
+    fn build_partial_hunk_unstage_flips_the_roles() {
+        // Unstaging `+added1` (reverse): the unselected addition is demoted to
+        // context (stays staged) and the unselected removal is dropped.
+        let got = build_partial_hunk(HUNK, &[2], true);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n+added1\n added2\n");
+    }
+
+    #[test]
+    fn build_partial_hunk_keeps_no_newline_marker() {
+        let hunk = "@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file";
+        // Stage the addition (index 1); the no-newline marker is preserved.
+        let got = build_partial_hunk(hunk, &[1], false);
+        assert_eq!(
+            got,
+            "@@ -1 +1 @@\n old\n+new\n\\ No newline at end of file\n"
+        );
+    }
+
+    #[test]
+    fn build_partial_hunk_empty_selection_drops_all_changes() {
+        // Nothing selected → only context survives (caller rejects this upfront).
+        let got = build_partial_hunk(HUNK, &[], false);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n");
+    }
+
+    #[test]
+    fn lfs_from_check_attr_collects_only_lfs_filtered_paths() {
+        use super::lfs_from_check_attr;
+        // Triplets: big.bin is LFS, notes.txt is filtered but not lfs, and
+        // plain.rs has no filter — only the first should be collected.
+        let out = "big.bin\u{0}filter\u{0}lfs\u{0}\
+                   notes.txt\u{0}filter\u{0}clean\u{0}\
+                   plain.rs\u{0}filter\u{0}unspecified\u{0}";
+        let set = lfs_from_check_attr(out);
+        assert_eq!(set.len(), 1);
+        assert!(set.contains("big.bin"));
+        assert!(lfs_from_check_attr("").is_empty());
+    }
+
+    #[test]
+    fn build_rebase_todo_maps_actions_and_amend_execs() {
+        use super::{build_rebase_todo, RebaseStep};
+        let step = |action: &str, hash: &str, message: Option<&str>| RebaseStep {
+            action: action.to_string(),
+            hash: hash.to_string(),
+            message: message.map(str::to_string),
+        };
+        let steps = [
+            step("pick", "aaa", None),
+            step("reword", "bbb", Some("new subject")),
+            step("squash", "ccc", Some("merged")),
+            step("fixup", "ddd", None),
+            step("drop", "eee", None),
+        ];
+        let (todo, msgs) = build_rebase_todo(&steps, "/g/.git/m-");
+        assert_eq!(
+            todo,
+            "pick aaa\n\
+             pick bbb\n\
+             exec git commit --amend --file=\"/g/.git/m-1\"\n\
+             squash ccc\n\
+             exec git commit --amend --file=\"/g/.git/m-2\"\n\
+             fixup ddd\n\
+             drop eee\n"
+        );
+        assert_eq!(
+            msgs,
+            vec![
+                ("/g/.git/m-1".to_string(), "new subject".to_string()),
+                ("/g/.git/m-2".to_string(), "merged".to_string()),
+            ]
+        );
+    }
 
     #[test]
     fn reject_unsafe_hunk_blocks_smuggled_file_section() {

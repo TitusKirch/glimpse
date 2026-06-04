@@ -72,6 +72,8 @@ pub fn status(raw: &str) -> Vec<StatusEntry> {
             unstaged: !conflicted && !untracked && y != ' ',
             untracked,
             conflicted,
+            // Filled in by `Repo::status` from a single `git check-attr` pass.
+            is_lfs: false,
         });
     }
     entries
@@ -309,6 +311,8 @@ pub fn diff(raw: &str) -> Option<DiffData> {
             old_content: String::new(),
             new_content: String::new(),
             hunks,
+            // Set by `Repo::file_diff` once the path is known to be LFS-tracked.
+            is_lfs: false,
         })
 }
 
