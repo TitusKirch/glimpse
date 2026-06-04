@@ -485,11 +485,12 @@ async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
     git::Repo::open(&path).info()
 }
 
-/// Read a git config value. `global` selects `~/.gitconfig` over the repo's
-/// local config; `path` still routes the call (native vs. WSL git).
+/// Read a git config value at `scope` (`global` / `local` / `system`, or empty
+/// for the effective value after precedence); `path` routes the call (native vs.
+/// WSL git).
 #[tauri::command]
-async fn get_config(path: String, key: String, global: bool) -> Result<String, String> {
-    git::Repo::open(&path).config_get(&key, global)
+async fn get_config(path: String, key: String, scope: String) -> Result<String, String> {
+    git::Repo::open(&path).config_get(&key, &scope)
 }
 
 /// Write a git config value (used for the user's `user.name` / `user.email`

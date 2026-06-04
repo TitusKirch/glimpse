@@ -26,8 +26,8 @@ async function load() {
   try {
     const path = await routingPath();
     [globalName.value, globalEmail.value] = await Promise.all([
-      gitClient.getConfig({ path, key: 'user.name', global: true }),
-      gitClient.getConfig({ path, key: 'user.email', global: true })
+      gitClient.getConfig({ path, key: 'user.name', scope: 'global' }),
+      gitClient.getConfig({ path, key: 'user.email', scope: 'global' })
     ]);
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.loadFailed'), {

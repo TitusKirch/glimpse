@@ -1652,11 +1652,18 @@ impl Repo {
     /// Read a git config value (`git config [--global] --get <key>`). git reports
     /// an unset key with exit code 1; map that to an empty string so "not
     /// configured" is a normal result rather than an error.
-    pub fn config_get(&self, key: &str, global: bool) -> Result<String, String> {
+    /// Read a config value at a given `scope`: `global` / `local` / `system`, or
+    /// any other value (`""`) for the *effective* value after full precedence.
+    /// The scope maps to a fixed flag — never interpolated — so it can't inject
+    /// an option.
+    pub fn config_get(&self, key: &str, scope: &str) -> Result<String, String> {
         reject_option(key)?;
         let mut args = vec!["config"];
-        if global {
-            args.push("--global");
+        match scope {
+            "global" => args.push("--global"),
+            "local" => args.push("--local"),
+            "system" => args.push("--system"),
+            _ => {}
         }
         args.push("--get");
         args.push(key);

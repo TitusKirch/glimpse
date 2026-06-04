@@ -1,17 +1,25 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
 
-// Commit signing config (commit.gpgsign / gpg.format / user.signingkey), read &
-// written directly via git config (global), routed through the active repo so a
-// WSL repo hits the right git — same approach as the identity section. Commits
-// then sign automatically (git honours commit.gpgsign); a missing key or absent
-// gpg/ssh-keygen surfaces as the commit's own error toast.
+// Global commit-signing config (commit.gpgsign / gpg.format / user.signingkey),
+// read & written through the active repo's git. Commits then sign automatically
+// (git honours commit.gpgsign). With SSH format, the key can be picked from the
+// detected public keys rather than typed.
 const { t } = useI18n();
 const repo = useRepoStore();
 
 const sign = ref(false);
 const format = ref('openpgp');
 const signingKey = ref('');
+const sshKeys = ref<string[]>([]);
+
+function keyInfo(key: string): { type: string; comment: string } {
+  const parts = key.trim().split(/\s+/);
+  return {
+    type: (parts[0] ?? '').replace(/^ssh-/, '') || 'ssh',
+    comment: parts.slice(2).join(' ')
+  };
+}
 
 async function routingPath() {
   return repo.active?.path ?? (await gitClient.defaultRepo());
@@ -21,14 +29,18 @@ async function load() {
   if (!isTauri()) return;
   try {
     const path = await routingPath();
-    const [gpgsign, fmt, key] = await Promise.all([
-      gitClient.getConfig({ path, key: 'commit.gpgsign', global: true }),
-      gitClient.getConfig({ path, key: 'gpg.format', global: true }),
-      gitClient.getConfig({ path, key: 'user.signingkey', global: true })
+    const [gpgsign, fmt, key, ssh] = await Promise.all([
+      gitClient.getConfig({ path, key: 'commit.gpgsign', scope: 'global' }),
+      gitClient.getConfig({ path, key: 'gpg.format', scope: 'global' }),
+      gitClient.getConfig({ path, key: 'user.signingkey', scope: 'global' }),
+      repo.active?.path
+        ? gitClient.sshStatus(repo.active.path)
+        : Promise.resolve(null)
     ]);
     sign.value = gpgsign === 'true';
     format.value = fmt === 'ssh' ? 'ssh' : 'openpgp';
     signingKey.value = key;
+    sshKeys.value = ssh?.publicKeys ?? [];
   } catch (e) {
     toast.error(t('settings.general.gitSigning.loadFailed'), {
       description: String(e)
@@ -37,6 +49,7 @@ async function load() {
 }
 
 onMounted(load);
+watch(() => repo.active?.path, load);
 
 async function set(key: string, value: string) {
   if (!isTauri()) return;
@@ -62,12 +75,19 @@ function setFormat(v: string) {
   format.value = v;
   void set('gpg.format', v);
 }
-// An empty key is left untouched — the backend rejects an empty config value and
-// clearing is a CLI concern — mirroring the identity fields.
+function pickKey(v: string) {
+  signingKey.value = v;
+  void set('user.signingkey', v);
+}
+// An empty key is left untouched — the backend rejects an empty config value.
 function saveKey() {
   const trimmed = signingKey.value.trim();
   if (trimmed) void set('user.signingkey', trimmed);
 }
+
+const useSshPicker = computed(
+  () => format.value === 'ssh' && sshKeys.value.length > 0
+);
 </script>
 
 <template>
@@ -110,7 +130,34 @@ function saveKey() {
             </UiSelectContent>
           </UiSelect>
         </SettingsRow>
+
+        <!-- SSH: pick from detected keys; otherwise type a key id / path -->
         <SettingsRow
+          v-if="useSshPicker"
+          label="settings.general.gitSigning.key.label"
+          hint="settings.general.gitSigning.key.sshHint"
+        >
+          <UiSelect
+            :model-value="signingKey"
+            @update:model-value="(v) => pickKey(v as string)"
+          >
+            <UiSelectTrigger class="w-56 shrink-0">
+              <UiSelectValue
+                :placeholder="t('settings.general.gitSigning.key.pick')"
+              />
+            </UiSelectTrigger>
+            <UiSelectContent>
+              <UiSelectItem v-for="k in sshKeys" :key="k" :value="k">
+                {{ keyInfo(k).type
+                }}<template v-if="keyInfo(k).comment">
+                  · {{ keyInfo(k).comment }}</template
+                >
+              </UiSelectItem>
+            </UiSelectContent>
+          </UiSelect>
+        </SettingsRow>
+        <SettingsRow
+          v-else
           label="settings.general.gitSigning.key.label"
           hint="settings.general.gitSigning.key.hint"
         >

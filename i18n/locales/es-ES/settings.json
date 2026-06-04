@@ -76,7 +76,9 @@
         "key": {
           "label": "Clave de firma",
           "hint": "ID de clave o ruta para firmar.",
-          "placeholder": "p. ej. ABCD1234 o ~/.ssh/id_ed25519.pub"
+          "placeholder": "p. ej. ABCD1234 o ~/.ssh/id_ed25519.pub",
+          "sshHint": "Elige una de tus claves SSH detectadas.",
+          "pick": "Elegir una clave…"
         },
         "loadFailed": "No se pudo leer tu configuración de firma",
         "saveFailed": "No se pudo guardar tu configuración de firma"
@@ -95,7 +97,8 @@
           "hint": "Ruta al binario de git que se usará.",
           "placeholder": "p. ej. /usr/bin/git"
         },
-        "resolved": "Actualmente: {target}",
+        "nativeGit": "Git nativo",
+        "resolved": "Se ejecuta vía: {target}",
         "distros": "Distros WSL: {list}",
         "saveFailed": "No se pudo guardar el destino de Git"
       },

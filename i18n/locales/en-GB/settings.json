@@ -76,7 +76,9 @@
         "key": {
           "label": "Signing key",
           "hint": "Key ID or path used to sign.",
-          "placeholder": "e.g. ABCD1234 or ~/.ssh/id_ed25519.pub"
+          "placeholder": "e.g. ABCD1234 or ~/.ssh/id_ed25519.pub",
+          "sshHint": "Pick one of your detected SSH keys.",
+          "pick": "Choose a key…"
         },
         "loadFailed": "Couldn't read your signing settings",
         "saveFailed": "Couldn't save your signing settings"
@@ -95,7 +97,8 @@
           "hint": "Path to the git binary to use.",
           "placeholder": "e.g. /usr/bin/git"
         },
-        "resolved": "Currently: {target}",
+        "nativeGit": "Native git",
+        "resolved": "Runs via: {target}",
         "distros": "WSL distros: {list}",
         "saveFailed": "Couldn't save the git target"
       },

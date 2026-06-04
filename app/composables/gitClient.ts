@@ -73,15 +73,16 @@ export const gitClient = {
   getConfig: ({
     path,
     key,
-    global = true
+    scope = 'global'
   }: {
     path: string;
     key: string;
-    global?: boolean;
+    // 'global' | 'local' | 'system', or '' for the effective value.
+    scope?: string;
   }) =>
     tauriInvoke<string>({
       command: 'get_config',
-      args: { path, key, global },
+      args: { path, key, scope },
       fallback: ''
     }),
 

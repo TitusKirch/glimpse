@@ -17,21 +17,20 @@ const missing = computed(() => !effectiveName.value || !effectiveEmail.value);
 
 async function load() {
   if (!isTauri() || !activePath.value) return;
+  const path = activePath.value;
   try {
-    [localName.value, localEmail.value] = await Promise.all([
-      gitClient.getConfig({
-        path: activePath.value,
-        key: 'user.name',
-        global: false
-      }),
-      gitClient.getConfig({
-        path: activePath.value,
-        key: 'user.email',
-        global: false
-      })
+    // Banner = effective (after precedence); the fields show the *local-only*
+    // override, so they stay empty when nothing overrides the inherited value.
+    const [effN, effE, locN, locE] = await Promise.all([
+      gitClient.getConfig({ path, key: 'user.name', scope: '' }),
+      gitClient.getConfig({ path, key: 'user.email', scope: '' }),
+      gitClient.getConfig({ path, key: 'user.name', scope: 'local' }),
+      gitClient.getConfig({ path, key: 'user.email', scope: 'local' })
     ]);
-    effectiveName.value = localName.value;
-    effectiveEmail.value = localEmail.value;
+    effectiveName.value = effN;
+    effectiveEmail.value = effE;
+    localName.value = locN;
+    localEmail.value = locE;
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.loadFailed'), {
       description: String(e)

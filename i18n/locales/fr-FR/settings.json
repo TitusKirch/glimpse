@@ -76,7 +76,9 @@
         "key": {
           "label": "Clé de signature",
           "hint": "ID de clé ou chemin pour signer.",
-          "placeholder": "ex. ABCD1234 ou ~/.ssh/id_ed25519.pub"
+          "placeholder": "ex. ABCD1234 ou ~/.ssh/id_ed25519.pub",
+          "sshHint": "Choisissez une de vos clés SSH détectées.",
+          "pick": "Choisir une clé…"
         },
         "loadFailed": "Impossible de lire vos paramètres de signature",
         "saveFailed": "Impossible d'enregistrer vos paramètres de signature"
@@ -95,7 +97,8 @@
           "hint": "Chemin du binaire git à utiliser.",
           "placeholder": "ex. /usr/bin/git"
         },
-        "resolved": "Actuellement : {target}",
+        "nativeGit": "Git natif",
+        "resolved": "S'exécute via : {target}",
         "distros": "Distros WSL : {list}",
         "saveFailed": "Impossible d'enregistrer la cible Git"
       },

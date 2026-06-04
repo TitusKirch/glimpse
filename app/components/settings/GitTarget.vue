@@ -14,10 +14,18 @@ const distros = ref<string[]>([]);
 
 const activePath = computed(() => repo.active?.path ?? '');
 const hasRepo = computed(() => !!activePath.value);
+// A human label for the git that currently runs for this repo.
 const resolved = computed(() => {
   const a = repo.active;
   if (!a) return '';
-  return a.flavor === 'wsl' && a.distro ? `WSL · ${a.distro}` : a.flavor;
+  if (a.flavor === 'wsl' && a.distro) return `WSL · ${a.distro}`;
+  const os =
+    a.flavor === 'macos'
+      ? 'macOS'
+      : a.flavor === 'windows'
+        ? 'Windows'
+        : 'Linux';
+  return `${t('settings.general.gitTarget.nativeGit')} (${os})`;
 });
 
 async function load() {
@@ -26,7 +34,7 @@ async function load() {
   const v = await gitClient.getConfig({
     path: activePath.value,
     key: 'glimpse.target',
-    global: false
+    scope: 'local'
   });
   if (v === 'native') mode.value = 'native';
   else if (v && v !== 'auto') {
