@@ -18,6 +18,7 @@ const navSections = computed(() => {
   const sections = [
     [
       { key: 'general', icon: 'lucide:sliders-horizontal' },
+      { key: 'git', icon: 'lucide:git-branch' },
       { key: 'appearance', icon: 'lucide:palette' },
       { key: 'language', icon: 'lucide:languages' }
     ],
@@ -84,6 +85,11 @@ watch(
         <div class="min-w-0 flex-1 overflow-auto p-6">
           <SettingsGeneralPage
             v-if="page === 'general'"
+            :form="form"
+            :persist="persist"
+          />
+          <SettingsGitPage
+            v-else-if="page === 'git'"
             :form="form"
             :persist="persist"
           />

@@ -435,6 +435,20 @@ async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
     git::Repo::open(&path).info()
 }
 
+/// Read a git config value. `global` selects `~/.gitconfig` over the repo's
+/// local config; `path` still routes the call (native vs. WSL git).
+#[tauri::command]
+async fn get_config(path: String, key: String, global: bool) -> Result<String, String> {
+    git::Repo::open(&path).config_get(&key, global)
+}
+
+/// Write a git config value (used for the user's `user.name` / `user.email`
+/// identity). Touches a config file, not the index, so it needs no repo lock.
+#[tauri::command]
+async fn set_config(path: String, key: String, value: String, global: bool) -> Result<(), String> {
+    git::Repo::open(&path).config_set(&key, &value, global)
+}
+
 #[tauri::command]
 async fn git_log(path: String, limit: Option<u32>) -> Result<Vec<git::Commit>, String> {
     // Clamp the window: the frontend raises `limit` 200 at a time with no
@@ -1062,6 +1076,8 @@ pub fn run() {
             cli_install_status,
             watch_repo,
             repo_info,
+            get_config,
+            set_config,
             git_log,
             git_status,
             file_diff,

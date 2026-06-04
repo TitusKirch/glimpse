@@ -707,6 +707,50 @@ impl Repo {
         }
         self.run(&args)
     }
+
+    /// Read a git config value (`git config [--global] --get <key>`). git reports
+    /// an unset key with exit code 1; map that to an empty string so "not
+    /// configured" is a normal result rather than an error.
+    pub fn config_get(&self, key: &str, global: bool) -> Result<String, String> {
+        reject_option(key)?;
+        let mut args = vec!["config"];
+        if global {
+            args.push("--global");
+        }
+        args.push("--get");
+        args.push(key);
+        let output = self.target.command(&args).output().map_err(|e| {
+            format!(
+                "failed to run git: {e}\n\n$ {}",
+                self.target.describe(&args)
+            )
+        })?;
+        match output.status.code() {
+            Some(0) => Ok(String::from_utf8_lossy(&output.stdout).trim().to_string()),
+            Some(1) => Ok(String::new()),
+            _ => Err(format!(
+                "{}\n\n$ {}",
+                String::from_utf8_lossy(&output.stderr).trim(),
+                self.target.describe(&args)
+            )),
+        }
+    }
+
+    /// Write a git config value (`git config [--global] <key> <value>`). `value`
+    /// runs through the same option-injection guard as a ref (no leading `-`, no
+    /// control characters) while still allowing the spaces and `@`/`.` a name or
+    /// email needs.
+    pub fn config_set(&self, key: &str, value: &str, global: bool) -> Result<(), String> {
+        reject_option(key)?;
+        reject_option(value)?;
+        let mut args = vec!["config"];
+        if global {
+            args.push("--global");
+        }
+        args.push(key);
+        args.push(value);
+        self.run(&args).map(|_| ())
+    }
 }
 
 /// Generates `app/types/bindings.ts` from the serde structs above so the
