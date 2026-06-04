@@ -13,7 +13,11 @@
     "blameViewCommit": "View this commit",
     "fileHistory": "File history",
     "copyPath": "Copy path",
-    "copyDiff": "Copy diff"
+    "copyDiff": "Copy diff",
+    "lfs": "Git LFS object",
+    "lfsNote": "This file is tracked by Git LFS — its binary content is stored outside the repository.",
+    "lfsSize": "Size",
+    "lfsOid": "Object ID"
   },
   "fileView": {
     "list": "List view",

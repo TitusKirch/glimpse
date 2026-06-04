@@ -139,6 +139,22 @@ fn build_partial_hunk(hunk: &str, selected: &[u32], reverse: bool) -> String {
     out
 }
 
+/// Parse `git check-attr --stdin -z filter` output into the set of paths whose
+/// `filter` attribute is `lfs`. The `-z` stream is flat NUL-separated fields in
+/// `path\0 attr\0 value\0` triplets.
+fn lfs_from_check_attr(out: &str) -> std::collections::HashSet<String> {
+    let fields: Vec<&str> = out.split('\u{0}').collect();
+    let mut set = std::collections::HashSet::new();
+    let mut i = 0;
+    while i + 2 < fields.len() {
+        if fields[i + 1] == "filter" && fields[i + 2] == "lfs" {
+            set.insert(fields[i].to_string());
+        }
+        i += 3;
+    }
+    set
+}
+
 /// Derive the directory `git clone` creates from a remote URL — git's "humanish"
 /// name: the last path segment with a trailing `.git` removed.
 /// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
@@ -214,6 +230,11 @@ pub struct DiffData {
     pub old_content: String,
     pub new_content: String,
     pub hunks: Vec<String>,
+    /// The file is tracked by Git LFS: the hunks show the small text *pointer*
+    /// (version / oid / size), not the real binary. The viewer frames it as an
+    /// LFS object instead of rendering it as source, and `old_content` /
+    /// `new_content` are left empty so the smudged binary is never shipped.
+    pub is_lfs: bool,
 }
 
 #[derive(Serialize, TS)]
@@ -248,6 +269,9 @@ pub struct StatusEntry {
     pub untracked: bool,
     /// Unmerged (merge-conflict) entry — shown in its own section.
     pub conflicted: bool,
+    /// Path is managed by Git LFS (its `filter` attribute is `lfs`) — surfaced
+    /// as a badge so a pointer change isn't mistaken for a tiny text edit.
+    pub is_lfs: bool,
 }
 
 #[derive(Serialize, TS)]
@@ -462,9 +486,32 @@ impl Repo {
         Ok(parse::reflog(&raw))
     }
 
+    /// Which of `files` Git LFS manages — their `filter` attribute resolves to
+    /// `lfs`. One `git check-attr` pass over NUL-separated paths on stdin (its
+    /// `-z` output is `path\0 filter\0 value\0` triplets). Detection reads
+    /// `.gitattributes` only, so it works even without the `git-lfs` binary
+    /// installed; it is best-effort and returns empty on any error so a stray
+    /// failure never breaks status or diff.
+    fn lfs_paths(&self, files: &[String]) -> std::collections::HashSet<String> {
+        if files.is_empty() {
+            return std::collections::HashSet::new();
+        }
+        let input = files.join("\u{0}");
+        let Ok(out) = self.run_stdin(&["check-attr", "--stdin", "-z", "filter"], &input) else {
+            return std::collections::HashSet::new();
+        };
+        lfs_from_check_attr(&out)
+    }
+
     pub fn status(&self) -> Result<Vec<StatusEntry>, String> {
         let raw = self.run(&["status", "--porcelain=v1", "--untracked-files=all", "-z"])?;
-        Ok(parse::status(&raw))
+        let mut entries = parse::status(&raw);
+        let files: Vec<String> = entries.iter().map(|e| e.path.clone()).collect();
+        let lfs = self.lfs_paths(&files);
+        for entry in &mut entries {
+            entry.is_lfs = lfs.contains(&entry.path);
+        }
+        Ok(entries)
     }
 
     /// Diff of a single file, either the staged version or the working-tree
@@ -516,6 +563,13 @@ impl Repo {
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
+        // For an LFS file the hunks already hold the small text pointer; flag it
+        // and skip loading full contents — the working side is the smudged binary
+        // and shipping it would be wasteful and unrenderable.
+        if self.lfs_paths(&[file.to_string()]).contains(file) {
+            diff.is_lfs = true;
+            return Ok(Some(diff));
+        }
         if staged {
             diff.old_content = self.content(&format!("HEAD:{file}"));
             diff.new_content = self.content(&format!(":{file}"));
@@ -1307,6 +1361,20 @@ mod validate_tests {
         // Nothing selected → only context survives (caller rejects this upfront).
         let got = build_partial_hunk(HUNK, &[], false);
         assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n");
+    }
+
+    #[test]
+    fn lfs_from_check_attr_collects_only_lfs_filtered_paths() {
+        use super::lfs_from_check_attr;
+        // Triplets: big.bin is LFS, notes.txt is filtered but not lfs, and
+        // plain.rs has no filter — only the first should be collected.
+        let out = "big.bin\u{0}filter\u{0}lfs\u{0}\
+                   notes.txt\u{0}filter\u{0}clean\u{0}\
+                   plain.rs\u{0}filter\u{0}unspecified\u{0}";
+        let set = lfs_from_check_attr(out);
+        assert_eq!(set.len(), 1);
+        assert!(set.contains("big.bin"));
+        assert!(lfs_from_check_attr("").is_empty());
     }
 
     #[test]

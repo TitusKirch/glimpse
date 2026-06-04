@@ -22,6 +22,7 @@
     "useTheirs": "Ihre übernehmen",
     "markResolved": "Als gelöst markieren",
     "clean": "Arbeitsverzeichnis sauber",
-    "cleanHint": "Es gibt keine Änderungen zum Committen."
+    "cleanHint": "Es gibt keine Änderungen zum Committen.",
+    "lfs": "Von Git LFS verwaltet"
   }
 }

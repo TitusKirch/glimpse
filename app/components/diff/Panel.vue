@@ -265,6 +265,10 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
         v-if="blame && canBlame && repo.selectedFile"
         :file="repo.selectedFile"
       />
+      <DiffLfs
+        v-else-if="repo.diff && repo.diff.isLfs"
+        :hunks="repo.diff.hunks"
+      />
       <CodeDiff
         v-else-if="repo.diff && repo.diff.hunks.length"
         :hunks="repo.diff.hunks"

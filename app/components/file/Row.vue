@@ -8,9 +8,14 @@ const props = defineProps<{
   // indent by depth.
   nameOnly?: boolean;
   depth?: number;
+  // Tracked by Git LFS — shows an "LFS" badge so a pointer change reads as a
+  // binary object, not a tiny text edit.
+  isLfs?: boolean;
 }>();
 
 defineEmits<{ select: [] }>();
+
+const { t } = useI18n();
 
 // 0.75rem per level, plus room to align with a folder's chevron.
 const indentStyle = computed(() => ({
@@ -59,6 +64,12 @@ const dir = computed(() => {
         >{{ dir }}</span
       >
     </span>
+    <span
+      v-if="isLfs"
+      class="shrink-0 rounded bg-blue-500/15 px-1 text-[9px] font-semibold tracking-wide text-blue-600 dark:text-blue-400"
+      :title="t('changes.lfs')"
+      >LFS</span
+    >
     <span class="flex shrink-0 items-center gap-0.5">
       <slot name="actions" />
     </span>

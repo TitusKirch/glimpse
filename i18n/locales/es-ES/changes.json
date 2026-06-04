@@ -22,6 +22,7 @@
     "useTheirs": "Usar los suyos",
     "markResolved": "Marcar como resuelto",
     "clean": "Árbol de trabajo limpio",
-    "cleanHint": "No hay cambios para confirmar."
+    "cleanHint": "No hay cambios para confirmar.",
+    "lfs": "Gestionado por Git LFS"
   }
 }
