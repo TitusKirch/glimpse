@@ -320,6 +320,17 @@
       "drop": "Drop"
     }
   },
+  "tag": {
+    "title": "Create tag",
+    "description": "Tag a commit. Add a message for an annotated tag, or sign it.",
+    "message": {
+      "label": "Message",
+      "placeholder": "Annotated tag message (optional)"
+    },
+    "messageHint": "A message makes it an annotated tag.",
+    "sign": "Sign tag",
+    "signHint": "Signed tags are annotated and use your signing key."
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "No reflog entries.",

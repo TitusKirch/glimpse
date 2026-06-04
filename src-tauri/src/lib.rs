@@ -1007,9 +1007,11 @@ async fn create_tag(
     path: String,
     name: String,
     hash: String,
+    message: String,
+    sign: bool,
 ) -> Result<(), String> {
     locked(&locks, &path, || {
-        git::Repo::open(&path).create_tag(&name, &hash)
+        git::Repo::open(&path).create_tag(&name, &hash, &message, sign)
     })
 }
 

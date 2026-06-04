@@ -957,19 +957,9 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    // Tag a commit (prompts for the tag name).
-    async tagAt(hash: string) {
-      return this.native(async () => {
-        const name = await usePrompt().prompt({
-          titleKey: 'commit.tagHere',
-          labelKey: 'form.tag.label',
-          placeholderKey: 'form.tag.placeholder',
-          submitKey: 'form.create',
-          schema: tagNameSchema
-        });
-        if (!name) return;
-        await this.createTag({ name, hash });
-      });
+    // Tag a commit — opens the tag dialog (name + optional message / signing).
+    tagAt(hash: string) {
+      useTagCreate().show(hash);
     },
 
     // Invert a single commit. Reverting a merge prompts for the mainline parent
@@ -1111,26 +1101,33 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    // Create a tag on HEAD via a name prompt.
-    async createTagPrompt() {
-      return this.native(async () => {
-        const name = await usePrompt().prompt({
-          titleKey: 'sidebar.newTag',
-          labelKey: 'form.tag.label',
-          placeholderKey: 'form.tag.placeholder',
-          submitKey: 'form.create',
-          schema: tagNameSchema
-        });
-        if (name) await this.createTag({ name });
-      });
+    // Create a tag on HEAD — opens the tag dialog.
+    createTagPrompt() {
+      useTagCreate().show('');
     },
 
-    async createTag({ name, hash = '' }: { name: string; hash?: string }) {
+    async createTag({
+      name,
+      hash = '',
+      message = '',
+      sign = false
+    }: {
+      name: string;
+      hash?: string;
+      message?: string;
+      sign?: boolean;
+    }) {
       const trimmed = name.trim();
       if (!trimmed) return;
       return this.mutate({
         run: () =>
-          gitClient.createTag({ path: this.repoPath, name: trimmed, hash })
+          gitClient.createTag({
+            path: this.repoPath,
+            name: trimmed,
+            hash,
+            message: message.trim(),
+            sign
+          })
       });
     },
 

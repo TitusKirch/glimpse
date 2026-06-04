@@ -320,6 +320,17 @@
       "drop": "Verwerfen"
     }
   },
+  "tag": {
+    "title": "Tag erstellen",
+    "description": "Einen Commit taggen. Mit Nachricht wird es ein annotiertes Tag, optional signiert.",
+    "message": {
+      "label": "Nachricht",
+      "placeholder": "Nachricht für annotiertes Tag (optional)"
+    },
+    "messageHint": "Eine Nachricht macht daraus ein annotiertes Tag.",
+    "sign": "Tag signieren",
+    "signHint": "Signierte Tags sind annotiert und nutzen deinen Signaturschlüssel."
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "Keine Reflog-Einträge.",

@@ -1139,14 +1139,31 @@ impl Repo {
     }
 
     /// Create a lightweight tag at `hash` (or HEAD when `hash` is empty).
-    pub fn create_tag(&self, name: &str, hash: &str) -> Result<(), String> {
+    /// Create a tag. With no message it stays lightweight (a bare ref); a message
+    /// makes it annotated (`-a`), and `sign` produces a signed annotated tag
+    /// (`-s`, using the configured `user.signingkey` / `gpg.format`). The message
+    /// is passed as the value of `-m`, so it is never treated as an option.
+    pub fn create_tag(
+        &self,
+        name: &str,
+        hash: &str,
+        message: &str,
+        sign: bool,
+    ) -> Result<(), String> {
         reject_option(name)?;
-        if hash.is_empty() {
-            self.run(&["tag", "--", name]).map(|_| ())
-        } else {
-            reject_option(hash)?;
-            self.run(&["tag", "--", name, hash]).map(|_| ())
+        let mut args = vec!["tag"];
+        if sign {
+            args.extend(["-s", "-m", message]);
+        } else if !message.is_empty() {
+            args.extend(["-a", "-m", message]);
         }
+        args.push("--");
+        args.push(name);
+        if !hash.is_empty() {
+            reject_option(hash)?;
+            args.push(hash);
+        }
+        self.run(&args).map(|_| ())
     }
 
     pub fn delete_tag(&self, name: &str) -> Result<(), String> {

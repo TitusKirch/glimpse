@@ -320,6 +320,17 @@
       "drop": "Descartar"
     }
   },
+  "tag": {
+    "title": "Crear etiqueta",
+    "description": "Etiqueta un commit. Añade un mensaje para una etiqueta anotada, o fírmala.",
+    "message": {
+      "label": "Mensaje",
+      "placeholder": "Mensaje de la etiqueta anotada (opcional)"
+    },
+    "messageHint": "Un mensaje la convierte en una etiqueta anotada.",
+    "sign": "Firmar etiqueta",
+    "signHint": "Las etiquetas firmadas son anotadas y usan tu clave de firma."
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "No hay entradas en el reflog.",

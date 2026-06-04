@@ -320,6 +320,17 @@
       "drop": "Supprimer"
     }
   },
+  "tag": {
+    "title": "Créer une étiquette",
+    "description": "Étiqueter un commit. Ajoutez un message pour une étiquette annotée, ou signez-la.",
+    "message": {
+      "label": "Message",
+      "placeholder": "Message de l'étiquette annotée (optionnel)"
+    },
+    "messageHint": "Un message en fait une étiquette annotée.",
+    "sign": "Signer l'étiquette",
+    "signHint": "Les étiquettes signées sont annotées et utilisent votre clé de signature."
+  },
   "reflog": {
     "title": "Reflog",
     "empty": "Aucune entrée de reflog.",

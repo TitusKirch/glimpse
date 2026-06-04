@@ -630,15 +630,19 @@ export const gitClient = {
   createTag: ({
     path,
     name,
-    hash = ''
+    hash = '',
+    message = '',
+    sign = false
   }: {
     path: string;
     name: string;
     hash?: string;
+    message?: string;
+    sign?: boolean;
   }) =>
     tauriInvoke<null>({
       command: 'create_tag',
-      args: { path, name, hash },
+      args: { path, name, hash, message, sign },
       fallback: null
     }),
 
