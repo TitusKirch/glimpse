@@ -465,6 +465,31 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Stage or unstage only the selected lines of a hunk (line-level staging).
+    async applyLines({
+      file,
+      hunk,
+      lines,
+      reverse
+    }: {
+      file: string;
+      hunk: string;
+      lines: number[];
+      reverse: boolean;
+    }) {
+      return this.mutate({
+        run: () =>
+          gitClient.applyLines({
+            path: this.repoPath,
+            file,
+            hunk,
+            lines,
+            reverse
+          }),
+        refresh: 'status'
+      });
+    },
+
     // Discard a single hunk from the working tree (reverse-apply). Destructive,
     // so it confirms first.
     async discardHunk({ file, hunk }: { file: string; hunk: string }) {

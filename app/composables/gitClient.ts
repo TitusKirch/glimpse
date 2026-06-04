@@ -192,6 +192,27 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Stage (or unstage with reverse) only the selected body-line indices of a
+  // single hunk — line-level staging.
+  applyLines: ({
+    path,
+    file,
+    hunk,
+    lines,
+    reverse
+  }: {
+    path: string;
+    file: string;
+    hunk: string;
+    lines: number[];
+    reverse: boolean;
+  }) =>
+    tauriInvoke<null>({
+      command: 'apply_lines',
+      args: { path, file, hunk, lines, reverse },
+      fallback: null
+    }),
+
   // Discard a single hunk from the working tree (reverse-apply).
   discardHunk: ({
     path,

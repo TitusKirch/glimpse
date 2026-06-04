@@ -75,6 +75,70 @@ pub fn is_unsafe_path(v: &str) -> bool {
         || v.bytes().any(|b| b == b'\n' || b == b'\r' || b == 0)
 }
 
+/// Reduce a unified-diff hunk to only the user-selected `+`/`-` lines, for
+/// line-level (sub-hunk) staging. `selected` holds 0-based indices into the hunk
+/// body — every context / add / remove line counts; the `@@` header and any
+/// `\ No newline` marker do not. The transform is direction-dependent:
+///
+/// * Staging (`reverse == false`, forward `git apply --cached`): keep context
+///   and selected lines; **drop** unselected additions (they must not land in
+///   the index) and demote unselected removals to context (the line still exists
+///   on the index/old side, so it stays).
+/// * Unstaging (`reverse == true`, `git apply --cached --reverse`): the patch is
+///   applied backwards, so the roles flip — demote unselected additions to
+///   context (they stay staged) and **drop** unselected removals.
+///
+/// The `@@` line counts are left as-is and recomputed by `git apply --recount`;
+/// only the start offsets matter and those are unchanged by the reduction.
+fn build_partial_hunk(hunk: &str, selected: &[u32], reverse: bool) -> String {
+    let mut out = String::new();
+    let mut body: u32 = 0;
+    for (i, line) in hunk.lines().enumerate() {
+        if i == 0 {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        let Some(&marker) = line.as_bytes().first() else {
+            continue; // a blank separator line carries no diff content
+        };
+        if marker == b'\\' {
+            // "\ No newline at end of file" — metadata for the preceding line.
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        let rest = &line[1..];
+        let idx = body;
+        body += 1;
+        let keep = selected.contains(&idx);
+        let mut push = |m: char| {
+            out.push(m);
+            out.push_str(rest);
+            out.push('\n');
+        };
+        match marker {
+            b' ' => push(' '),
+            b'+' => {
+                if keep {
+                    push('+');
+                } else if reverse {
+                    push(' ');
+                }
+            }
+            b'-' => {
+                if keep {
+                    push('-');
+                } else if !reverse {
+                    push(' ');
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 /// Derive the directory `git clone` creates from a remote URL — git's "humanish"
 /// name: the last path segment with a trailing `.git` removed.
 /// `https://host/u/repo.git` and `git@host:u/repo.git` both yield `repo`.
@@ -591,6 +655,31 @@ impl Repo {
             &patch,
         )
         .map(|_| ())
+    }
+
+    /// Stage or unstage only the user-selected lines within a single hunk
+    /// (line-level / sub-hunk staging). `lines` are 0-based indices into the
+    /// hunk body; the reduced hunk is built by [`build_partial_hunk`] and applied
+    /// to the index exactly like [`apply_hunk`] (`--reverse` unstages).
+    pub fn apply_lines(
+        &self,
+        file: &str,
+        hunk: &str,
+        lines: &[u32],
+        reverse: bool,
+    ) -> Result<(), String> {
+        reject_unsafe_path(file)?;
+        reject_unsafe_hunk(hunk)?;
+        if lines.is_empty() {
+            return Err("no lines selected".to_string());
+        }
+        let partial = build_partial_hunk(hunk, lines, reverse);
+        let patch = format!("diff --git a/{file} b/{file}\n--- a/{file}\n+++ b/{file}\n{partial}");
+        let mut args = vec!["apply", "--cached", "--recount", "--whitespace=nowarn"];
+        if reverse {
+            args.push("--reverse");
+        }
+        self.run_stdin(&args, &patch).map(|_| ())
     }
 
     /// Commits that touched a file, following renames (`git log --follow`).
@@ -1172,7 +1261,53 @@ fn export_bindings() {
 
 #[cfg(test)]
 mod validate_tests {
-    use super::{reject_option, reject_unsafe_hunk, reject_unsafe_path};
+    use super::{build_partial_hunk, reject_option, reject_unsafe_hunk, reject_unsafe_path};
+
+    // A hunk body indexed 0..=3: context, removal, addition, addition.
+    const HUNK: &str = "@@ -1,3 +1,4 @@\n ctx\n-removed\n+added1\n+added2";
+
+    #[test]
+    fn build_partial_hunk_stages_only_selected_addition() {
+        // Stage just `+added1` (body index 2): the unselected removal becomes
+        // context (it stays in the index) and the unselected addition is dropped.
+        let got = build_partial_hunk(HUNK, &[2], false);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n+added1\n");
+        // The reduced hunk is still a structurally valid patch body.
+        assert!(reject_unsafe_hunk(got.trim_end()).is_ok());
+    }
+
+    #[test]
+    fn build_partial_hunk_stages_only_selected_removal() {
+        // Stage just the removal (index 1): both additions are dropped.
+        let got = build_partial_hunk(HUNK, &[1], false);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n-removed\n");
+    }
+
+    #[test]
+    fn build_partial_hunk_unstage_flips_the_roles() {
+        // Unstaging `+added1` (reverse): the unselected addition is demoted to
+        // context (stays staged) and the unselected removal is dropped.
+        let got = build_partial_hunk(HUNK, &[2], true);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n+added1\n added2\n");
+    }
+
+    #[test]
+    fn build_partial_hunk_keeps_no_newline_marker() {
+        let hunk = "@@ -1 +1 @@\n-old\n+new\n\\ No newline at end of file";
+        // Stage the addition (index 1); the no-newline marker is preserved.
+        let got = build_partial_hunk(hunk, &[1], false);
+        assert_eq!(
+            got,
+            "@@ -1 +1 @@\n old\n+new\n\\ No newline at end of file\n"
+        );
+    }
+
+    #[test]
+    fn build_partial_hunk_empty_selection_drops_all_changes() {
+        // Nothing selected → only context survives (caller rejects this upfront).
+        let got = build_partial_hunk(HUNK, &[], false);
+        assert_eq!(got, "@@ -1,3 +1,4 @@\n ctx\n removed\n");
+    }
 
     #[test]
     fn reject_unsafe_hunk_blocks_smuggled_file_section() {

@@ -614,6 +614,22 @@ async fn discard_hunk(
     })
 }
 
+/// Stage (or unstage, when `reverse`) only the selected body-line indices of a
+/// single hunk — line-level staging.
+#[tauri::command]
+async fn apply_lines(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    hunk: String,
+    lines: Vec<u32>,
+    reverse: bool,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).apply_lines(&file, &hunk, &lines, reverse)
+    })
+}
+
 #[tauri::command]
 async fn commit_body(path: String, hash: String) -> Result<String, String> {
     git::Repo::open(&path).commit_body(&hash)
@@ -1364,6 +1380,7 @@ pub fn run() {
             blame,
             apply_hunk,
             discard_hunk,
+            apply_lines,
             stage,
             unstage,
             commit,
