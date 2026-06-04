@@ -39,10 +39,26 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 ## 0.8.0 — Advanced / power-user
 
 - ✅ #34 Submodule support
-- ⏳ #35 Git LFS support
+- 🅿️ #35 Git LFS support — parked. Depends on `git-lfs` being installed (can't
+  be assumed or verified in this environment), and needs its own subsystem:
+  detecting LFS-tracked paths (`.gitattributes` / `git check-attr`), rendering
+  pointer files as meaningful diff/status instead of raw pointer text, and
+  smudge/pull/push handling. Highest effort-per-value of the set; left open.
 - ✅ #36 Worktree management
 - ✅ #37 Bisect
 - ✅ #38 Sparse-checkout
+
+## Summary
+
+11 issues implemented as verified conventional commits across four chained
+branches; 3 parked (each with a reason above), 1 partial (#30 discard-hunk done,
+line-staging parked). Nothing pushed. Every commit passed `pnpm check`,
+`cargo clippy -D warnings`, `cargo test`, `pnpm test`.
+
+- **0.5.0** (`feat/milestone-0-5-0` ← dev): #45 ✅ · #47 ✅
+- **0.6.0** (← 0-5-0): #28 ✅ · #29 ✅ · #32 ✅ · #30 🅿️ partial
+- **0.7.0** (← 0-6-0): #25 ✅ · #27 ✅ · #26 🅿️ parked
+- **0.8.0** (← 0-7-0): #34 ✅ · #36 ✅ · #37 ✅ · #38 ✅ · #35 🅿️ parked
 
 ## Log
 
