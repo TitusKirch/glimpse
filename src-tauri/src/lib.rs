@@ -773,6 +773,12 @@ async fn repo_stats(path: String) -> Result<git::RepoStats, String> {
     git::Repo::open(&path).repo_stats()
 }
 
+/// All tracked file paths (for the quick-open fuzzy finder).
+#[tauri::command]
+async fn list_files(path: String) -> Result<Vec<String>, String> {
+    git::Repo::open(&path).list_files()
+}
+
 /// Start a bisect session between a bad and good ref.
 #[tauri::command]
 async fn bisect_start(
@@ -1442,6 +1448,7 @@ pub fn run() {
             rebase_commits,
             search_commits,
             repo_stats,
+            list_files,
             bisect_start,
             bisect_mark,
             bisect_reset,

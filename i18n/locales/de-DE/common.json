@@ -320,6 +320,12 @@
       "drop": "Verwerfen"
     }
   },
+  "quickOpen": {
+    "menu": "Schnellöffnen…",
+    "title": "Schnellöffnen",
+    "placeholder": "Zu Datei, Branch oder Commit springen…",
+    "empty": "Keine Treffer"
+  },
   "stats": {
     "menu": "Statistiken…",
     "title": "Repository-Statistiken",

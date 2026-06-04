@@ -320,6 +320,12 @@
       "drop": "Drop"
     }
   },
+  "quickOpen": {
+    "menu": "Quick open…",
+    "title": "Quick open",
+    "placeholder": "Jump to a file, branch or commit…",
+    "empty": "No matches"
+  },
   "stats": {
     "menu": "Statistics…",
     "title": "Repository statistics",

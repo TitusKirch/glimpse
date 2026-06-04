@@ -707,6 +707,14 @@ impl Repo {
         Ok(parse::log(&out))
     }
 
+    /// All tracked file paths (`git ls-files`) — the corpus for the quick-open
+    /// fuzzy finder.
+    pub fn list_files(&self) -> Result<Vec<String>, String> {
+        Ok(lines(&self.run(&["ls-files"])?)
+            .map(|s| s.to_string())
+            .collect())
+    }
+
     /// Repository insights: total commits, contributors, per-day activity and the
     /// most-changed files. All derived from two `git log` passes (no extra deps).
     pub fn repo_stats(&self) -> Result<RepoStats, String> {

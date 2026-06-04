@@ -177,6 +177,14 @@ export const gitClient = {
       fallback: []
     }),
 
+  // All tracked file paths — the corpus for the quick-open fuzzy finder.
+  listFiles: (path: string) =>
+    tauriInvoke<string[]>({
+      command: 'list_files',
+      args: { path },
+      fallback: []
+    }),
+
   // Repository insights (contributors, activity, churn) from git log.
   repoStats: (path: string) =>
     tauriInvoke<RepoStats>({

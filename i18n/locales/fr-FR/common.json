@@ -320,6 +320,12 @@
       "drop": "Supprimer"
     }
   },
+  "quickOpen": {
+    "menu": "Ouverture rapide…",
+    "title": "Ouverture rapide",
+    "placeholder": "Aller à un fichier, une branche ou un commit…",
+    "empty": "Aucune correspondance"
+  },
   "stats": {
     "menu": "Statistiques…",
     "title": "Statistiques du dépôt",
