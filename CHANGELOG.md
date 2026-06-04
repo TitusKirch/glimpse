@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.0](https://github.com/TitusKirch/glimpse/compare/v0.7.0...v0.8.0) (2026-06-04)
+
+
+### Features
+
+* **bisect:** guided git bisect workflow ([7dde957](https://github.com/TitusKirch/glimpse/commit/7dde95753d2f30b2d0d4037693152bcd71bba099)), closes [#37](https://github.com/TitusKirch/glimpse/issues/37)
+* **sparse:** enable/disable and edit sparse-checkout paths ([429065c](https://github.com/TitusKirch/glimpse/commit/429065cdea1d2f1708ea2b34029df9f43d4d83c0)), closes [#38](https://github.com/TitusKirch/glimpse/issues/38)
+* **submodule:** list, update and sync submodules ([89845a9](https://github.com/TitusKirch/glimpse/commit/89845a94c9b452cbd11ac2e6d34faca183a87bb7)), closes [#34](https://github.com/TitusKirch/glimpse/issues/34)
+* **worktree:** list, add, remove and open linked worktrees ([1a8fe22](https://github.com/TitusKirch/glimpse/commit/1a8fe22658af319e7cd71b4ebcbed84a61d1e8ff)), closes [#36](https://github.com/TitusKirch/glimpse/issues/36)
+
 ## [0.7.0](https://github.com/TitusKirch/glimpse/compare/v0.6.0...v0.7.0) (2026-06-04)
 
 
