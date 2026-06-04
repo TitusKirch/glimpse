@@ -14,6 +14,7 @@ const initRepo = useOverlay('init');
 const cloneRepo = useOverlay('clone');
 const stashOverlay = useOverlay('stash');
 const reflogOverlay = useOverlay('reflog');
+const compareOverlay = useOverlay('compare');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -38,7 +39,7 @@ function kw(key: string): string {
 // Nested branch verb page: null = root list, otherwise the active branch action.
 // CommandBranchPage renders the branch list for the mode; we keep the page state
 // (plus input + back-navigation) here because the single search input lives here.
-type BranchPage = 'switch' | 'rename' | 'delete' | 'merge';
+type BranchPage = 'switch' | 'rename' | 'delete' | 'merge' | 'rebase';
 const page = ref<BranchPage | null>(null);
 
 // Live search query, mirrored from the command input. The input is a TanStack
@@ -234,6 +235,14 @@ const actions = computed<PaletteAction[]>(() => {
       visible: hasBranches
     },
     {
+      id: 'rebase-branch',
+      group: 'branch',
+      icon: 'lucide:git-graph',
+      labelKey: 'command.rebaseBranch',
+      page: 'rebase',
+      visible: hasBranches
+    },
+    {
       id: 'delete-branch',
       group: 'branch',
       icon: 'lucide:trash-2',
@@ -280,6 +289,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:history',
       labelKey: 'command.reflog',
       run: () => reflogOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'compare-refs',
+      group: 'repository',
+      icon: 'lucide:arrow-right-left',
+      labelKey: 'command.compareRefs',
+      run: () => compareOverlay.show(),
       visible: hasRepos
     },
     {

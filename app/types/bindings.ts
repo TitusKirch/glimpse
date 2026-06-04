@@ -70,6 +70,11 @@ export type RepoInfo = {
   remotes: Array<string>;
   tags: Array<string>;
   stashes: Array<StashEntry>;
+  /**
+   * True when a rebase is paused (e.g. on a conflict) awaiting
+   * continue / skip / abort.
+   */
+  rebaseInProgress: boolean;
   flavor: string;
   distro: string | null;
 };

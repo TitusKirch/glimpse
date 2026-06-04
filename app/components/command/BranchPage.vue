@@ -8,7 +8,7 @@
 import type { Branch } from '@/types/bindings';
 
 const props = defineProps<{
-  mode: 'switch' | 'rename' | 'delete' | 'merge';
+  mode: 'switch' | 'rename' | 'delete' | 'merge' | 'rebase';
   // hide()-then-execute helper, owned by CommandPalette.
   run: (fn: () => void | Promise<void>) => void;
 }>();
@@ -45,6 +45,8 @@ function onLocal(name: string) {
       return props.run(() => repo.deleteBranch(name));
     case 'merge':
       return props.run(() => repo.merge(name));
+    case 'rebase':
+      return props.run(() => repo.rebaseOnto(name));
   }
 }
 
@@ -58,6 +60,8 @@ const heading = computed(() => {
       return t('command.deleteBranch');
     case 'merge':
       return t('command.mergeBranch');
+    case 'rebase':
+      return t('command.rebaseBranch');
   }
   return '';
 });

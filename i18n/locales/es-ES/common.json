@@ -169,6 +169,7 @@
     "delete": "Eliminar",
     "merge": "Merge en la actual",
     "mergeCurrentInto": "Merge de la actual en esta",
+    "rebaseOnto": "Rebase sobre esta",
     "checkoutRemote": "Checkout"
   },
   "commit": {
@@ -213,6 +214,7 @@
     "switchBranch": "Cambiar de rama…",
     "renameBranch": "Renombrar rama…",
     "mergeBranch": "Merge en la actual…",
+    "rebaseBranch": "Rebase sobre…",
     "deleteBranch": "Eliminar rama…",
     "localBranches": "Ramas",
     "remoteBranches": "Ramas remotas",
@@ -230,7 +232,8 @@
     "stash": "Guardar cambios en stash",
     "pushTags": "Push de los tags",
     "reflog": "Reflog (recuperar historial)",
-    "undoLast": "Deshacer última acción"
+    "undoLast": "Deshacer última acción",
+    "compareRefs": "Comparar refs…"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -239,6 +242,19 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "compare": {
+    "title": "Comparar refs",
+    "from": "Desde",
+    "to": "Hasta",
+    "pick": "Elige dos refs para comparar.",
+    "noDiff": "Sin diferencias."
+  },
+  "rebase": {
+    "inProgress": "Rebase en curso — resuelve los conflictos y continúa.",
+    "continue": "Continuar",
+    "skip": "Omitir",
+    "abort": "Abortar"
   },
   "reflog": {
     "title": "Reflog",

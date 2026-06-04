@@ -555,6 +555,29 @@ async fn file_diff(
     git::Repo::open(&path).file_diff(&file, staged, ignore_whitespace, whole)
 }
 
+/// Files changed between two refs, for the compare view.
+#[tauri::command]
+async fn compare_files(
+    path: String,
+    from: String,
+    to: String,
+) -> Result<Vec<git::CommitFile>, String> {
+    git::Repo::open(&path).compare_files(&from, &to)
+}
+
+/// Per-file diff between two refs, for the compare view.
+#[tauri::command]
+async fn compare_file_diff(
+    path: String,
+    from: String,
+    to: String,
+    file: String,
+    ignore_whitespace: bool,
+    whole: bool,
+) -> Result<Option<git::DiffData>, String> {
+    git::Repo::open(&path).compare_file_diff(&from, &to, &file, ignore_whitespace, whole)
+}
+
 #[tauri::command]
 async fn file_history(path: String, file: String) -> Result<Vec<git::Commit>, String> {
     git::Repo::open(&path).file_history(&file)
@@ -669,6 +692,27 @@ async fn merge(
     branch: String,
 ) -> Result<String, String> {
     locked(&locks, &path, || git::Repo::open(&path).merge(&branch))
+}
+
+/// Rebase the current branch onto `onto` (branch, tag or commit).
+#[tauri::command]
+async fn rebase(locks: State<'_, RepoLocks>, path: String, onto: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase(&onto))
+}
+
+#[tauri::command]
+async fn rebase_continue(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase_continue())
+}
+
+#[tauri::command]
+async fn rebase_skip(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase_skip())
+}
+
+#[tauri::command]
+async fn rebase_abort(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).rebase_abort())
 }
 
 #[tauri::command]
@@ -1211,6 +1255,8 @@ pub fn run() {
             commit_body,
             commit_files,
             commit_file_diff,
+            compare_files,
+            compare_file_diff,
             file_history,
             blame,
             apply_hunk,
@@ -1223,6 +1269,10 @@ pub fn run() {
             checkout_branch,
             checkout_commit,
             merge,
+            rebase,
+            rebase_continue,
+            rebase_skip,
+            rebase_abort,
             discard_all,
             create_branch,
             create_branch_at,

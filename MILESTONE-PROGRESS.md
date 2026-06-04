@@ -26,9 +26,15 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## 0.7.0 — Compare & rebase
 
-- ⏳ #25 Rebase the current branch onto another ref
-- ⏳ #26 Interactive rebase
-- ⏳ #27 Compare arbitrary refs
+- ✅ #25 Rebase the current branch onto another ref
+- 🅿️ #26 Interactive rebase — parked. Largest feature in the set: needs
+  non-interactive `rebase -i` driving (GIT_SEQUENCE_EDITOR injecting a generated
+  todo + GIT_EDITOR feeding per-commit messages for reword/squash/fixup, all
+  cross-platform incl. the WSL `wsl.exe` path), a plan-builder UI
+  (drag-reorder + per-row action + message editors), and continue/abort across
+  the plan. Too large to complete and verify cleanly within this run's budget
+  without risking a broken flagship feature. Left open (not closed).
+- ✅ #27 Compare arbitrary refs
 
 ## 0.8.0 — Advanced / power-user
 
@@ -40,6 +46,14 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- #27: `compare_files` / `compare_file_diff` between two refs; new Compare dialog
+  (two ref pickers + swap) reusing the file tree and diff viewer; command-palette
+  entry "Compare refs…".
+- Branch `feat/milestone-0-7-0` based on 0-6-0.
+- #25: `rebase` onto a ref + continue/skip/abort; `RepoInfo.rebaseInProgress`
+  (REBASE_HEAD probe) drives a banner in the changes panel; entry points in the
+  branch context menu and command palette (new `rebase` branch page). Conflicts
+  reuse the existing conflict UI; each step reloads even on conflict.
 - #30 (partial): `discard_hunk` reverse-applies a hunk to the working tree; the
   diff viewer's unstaged hunks gain a "✕ discard" control (confirmed). Line-level
   staging parked — see above.

@@ -169,6 +169,7 @@
     "delete": "Löschen",
     "merge": "In aktuellen mergen",
     "mergeCurrentInto": "Aktuellen hier hineinmergen",
+    "rebaseOnto": "Auf diesen rebasen",
     "checkoutRemote": "Auschecken"
   },
   "commit": {
@@ -213,6 +214,7 @@
     "switchBranch": "Branch wechseln…",
     "renameBranch": "Branch umbenennen…",
     "mergeBranch": "In aktuellen mergen…",
+    "rebaseBranch": "Rebasen auf…",
     "deleteBranch": "Branch löschen…",
     "localBranches": "Branches",
     "remoteBranches": "Remote-Branches",
@@ -230,7 +232,8 @@
     "stash": "Änderungen stashen",
     "pushTags": "Tags pushen",
     "reflog": "Reflog (Verlauf wiederherstellen)",
-    "undoLast": "Letzte Aktion rückgängig"
+    "undoLast": "Letzte Aktion rückgängig",
+    "compareRefs": "Refs vergleichen…"
   },
   "stash": {
     "title": "Änderungen stashen",
@@ -239,6 +242,19 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "compare": {
+    "title": "Refs vergleichen",
+    "from": "Von",
+    "to": "Bis",
+    "pick": "Zwei Refs zum Vergleichen wählen.",
+    "noDiff": "Keine Unterschiede."
+  },
+  "rebase": {
+    "inProgress": "Rebase läuft — Konflikte lösen, dann fortfahren.",
+    "continue": "Fortfahren",
+    "skip": "Überspringen",
+    "abort": "Abbrechen"
   },
   "reflog": {
     "title": "Reflog",

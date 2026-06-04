@@ -105,6 +105,29 @@ onMounted(autoResize);
   <div class="flex h-full flex-col text-sm">
     <FileViewToggle class="border-b" />
 
+    <!-- rebase paused (e.g. on a conflict): continue / skip / abort -->
+    <div
+      v-if="repo.rebaseInProgress"
+      class="flex flex-wrap items-center gap-2 border-b bg-warning/10 px-3 py-2 text-xs"
+    >
+      <NuxtIcon name="lucide:git-graph" class="size-4 shrink-0 text-warning" />
+      <span class="min-w-0 flex-1">{{ t('rebase.inProgress') }}</span>
+      <UiButton size="sm" variant="outline" @click="repo.rebaseContinue()">
+        {{ t('rebase.continue') }}
+      </UiButton>
+      <UiButton size="sm" variant="ghost" @click="repo.rebaseSkip()">
+        {{ t('rebase.skip') }}
+      </UiButton>
+      <UiButton
+        size="sm"
+        variant="ghost"
+        class="text-destructive hover:text-destructive"
+        @click="repo.rebaseAbort()"
+      >
+        {{ t('rebase.abort') }}
+      </UiButton>
+    </div>
+
     <div class="min-h-0 flex-1 overflow-auto">
       <!-- loading skeleton -->
       <div v-if="repo.loading && !repo.status.length" class="space-y-2 p-3">

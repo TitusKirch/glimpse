@@ -69,6 +69,9 @@ export interface RepoState {
   // False until this tab's git data has been fetched. Restored tabs start as
   // unloaded placeholders and lazy-load on first activation.
   loaded: boolean;
+  // True while a rebase is paused (e.g. on a conflict) — drives the rebase
+  // banner with continue / skip / abort.
+  rebaseInProgress: boolean;
 }
 
 // Demo repository shown in the browser (no Tauri shell).
@@ -97,7 +100,8 @@ function demoRepo(): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: gitMock.diff,
-    loaded: true
+    loaded: true,
+    rebaseInProgress: false
   };
 }
 
@@ -125,7 +129,8 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: null,
-    loaded: false
+    loaded: false,
+    rebaseInProgress: false
   };
 }
 
@@ -218,6 +223,9 @@ export const useRepoStore = defineStore('repo', {
     },
     status(): StatusEntry[] {
       return this.active?.status ?? [];
+    },
+    rebaseInProgress(): boolean {
+      return this.active?.rebaseInProgress ?? false;
     },
     selectedHash(): string | null {
       return this.active?.selectedHash ?? null;
@@ -683,6 +691,37 @@ export const useRepoStore = defineStore('repo', {
         if (this.currentBranch !== branch) return;
         await this.merge(source);
       });
+    },
+
+    // Rebase the current branch onto `onto`. A conflict pauses the rebase; the
+    // banner then offers continue / skip / abort.
+    async rebaseOnto(onto: string) {
+      if (onto === this.currentBranch) return;
+      return this.runRebaseStep(() =>
+        gitClient.rebase({ path: this.repoPath, onto })
+      );
+    },
+    async rebaseContinue() {
+      return this.runRebaseStep(() => gitClient.rebaseContinue(this.repoPath));
+    },
+    async rebaseSkip() {
+      return this.runRebaseStep(() => gitClient.rebaseSkip(this.repoPath));
+    },
+    async rebaseAbort() {
+      return this.runRebaseStep(() => gitClient.rebaseAbort(this.repoPath));
+    },
+    // Run a rebase step, then reload even on failure: a conflict throws but the
+    // banner + status still need the fresh rebase-in-progress flag and conflicts.
+    async runRebaseStep(fn: () => Promise<unknown>) {
+      return this.native(async () =>
+        this.guarded(async () => {
+          try {
+            await fn();
+          } finally {
+            await this.loadFromBackend(this.active?.path);
+          }
+        })
+      );
     },
 
     // Discard every working-tree change (confirms first — irreversible).
@@ -1391,6 +1430,7 @@ export const useRepoStore = defineStore('repo', {
           r.remotes = info.remotes;
           r.tags = info.tags;
           r.stashes = info.stashes;
+          r.rebaseInProgress = info.rebaseInProgress;
 
           await Promise.all([this.loadLog(r), this.loadStatus(r)]);
           // Data is in: mark the tab loaded so it won't re-fetch on the next

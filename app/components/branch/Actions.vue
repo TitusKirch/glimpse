@@ -32,6 +32,13 @@ const { t } = useI18n();
     <NuxtIcon name="lucide:git-merge" />
     {{ t('branch.mergeCurrentInto') }}
   </UiDropdownMenuItem>
+  <UiDropdownMenuItem
+    :disabled="name === repo.currentBranch"
+    @click="repo.rebaseOnto(name)"
+  >
+    <NuxtIcon name="lucide:git-graph" />
+    {{ t('branch.rebaseOnto') }}
+  </UiDropdownMenuItem>
   <UiDropdownMenuSeparator />
   <UiDropdownMenuItem
     class="text-destructive focus:text-destructive"
