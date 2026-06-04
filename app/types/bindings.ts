@@ -9,6 +9,20 @@ export type Commit = {
   refs: Array<string>;
   parents: Array<string>;
   lane: number;
+  /**
+   * GPG/SSH signature verification status from `%G?`: `G` good, `U` good but
+   * of unknown validity, `B` bad, `X`/`Y`/`R` expired/revoked, `E` cannot
+   * check, `N` unsigned (empty when git reports nothing).
+   */
+  signatureStatus: string;
+  /**
+   * Signer name (`%GS`) when the commit is signed, else empty.
+   */
+  signerName: string;
+  /**
+   * Signing key / fingerprint (`%GK`) when available, else empty.
+   */
+  signerKey: string;
 };
 
 export type Branch = {

@@ -151,7 +151,13 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "mantener los cambios fuera de stage",
     "resetHard": "Hard",
-    "resetHardHint": "descartar todos los cambios"
+    "resetHardHint": "descartar todos los cambios",
+    "signature": {
+      "verified": "Verificada · {signer}",
+      "untrusted": "Firmado por {signer} · clave sin verificar",
+      "cannotVerify": "No se puede verificar la firma",
+      "invalid": "Firma no válida"
+    }
   },
   "command": {
     "open": "Paleta de comandos",

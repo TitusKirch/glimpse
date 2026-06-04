@@ -151,7 +151,13 @@
     "resetMixed": "Mixed",
     "resetMixedHint": "keep changes unstaged",
     "resetHard": "Hard",
-    "resetHardHint": "discard all changes"
+    "resetHardHint": "discard all changes",
+    "signature": {
+      "verified": "Verified · {signer}",
+      "untrusted": "Signed by {signer} · key not verified",
+      "cannotVerify": "Signature can't be verified",
+      "invalid": "Invalid signature"
+    }
   },
   "command": {
     "open": "Command palette",

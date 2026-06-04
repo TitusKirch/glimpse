@@ -76,6 +76,7 @@ pub fn is_unsafe_path(v: &str) -> bool {
 }
 
 #[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct Commit {
     pub hash: String,
     pub subject: String,
@@ -84,6 +85,14 @@ pub struct Commit {
     pub refs: Vec<String>,
     pub parents: Vec<String>,
     pub lane: u32,
+    /// GPG/SSH signature verification status from `%G?`: `G` good, `U` good but
+    /// of unknown validity, `B` bad, `X`/`Y`/`R` expired/revoked, `E` cannot
+    /// check, `N` unsigned (empty when git reports nothing).
+    pub signature_status: String,
+    /// Signer name (`%GS`) when the commit is signed, else empty.
+    pub signer_name: String,
+    /// Signing key / fingerprint (`%GK`) when available, else empty.
+    pub signer_key: String,
 }
 
 #[derive(Serialize, TS)]
@@ -285,7 +294,12 @@ impl Repo {
     }
 
     pub fn log(&self, limit: u32) -> Result<Vec<Commit>, String> {
-        let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
+        // `%G?`/`%GS`/`%GK` carry the signature verification status, signer name
+        // and signing key so the graph can badge signed commits. Trailing fields
+        // stay optional in the parser, so other callers (file history) that use
+        // the shorter format decode fine.
+        let fmt =
+            format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
         let n = format!("-n{limit}");
         // `--all` so every branch/remote/tag tip shows as its own parallel lane;
         // `--topo-order` keeps a branch's commits contiguous for a clean graph.

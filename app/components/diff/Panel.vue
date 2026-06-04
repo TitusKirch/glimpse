@@ -2,6 +2,7 @@
 const repo = useRepoStore();
 const layout = useLayoutStore();
 const settings = useSettingsStore();
+const sig = useCommitSignature();
 const { t } = useI18n();
 const copyText = useCopy();
 
@@ -190,6 +191,17 @@ function onStageHunk(hunk: string) {
                 </UiDropdownMenuItem>
               </UiDropdownMenuContent>
             </UiDropdownMenu>
+          </div>
+          <div
+            v-if="repo.selectedCommit && sig.isSigned(repo.selectedCommit)"
+            class="mt-2 flex items-center gap-1.5 text-xs"
+            :class="sig.colorClass(repo.selectedCommit.signatureStatus)"
+          >
+            <NuxtIcon
+              :name="sig.icon(repo.selectedCommit.signatureStatus)"
+              class="size-3.5 shrink-0"
+            />
+            <span>{{ sig.label(repo.selectedCommit) }}</span>
           </div>
         </div>
       </UiResizablePanel>
