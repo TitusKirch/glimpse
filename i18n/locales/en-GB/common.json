@@ -197,7 +197,7 @@
     "signature": {
       "verified": "Verified · {signer}",
       "untrusted": "Signed by {signer} · key not verified",
-      "cannotVerify": "Signature can't be verified",
+      "cannotVerify": "Signature can't be verified (key unavailable)",
       "invalid": "Invalid signature"
     }
   },

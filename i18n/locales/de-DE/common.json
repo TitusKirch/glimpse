@@ -197,7 +197,7 @@
     "signature": {
       "verified": "Verifiziert · {signer}",
       "untrusted": "Signiert von {signer} · Schlüssel nicht verifiziert",
-      "cannotVerify": "Signatur nicht überprüfbar",
+      "cannotVerify": "Signatur nicht überprüfbar (Schlüssel nicht verfügbar)",
       "invalid": "Ungültige Signatur"
     }
   },
