@@ -63,26 +63,12 @@ const canCommit = computed(
 );
 
 // --- Conventional Commit composer (opt-in) ---------------------------------
-// Assembles a `type(scope)!: ` prefix on the subject line. Re-applying is
-// idempotent (it strips any existing prefix first), so changing a control never
-// stacks prefixes and the user's typed subject is preserved.
-const CC_TYPES = [
-  'feat',
-  'fix',
-  'docs',
-  'style',
-  'refactor',
-  'perf',
-  'test',
-  'build',
-  'ci',
-  'chore',
-  'revert'
-];
+// Assembles a `type(scope)!: ` prefix on the subject line (see
+// applyConventionalPrefix — idempotent, so changing a control never stacks
+// prefixes and the user's typed subject is preserved).
 const ccType = ref('feat');
 const ccScope = ref('');
 const ccBreaking = ref(false);
-const PREFIX_RE = /^[a-z]+(\([^)]*\))?!?:\s*/i;
 
 // The composer's on/off lives in git config (glimpse.conventionalCommits):
 // effective for the active repo (local override, else global). The braces button
@@ -120,13 +106,11 @@ async function toggleConventional() {
 }
 
 function applyConventional() {
-  const lines = repo.commitMessage.split('\n');
-  const subject = (lines[0] ?? '').replace(PREFIX_RE, '');
-  const scope = ccScope.value.trim();
-  lines[0] =
-    `${ccType.value}${scope ? `(${scope})` : ''}${ccBreaking.value ? '!' : ''}: ` +
-    subject;
-  repo.commitMessage = lines.join('\n');
+  repo.commitMessage = applyConventionalPrefix(repo.commitMessage, {
+    type: ccType.value,
+    scope: ccScope.value,
+    breaking: ccBreaking.value
+  });
 }
 
 watch([ccType, ccScope, ccBreaking, ccEnabled], () => {
@@ -413,7 +397,7 @@ onMounted(autoResize);
           </UiDropdownMenuTrigger>
           <UiDropdownMenuContent align="start">
             <UiDropdownMenuItem
-              v-for="ty in CC_TYPES"
+              v-for="ty in CONVENTIONAL_TYPES"
               :key="ty"
               @click="ccType = ty"
             >

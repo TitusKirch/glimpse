@@ -30,14 +30,6 @@ const useSshPicker = computed(
   () => format.value === 'ssh' && sshKeys.value.length > 0
 );
 
-function keyInfo(key: string): { type: string; comment: string } {
-  const parts = key.trim().split(/\s+/);
-  return {
-    type: (parts[0] ?? '').replace(/^ssh-/, '') || 'ssh',
-    comment: parts.slice(2).join(' ')
-  };
-}
-
 async function routingPath() {
   return repo.active?.path ?? (await gitClient.defaultRepo());
 }
@@ -216,9 +208,9 @@ async function saveKey() {
                 :key="k.path"
                 :value="k.publicKey"
               >
-                {{ keyInfo(k.publicKey).type
-                }}<template v-if="keyInfo(k.publicKey).comment">
-                  · {{ keyInfo(k.publicKey).comment }}</template
+                {{ parseSshKeyLine(k.publicKey).type
+                }}<template v-if="parseSshKeyLine(k.publicKey).comment">
+                  · {{ parseSshKeyLine(k.publicKey).comment }}</template
                 >
               </UiSelectItem>
             </UiSelectContent>

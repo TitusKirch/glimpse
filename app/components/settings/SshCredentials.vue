@@ -29,16 +29,6 @@ const hasEd25519 = computed(
     ) ?? false
 );
 
-// A public key line is `<type> <base64> [comment]`; show the type + comment
-// rather than the long base64 blob.
-function keyInfo(key: string): { type: string; comment: string } {
-  const parts = key.trim().split(/\s+/);
-  return {
-    type: (parts[0] ?? '').replace(/^ssh-/, '') || 'ssh',
-    comment: parts.slice(2).join(' ')
-  };
-}
-
 async function routingPath() {
   return repo.active?.path ?? (await gitClient.defaultRepo());
 }
@@ -112,12 +102,14 @@ async function generate() {
             class="size-4 shrink-0 text-muted-foreground"
           />
           <span class="min-w-0 flex-1 truncate">
-            <span class="font-medium">{{ keyInfo(k.publicKey).type }}</span>
+            <span class="font-medium">{{
+              parseSshKeyLine(k.publicKey).type
+            }}</span>
             <span
-              v-if="keyInfo(k.publicKey).comment"
+              v-if="parseSshKeyLine(k.publicKey).comment"
               class="text-muted-foreground"
             >
-              · {{ keyInfo(k.publicKey).comment }}</span
+              · {{ parseSshKeyLine(k.publicKey).comment }}</span
             >
           </span>
           <UiButton

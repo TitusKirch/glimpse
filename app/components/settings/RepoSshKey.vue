@@ -14,20 +14,6 @@ const selectedKey = ref('default');
 
 const activePath = computed(() => repo.active?.path ?? '');
 
-function keyInfo(key: string): { type: string; comment: string } {
-  const parts = key.trim().split(/\s+/);
-  return {
-    type: (parts[0] ?? '').replace(/^ssh-/, '') || 'ssh',
-    comment: parts.slice(2).join(' ')
-  };
-}
-
-// Pull the `-i <path>` argument out of a `core.sshCommand` value.
-function sshCommandKey(cmd: string): string {
-  const m = cmd.match(/-i\s+(?:"([^"]*)"|(\S+))/);
-  return (m?.[1] ?? m?.[2] ?? '').trim();
-}
-
 async function load() {
   if (!isTauri() || !activePath.value) return;
   status.value = await gitClient.sshStatus(activePath.value);
@@ -36,7 +22,7 @@ async function load() {
     key: 'core.sshCommand',
     scope: 'local'
   });
-  const keyPath = cmd ? sshCommandKey(cmd) : '';
+  const keyPath = cmd ? sshCommandKeyPath(cmd) : '';
   // Reflect the stored key only when it's one we detected; else fall to default.
   selectedKey.value = status.value?.publicKeys.some((k) => k.path === keyPath)
     ? keyPath
@@ -59,7 +45,7 @@ async function pick(value: string) {
       await gitClient.setConfig({
         path: activePath.value,
         key: 'core.sshCommand',
-        value: `ssh -i "${value}" -o IdentitiesOnly=yes`,
+        value: buildSshCommand(value),
         global: false
       });
     }
@@ -98,9 +84,9 @@ async function pick(value: string) {
             :key="k.path"
             :value="k.path"
           >
-            {{ keyInfo(k.publicKey).type
-            }}<template v-if="keyInfo(k.publicKey).comment">
-              · {{ keyInfo(k.publicKey).comment }}</template
+            {{ parseSshKeyLine(k.publicKey).type
+            }}<template v-if="parseSshKeyLine(k.publicKey).comment">
+              · {{ parseSshKeyLine(k.publicKey).comment }}</template
             >
           </UiSelectItem>
         </UiSelectContent>
