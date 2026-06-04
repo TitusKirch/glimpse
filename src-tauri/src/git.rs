@@ -560,15 +560,40 @@ impl Repo {
     }
 
     /// Revert a commit (creates a new inverse commit, no editor).
-    pub fn revert(&self, hash: &str) -> Result<(), String> {
-        reject_option(hash)?;
-        self.run(&["revert", "--no-edit", "--", hash]).map(|_| ())
+    /// Revert one or more commits (no editor). `mainline` (1-based) selects the
+    /// parent to revert against — required when reverting a merge commit.
+    pub fn revert(&self, hashes: &[String], mainline: Option<u32>) -> Result<(), String> {
+        if hashes.is_empty() {
+            return Err("no commits to revert".to_string());
+        }
+        let mut args = vec!["revert".to_string(), "--no-edit".to_string()];
+        if let Some(m) = mainline {
+            args.push("-m".to_string());
+            args.push(m.to_string());
+        }
+        args.push("--".to_string());
+        for h in hashes {
+            reject_option(h)?;
+            args.push(h.clone());
+        }
+        let argv: Vec<&str> = args.iter().map(String::as_str).collect();
+        self.run(&argv).map(|_| ())
     }
 
     /// Cherry-pick a commit onto the current branch.
-    pub fn cherry_pick(&self, hash: &str) -> Result<(), String> {
-        reject_option(hash)?;
-        self.run(&["cherry-pick", "--", hash]).map(|_| ())
+    /// Cherry-pick one or more commits, applied in the given order (oldest
+    /// first). A mid-operation conflict leaves the standard cherry-pick state for
+    /// the existing conflict UI to resolve.
+    pub fn cherry_pick(&self, hashes: &[String]) -> Result<(), String> {
+        if hashes.is_empty() {
+            return Err("no commits to cherry-pick".to_string());
+        }
+        let mut args = vec!["cherry-pick", "--"];
+        for h in hashes {
+            reject_option(h)?;
+            args.push(h.as_str());
+        }
+        self.run(&args).map(|_| ())
     }
 
     /// Move the current branch to `hash`. A hard reset discards working-tree

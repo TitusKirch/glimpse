@@ -322,17 +322,25 @@ export const gitClient = {
       fallback: null
     }),
 
-  revert: ({ path, hash }: { path: string; hash: string }) =>
+  revert: ({
+    path,
+    hashes,
+    mainline
+  }: {
+    path: string;
+    hashes: string[];
+    mainline?: number;
+  }) =>
     tauriInvoke<null>({
       command: 'revert',
-      args: { path, hash },
+      args: { path, hashes, mainline: mainline ?? null },
       fallback: null
     }),
 
-  cherryPick: ({ path, hash }: { path: string; hash: string }) =>
+  cherryPick: ({ path, hashes }: { path: string; hashes: string[] }) =>
     tauriInvoke<null>({
       command: 'cherry_pick',
-      args: { path, hash },
+      args: { path, hashes },
       fallback: null
     }),
 

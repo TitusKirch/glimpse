@@ -88,7 +88,8 @@
       "required": "Required.",
       "invalidRef": "No spaces or special characters.",
       "invalidRemoteName": "Letters, numbers, dots, dashes and underscores only.",
-      "invalidUrl": "Enter a valid git URL or path."
+      "invalidUrl": "Enter a valid git URL or path.",
+      "mainline": "Enter a valid parent number."
     },
     "branch": {
       "label": "Branch name",
@@ -177,6 +178,14 @@
     "tagHere": "Tag this commit",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "Cherry-pick {n} commits",
+    "revertN": "Revert {n} commits",
+    "revertMerge": {
+      "title": "Revert merge commit",
+      "label": "Mainline parent",
+      "description": "Which parent to keep (1-based). Usually 1.",
+      "placeholder": "1"
+    },
     "reset": "Reset to here",
     "resetSoft": "Soft",
     "resetSoftHint": "keep changes staged",

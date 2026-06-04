@@ -19,7 +19,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 - ✅ #28 Stash improvements — preview, partial, include untracked
 - ⏳ #29 Reflog view & "undo last action"
 - ⏳ #30 Line-level staging and discard a hunk
-- ⏳ #32 Cherry-pick / revert multiple or ranges (incl. merge revert)
+- ✅ #32 Cherry-pick / revert multiple or ranges (incl. merge revert)
 
 ## 0.7.0 — Compare & rebase
 
@@ -37,6 +37,9 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- #32: cherry-pick/revert take commit arrays; graph Ctrl/Shift-click builds a
+  multi-selection for bulk cherry-pick/revert; reverting a merge prompts for the
+  mainline parent (`-m`). Mid-op conflicts fall to the existing conflict UI.
 - Branch `feat/milestone-0-6-0` based on 0-5-0.
 - #28: stash preview reuses the commit-detail view (click a stash → files +
   per-file diff via stash-specific backend, since a stash is a merge commit);

@@ -88,7 +88,8 @@
       "required": "Champ obligatoire.",
       "invalidRef": "Aucun espace ni caractère spécial.",
       "invalidRemoteName": "Lettres, chiffres, points, tirets et tirets bas uniquement.",
-      "invalidUrl": "Saisissez une URL ou un chemin git valide."
+      "invalidUrl": "Saisissez une URL ou un chemin git valide.",
+      "mainline": "Saisissez un numéro de parent valide."
     },
     "branch": {
       "label": "Nom de la branche",
@@ -177,6 +178,14 @@
     "tagHere": "Taguer ce commit",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "Cherry-pick de {n} commits",
+    "revertN": "Revert de {n} commits",
+    "revertMerge": {
+      "title": "Revert d'un commit de fusion",
+      "label": "Parent principal",
+      "description": "Quel parent conserver (base 1). Généralement 1.",
+      "placeholder": "1"
+    },
     "reset": "Reset jusqu'ici",
     "resetSoft": "Soft",
     "resetSoftHint": "garder les modifications indexées",

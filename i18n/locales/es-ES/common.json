@@ -88,7 +88,8 @@
       "required": "Obligatorio.",
       "invalidRef": "Sin espacios ni caracteres especiales.",
       "invalidRemoteName": "Solo letras, números, puntos, guiones y guiones bajos.",
-      "invalidUrl": "Introduce una URL o ruta de git válida."
+      "invalidUrl": "Introduce una URL o ruta de git válida.",
+      "mainline": "Introduce un número de padre válido."
     },
     "branch": {
       "label": "Nombre de la rama",
@@ -177,6 +178,14 @@
     "tagHere": "Etiquetar este commit",
     "cherryPick": "Cherry-pick",
     "revert": "Revert",
+    "cherryPickN": "Cherry-pick de {n} commits",
+    "revertN": "Revertir {n} commits",
+    "revertMerge": {
+      "title": "Revertir commit de fusión",
+      "label": "Padre principal",
+      "description": "Qué padre conservar (base 1). Normalmente 1.",
+      "placeholder": "1"
+    },
     "reset": "Reset hasta aquí",
     "resetSoft": "Soft",
     "resetSoftHint": "mantener los cambios en stage",

@@ -188,11 +188,19 @@ function refVariant(ref: string) {
                 paddingLeft: layout.width + 'px'
               }"
               :class="
-                vr.commit.hash === repo.selectedHash
+                vr.commit.hash === repo.selectedHash ||
+                repo.multiSel.includes(vr.commit.hash)
                   ? 'bg-accent'
                   : 'hover:bg-accent/40'
               "
-              @click="repo.selectCommit(vr.commit.hash)"
+              @click="
+                (e) =>
+                  repo.rowClick({
+                    hash: vr.commit.hash,
+                    additive: e.ctrlKey || e.metaKey,
+                    range: e.shiftKey
+                  })
+              "
             >
               <div class="min-w-0 flex-1 overflow-hidden">
                 <div class="flex min-w-0 items-center gap-1.5">

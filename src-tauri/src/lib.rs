@@ -743,17 +743,26 @@ async fn delete_branch(
 }
 
 #[tauri::command]
-async fn revert(locks: State<'_, RepoLocks>, path: String, hash: String) -> Result<(), String> {
-    locked(&locks, &path, || git::Repo::open(&path).revert(&hash))
+async fn revert(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    hashes: Vec<String>,
+    mainline: Option<u32>,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).revert(&hashes, mainline)
+    })
 }
 
 #[tauri::command]
 async fn cherry_pick(
     locks: State<'_, RepoLocks>,
     path: String,
-    hash: String,
+    hashes: Vec<String>,
 ) -> Result<(), String> {
-    locked(&locks, &path, || git::Repo::open(&path).cherry_pick(&hash))
+    locked(&locks, &path, || {
+        git::Repo::open(&path).cherry_pick(&hashes)
+    })
 }
 
 #[tauri::command]
