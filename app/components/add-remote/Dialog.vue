@@ -59,10 +59,15 @@ watch(open, (isOpen) => {
       </form>
 
       <div class="flex justify-end gap-2">
-        <UiButton variant="outline" type="button" @click="open = false">
+        <UiButton
+          variant="outline"
+          type="button"
+          icon="lucide:x"
+          @click="open = false"
+        >
           {{ t('common.cancel') }}
         </UiButton>
-        <UiButton type="submit" form="add-remote-form">
+        <UiButton type="submit" form="add-remote-form" icon="lucide:plus">
           {{ t('sidebar.addRemote') }}
         </UiButton>
       </div>
