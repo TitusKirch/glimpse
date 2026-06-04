@@ -235,7 +235,8 @@
     "undoLast": "Annuler la dernière action",
     "compareRefs": "Comparer des réfs…",
     "bisect": "Lancer un bisect…",
-    "worktrees": "Worktrees…"
+    "worktrees": "Worktrees…",
+    "submodules": "Sous-modules…"
   },
   "stash": {
     "title": "Remiser les modifications",
@@ -244,6 +245,16 @@
     "untracked": "non suivi",
     "nothing": "Aucune modification à remiser.",
     "submit": "Remiser"
+  },
+  "submodule": {
+    "title": "Sous-modules",
+    "empty": "Aucun sous-module.",
+    "update": "Mettre à jour",
+    "sync": "Synchroniser",
+    "inSync": "À jour",
+    "needsUpdate": "Mise à jour requise",
+    "uninitialised": "Non initialisé",
+    "conflicts": "Conflits"
   },
   "worktree": {
     "title": "Worktrees",

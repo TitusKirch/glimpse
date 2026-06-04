@@ -69,6 +69,19 @@ export type Worktree = {
   locked: boolean;
 };
 
+export type Submodule = {
+  path: string;
+  /**
+   * Abbreviated checked-out commit.
+   */
+  sha: string;
+  /**
+   * `git submodule status` prefix: " " in sync, "+" needs update,
+   * "-" uninitialised, "U" merge conflicts.
+   */
+  state: string;
+};
+
 export type StashEntry = {
   /**
    * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.

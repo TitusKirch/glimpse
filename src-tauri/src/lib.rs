@@ -776,6 +776,24 @@ async fn worktree_remove(
     })
 }
 
+/// List submodules and their status.
+#[tauri::command]
+async fn submodules(path: String) -> Result<Vec<git::Submodule>, String> {
+    git::Repo::open(&path).submodules()
+}
+
+/// Init + update all submodules.
+#[tauri::command]
+async fn submodule_update(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).submodule_update())
+}
+
+/// Sync submodule remote URLs from `.gitmodules`.
+#[tauri::command]
+async fn submodule_sync(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).submodule_sync())
+}
+
 #[tauri::command]
 async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
@@ -1340,6 +1358,9 @@ pub fn run() {
             worktrees,
             worktree_add,
             worktree_remove,
+            submodules,
+            submodule_update,
+            submodule_sync,
             discard_all,
             create_branch,
             create_branch_at,

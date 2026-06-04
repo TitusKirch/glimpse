@@ -235,7 +235,8 @@
     "undoLast": "Undo last action",
     "compareRefs": "Compare refs…",
     "bisect": "Start bisect…",
-    "worktrees": "Worktrees…"
+    "worktrees": "Worktrees…",
+    "submodules": "Submodules…"
   },
   "stash": {
     "title": "Stash changes",
@@ -244,6 +245,16 @@
     "untracked": "untracked",
     "nothing": "No changes to stash.",
     "submit": "Stash"
+  },
+  "submodule": {
+    "title": "Submodules",
+    "empty": "No submodules.",
+    "update": "Update",
+    "sync": "Sync",
+    "inSync": "In sync",
+    "needsUpdate": "Needs update",
+    "uninitialised": "Not initialised",
+    "conflicts": "Conflicts"
   },
   "worktree": {
     "title": "Worktrees",

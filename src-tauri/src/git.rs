@@ -210,6 +210,17 @@ pub struct Worktree {
     pub locked: bool,
 }
 
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Submodule {
+    pub path: String,
+    /// Abbreviated checked-out commit.
+    pub sha: String,
+    /// `git submodule status` prefix: " " in sync, "+" needs update,
+    /// "-" uninitialised, "U" merge conflicts.
+    pub state: String,
+}
+
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
@@ -710,6 +721,22 @@ impl Repo {
         self.run(&["worktree", "remove", path]).map(|_| ())
     }
 
+    /// List submodules and their status. Pointer changes already render in the
+    /// diff viewer as git's "Subproject commit" lines, so no extra diff plumbing.
+    pub fn submodules(&self) -> Result<Vec<Submodule>, String> {
+        Ok(parse::submodules(&self.run(&["submodule", "status"])?))
+    }
+
+    /// Initialise + update all submodules to their recorded commits.
+    pub fn submodule_update(&self) -> Result<String, String> {
+        self.run(&["submodule", "update", "--init", "--recursive"])
+    }
+
+    /// Sync submodule remote URLs from `.gitmodules`.
+    pub fn submodule_sync(&self) -> Result<(), String> {
+        self.run(&["submodule", "sync", "--recursive"]).map(|_| ())
+    }
+
     /// Discard every working-tree change: restore tracked files to HEAD and
     /// remove untracked files/dirs.
     pub fn discard_all(&self) -> Result<(), String> {
@@ -1076,6 +1103,7 @@ fn export_bindings() {
         Branch::decl(),
         ReflogEntry::decl(),
         Worktree::decl(),
+        Submodule::decl(),
         StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),

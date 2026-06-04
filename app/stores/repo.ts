@@ -786,6 +786,21 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Submodule update/sync touch nested repos, not the active view; the
+    // submodules dialog refetches its own list.
+    async submoduleUpdate() {
+      return this.mutate({
+        run: () => gitClient.submoduleUpdate(this.repoPath),
+        refresh: 'none'
+      });
+    },
+    async submoduleSync() {
+      return this.mutate({
+        run: () => gitClient.submoduleSync(this.repoPath),
+        refresh: 'none'
+      });
+    },
+
     // Discard every working-tree change (confirms first — irreversible).
     async discardAll() {
       if (!this.status.length) return;

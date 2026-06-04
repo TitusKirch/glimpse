@@ -17,6 +17,7 @@ const reflogOverlay = useOverlay('reflog');
 const compareOverlay = useOverlay('compare');
 const bisectOverlay = useOverlay('bisect');
 const worktreesOverlay = useOverlay('worktrees');
+const submodulesOverlay = useOverlay('submodules');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -315,6 +316,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:folder-git-2',
       labelKey: 'command.worktrees',
       run: () => worktreesOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'submodules',
+      group: 'repository',
+      icon: 'lucide:box',
+      labelKey: 'command.submodules',
+      run: () => submodulesOverlay.show(),
       visible: hasRepos
     },
     {

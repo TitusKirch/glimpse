@@ -38,7 +38,7 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## 0.8.0 — Advanced / power-user
 
-- ⏳ #34 Submodule support
+- ✅ #34 Submodule support
 - ⏳ #35 Git LFS support
 - ✅ #36 Worktree management
 - ✅ #37 Bisect
@@ -46,6 +46,10 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## Log
 
+- #34: `submodules` (status parse) + `submodule_update` (`--init --recursive`) +
+  `submodule_sync`; Submodules dialog lists each with a status badge and
+  update/sync actions; command-palette entry. Pointer changes already render in
+  the diff viewer via git's "Subproject commit" lines, so no extra diff plumbing.
 - #36: `worktrees` (porcelain parse, paths host-mapped) + `worktree_add` /
   `worktree_remove`; Worktrees dialog lists them with open-as-tab + remove and an
   add (folder picker + optional ref); command-palette entry. List + open work on

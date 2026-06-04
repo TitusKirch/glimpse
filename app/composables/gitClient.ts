@@ -16,6 +16,7 @@ import type {
   ReflogEntry,
   RepoInfo,
   StatusEntry,
+  Submodule,
   Worktree
 } from '~/types/bindings';
 import type { PullStrategy } from '~/stores/layout';
@@ -427,6 +428,26 @@ export const gitClient = {
     tauriInvoke<null>({
       command: 'worktree_remove',
       args: { path, wtPath },
+      fallback: null
+    }),
+
+  // Submodules: list/status, init+update, sync.
+  submodules: (path: string) =>
+    tauriInvoke<Submodule[]>({
+      command: 'submodules',
+      args: { path },
+      fallback: []
+    }),
+  submoduleUpdate: (path: string) =>
+    tauriInvoke<string>({
+      command: 'submodule_update',
+      args: { path },
+      fallback: ''
+    }),
+  submoduleSync: (path: string) =>
+    tauriInvoke<null>({
+      command: 'submodule_sync',
+      args: { path },
       fallback: null
     }),
 

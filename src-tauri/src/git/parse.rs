@@ -4,7 +4,8 @@
 //! `docs/ARCHITECTURE.md` §9.
 
 use super::{
-    lines, BlameLine, Branch, Commit, CommitFile, DiffData, ReflogEntry, StatusEntry, Worktree, US,
+    lines, BlameLine, Branch, Commit, CommitFile, DiffData, ReflogEntry, StatusEntry, Submodule,
+    Worktree, US,
 };
 use std::collections::HashMap;
 
@@ -121,6 +122,19 @@ pub fn log(raw: &str) -> Vec<Commit> {
 
     assign_lanes(&mut commits);
     commits
+}
+
+/// Decode `git submodule status` lines: a state prefix char, then `<sha> <path>`.
+pub fn submodules(raw: &str) -> Vec<Submodule> {
+    lines(raw)
+        .filter_map(|line| {
+            let state = line.chars().next()?.to_string();
+            let mut parts = line[1..].split_whitespace();
+            let sha = parts.next()?.chars().take(8).collect();
+            let path = parts.next()?.to_string();
+            Some(Submodule { path, sha, state })
+        })
+        .collect()
 }
 
 /// Decode `git worktree list --porcelain` (blank-line-separated blocks).
