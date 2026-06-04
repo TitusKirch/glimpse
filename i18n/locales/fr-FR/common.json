@@ -28,7 +28,8 @@
   "actions": {
     "refresh": "Actualiser",
     "openRepo": "Ouvrir un dépôt",
-    "closeRepo": "Fermer le dépôt"
+    "closeRepo": "Fermer le dépôt",
+    "initRepo": "Initialiser un dépôt"
   },
   "theme": {
     "toggle": "Changer de thème"
@@ -47,7 +48,22 @@
     "contextHint": "Astuce : faites un clic droit sur un commit pour plus d'actions."
   },
   "common": {
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "browse": "Parcourir…"
+  },
+  "init": {
+    "title": "Initialiser un dépôt",
+    "submit": "Initialiser",
+    "failed": "Impossible d'initialiser le dépôt",
+    "folder": {
+      "label": "Emplacement",
+      "placeholder": "Choisir un dossier…"
+    },
+    "branch": {
+      "label": "Branche initiale (optionnel)",
+      "placeholder": "main",
+      "description": "Laisser vide pour utiliser la valeur par défaut de git."
+    }
   },
   "form": {
     "create": "Créer",

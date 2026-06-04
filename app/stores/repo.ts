@@ -284,6 +284,16 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Initialise a new repository in `parent` (optional initial branch) and open
+    // it in a tab. Returns the new path; errors propagate so the dialog can toast.
+    async initRepo({ parent, branch }: { parent: string; branch?: string }) {
+      return this.native(async () => {
+        const path = await gitClient.initRepo({ path: parent, branch });
+        if (path) await this.openRepo(path);
+        return path;
+      });
+    },
+
     // Point the backend FS watcher at the active repo (live-refresh source).
     watchActive() {
       if (isTauri() && this.active) void gitClient.watchRepo(this.active.path);

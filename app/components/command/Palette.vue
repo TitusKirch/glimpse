@@ -10,6 +10,7 @@ import { z } from 'zod';
 const { open, hide } = useOverlay('commandPalette');
 const settings = useOverlay('settings');
 const help = useOverlay('help');
+const initRepo = useOverlay('init');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -244,6 +245,14 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:folder-open',
       labelKey: 'actions.openRepo',
       run: pickFolder,
+      visible: true
+    },
+    {
+      id: 'init-repository',
+      group: 'repository',
+      icon: 'lucide:folder-plus',
+      labelKey: 'actions.initRepo',
+      run: () => initRepo.show(),
       visible: true
     },
     {

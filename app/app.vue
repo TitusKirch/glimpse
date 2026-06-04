@@ -399,5 +399,6 @@ const otherPullStrategies = computed(() =>
   <HelpDialog />
   <AddRemoteDialog />
   <OpenRepoDialog />
+  <InitDialog />
   <UiSonner />
 </template>

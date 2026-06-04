@@ -6,6 +6,7 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 const repo = useRepoStore();
 const recent = useRecentStore();
 const settings = useSettingsStore();
+const initOverlay = useOverlay('init');
 const { t } = useI18n();
 
 // Recent repos shown on the start screen, capped (and never more than stored).
@@ -37,9 +38,18 @@ async function pick() {
       </p>
     </div>
 
-    <UiButton icon="lucide:folder-open" @click="pick">
-      {{ t('actions.openRepo') }}
-    </UiButton>
+    <div class="flex flex-wrap items-center justify-center gap-2">
+      <UiButton icon="lucide:folder-open" @click="pick">
+        {{ t('actions.openRepo') }}
+      </UiButton>
+      <UiButton
+        variant="outline"
+        icon="lucide:folder-plus"
+        @click="initOverlay.show()"
+      >
+        {{ t('actions.initRepo') }}
+      </UiButton>
+    </div>
 
     <div v-if="recent.repos.length" class="w-full max-w-md">
       <div class="mb-2 flex items-center justify-between px-1">

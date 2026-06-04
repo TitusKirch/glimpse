@@ -28,7 +28,8 @@
   "actions": {
     "refresh": "Refresh",
     "openRepo": "Open repository",
-    "closeRepo": "Close repository"
+    "closeRepo": "Close repository",
+    "initRepo": "Initialise repository"
   },
   "theme": {
     "toggle": "Toggle theme"
@@ -47,7 +48,22 @@
     "contextHint": "Tip: right-click a commit for more actions."
   },
   "common": {
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "browse": "Browse…"
+  },
+  "init": {
+    "title": "Initialise repository",
+    "submit": "Initialise",
+    "failed": "Couldn't initialise the repository",
+    "folder": {
+      "label": "Location",
+      "placeholder": "Choose a folder…"
+    },
+    "branch": {
+      "label": "Initial branch (optional)",
+      "placeholder": "main",
+      "description": "Leave empty to use git's default."
+    }
   },
   "form": {
     "create": "Create",

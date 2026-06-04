@@ -95,6 +95,15 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Initialise a new repository in `path` (optional initial branch); resolves to
+  // the new repo's toplevel path so the caller can open it.
+  initRepo: ({ path, branch }: { path: string; branch?: string }) =>
+    tauriInvoke<string>({
+      command: 'init_repo',
+      args: { path, branch: branch ?? null },
+      fallback: ''
+    }),
+
   log: ({ path, limit = 100 }: { path: string; limit?: number }) =>
     tauriInvoke<Commit[]>({
       command: 'git_log',

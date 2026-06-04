@@ -28,7 +28,8 @@
   "actions": {
     "refresh": "Aktualisieren",
     "openRepo": "Repository öffnen",
-    "closeRepo": "Repository schließen"
+    "closeRepo": "Repository schließen",
+    "initRepo": "Repository initialisieren"
   },
   "theme": {
     "toggle": "Theme umschalten"
@@ -47,7 +48,22 @@
     "contextHint": "Tipp: Rechtsklick auf einen Commit für weitere Aktionen."
   },
   "common": {
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "browse": "Durchsuchen…"
+  },
+  "init": {
+    "title": "Repository initialisieren",
+    "submit": "Initialisieren",
+    "failed": "Repository konnte nicht initialisiert werden",
+    "folder": {
+      "label": "Speicherort",
+      "placeholder": "Ordner wählen…"
+    },
+    "branch": {
+      "label": "Initialer Branch (optional)",
+      "placeholder": "main",
+      "description": "Leer lassen für den git-Standard."
+    }
   },
   "form": {
     "create": "Erstellen",

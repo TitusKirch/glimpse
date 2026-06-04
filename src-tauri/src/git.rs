@@ -258,10 +258,14 @@ impl Repo {
         // — otherwise the WSL distro is lost and the next call hits native git.
         let raw_top = self.run(&["rev-parse", "--show-toplevel"])?;
         let toplevel = self.target.host_path(raw_top.trim());
+        // `rev-parse --abbrev-ref HEAD` resolves a branch name (or "HEAD" when
+        // detached), but fails on a freshly-initialised repo whose branch is
+        // still unborn — fall back to the symbolic ref so empty repos open.
         let current_branch = self
-            .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
-            .trim()
-            .to_string();
+            .run(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .or_else(|_| self.run(&["symbolic-ref", "--short", "HEAD"]))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
         // Per-branch ahead/behind comes from %(upstream:track), e.g.
         // "[ahead 2, behind 1]".
         let branch_fmt = format!("--format=%(refname:short){US}%(upstream:track){US}%(upstream)");
@@ -294,6 +298,11 @@ impl Repo {
     }
 
     pub fn log(&self, limit: u32) -> Result<Vec<Commit>, String> {
+        // A freshly-initialised repo has no commits yet; `git log` would fail
+        // hard, so short-circuit to an empty history when there are no refs.
+        if self.run(&["rev-parse", "--all"])?.trim().is_empty() {
+            return Ok(Vec::new());
+        }
         // `%G?`/`%GS`/`%GK` carry the signature verification status, signer name
         // and signing key so the graph can badge signed commits. Trailing fields
         // stay optional in the parser, so other callers (file history) that use
@@ -750,6 +759,20 @@ impl Repo {
         args.push(key);
         args.push(value);
         self.run(&args).map(|_| ())
+    }
+
+    /// Initialise a new repository in this directory (which must exist), with an
+    /// optional initial branch name. Returns the canonical toplevel host path.
+    pub fn init_repo(&self, branch: Option<&str>) -> Result<String, String> {
+        let mut args = vec!["init"];
+        if let Some(b) = branch {
+            reject_option(b)?;
+            args.push("-b");
+            args.push(b);
+        }
+        self.run(&args)?;
+        let top = self.run(&["rev-parse", "--show-toplevel"])?;
+        Ok(self.target.host_path(top.trim()))
     }
 }
 

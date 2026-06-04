@@ -449,6 +449,19 @@ async fn set_config(path: String, key: String, value: String, global: bool) -> R
     git::Repo::open(&path).config_set(&key, &value, global)
 }
 
+/// Initialise a new repository in the existing directory `path` (optional initial
+/// branch), returning its toplevel host path.
+#[tauri::command]
+async fn init_repo(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    branch: Option<String>,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).init_repo(branch.as_deref())
+    })
+}
+
 #[tauri::command]
 async fn git_log(path: String, limit: Option<u32>) -> Result<Vec<git::Commit>, String> {
     // Clamp the window: the frontend raises `limit` 200 at a time with no
@@ -1078,6 +1091,7 @@ pub fn run() {
             repo_info,
             get_config,
             set_config,
+            init_repo,
             git_log,
             git_status,
             file_diff,

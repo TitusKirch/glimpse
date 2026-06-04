@@ -28,7 +28,8 @@
   "actions": {
     "refresh": "Actualizar",
     "openRepo": "Abrir repositorio",
-    "closeRepo": "Cerrar repositorio"
+    "closeRepo": "Cerrar repositorio",
+    "initRepo": "Inicializar repositorio"
   },
   "theme": {
     "toggle": "Cambiar tema"
@@ -47,7 +48,22 @@
     "contextHint": "Consejo: haz clic derecho en un commit para más acciones."
   },
   "common": {
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "browse": "Examinar…"
+  },
+  "init": {
+    "title": "Inicializar repositorio",
+    "submit": "Inicializar",
+    "failed": "No se pudo inicializar el repositorio",
+    "folder": {
+      "label": "Ubicación",
+      "placeholder": "Elige una carpeta…"
+    },
+    "branch": {
+      "label": "Rama inicial (opcional)",
+      "placeholder": "main",
+      "description": "Déjalo vacío para usar el valor predeterminado de git."
+    }
   },
   "form": {
     "create": "Crear",
