@@ -111,6 +111,12 @@
         "keys": "Claves públicas SSH",
         "noKeys": "No se encontraron claves SSH en ~/.ssh.",
         "copy": "Copiar clave pública",
+        "useKey": {
+          "label": "Clave SSH para este repositorio",
+          "hint": "Usa una clave concreta para fetch, pull y push en este repositorio.",
+          "default": "Predeterminada"
+        },
+        "useKeyFailed": "No se pudo establecer la clave SSH para este repositorio",
         "generate": "Generar clave SSH",
         "generated": "Clave SSH generada y clave pública copiada",
         "generateFailed": "No se pudo generar una clave SSH",

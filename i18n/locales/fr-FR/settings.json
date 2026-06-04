@@ -111,6 +111,12 @@
         "keys": "Clés publiques SSH",
         "noKeys": "Aucune clé SSH trouvée dans ~/.ssh.",
         "copy": "Copier la clé publique",
+        "useKey": {
+          "label": "Clé SSH pour ce dépôt",
+          "hint": "Utiliser une clé spécifique pour fetch, pull et push dans ce dépôt.",
+          "default": "Par défaut"
+        },
+        "useKeyFailed": "Impossible de définir la clé SSH pour ce dépôt",
         "generate": "Générer une clé SSH",
         "generated": "Clé SSH générée et clé publique copiée",
         "generateFailed": "Impossible de générer une clé SSH",

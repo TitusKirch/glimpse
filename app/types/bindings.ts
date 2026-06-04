@@ -219,13 +219,26 @@ export type RepoStats = {
   churn: Array<FileChurn>;
 };
 
+export type SshKey = {
+  /**
+   * Absolute path to the private key (the `.pub` path with the extension
+   * dropped), in the form the repo's git environment expects (a Linux path
+   * for a WSL repo, a host path otherwise).
+   */
+  path: string;
+  /**
+   * The public key line (`<type> <base64> [comment]`).
+   */
+  publicKey: string;
+};
+
 export type SshStatus = {
   /**
    * The configured `credential.helper`, or empty when none is set.
    */
   helper: string;
   /**
-   * Public SSH keys found under `~/.ssh` (their contents).
+   * Public SSH keys found under `~/.ssh` (path + contents).
    */
-  publicKeys: Array<string>;
+  publicKeys: Array<SshKey>;
 };

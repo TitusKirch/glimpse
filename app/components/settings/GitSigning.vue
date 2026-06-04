@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner';
+import type { SshKey } from '~/types/bindings';
 
 // Global commit-signing config (commit.gpgsign / gpg.format / user.signingkey),
 // read & written through the active repo's git. Commits then sign automatically
@@ -11,7 +12,7 @@ const repo = useRepoStore();
 const sign = ref(false);
 const format = ref('openpgp');
 const signingKey = ref('');
-const sshKeys = ref<string[]>([]);
+const sshKeys = ref<SshKey[]>([]);
 
 function keyInfo(key: string): { type: string; comment: string } {
   const parts = key.trim().split(/\s+/);
@@ -147,10 +148,14 @@ const useSshPicker = computed(
               />
             </UiSelectTrigger>
             <UiSelectContent>
-              <UiSelectItem v-for="k in sshKeys" :key="k" :value="k">
-                {{ keyInfo(k).type
-                }}<template v-if="keyInfo(k).comment">
-                  · {{ keyInfo(k).comment }}</template
+              <UiSelectItem
+                v-for="k in sshKeys"
+                :key="k.path"
+                :value="k.publicKey"
+              >
+                {{ keyInfo(k.publicKey).type
+                }}<template v-if="keyInfo(k.publicKey).comment">
+                  · {{ keyInfo(k.publicKey).comment }}</template
                 >
               </UiSelectItem>
             </UiSelectContent>

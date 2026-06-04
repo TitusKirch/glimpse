@@ -111,6 +111,12 @@
         "keys": "SSH public keys",
         "noKeys": "No SSH keys found in ~/.ssh.",
         "copy": "Copy public key",
+        "useKey": {
+          "label": "SSH key for this repository",
+          "hint": "Use a specific key for fetch, pull and push in this repository.",
+          "default": "Default"
+        },
+        "useKeyFailed": "Couldn't set the SSH key for this repository",
         "generate": "Generate SSH key",
         "generated": "SSH key generated and public key copied",
         "generateFailed": "Couldn't generate an SSH key",

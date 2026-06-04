@@ -111,6 +111,12 @@
         "keys": "Öffentliche SSH-Schlüssel",
         "noKeys": "Keine SSH-Schlüssel in ~/.ssh gefunden.",
         "copy": "Öffentlichen Schlüssel kopieren",
+        "useKey": {
+          "label": "SSH-Schlüssel für dieses Repository",
+          "hint": "Verwende einen bestimmten Schlüssel für Fetch, Pull und Push in diesem Repository.",
+          "default": "Standard"
+        },
+        "useKeyFailed": "SSH-Schlüssel für dieses Repository konnte nicht gesetzt werden",
         "generate": "SSH-Schlüssel erzeugen",
         "generated": "SSH-Schlüssel erzeugt und öffentlicher Schlüssel kopiert",
         "generateFailed": "SSH-Schlüssel konnte nicht erzeugt werden",

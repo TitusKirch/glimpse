@@ -12,6 +12,7 @@
 //! Adding a new platform means adding its arm to [`resolve`] / [`native_flavor`]
 //! — callers never change.
 
+use crate::git::SshKey;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -150,30 +151,33 @@ impl GitTarget {
         std::fs::read(path).ok()
     }
 
-    /// Public SSH keys (`*.pub`) under `~/.ssh` in the environment git runs in —
-    /// their contents (the lines pasted into a host). Best-effort; empty on error.
-    pub fn ssh_public_keys(&self) -> Vec<String> {
+    /// Public SSH keys (`*.pub`) under `~/.ssh` in the environment git runs in,
+    /// each paired with the path of its private half (for `ssh -i`). Best-effort;
+    /// empty on error.
+    pub fn ssh_public_keys(&self) -> Vec<SshKey> {
         if let Some(distro) = &self.distro {
             let mut cmd = Command::new("wsl.exe");
             no_window(&mut cmd);
+            // Emit `<private-key-path>\t<public-key-line>` per key; the `[ -f ]`
+            // guard skips the literal glob when no `*.pub` exists.
+            let script = "for f in ~/.ssh/*.pub; do [ -f \"$f\" ] || continue; \
+                 printf '%s\\t%s\\n' \"${f%.pub}\" \"$(cat \"$f\")\"; done";
             return cmd
-                .args([
-                    "-d",
-                    distro,
-                    "--exec",
-                    "sh",
-                    "-c",
-                    "cat ~/.ssh/*.pub 2>/dev/null",
-                ])
+                .args(["-d", distro, "--exec", "sh", "-c", script])
                 .output()
                 .ok()
                 .filter(|o| o.status.success())
                 .map(|o| {
                     String::from_utf8_lossy(&o.stdout)
                         .lines()
-                        .map(str::trim)
-                        .filter(|l| !l.is_empty())
-                        .map(str::to_string)
+                        .filter_map(|l| {
+                            let (path, pk) = l.split_once('\t')?;
+                            let pk = pk.trim();
+                            (!pk.is_empty()).then(|| SshKey {
+                                path: path.to_string(),
+                                public_key: pk.to_string(),
+                            })
+                        })
                         .collect()
                 })
                 .unwrap_or_default();
@@ -189,7 +193,10 @@ impl GitTarget {
                     if let Ok(content) = std::fs::read_to_string(&path) {
                         let trimmed = content.trim();
                         if !trimmed.is_empty() {
-                            keys.push(trimmed.to_string());
+                            keys.push(SshKey {
+                                path: path.with_extension("").to_string_lossy().into_owned(),
+                                public_key: trimmed.to_string(),
+                            });
                         }
                     }
                 }

@@ -429,14 +429,27 @@ pub struct RepoStats {
     pub churn: Vec<FileChurn>,
 }
 
+/// A public SSH key discovered under `~/.ssh`, with the path of its private
+/// half so a caller can point `core.sshCommand` (`ssh -i <path>`) at it.
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SshKey {
+    /// Absolute path to the private key (the `.pub` path with the extension
+    /// dropped), in the form the repo's git environment expects (a Linux path
+    /// for a WSL repo, a host path otherwise).
+    pub path: String,
+    /// The public key line (`<type> <base64> [comment]`).
+    pub public_key: String,
+}
+
 /// SSH / credential setup for the repo's git environment.
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SshStatus {
     /// The configured `credential.helper`, or empty when none is set.
     pub helper: String,
-    /// Public SSH keys found under `~/.ssh` (their contents).
-    pub public_keys: Vec<String>,
+    /// Public SSH keys found under `~/.ssh` (path + contents).
+    pub public_keys: Vec<SshKey>,
 }
 
 #[derive(Serialize, TS)]
@@ -1777,6 +1790,7 @@ fn export_bindings() {
         ActivityPoint::decl(),
         FileChurn::decl(),
         RepoStats::decl(),
+        SshKey::decl(),
         SshStatus::decl(),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
