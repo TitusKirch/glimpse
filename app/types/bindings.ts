@@ -54,6 +54,45 @@ export type ReflogEntry = {
   subject: string;
 };
 
+export type Worktree = {
+  path: string;
+  /**
+   * Short branch name, or empty when detached/bare.
+   */
+  branch: string;
+  /**
+   * Abbreviated HEAD hash (empty for a bare worktree).
+   */
+  head: string;
+  bare: boolean;
+  detached: boolean;
+  locked: boolean;
+};
+
+export type Submodule = {
+  path: string;
+  /**
+   * Abbreviated checked-out commit.
+   */
+  sha: string;
+  /**
+   * `git submodule status` prefix: " " in sync, "+" needs update,
+   * "-" uninitialised, "U" merge conflicts.
+   */
+  state: string;
+};
+
+export type SparseStatus = {
+  /**
+   * Whether sparse-checkout is active for this worktree.
+   */
+  enabled: boolean;
+  /**
+   * The included path patterns (cone-mode directories), empty when disabled.
+   */
+  patterns: Array<string>;
+};
+
 export type StashEntry = {
   /**
    * Stash ref, e.g. `stash@{0}` — used for pop/apply/drop.
@@ -75,6 +114,10 @@ export type RepoInfo = {
    * continue / skip / abort.
    */
   rebaseInProgress: boolean;
+  /**
+   * True when a `git bisect` session is active.
+   */
+  bisectInProgress: boolean;
   flavor: string;
   distro: string | null;
 };

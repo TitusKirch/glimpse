@@ -15,6 +15,10 @@ const cloneRepo = useOverlay('clone');
 const stashOverlay = useOverlay('stash');
 const reflogOverlay = useOverlay('reflog');
 const compareOverlay = useOverlay('compare');
+const bisectOverlay = useOverlay('bisect');
+const worktreesOverlay = useOverlay('worktrees');
+const submodulesOverlay = useOverlay('submodules');
+const sparseOverlay = useOverlay('sparse');
 const repo = useRepoStore();
 const recent = useRecentStore();
 const recentActions = useRecentActionsStore();
@@ -297,6 +301,38 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:arrow-right-left',
       labelKey: 'command.compareRefs',
       run: () => compareOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'bisect',
+      group: 'repository',
+      icon: 'lucide:bug',
+      labelKey: 'command.bisect',
+      run: () => bisectOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'worktrees',
+      group: 'repository',
+      icon: 'lucide:folder-git-2',
+      labelKey: 'command.worktrees',
+      run: () => worktreesOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'submodules',
+      group: 'repository',
+      icon: 'lucide:box',
+      labelKey: 'command.submodules',
+      run: () => submodulesOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'sparse-checkout',
+      group: 'repository',
+      icon: 'lucide:scissors',
+      labelKey: 'command.sparse',
+      run: () => sparseOverlay.show(),
       visible: hasRepos
     },
     {

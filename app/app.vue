@@ -404,5 +404,9 @@ const otherPullStrategies = computed(() =>
   <StashDialog />
   <ReflogDialog />
   <CompareDialog />
+  <BisectDialog />
+  <WorktreesDialog />
+  <SubmodulesDialog />
+  <SparseDialog />
   <UiSonner />
 </template>

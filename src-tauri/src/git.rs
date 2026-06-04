@@ -137,6 +137,8 @@ pub struct RepoInfo {
     /// True when a rebase is paused (e.g. on a conflict) awaiting
     /// continue / skip / abort.
     pub rebase_in_progress: bool,
+    /// True when a `git bisect` session is active.
+    pub bisect_in_progress: bool,
     pub flavor: String,
     pub distro: Option<String>,
 }
@@ -193,6 +195,39 @@ pub struct ReflogEntry {
     pub hash: String,
     /// Reflog subject, e.g. `reset: moving to HEAD~1`.
     pub subject: String,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Worktree {
+    pub path: String,
+    /// Short branch name, or empty when detached/bare.
+    pub branch: String,
+    /// Abbreviated HEAD hash (empty for a bare worktree).
+    pub head: String,
+    pub bare: bool,
+    pub detached: bool,
+    pub locked: bool,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct Submodule {
+    pub path: String,
+    /// Abbreviated checked-out commit.
+    pub sha: String,
+    /// `git submodule status` prefix: " " in sync, "+" needs update,
+    /// "-" uninitialised, "U" merge conflicts.
+    pub state: String,
+}
+
+#[derive(Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SparseStatus {
+    /// Whether sparse-checkout is active for this worktree.
+    pub enabled: bool,
+    /// The included path patterns (cone-mode directories), empty when disabled.
+    pub patterns: Vec<String>,
 }
 
 /// How far `git reset` rewinds. Deserialized from the frontend's
@@ -313,6 +348,13 @@ impl Repo {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
+        // `git bisect log` succeeds only while a bisect session is active.
+        let bisect_in_progress = self
+            .target
+            .command(&["bisect", "log"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
 
         Ok(RepoInfo {
             toplevel,
@@ -323,6 +365,7 @@ impl Repo {
             tags,
             stashes,
             rebase_in_progress,
+            bisect_in_progress,
             flavor: self.target.flavor.to_string(),
             distro: self.target.distro.clone(),
         })
@@ -631,6 +674,116 @@ impl Repo {
     /// Abort a paused rebase, restoring the pre-rebase state.
     pub fn rebase_abort(&self) -> Result<(), String> {
         self.run(&["rebase", "--abort"]).map(|_| ())
+    }
+
+    /// Start a `git bisect` between a known-bad and known-good ref. Returns git's
+    /// output (the next commit to test).
+    pub fn bisect_start(&self, bad: &str, good: &str) -> Result<String, String> {
+        reject_option(bad)?;
+        reject_option(good)?;
+        self.run(&["bisect", "start", bad, good])
+    }
+
+    /// Mark the current bisect step `good`, `bad` or `skip` and advance. Returns
+    /// git's output (the next commit, or the identified first-bad commit).
+    pub fn bisect_mark(&self, verdict: &str) -> Result<String, String> {
+        let sub = match verdict {
+            "good" | "bad" | "skip" => verdict,
+            _ => return Err(format!("invalid bisect verdict: {verdict}")),
+        };
+        self.run(&["bisect", sub])
+    }
+
+    /// End the bisect session and return to the original HEAD.
+    pub fn bisect_reset(&self) -> Result<(), String> {
+        self.run(&["bisect", "reset"]).map(|_| ())
+    }
+
+    /// List linked worktrees. Paths are mapped back to host paths so they can be
+    /// opened as their own repo tab (round-trips a `\\wsl$` worktree).
+    pub fn worktrees(&self) -> Result<Vec<Worktree>, String> {
+        let raw = self.run(&["worktree", "list", "--porcelain"])?;
+        let mut worktrees = parse::worktrees(&raw);
+        for wt in &mut worktrees {
+            wt.path = self.target.host_path(&wt.path);
+        }
+        Ok(worktrees)
+    }
+
+    /// Add a worktree at `path`, optionally checking out `reference` (an existing
+    /// branch/commit; empty creates one on a new branch named after the path).
+    /// `path` is a filesystem location the user picked, so a leading-dash guard —
+    /// not the repo-relative path guard — is the right check.
+    pub fn worktree_add(&self, path: &str, reference: &str) -> Result<(), String> {
+        reject_option(path)?;
+        let mut args = vec!["worktree", "add", path];
+        if !reference.is_empty() {
+            reject_option(reference)?;
+            args.push(reference);
+        }
+        self.run(&args).map(|_| ())
+    }
+
+    /// Remove a linked worktree.
+    pub fn worktree_remove(&self, path: &str) -> Result<(), String> {
+        reject_option(path)?;
+        self.run(&["worktree", "remove", path]).map(|_| ())
+    }
+
+    /// List submodules and their status. Pointer changes already render in the
+    /// diff viewer as git's "Subproject commit" lines, so no extra diff plumbing.
+    pub fn submodules(&self) -> Result<Vec<Submodule>, String> {
+        Ok(parse::submodules(&self.run(&["submodule", "status"])?))
+    }
+
+    /// Initialise + update all submodules to their recorded commits.
+    pub fn submodule_update(&self) -> Result<String, String> {
+        self.run(&["submodule", "update", "--init", "--recursive"])
+    }
+
+    /// Sync submodule remote URLs from `.gitmodules`.
+    pub fn submodule_sync(&self) -> Result<(), String> {
+        self.run(&["submodule", "sync", "--recursive"]).map(|_| ())
+    }
+
+    /// Sparse-checkout state: `git sparse-checkout list` succeeds only when it's
+    /// active, listing the included patterns.
+    pub fn sparse_status(&self) -> Result<SparseStatus, String> {
+        let out = self
+            .target
+            .command(&["sparse-checkout", "list"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if out.status.success() {
+            let raw = String::from_utf8_lossy(&out.stdout);
+            Ok(SparseStatus {
+                enabled: true,
+                patterns: lines(&raw).map(str::to_string).collect(),
+            })
+        } else {
+            Ok(SparseStatus {
+                enabled: false,
+                patterns: Vec::new(),
+            })
+        }
+    }
+
+    /// Enable (cone-mode) sparse-checkout limited to `patterns` (directories).
+    pub fn sparse_set(&self, patterns: &[String]) -> Result<(), String> {
+        if patterns.is_empty() {
+            return Err("no paths to include".to_string());
+        }
+        let mut args = vec!["sparse-checkout", "set", "--"];
+        for p in patterns {
+            reject_option(p)?;
+            args.push(p.as_str());
+        }
+        self.run(&args).map(|_| ())
+    }
+
+    /// Disable sparse-checkout, restoring the full working tree.
+    pub fn sparse_disable(&self) -> Result<(), String> {
+        self.run(&["sparse-checkout", "disable"]).map(|_| ())
     }
 
     /// Discard every working-tree change: restore tracked files to HEAD and
@@ -998,6 +1151,9 @@ fn export_bindings() {
         Commit::decl(),
         Branch::decl(),
         ReflogEntry::decl(),
+        Worktree::decl(),
+        Submodule::decl(),
+        SparseStatus::decl(),
         StashEntry::decl(),
         RepoInfo::decl(),
         DiffData::decl(),

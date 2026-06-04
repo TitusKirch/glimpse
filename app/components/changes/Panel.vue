@@ -128,6 +128,32 @@ onMounted(autoResize);
       </UiButton>
     </div>
 
+    <!-- bisect in progress: test the checked-out commit, then mark it -->
+    <div
+      v-if="repo.bisectInProgress"
+      class="flex flex-wrap items-center gap-2 border-b bg-primary/10 px-3 py-2 text-xs"
+    >
+      <NuxtIcon name="lucide:bug" class="size-4 shrink-0 text-primary" />
+      <span class="min-w-0 flex-1">{{ t('bisect.testing') }}</span>
+      <UiButton size="sm" variant="outline" @click="repo.bisectMark('good')">
+        {{ t('bisect.markGood') }}
+      </UiButton>
+      <UiButton size="sm" variant="outline" @click="repo.bisectMark('bad')">
+        {{ t('bisect.markBad') }}
+      </UiButton>
+      <UiButton size="sm" variant="ghost" @click="repo.bisectMark('skip')">
+        {{ t('bisect.skip') }}
+      </UiButton>
+      <UiButton
+        size="sm"
+        variant="ghost"
+        class="text-destructive hover:text-destructive"
+        @click="repo.bisectReset()"
+      >
+        {{ t('bisect.reset') }}
+      </UiButton>
+    </div>
+
     <div class="min-h-0 flex-1 overflow-auto">
       <!-- loading skeleton -->
       <div v-if="repo.loading && !repo.status.length" class="space-y-2 p-3">

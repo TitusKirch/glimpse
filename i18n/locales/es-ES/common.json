@@ -233,7 +233,11 @@
     "pushTags": "Push de los tags",
     "reflog": "Reflog (recuperar historial)",
     "undoLast": "Deshacer última acción",
-    "compareRefs": "Comparar refs…"
+    "compareRefs": "Comparar refs…",
+    "bisect": "Iniciar bisect…",
+    "worktrees": "Worktrees…",
+    "submodules": "Submódulos…",
+    "sparse": "Sparse-checkout…"
   },
   "stash": {
     "title": "Guardar cambios en stash",
@@ -242,6 +246,50 @@
     "untracked": "sin seguimiento",
     "nothing": "No hay cambios para guardar.",
     "submit": "Guardar en stash"
+  },
+  "sparse": {
+    "title": "Sparse-checkout",
+    "description": "Limita el árbol de trabajo a un subconjunto de directorios.",
+    "enabled": "Sparse-checkout está activado.",
+    "disabled": "Sparse-checkout está desactivado (árbol completo).",
+    "placeholder": "Un directorio por línea, p. ej. src",
+    "apply": "Aplicar",
+    "disable": "Desactivar"
+  },
+  "submodule": {
+    "title": "Submódulos",
+    "empty": "Sin submódulos.",
+    "update": "Actualizar",
+    "sync": "Sincronizar",
+    "inSync": "Sincronizado",
+    "needsUpdate": "Necesita actualización",
+    "uninitialised": "Sin inicializar",
+    "conflicts": "Conflictos"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Añadir worktree",
+    "addHint": "Elige una carpeta nueva o vacía; se hace checkout de un ref opcional allí.",
+    "refOptional": "Rama / ref (opcional)",
+    "open": "Abrir",
+    "remove": "Eliminar",
+    "locked": "bloqueado",
+    "removeConfirm": {
+      "title": "¿Eliminar worktree?",
+      "description": "Elimina el worktree vinculado (sus archivos). La rama y el historial se conservan."
+    }
+  },
+  "bisect": {
+    "title": "Iniciar bisect",
+    "description": "Encuentra el commit que introdujo una regresión marcando cada paso como bueno o malo.",
+    "bad": "Ref malo (con el fallo)",
+    "good": "Ref bueno (antes del fallo)",
+    "start": "Iniciar",
+    "testing": "Bisect — prueba el commit activo y márcalo:",
+    "markGood": "Bueno",
+    "markBad": "Malo",
+    "skip": "Omitir",
+    "reset": "Restablecer"
   },
   "compare": {
     "title": "Comparar refs",

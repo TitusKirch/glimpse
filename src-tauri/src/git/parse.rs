@@ -3,7 +3,10 @@
 //! lives here so it is testable through a string interface. See
 //! `docs/ARCHITECTURE.md` §9.
 
-use super::{lines, BlameLine, Branch, Commit, CommitFile, DiffData, ReflogEntry, StatusEntry, US};
+use super::{
+    lines, BlameLine, Branch, Commit, CommitFile, DiffData, ReflogEntry, StatusEntry, Submodule,
+    Worktree, US,
+};
 use std::collections::HashMap;
 
 /// Decode `for-each-ref --format=%(refname:short)␟%(upstream:track)␟%(upstream)`.
@@ -119,6 +122,54 @@ pub fn log(raw: &str) -> Vec<Commit> {
 
     assign_lanes(&mut commits);
     commits
+}
+
+/// Decode `git submodule status` lines: a state prefix char, then `<sha> <path>`.
+pub fn submodules(raw: &str) -> Vec<Submodule> {
+    lines(raw)
+        .filter_map(|line| {
+            let state = line.chars().next()?.to_string();
+            let mut parts = line[1..].split_whitespace();
+            let sha = parts.next()?.chars().take(8).collect();
+            let path = parts.next()?.to_string();
+            Some(Submodule { path, sha, state })
+        })
+        .collect()
+}
+
+/// Decode `git worktree list --porcelain` (blank-line-separated blocks).
+pub fn worktrees(raw: &str) -> Vec<Worktree> {
+    raw.split("\n\n")
+        .filter_map(|block| {
+            let mut path: Option<String> = None;
+            let mut head = String::new();
+            let mut branch = String::new();
+            let (mut bare, mut detached, mut locked) = (false, false, false);
+            for line in block.lines() {
+                if let Some(p) = line.strip_prefix("worktree ") {
+                    path = Some(p.to_string());
+                } else if let Some(h) = line.strip_prefix("HEAD ") {
+                    head = h.chars().take(7).collect();
+                } else if let Some(b) = line.strip_prefix("branch ") {
+                    branch = b.strip_prefix("refs/heads/").unwrap_or(b).to_string();
+                } else if line == "bare" {
+                    bare = true;
+                } else if line == "detached" {
+                    detached = true;
+                } else if line.starts_with("locked") {
+                    locked = true;
+                }
+            }
+            path.map(|path| Worktree {
+                path,
+                branch,
+                head,
+                bare,
+                detached,
+                locked,
+            })
+        })
+        .collect()
 }
 
 /// Decode `reflog --format=%gd␟%h␟%gs` into selector / hash / subject rows.

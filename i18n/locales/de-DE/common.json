@@ -233,7 +233,11 @@
     "pushTags": "Tags pushen",
     "reflog": "Reflog (Verlauf wiederherstellen)",
     "undoLast": "Letzte Aktion rückgängig",
-    "compareRefs": "Refs vergleichen…"
+    "compareRefs": "Refs vergleichen…",
+    "bisect": "Bisect starten…",
+    "worktrees": "Worktrees…",
+    "submodules": "Submodule…",
+    "sparse": "Sparse-Checkout…"
   },
   "stash": {
     "title": "Änderungen stashen",
@@ -242,6 +246,50 @@
     "untracked": "untracked",
     "nothing": "Keine Änderungen zum Stashen.",
     "submit": "Stashen"
+  },
+  "sparse": {
+    "title": "Sparse-Checkout",
+    "description": "Das Arbeitsverzeichnis auf eine Teilmenge von Verzeichnissen beschränken.",
+    "enabled": "Sparse-Checkout ist aktiv.",
+    "disabled": "Sparse-Checkout ist deaktiviert (volles Arbeitsverzeichnis).",
+    "placeholder": "Ein Verzeichnis pro Zeile, z. B. src",
+    "apply": "Anwenden",
+    "disable": "Deaktivieren"
+  },
+  "submodule": {
+    "title": "Submodule",
+    "empty": "Keine Submodule.",
+    "update": "Aktualisieren",
+    "sync": "Synchronisieren",
+    "inSync": "Synchron",
+    "needsUpdate": "Update nötig",
+    "uninitialised": "Nicht initialisiert",
+    "conflicts": "Konflikte"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Worktree hinzufügen",
+    "addHint": "Wähle einen neuen oder leeren Ordner; ein optionaler Ref wird dort ausgecheckt.",
+    "refOptional": "Branch / Ref (optional)",
+    "open": "Öffnen",
+    "remove": "Entfernen",
+    "locked": "gesperrt",
+    "removeConfirm": {
+      "title": "Worktree entfernen?",
+      "description": "Entfernt den verknüpften Worktree (seine ausgecheckten Dateien). Branch und Verlauf bleiben erhalten."
+    }
+  },
+  "bisect": {
+    "title": "Bisect starten",
+    "description": "Finde den Commit, der einen Regress verursacht hat, indem du jeden Schritt als gut oder schlecht markierst.",
+    "bad": "Schlechter Ref (mit Bug)",
+    "good": "Guter Ref (vor dem Bug)",
+    "start": "Starten",
+    "testing": "Bisect — ausgecheckten Commit testen, dann markieren:",
+    "markGood": "Gut",
+    "markBad": "Schlecht",
+    "skip": "Überspringen",
+    "reset": "Zurücksetzen"
   },
   "compare": {
     "title": "Refs vergleichen",

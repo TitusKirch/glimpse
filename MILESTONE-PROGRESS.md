@@ -38,14 +38,47 @@ Legend: ✅ done · 🅿️ parked (reason) · ⏳ planned
 
 ## 0.8.0 — Advanced / power-user
 
-- ⏳ #34 Submodule support
-- ⏳ #35 Git LFS support
-- ⏳ #36 Worktree management
-- ⏳ #37 Bisect
-- ⏳ #38 Sparse-checkout
+- ✅ #34 Submodule support
+- 🅿️ #35 Git LFS support — parked. Depends on `git-lfs` being installed (can't
+  be assumed or verified in this environment), and needs its own subsystem:
+  detecting LFS-tracked paths (`.gitattributes` / `git check-attr`), rendering
+  pointer files as meaningful diff/status instead of raw pointer text, and
+  smudge/pull/push handling. Highest effort-per-value of the set; left open.
+- ✅ #36 Worktree management
+- ✅ #37 Bisect
+- ✅ #38 Sparse-checkout
+
+## Summary
+
+11 issues implemented as verified conventional commits across four chained
+branches; 3 parked (each with a reason above), 1 partial (#30 discard-hunk done,
+line-staging parked). Nothing pushed. Every commit passed `pnpm check`,
+`cargo clippy -D warnings`, `cargo test`, `pnpm test`.
+
+- **0.5.0** (`feat/milestone-0-5-0` ← dev): #45 ✅ · #47 ✅
+- **0.6.0** (← 0-5-0): #28 ✅ · #29 ✅ · #32 ✅ · #30 🅿️ partial
+- **0.7.0** (← 0-6-0): #25 ✅ · #27 ✅ · #26 🅿️ parked
+- **0.8.0** (← 0-7-0): #34 ✅ · #36 ✅ · #37 ✅ · #38 ✅ · #35 🅿️ parked
 
 ## Log
 
+- #38: `sparse_status` / `sparse_set` (cone) / `sparse_disable`; Sparse-checkout
+  dialog (status + editable path list); applying reloads the repo so the file
+  views reflect the new sparse set automatically. Command-palette entry.
+- #34: `submodules` (status parse) + `submodule_update` (`--init --recursive`) +
+  `submodule_sync`; Submodules dialog lists each with a status badge and
+  update/sync actions; command-palette entry. Pointer changes already render in
+  the diff viewer via git's "Subproject commit" lines, so no extra diff plumbing.
+- #36: `worktrees` (porcelain parse, paths host-mapped) + `worktree_add` /
+  `worktree_remove`; Worktrees dialog lists them with open-as-tab + remove and an
+  add (folder picker + optional ref); command-palette entry. List + open work on
+  WSL (paths round-trip); add/remove on WSL is best-effort (a `\\wsl$` target
+  may need a distro-local path) — native is fully correct.
+- Branch `feat/milestone-0-8-0` based on 0-7-0.
+- #37: `bisect_start` / `bisect_mark` (good/bad/skip) / `bisect_reset`;
+  `RepoInfo.bisectInProgress` (`git bisect log` probe) drives a banner in the
+  changes panel; a start dialog picks bad/good refs; command-palette entry
+  "Start bisect…". Git's step output (next commit / first-bad result) is toasted.
 - #27: `compare_files` / `compare_file_diff` between two refs; new Compare dialog
   (two ref pickers + swap) reusing the file tree and diff viewer; command-palette
   entry "Compare refs…".

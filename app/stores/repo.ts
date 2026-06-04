@@ -13,6 +13,7 @@
 import { promiseTimeout } from '@vueuse/core';
 import { acceptHMRUpdate } from 'pinia';
 import { z } from 'zod';
+import { toast } from 'vue-sonner';
 import type {
   BlameLine,
   Branch,
@@ -72,6 +73,8 @@ export interface RepoState {
   // True while a rebase is paused (e.g. on a conflict) — drives the rebase
   // banner with continue / skip / abort.
   rebaseInProgress: boolean;
+  // True while a bisect session is active — drives the bisect banner.
+  bisectInProgress: boolean;
 }
 
 // Demo repository shown in the browser (no Tauri shell).
@@ -101,7 +104,8 @@ function demoRepo(): RepoState {
     commitFiles: [],
     diff: gitMock.diff,
     loaded: true,
-    rebaseInProgress: false
+    rebaseInProgress: false,
+    bisectInProgress: false
   };
 }
 
@@ -130,7 +134,8 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     commitFiles: [],
     diff: null,
     loaded: false,
-    rebaseInProgress: false
+    rebaseInProgress: false,
+    bisectInProgress: false
   };
 }
 
@@ -226,6 +231,9 @@ export const useRepoStore = defineStore('repo', {
     },
     rebaseInProgress(): boolean {
       return this.active?.rebaseInProgress ?? false;
+    },
+    bisectInProgress(): boolean {
+      return this.active?.bisectInProgress ?? false;
     },
     selectedHash(): string | null {
       return this.active?.selectedHash ?? null;
@@ -722,6 +730,88 @@ export const useRepoStore = defineStore('repo', {
           }
         })
       );
+    },
+
+    // Start a bisect between a known-bad and known-good ref. Git's output (the
+    // next commit to test, or the identified first-bad commit) is toasted.
+    async bisectStart({ bad, good }: { bad: string; good: string }) {
+      return this.runBisectStep(() =>
+        gitClient.bisectStart({ path: this.repoPath, bad, good })
+      );
+    },
+    async bisectMark(verdict: 'good' | 'bad' | 'skip') {
+      return this.runBisectStep(() =>
+        gitClient.bisectMark({ path: this.repoPath, verdict })
+      );
+    },
+    async bisectReset() {
+      return this.mutate({ run: () => gitClient.bisectReset(this.repoPath) });
+    },
+    async runBisectStep(fn: () => Promise<string | undefined>) {
+      return this.native(async () =>
+        this.guarded(async () => {
+          try {
+            const out = await fn();
+            const summary = (out ?? '')
+              .split('\n')
+              .slice(0, 2)
+              .join('\n')
+              .trim();
+            if (summary) toast(summary);
+          } finally {
+            await this.loadFromBackend(this.active?.path);
+          }
+        })
+      );
+    },
+
+    // Worktrees affect the linked-worktree set, not the active repo's view, so
+    // these don't reload it; the worktrees dialog refetches its own list.
+    async worktreeAdd({ path, ref }: { path: string; ref?: string }) {
+      return this.mutate({
+        run: () =>
+          gitClient.worktreeAdd({
+            path: this.repoPath,
+            wtPath: path,
+            reference: ref ?? ''
+          }),
+        refresh: 'none'
+      });
+    },
+    async worktreeRemove(path: string) {
+      return this.mutate({
+        run: () =>
+          gitClient.worktreeRemove({ path: this.repoPath, wtPath: path }),
+        refresh: 'none'
+      });
+    },
+
+    // Submodule update/sync touch nested repos, not the active view; the
+    // submodules dialog refetches its own list.
+    async submoduleUpdate() {
+      return this.mutate({
+        run: () => gitClient.submoduleUpdate(this.repoPath),
+        refresh: 'none'
+      });
+    },
+    async submoduleSync() {
+      return this.mutate({
+        run: () => gitClient.submoduleSync(this.repoPath),
+        refresh: 'none'
+      });
+    },
+
+    // Sparse-checkout changes which files are in the working tree, so a full
+    // reload refreshes the file views to the new sparse set.
+    async sparseSet(patterns: string[]) {
+      return this.mutate({
+        run: () => gitClient.sparseSet({ path: this.repoPath, patterns })
+      });
+    },
+    async sparseDisable() {
+      return this.mutate({
+        run: () => gitClient.sparseDisable(this.repoPath)
+      });
     },
 
     // Discard every working-tree change (confirms first — irreversible).
@@ -1431,6 +1521,7 @@ export const useRepoStore = defineStore('repo', {
           r.tags = info.tags;
           r.stashes = info.stashes;
           r.rebaseInProgress = info.rebaseInProgress;
+          r.bisectInProgress = info.bisectInProgress;
 
           await Promise.all([this.loadLog(r), this.loadStatus(r)]);
           // Data is in: mark the tab loaded so it won't re-fetch on the next

@@ -233,7 +233,11 @@
     "pushTags": "Push tags",
     "reflog": "Reflog (recover history)",
     "undoLast": "Undo last action",
-    "compareRefs": "Compare refs…"
+    "compareRefs": "Compare refs…",
+    "bisect": "Start bisect…",
+    "worktrees": "Worktrees…",
+    "submodules": "Submodules…",
+    "sparse": "Sparse-checkout…"
   },
   "stash": {
     "title": "Stash changes",
@@ -242,6 +246,50 @@
     "untracked": "untracked",
     "nothing": "No changes to stash.",
     "submit": "Stash"
+  },
+  "sparse": {
+    "title": "Sparse-checkout",
+    "description": "Limit the working tree to a subset of directories.",
+    "enabled": "Sparse-checkout is enabled.",
+    "disabled": "Sparse-checkout is disabled (full working tree).",
+    "placeholder": "One directory per line, e.g. src",
+    "apply": "Apply",
+    "disable": "Disable"
+  },
+  "submodule": {
+    "title": "Submodules",
+    "empty": "No submodules.",
+    "update": "Update",
+    "sync": "Sync",
+    "inSync": "In sync",
+    "needsUpdate": "Needs update",
+    "uninitialised": "Not initialised",
+    "conflicts": "Conflicts"
+  },
+  "worktree": {
+    "title": "Worktrees",
+    "add": "Add worktree",
+    "addHint": "Pick a new or empty folder; an optional ref is checked out there.",
+    "refOptional": "Branch / ref (optional)",
+    "open": "Open",
+    "remove": "Remove",
+    "locked": "locked",
+    "removeConfirm": {
+      "title": "Remove worktree?",
+      "description": "Removes the linked worktree (its checked-out files). The branch and history are kept."
+    }
+  },
+  "bisect": {
+    "title": "Start bisect",
+    "description": "Find the commit that introduced a regression by marking each step good or bad.",
+    "bad": "Bad ref (has the bug)",
+    "good": "Good ref (before the bug)",
+    "start": "Start",
+    "testing": "Bisecting — test the checked-out commit, then mark it:",
+    "markGood": "Good",
+    "markBad": "Bad",
+    "skip": "Skip",
+    "reset": "Reset"
   },
   "compare": {
     "title": "Compare refs",

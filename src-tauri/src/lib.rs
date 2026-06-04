@@ -715,6 +715,109 @@ async fn rebase_abort(locks: State<'_, RepoLocks>, path: String) -> Result<(), S
     locked(&locks, &path, || git::Repo::open(&path).rebase_abort())
 }
 
+/// Start a bisect session between a bad and good ref.
+#[tauri::command]
+async fn bisect_start(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    bad: String,
+    good: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).bisect_start(&bad, &good)
+    })
+}
+
+/// Mark the current bisect step (`good` / `bad` / `skip`) and advance.
+#[tauri::command]
+async fn bisect_mark(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    verdict: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).bisect_mark(&verdict)
+    })
+}
+
+#[tauri::command]
+async fn bisect_reset(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).bisect_reset())
+}
+
+/// List linked worktrees.
+#[tauri::command]
+async fn worktrees(path: String) -> Result<Vec<git::Worktree>, String> {
+    git::Repo::open(&path).worktrees()
+}
+
+/// Add a worktree at `wt_path`, optionally checking out `reference`.
+#[tauri::command]
+async fn worktree_add(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    wt_path: String,
+    reference: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).worktree_add(&wt_path, &reference)
+    })
+}
+
+/// Remove a linked worktree.
+#[tauri::command]
+async fn worktree_remove(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    wt_path: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).worktree_remove(&wt_path)
+    })
+}
+
+/// List submodules and their status.
+#[tauri::command]
+async fn submodules(path: String) -> Result<Vec<git::Submodule>, String> {
+    git::Repo::open(&path).submodules()
+}
+
+/// Init + update all submodules.
+#[tauri::command]
+async fn submodule_update(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
+    locked(&locks, &path, || git::Repo::open(&path).submodule_update())
+}
+
+/// Sync submodule remote URLs from `.gitmodules`.
+#[tauri::command]
+async fn submodule_sync(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).submodule_sync())
+}
+
+/// Sparse-checkout state (enabled + included patterns).
+#[tauri::command]
+async fn sparse_status(path: String) -> Result<git::SparseStatus, String> {
+    git::Repo::open(&path).sparse_status()
+}
+
+/// Enable cone-mode sparse-checkout limited to `patterns`.
+#[tauri::command]
+async fn sparse_set(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    patterns: Vec<String>,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).sparse_set(&patterns)
+    })
+}
+
+/// Disable sparse-checkout (restore the full working tree).
+#[tauri::command]
+async fn sparse_disable(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
+    locked(&locks, &path, || git::Repo::open(&path).sparse_disable())
+}
+
 #[tauri::command]
 async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), String> {
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
@@ -1273,6 +1376,18 @@ pub fn run() {
             rebase_continue,
             rebase_skip,
             rebase_abort,
+            bisect_start,
+            bisect_mark,
+            bisect_reset,
+            worktrees,
+            worktree_add,
+            worktree_remove,
+            submodules,
+            submodule_update,
+            submodule_sync,
+            sparse_status,
+            sparse_set,
+            sparse_disable,
             discard_all,
             create_branch,
             create_branch_at,

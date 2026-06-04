@@ -15,7 +15,10 @@ import type {
   DiffData,
   ReflogEntry,
   RepoInfo,
-  StatusEntry
+  SparseStatus,
+  StatusEntry,
+  Submodule,
+  Worktree
 } from '~/types/bindings';
 import type { PullStrategy } from '~/stores/layout';
 
@@ -363,6 +366,108 @@ export const gitClient = {
   rebaseAbort: (path: string) =>
     tauriInvoke<null>({
       command: 'rebase_abort',
+      args: { path },
+      fallback: null
+    }),
+
+  // Bisect: start between bad/good refs, mark each step, reset when done.
+  bisectStart: ({
+    path,
+    bad,
+    good
+  }: {
+    path: string;
+    bad: string;
+    good: string;
+  }) =>
+    tauriInvoke<string>({
+      command: 'bisect_start',
+      args: { path, bad, good },
+      fallback: ''
+    }),
+  bisectMark: ({
+    path,
+    verdict
+  }: {
+    path: string;
+    verdict: 'good' | 'bad' | 'skip';
+  }) =>
+    tauriInvoke<string>({
+      command: 'bisect_mark',
+      args: { path, verdict },
+      fallback: ''
+    }),
+  bisectReset: (path: string) =>
+    tauriInvoke<null>({
+      command: 'bisect_reset',
+      args: { path },
+      fallback: null
+    }),
+
+  // Worktrees: list, add (optional ref), remove.
+  worktrees: (path: string) =>
+    tauriInvoke<Worktree[]>({
+      command: 'worktrees',
+      args: { path },
+      fallback: []
+    }),
+  worktreeAdd: ({
+    path,
+    wtPath,
+    reference
+  }: {
+    path: string;
+    wtPath: string;
+    reference: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'worktree_add',
+      args: { path, wtPath, reference },
+      fallback: null
+    }),
+  worktreeRemove: ({ path, wtPath }: { path: string; wtPath: string }) =>
+    tauriInvoke<null>({
+      command: 'worktree_remove',
+      args: { path, wtPath },
+      fallback: null
+    }),
+
+  // Submodules: list/status, init+update, sync.
+  submodules: (path: string) =>
+    tauriInvoke<Submodule[]>({
+      command: 'submodules',
+      args: { path },
+      fallback: []
+    }),
+  submoduleUpdate: (path: string) =>
+    tauriInvoke<string>({
+      command: 'submodule_update',
+      args: { path },
+      fallback: ''
+    }),
+  submoduleSync: (path: string) =>
+    tauriInvoke<null>({
+      command: 'submodule_sync',
+      args: { path },
+      fallback: null
+    }),
+
+  // Sparse-checkout: status, set included patterns, disable.
+  sparseStatus: (path: string) =>
+    tauriInvoke<SparseStatus>({
+      command: 'sparse_status',
+      args: { path },
+      fallback: { enabled: false, patterns: [] }
+    }),
+  sparseSet: ({ path, patterns }: { path: string; patterns: string[] }) =>
+    tauriInvoke<null>({
+      command: 'sparse_set',
+      args: { path, patterns },
+      fallback: null
+    }),
+  sparseDisable: (path: string) =>
+    tauriInvoke<null>({
+      command: 'sparse_disable',
       args: { path },
       fallback: null
     }),
