@@ -57,6 +57,17 @@ The single source of truth for syntax highlighting across both the diff and
 blame views (`app/utils/highlight.ts`); `parseDiff` consumes it rather than
 keeping its own copy.
 
+**gitConfig**
+The mechanism for reading/writing a git config key at a scope through the active
+repo's git (or the default repo when none is open). Owns the routing path and the
+_inherit_ rule: at `local` scope an empty value clears the key (so the global
+value is inherited again), at `global` scope an empty value is left untouched
+(never wipe the global identity). The settings components keep their own UI state
+and i18n toasts; the load/save/inherit round-trips live once in `useGitConfig`
+(`app/composables/useGitConfig.ts`). A boolean override is three-valued in the UI
+— Inherit / On / Off — converted to/from the config string by `toTriState` /
+`triStateConfig` (`app/utils/triState.ts`).
+
 **recent list / moveToFront**
 A persisted, most-recent-first, de-duplicated, capped list — used for recently
 opened repositories and recently used command-palette actions. The mechanics

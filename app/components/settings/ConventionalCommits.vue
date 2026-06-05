@@ -11,27 +11,21 @@ const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
 });
 const { t } = useI18n();
 const repo = useRepoStore();
+const cfg = useGitConfig();
 
+const KEY = 'glimpse.conventionalCommits';
 const isGlobal = computed(() => props.scope === 'global');
 const enabled = ref(false); // global on/off
 const mode = ref<'inherit' | 'on' | 'off'>('inherit'); // local tri-state
 // Shared effective state so the commit box reflects a change here immediately.
 const cc = useConventionalCommits();
 
-async function routingPath() {
-  return repo.active?.path ?? (await gitClient.defaultRepo());
-}
-
 async function load() {
   if (!isTauri()) return;
   try {
-    const v = await gitClient.getConfig({
-      path: await routingPath(),
-      key: 'glimpse.conventionalCommits',
-      scope: props.scope
-    });
+    const v = await cfg.read(KEY, props.scope);
     if (isGlobal.value) enabled.value = v === 'true';
-    else mode.value = v === 'true' ? 'on' : v ? 'off' : 'inherit';
+    else mode.value = toTriState(v);
   } catch (e) {
     toast.error(t('settings.general.conventional.loadFailed'), {
       description: String(e)
@@ -52,12 +46,7 @@ async function toggle(on: boolean) {
   enabled.value = on;
   cc.enabled.value = on; // optimistic — the commit box reacts at once
   try {
-    await gitClient.setConfig({
-      path: await routingPath(),
-      key: 'glimpse.conventionalCommits',
-      value: on ? 'true' : 'false',
-      global: true
-    });
+    await cfg.write(KEY, on ? 'true' : 'false', 'global');
     await cc.load();
   } catch (e) {
     fail(e);
@@ -67,17 +56,9 @@ async function toggle(on: boolean) {
 async function setMode(v: 'inherit' | 'on' | 'off') {
   mode.value = v;
   try {
-    const path = await routingPath();
-    if (v === 'inherit') {
-      await gitClient.unsetConfig({ path, key: 'glimpse.conventionalCommits' });
-    } else {
-      await gitClient.setConfig({
-        path,
-        key: 'glimpse.conventionalCommits',
-        value: v === 'on' ? 'true' : 'false',
-        global: false
-      });
-    }
+    const value = triStateConfig(v);
+    if (value === null) await cfg.clear(KEY, 'local');
+    else await cfg.write(KEY, value, 'local');
     await cc.load();
   } catch (e) {
     fail(e);

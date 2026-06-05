@@ -10,6 +10,7 @@ import type { SshStatus } from '~/types/bindings';
 const { t } = useI18n();
 const repo = useRepoStore();
 const copyText = useCopy();
+const cfg = useGitConfig();
 
 const status = ref<SshStatus | null>(null);
 const generating = ref(false);
@@ -29,14 +30,10 @@ const hasEd25519 = computed(
     ) ?? false
 );
 
-async function routingPath() {
-  return repo.active?.path ?? (await gitClient.defaultRepo());
-}
-
 async function load() {
   if (!isTauri()) return;
   try {
-    status.value = await gitClient.sshStatus(await routingPath());
+    status.value = await gitClient.sshStatus(await cfg.path());
   } catch {
     status.value = null;
   }
@@ -49,7 +46,7 @@ async function generate() {
   if (!isTauri()) return;
   generating.value = true;
   try {
-    const pub = await gitClient.generateSshKey(await routingPath());
+    const pub = await gitClient.generateSshKey(await cfg.path());
     if (pub) {
       void copyText(pub);
       toast.success(t('settings.general.ssh.generated'));

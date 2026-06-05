@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
 });
 const { t } = useI18n();
 const repo = useRepoStore();
+const cfg = useGitConfig();
 
 const name = ref('');
 const email = ref('');
@@ -22,17 +23,12 @@ const env = computed(() => {
   return a.flavor === 'wsl' && a.distro ? `WSL · ${a.distro}` : a.flavor;
 });
 
-async function routingPath() {
-  return repo.active?.path ?? (await gitClient.defaultRepo());
-}
-
 async function load() {
   if (!isTauri()) return;
   try {
-    const path = await routingPath();
     [name.value, email.value] = await Promise.all([
-      gitClient.getConfig({ path, key: 'user.name', scope: props.scope }),
-      gitClient.getConfig({ path, key: 'user.email', scope: props.scope })
+      cfg.read('user.name', props.scope),
+      cfg.read('user.email', props.scope)
     ]);
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.loadFailed'), {
@@ -44,23 +40,12 @@ async function load() {
 onMounted(load);
 watch([() => repo.active?.path, () => props.scope], load);
 
-// global: an empty field is left untouched (never wipe the global identity).
-// local: an empty field clears the override so the global value is inherited.
+// cfg.write owns the inherit rule: at local scope an empty field clears the
+// override; at global scope an empty field is left untouched.
 async function save(key: string, value: string) {
   if (!isTauri()) return;
-  const trimmed = value.trim();
   try {
-    const path = await routingPath();
-    if (!trimmed) {
-      if (!isGlobal.value) await gitClient.unsetConfig({ path, key });
-      return;
-    }
-    await gitClient.setConfig({
-      path,
-      key,
-      value: trimmed,
-      global: isGlobal.value
-    });
+    await cfg.write(key, value, props.scope);
   } catch (e) {
     toast.error(t('settings.general.gitIdentity.saveFailed'), {
       description: String(e)

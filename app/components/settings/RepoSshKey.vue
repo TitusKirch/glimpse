@@ -7,6 +7,7 @@ import type { SshStatus } from '~/types/bindings';
 // environment; "Default" clears the override. Only meaningful with a repo open.
 const { t } = useI18n();
 const repo = useRepoStore();
+const cfg = useGitConfig();
 
 const status = ref<SshStatus | null>(null);
 // 'default' (let ssh resolve the key) or a detected key's private-key path.
@@ -17,11 +18,7 @@ const activePath = computed(() => repo.active?.path ?? '');
 async function load() {
   if (!isTauri() || !activePath.value) return;
   status.value = await gitClient.sshStatus(activePath.value);
-  const cmd = await gitClient.getConfig({
-    path: activePath.value,
-    key: 'core.sshCommand',
-    scope: 'local'
-  });
+  const cmd = await cfg.read('core.sshCommand', 'local');
   const keyPath = cmd ? sshCommandKeyPath(cmd) : '';
   // Reflect the stored key only when it's one we detected; else fall to default.
   selectedKey.value = status.value?.publicKeys.some((k) => k.path === keyPath)
@@ -36,19 +33,8 @@ async function pick(value: string) {
   selectedKey.value = value;
   if (!isTauri() || !activePath.value) return;
   try {
-    if (value === 'default') {
-      await gitClient.unsetConfig({
-        path: activePath.value,
-        key: 'core.sshCommand'
-      });
-    } else {
-      await gitClient.setConfig({
-        path: activePath.value,
-        key: 'core.sshCommand',
-        value: buildSshCommand(value),
-        global: false
-      });
-    }
+    if (value === 'default') await cfg.clear('core.sshCommand', 'local');
+    else await cfg.write('core.sshCommand', buildSshCommand(value), 'local');
   } catch (e) {
     toast.error(t('settings.general.ssh.useKeyFailed'), {
       description: String(e)

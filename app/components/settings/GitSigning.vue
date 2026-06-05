@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
 });
 const { t } = useI18n();
 const repo = useRepoStore();
+const cfg = useGitConfig();
 
 const isGlobal = computed(() => props.scope === 'global');
 
@@ -30,25 +31,19 @@ const useSshPicker = computed(
   () => format.value === 'ssh' && sshKeys.value.length > 0
 );
 
-async function routingPath() {
-  return repo.active?.path ?? (await gitClient.defaultRepo());
-}
-
 async function load() {
   if (!isTauri()) return;
   try {
-    const path = await routingPath();
     const [gpgsign, fmt, key, ssh] = await Promise.all([
-      gitClient.getConfig({ path, key: 'commit.gpgsign', scope: props.scope }),
-      gitClient.getConfig({ path, key: 'gpg.format', scope: props.scope }),
-      gitClient.getConfig({ path, key: 'user.signingkey', scope: props.scope }),
+      cfg.read('commit.gpgsign', props.scope),
+      cfg.read('gpg.format', props.scope),
+      cfg.read('user.signingkey', props.scope),
       repo.active?.path
         ? gitClient.sshStatus(repo.active.path)
         : Promise.resolve(null)
     ]);
     if (isGlobal.value) sign.value = gpgsign === 'true';
-    else
-      signMode.value = gpgsign === 'true' ? 'on' : gpgsign ? 'off' : 'inherit';
+    else signMode.value = toTriState(gpgsign);
     format.value = fmt === 'ssh' ? 'ssh' : 'openpgp';
     signingKey.value = key;
     sshKeys.value = ssh?.publicKeys ?? [];
@@ -63,15 +58,10 @@ onMounted(load);
 watch([() => repo.active?.path, () => props.scope], load);
 
 async function setCfg(key: string, value: string) {
-  await gitClient.setConfig({
-    path: await routingPath(),
-    key,
-    value,
-    global: isGlobal.value
-  });
+  await cfg.write(key, value, props.scope);
 }
 async function unsetCfg(key: string) {
-  await gitClient.unsetConfig({ path: await routingPath(), key });
+  await cfg.clear(key, props.scope);
 }
 
 function fail(e: unknown) {

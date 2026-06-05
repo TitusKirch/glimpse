@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<{ scope?: 'global' | 'local' }>(), {
 });
 const { t } = useI18n();
 const repo = useRepoStore();
+const cfg = useGitConfig();
 
 const isGlobal = computed(() => props.scope === 'global');
 // global's "no override" is Auto; local's is Inherit.
@@ -35,19 +36,11 @@ const resolved = computed(() => {
   return `${t('settings.general.gitTarget.nativeGit')} (${os})`;
 });
 
-async function routingPath() {
-  return repo.active?.path ?? (await gitClient.defaultRepo());
-}
-
 async function load() {
   if (!isTauri()) return;
   mode.value = baseMode.value;
   distros.value = await gitClient.wslDistros();
-  const v = await gitClient.getConfig({
-    path: await routingPath(),
-    key: 'glimpse.target',
-    scope: props.scope
-  });
+  const v = await cfg.read('glimpse.target', props.scope);
   if (v === 'native') mode.value = 'native';
   else if (v && v !== 'auto') {
     mode.value = 'custom';
@@ -61,25 +54,15 @@ watch([() => repo.active?.path, () => props.scope], load);
 async function save() {
   if (!isTauri()) return;
   try {
-    const path = await routingPath();
     // The "no override" choice clears the value (global → automatic; local →
     // inherit the global default).
     if (mode.value === 'auto' || mode.value === 'inherit') {
-      await gitClient.unsetConfig({
-        path,
-        key: 'glimpse.target',
-        scope: props.scope
-      });
+      await cfg.clear('glimpse.target', props.scope);
       return;
     }
     const value = mode.value === 'custom' ? customPath.value.trim() : 'native';
     if (!value) return;
-    await gitClient.setConfig({
-      path,
-      key: 'glimpse.target',
-      value,
-      global: isGlobal.value
-    });
+    await cfg.write('glimpse.target', value, props.scope);
   } catch (e) {
     toast.error(t('settings.general.gitTarget.saveFailed'), {
       description: String(e)
