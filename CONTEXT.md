@@ -46,7 +46,12 @@ How `git` is reached for a repository, decided once per repo by
 `platform::resolve()`: native git by default, or — on Windows only, for a
 `\\wsl$` / `\\wsl.localhost` path — the distro's git via
 `wsl.exe -d <distro> --cd <linux-path> --exec git`. A `Repo` holds one resolved
-`GitTarget`, so the platform seam is touched in exactly one place.
+`GitTarget`, so the platform seam is touched in exactly one place. An explicit
+`glimpse.target` (`native` or a git binary path) overrides the automatic
+decision; resolve reads it from the git config _files_ in git's precedence order
+(system → XDG → `~/.gitconfig` → repo-local, later wins) via one reader —
+`resolve` runs before any git is chosen, so it can't shell out to `git config`
+the way the IPC `get_config` does.
 
 **ResetMode**
 The `git reset` variant: `soft`, `mixed`, or `hard`. A serde enum on the Rust

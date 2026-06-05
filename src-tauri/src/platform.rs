@@ -306,39 +306,45 @@ fn map_target_value(value: &str, repo_path: &str) -> Option<GitTarget> {
     }
 }
 
-/// Per-repo git target override from `<repo>/.git/config` (`glimpse.target`).
-/// Best-effort: a missing or unreadable config just means "no override".
-fn target_override(repo_path: &str) -> Option<GitTarget> {
-    let config = std::fs::read_to_string(format!("{repo_path}/.git/config")).ok()?;
-    map_target_value(&parse_config_target(&config)?, repo_path)
-}
-
-/// A global `glimpse.target` default from the host's global git config
-/// (`~/.gitconfig`, then `$XDG_CONFIG_HOME/git/config` / `~/.config/git/config`).
-/// Lets a user force native git or a custom binary for *every* repo, while a
-/// per-repo `glimpse.target` still wins. Best-effort.
-fn global_target_override(repo_path: &str) -> Option<GitTarget> {
-    let home = home_dir()?;
-    let xdg = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
-    // `~/.gitconfig` first: git lets it override the XDG file.
-    for path in [format!("{home}/.gitconfig"), format!("{xdg}/git/config")] {
-        if let Ok(cfg) = std::fs::read_to_string(&path) {
-            if let Some(value) = parse_config_target(&cfg) {
-                return map_target_value(&value, repo_path);
-            }
+/// Pick the highest-precedence `glimpse.target` from config blobs given lowest
+/// precedence first — a later blob overrides an earlier one, mirroring git's own
+/// scope ordering. Pure so the precedence is unit-testable.
+fn pick_target<'a>(blobs: impl IntoIterator<Item = &'a str>) -> Option<String> {
+    let mut value = None;
+    for blob in blobs {
+        if let Some(v) = parse_config_target(blob) {
+            value = Some(v);
         }
     }
-    None
+    value
+}
+
+/// The effective `glimpse.target` override for a repo, read straight from the git
+/// config files in git's precedence order (system → XDG → `~/.gitconfig` →
+/// repo-local; later wins). This is the single file-side reader of the value:
+/// resolve() runs *before* a git binary is chosen (it's deciding which git to
+/// run), so it can't shell out to `git config` the way the IPC layer does.
+/// Best-effort — unreadable files are skipped.
+fn target_override(repo_path: &str) -> Option<GitTarget> {
+    let mut paths = vec!["/etc/gitconfig".to_string()];
+    if let Some(home) = home_dir() {
+        let xdg = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
+        paths.push(format!("{xdg}/git/config"));
+        paths.push(format!("{home}/.gitconfig"));
+    }
+    paths.push(format!("{repo_path}/.git/config"));
+    let blobs: Vec<String> = paths
+        .iter()
+        .filter_map(|p| std::fs::read_to_string(p).ok())
+        .collect();
+    map_target_value(&pick_target(blobs.iter().map(String::as_str))?, repo_path)
 }
 
 /// Decide how to run `git` for `repo_path` on this platform.
 pub fn resolve(repo_path: &str) -> GitTarget {
-    // An explicit per-repo override wins over the automatic decision.
+    // An explicit glimpse.target (any scope; repo-local wins) overrides the
+    // automatic decision.
     if let Some(target) = target_override(repo_path) {
-        return target;
-    }
-    // Then a global glimpse.target default (host gitconfig) applies everywhere.
-    if let Some(target) = global_target_override(repo_path) {
         return target;
     }
     // WSL interop only exists on Windows; everywhere else git is always native.
@@ -538,7 +544,7 @@ fn parse_wsl_path(path: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{map_target_value, parse_config_target, parse_wsl_path};
+    use super::{map_target_value, parse_config_target, parse_wsl_path, pick_target};
 
     #[test]
     fn parses_glimpse_target_override() {
@@ -553,6 +559,27 @@ mod tests {
         // No glimpse section, or no target, → None.
         assert_eq!(parse_config_target("[core]\n\tbare = false\n"), None);
         assert_eq!(parse_config_target("[glimpse]\n\tother = x\n"), None);
+    }
+
+    #[test]
+    fn pick_target_takes_the_highest_precedence_value() {
+        // A later (higher-precedence) blob overrides an earlier one.
+        assert_eq!(
+            pick_target([
+                "[glimpse]\ntarget = native\n",
+                "[glimpse]\ntarget = /opt/git\n"
+            ])
+            .as_deref(),
+            Some("/opt/git")
+        );
+        // An earlier value survives when later blobs set nothing.
+        assert_eq!(
+            pick_target(["[glimpse]\ntarget = native\n", "[core]\nbare = false\n"]).as_deref(),
+            Some("native")
+        );
+        // Nothing anywhere.
+        assert_eq!(pick_target(["[core]\nx = 1\n"]), None);
+        assert_eq!(pick_target(Vec::<&str>::new()), None);
     }
 
     #[test]
