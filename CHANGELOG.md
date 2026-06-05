@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.10.0](https://github.com/TitusKirch/glimpse/compare/v0.9.0...v0.10.0) (2026-06-05)
+
+
+### Features
+
+* **commit:** opt-in conventional-commit composer ([2a02fdb](https://github.com/TitusKirch/glimpse/commit/2a02fdbf48d5f1c575204c6d1556b42e6f2bd147)), closes [#77](https://github.com/TitusKirch/glimpse/issues/77)
+* **confirm:** keep destructive dialogs open with an in-button busy state ([478b851](https://github.com/TitusKirch/glimpse/commit/478b8514ff3319787909085b5cbd930d5716e3fa)), closes [#80](https://github.com/TitusKirch/glimpse/issues/80)
+* **diff:** collapse unchanged regions and word-wrap toggle ([dbdd427](https://github.com/TitusKirch/glimpse/commit/dbdd427b99bb96277c92efc2b1cfa58a5d7656a0)), closes [#69](https://github.com/TitusKirch/glimpse/issues/69)
+* **diff:** visual image diff (side-by-side + onion-skin) ([1e73926](https://github.com/TitusKirch/glimpse/commit/1e73926d80a6ee7dfc98703b56fe877c6077d8a2)), closes [#68](https://github.com/TitusKirch/glimpse/issues/68)
+* **history:** compare two selected commits ([94f0fb1](https://github.com/TitusKirch/glimpse/commit/94f0fb1fc0bcaf3fde79f88136c9cd333a2996dc)), closes [#70](https://github.com/TitusKirch/glimpse/issues/70)
+* **history:** pickaxe content search (-S/-G) ([32087a8](https://github.com/TitusKirch/glimpse/commit/32087a80bb0470c0454cf6020bef107dacf66e29)), closes [#73](https://github.com/TitusKirch/glimpse/issues/73)
+* **merge:** three-way merge conflict editor ([842e495](https://github.com/TitusKirch/glimpse/commit/842e4952d373a1b20e8fe698924153ab8882e7db)), closes [#65](https://github.com/TitusKirch/glimpse/issues/65)
+* **palette:** global fuzzy quick-open (files, branches, commits) ([91d0f8a](https://github.com/TitusKirch/glimpse/commit/91d0f8aeebaa8c05031600a0283e2ba1ab6d0051)), closes [#72](https://github.com/TitusKirch/glimpse/issues/72)
+* **patch:** export and apply .patch files ([e9c97e0](https://github.com/TitusKirch/glimpse/commit/e9c97e00cac1b641b716e0a21012c5d825712080)), closes [#78](https://github.com/TitusKirch/glimpse/issues/78)
+* **settings:** commit signing (GPG/SSH) ([50cc716](https://github.com/TitusKirch/glimpse/commit/50cc716807c3afd7df2e737258377054b1ca492a)), closes [#66](https://github.com/TitusKirch/glimpse/issues/66)
+* **settings:** global git settings with a per-repo override toggle ([24eb092](https://github.com/TitusKirch/glimpse/commit/24eb092d8500347f6ab1fa7149ec4e684f804290))
+* **settings:** make the git identity WSL-aware ([cdff788](https://github.com/TitusKirch/glimpse/commit/cdff7887cf108cd3b4def815dfe8cfef58e6710a)), closes [#76](https://github.com/TitusKirch/glimpse/issues/76)
+* **settings:** per-repo git target override + WSL distro detection ([ba05a46](https://github.com/TitusKirch/glimpse/commit/ba05a46168fef04acaf5d7a4e4fc1cb129ee7362)), closes [#74](https://github.com/TitusKirch/glimpse/issues/74)
+* **settings:** per-repo SSH key selection via core.sshCommand ([178d3ab](https://github.com/TitusKirch/glimpse/commit/178d3ab6b958e6c9ab93bf200a787893ec8d7f68))
+* **settings:** surface SSH keys and credential helper ([1581559](https://github.com/TitusKirch/glimpse/commit/1581559b56b36b476aa5f18b2f2fb861727565b9)), closes [#75](https://github.com/TitusKirch/glimpse/issues/75)
+* **settings:** toggle-gated repo identity with alert default icons ([466ebf0](https://github.com/TitusKirch/glimpse/commit/466ebf0d137486dcaadb991e39bf1cc7c623aa79))
+* **stats:** repository insights panel ([3a8e826](https://github.com/TitusKirch/glimpse/commit/3a8e82614ee896fc22ede08482b62f5f8ea1da76)), closes [#71](https://github.com/TitusKirch/glimpse/issues/71)
+* **tags:** annotated and signed tags ([5ec7eb8](https://github.com/TitusKirch/glimpse/commit/5ec7eb89d2d4b9002bbcf3c81929b28963281cbf)), closes [#67](https://github.com/TitusKirch/glimpse/issues/67)
+* **ui:** consistent icons on dialog buttons incl. cancel ([24b0a34](https://github.com/TitusKirch/glimpse/commit/24b0a34bef4fbdeb3fc7487dc5e4ae1afc6664c5)), closes [#81](https://github.com/TitusKirch/glimpse/issues/81)
+
+
+### Bug Fixes
+
+* **changes:** keep the commit-composer toggle ghost when active ([c3f547e](https://github.com/TitusKirch/glimpse/commit/c3f547e705c6324d7d5f137f748a4f5b2029659b))
+* **settings:** clearer SSH & git-identity settings UX ([eed804c](https://github.com/TitusKirch/glimpse/commit/eed804c4dae8cd99c7f3b862173cfdf2df1cb295))
+* **settings:** make the conventional-commit toggle take effect live ([0fd94d8](https://github.com/TitusKirch/glimpse/commit/0fd94d8aee08d39eee9574caa95b454dc8912d28))
+* **settings:** true local identity, clearer target, SSH key picker ([0872afd](https://github.com/TitusKirch/glimpse/commit/0872afdd36d41a383452c00f83af152b1a0ab144))
+* **ui:** make alert icon variant-driven, fix one-word-per-line text ([4f02535](https://github.com/TitusKirch/glimpse/commit/4f025351bb319d49493286a081565de2beec49d5))
+
 ## [0.9.0](https://github.com/TitusKirch/glimpse/compare/v0.8.0...v0.9.0) (2026-06-04)
 
 
