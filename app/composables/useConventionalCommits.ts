@@ -6,40 +6,25 @@
 // already-open commit box). Writes are optimistic so the UI also responds in the
 // browser demo, where the git-config IPC is mocked.
 const enabled = ref(false);
+const KEY = 'glimpse.conventionalCommits';
 
 export function useConventionalCommits() {
   const repo = useRepoStore();
+  const cfg = useGitConfig();
+  const ovr = useRepoOverride();
 
   // Refresh the effective value for the active repo.
   async function load() {
-    const path = repo.active?.path;
-    if (!isTauri() || !path) return;
-    enabled.value =
-      (await gitClient.getConfig({
-        path,
-        key: 'glimpse.conventionalCommits',
-        scope: ''
-      })) === 'true';
+    if (!isTauri() || !repo.active?.path) return;
+    enabled.value = (await cfg.read(KEY, '')) === 'true';
   }
 
   // Persist to the scope in effect — local when this repo overrides globals,
   // otherwise the global default. Optimistic: the shared ref flips first.
   async function set(on: boolean) {
     enabled.value = on;
-    const path = repo.active?.path;
-    if (!isTauri() || !path) return;
-    const overriding =
-      (await gitClient.getConfig({
-        path,
-        key: 'glimpse.override',
-        scope: 'local'
-      })) === 'true';
-    await gitClient.setConfig({
-      path,
-      key: 'glimpse.conventionalCommits',
-      value: on ? 'true' : 'false',
-      global: !overriding
-    });
+    if (!isTauri() || !repo.active?.path) return;
+    await cfg.write(KEY, on ? 'true' : 'false', await ovr.effectiveScope());
   }
 
   return { enabled, load, set };

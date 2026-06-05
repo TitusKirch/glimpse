@@ -68,6 +68,15 @@ and i18n toasts; the load/save/inherit round-trips live once in `useGitConfig`
 — Inherit / On / Off — converted to/from the config string by `toTriState` /
 `triStateConfig` (`app/utils/triState.ts`).
 
+**repoOverride**
+The per-repo git override policy: the set of local keys an override owns
+(`REPO_OVERRIDE_KEYS`), the `glimpse.override` flag that records "this repo is
+customised", and the effective scope a per-repo-aware write lands in. One home
+(`app/composables/useRepoOverride.ts`) — RepositoryPage's master switch, the
+commit box and the `gitConfig` conventional-commits writer consult it instead of
+restating the key list or re-reading the flag. Turning the override off clears the
+flag and every key in the set, so the repo falls back to global.
+
 **recent list / moveToFront**
 A persisted, most-recent-first, de-duplicated, capped list — used for recently
 opened repositories and recently used command-palette actions. The mechanics
