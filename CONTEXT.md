@@ -23,7 +23,11 @@ selected (its body + changed files) or a working-tree **file** is selected
 underlying fields (`selectedHash`, `selectedBody`, `selectedFile`,
 `selectedFileStaged`, `commitFiles`) directly — flat projections, because most
 readers want one field (which commit row is highlighted, which file to blame),
-not the whole pair.
+not the whole pair. After a reload the restore-or-default decision — keep the
+previous commit/file when it still exists, else a sensible default — lives in the
+pure `restoreSelection` strategy (`app/utils/selectionRestore.ts`), returning a
+`SelectionTarget` the store applies; that keeps the mutual-exclusion logic
+testable without running the whole `loadFromBackend`.
 
 **native**
 The single Native/Browser gate for repo-store effects. A store action wraps its

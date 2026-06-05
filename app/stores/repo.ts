@@ -1601,36 +1601,28 @@ export const useRepoStore = defineStore('repo', {
           if (this.active !== r) return;
 
           // Preserve the user's selection across a reload (e.g. on window
-          // focus) instead of jumping back to the first commit/file. Only fall
-          // back to a default selection on the initial load.
-          const keepCommit =
-            r.selectedHash && r.commits.some((c) => c.hash === r.selectedHash);
-          const keepFile =
-            !r.selectedHash &&
-            r.selectedFile &&
-            r.status.some((f) => f.path === r.selectedFile);
-
-          if (keepCommit) {
-            await this.selectCommit(r.selectedHash!);
-          } else if (keepFile) {
-            await this.selectFile({
-              file: r.selectedFile!,
-              staged: r.selectedFileStaged
-            });
-          } else {
-            // Open the first changed file (or the newest commit) by default.
-            const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
-            if (first) {
-              await this.selectFile({
-                file: first.path,
-                staged: !first.unstaged && !first.untracked
-              });
-            } else if (r.commits[0]) {
-              await this.selectCommit(r.commits[0].hash);
-            } else {
-              r.diff = null;
-            }
-          }
+          // focus) instead of jumping back to the first commit/file; fall back
+          // to a default only when the previous selection is gone. The decision
+          // lives in the pure restoreSelection strategy.
+          const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
+          const target = restoreSelection({
+            prevHash: r.selectedHash,
+            prevFile: r.selectedFile,
+            prevFileStaged: r.selectedFileStaged,
+            commitHashes: r.commits.map((c) => c.hash),
+            statusPaths: r.status.map((f) => f.path),
+            defaultFile: first
+              ? {
+                  file: first.path,
+                  staged: !first.unstaged && !first.untracked
+                }
+              : null,
+            defaultHash: r.commits[0]?.hash ?? null
+          });
+          if (target.kind === 'commit') await this.selectCommit(target.hash);
+          else if (target.kind === 'file')
+            await this.selectFile({ file: target.file, staged: target.staged });
+          else r.diff = null;
 
           useRecentStore().push({ path: top, name: r.name });
           this.watchActive();
