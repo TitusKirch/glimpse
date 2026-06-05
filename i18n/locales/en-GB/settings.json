@@ -4,6 +4,16 @@
     "git": {
       "title": "Git"
     },
+    "repository": {
+      "title": "Repository",
+      "noRepo": "Open a repository to edit its settings.",
+      "override": {
+        "label": "Override global git settings",
+        "hint": "Use settings specific to this repository instead of the global ones.",
+        "failed": "Couldn't update the repository override"
+      },
+      "usesGlobal": "This repository uses your global git settings."
+    },
     "general": {
       "title": "General",
       "gitSection": "Git",
@@ -37,8 +47,6 @@
       "gitIdentity": {
         "section": "Git identity",
         "globalHint": "Used for all repositories.",
-        "overrideSection": "This repository",
-        "overrideHint": "Override the identity for the current repository only.",
         "name": {
           "label": "Name",
           "placeholder": "Your name"
@@ -48,7 +56,70 @@
           "placeholder": "you{'@'}example.com"
         },
         "loadFailed": "Couldn't read your git identity",
-        "saveFailed": "Couldn't save your git identity"
+        "saveFailed": "Couldn't save your git identity",
+        "localHint": "Overrides the global identity for this repository. Leave empty to inherit the global value."
+      },
+      "gitSigning": {
+        "section": "Commit signing",
+        "enable": {
+          "label": "Sign commits",
+          "hint": "Sign new commits with your GPG or SSH key."
+        },
+        "format": {
+          "label": "Signature format",
+          "hint": "Use an OpenPGP (GPG) or an SSH key.",
+          "openpgp": "OpenPGP (GPG)",
+          "ssh": "SSH"
+        },
+        "key": {
+          "label": "Signing key",
+          "hint": "Key ID or path used to sign.",
+          "placeholder": "e.g. ABCD1234 or ~/.ssh/id_ed25519.pub",
+          "sshHint": "Pick one of your detected SSH keys.",
+          "pick": "Choose a key…"
+        },
+        "loadFailed": "Couldn't read your signing settings",
+        "saveFailed": "Couldn't save your signing settings"
+      },
+      "gitTarget": {
+        "section": "Git target",
+        "mode": {
+          "label": "Resolution",
+          "hint": "How glimpse runs git for this repository."
+        },
+        "auto": "Automatic",
+        "native": "Native (host git)",
+        "custom": "Custom git path",
+        "path": {
+          "label": "Git path",
+          "hint": "Path to the git binary to use.",
+          "placeholder": "e.g. /usr/bin/git"
+        },
+        "nativeGit": "Native git",
+        "resolved": "Runs via: {target}",
+        "distros": "WSL distros: {list}",
+        "saveFailed": "Couldn't save the git target"
+      },
+      "ssh": {
+        "section": "SSH & credentials",
+        "helper": "Credential helper",
+        "helperHint": "Stores credentials for HTTPS remotes; SSH remotes use the keys below.",
+        "none": "none configured",
+        "keys": "SSH public keys",
+        "noKeys": "No SSH keys found in ~/.ssh.",
+        "copy": "Copy public key",
+        "useKey": {
+          "label": "SSH key for this repository",
+          "hint": "Use a specific key for fetch, pull and push in this repository.",
+          "default": "Default",
+          "section": "SSH key"
+        },
+        "useKeyFailed": "Couldn't set the SSH key for this repository",
+        "generate": "Generate SSH key",
+        "generated": "SSH key generated and public key copied",
+        "generateFailed": "Couldn't generate an SSH key",
+        "hasKey": "You already have an ed25519 key.",
+        "hint": "Add a public key to your git host (GitHub/GitLab) to authenticate over SSH."
       },
       "updatesSection": "Updates",
       "autoUpdate": {
@@ -112,6 +183,20 @@
       "channelFallback": {
         "title": "Release channel changed",
         "description": "Switched to {channel}."
+      },
+      "override": {
+        "inherit": "Inherit (global)",
+        "on": "On",
+        "off": "Off"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Commit composer",
+          "hint": "Show the Conventional Commit composer in the commit box."
+        },
+        "loadFailed": "Couldn't read the commit composer setting",
+        "saveFailed": "Couldn't save the commit composer setting"
       }
     },
     "showcase": {

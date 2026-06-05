@@ -4,6 +4,16 @@
     "git": {
       "title": "Git"
     },
+    "repository": {
+      "title": "Repository",
+      "noRepo": "Öffne ein Repository, um seine Einstellungen zu bearbeiten.",
+      "override": {
+        "label": "Globale Git-Einstellungen überschreiben",
+        "hint": "Für dieses Repository eigene Einstellungen statt der globalen verwenden.",
+        "failed": "Repository-Override konnte nicht aktualisiert werden"
+      },
+      "usesGlobal": "Dieses Repository verwendet deine globalen Git-Einstellungen."
+    },
     "general": {
       "title": "Allgemein",
       "gitSection": "Git",
@@ -37,8 +47,6 @@
       "gitIdentity": {
         "section": "Git-Identität",
         "globalHint": "Wird für alle Repositories verwendet.",
-        "overrideSection": "Dieses Repository",
-        "overrideHint": "Identität nur für das aktuelle Repository überschreiben.",
         "name": {
           "label": "Name",
           "placeholder": "Dein Name"
@@ -48,7 +56,70 @@
           "placeholder": "du{'@'}example.com"
         },
         "loadFailed": "Git-Identität konnte nicht gelesen werden",
-        "saveFailed": "Git-Identität konnte nicht gespeichert werden"
+        "saveFailed": "Git-Identität konnte nicht gespeichert werden",
+        "localHint": "Überschreibt die globale Identität für dieses Repository. Leer lassen, um den globalen Wert zu erben."
+      },
+      "gitSigning": {
+        "section": "Commit-Signierung",
+        "enable": {
+          "label": "Commits signieren",
+          "hint": "Neue Commits mit deinem GPG- oder SSH-Schlüssel signieren."
+        },
+        "format": {
+          "label": "Signaturformat",
+          "hint": "OpenPGP (GPG) oder SSH-Schlüssel verwenden.",
+          "openpgp": "OpenPGP (GPG)",
+          "ssh": "SSH"
+        },
+        "key": {
+          "label": "Signaturschlüssel",
+          "hint": "Schlüssel-ID oder Pfad zum Signieren.",
+          "placeholder": "z. B. ABCD1234 oder ~/.ssh/id_ed25519.pub",
+          "sshHint": "Wähle einen deiner erkannten SSH-Schlüssel.",
+          "pick": "Schlüssel wählen…"
+        },
+        "loadFailed": "Signatureinstellungen konnten nicht gelesen werden",
+        "saveFailed": "Signatureinstellungen konnten nicht gespeichert werden"
+      },
+      "gitTarget": {
+        "section": "Git-Ziel",
+        "mode": {
+          "label": "Auflösung",
+          "hint": "Wie glimpse git für dieses Repository ausführt."
+        },
+        "auto": "Automatisch",
+        "native": "Nativ (Host-Git)",
+        "custom": "Eigener Git-Pfad",
+        "path": {
+          "label": "Git-Pfad",
+          "hint": "Pfad zur zu verwendenden git-Binärdatei.",
+          "placeholder": "z. B. /usr/bin/git"
+        },
+        "nativeGit": "Natives Git",
+        "resolved": "Läuft über: {target}",
+        "distros": "WSL-Distros: {list}",
+        "saveFailed": "Git-Ziel konnte nicht gespeichert werden"
+      },
+      "ssh": {
+        "section": "SSH & Anmeldedaten",
+        "helper": "Credential-Helper",
+        "helperHint": "Speichert Anmeldedaten für HTTPS-Remotes; SSH-Remotes nutzen die Schlüssel unten.",
+        "none": "keiner konfiguriert",
+        "keys": "Öffentliche SSH-Schlüssel",
+        "noKeys": "Keine SSH-Schlüssel in ~/.ssh gefunden.",
+        "copy": "Öffentlichen Schlüssel kopieren",
+        "useKey": {
+          "label": "SSH-Schlüssel für dieses Repository",
+          "hint": "Verwende einen bestimmten Schlüssel für Fetch, Pull und Push in diesem Repository.",
+          "default": "Standard",
+          "section": "SSH-Schlüssel"
+        },
+        "useKeyFailed": "SSH-Schlüssel für dieses Repository konnte nicht gesetzt werden",
+        "generate": "SSH-Schlüssel erzeugen",
+        "generated": "SSH-Schlüssel erzeugt und öffentlicher Schlüssel kopiert",
+        "generateFailed": "SSH-Schlüssel konnte nicht erzeugt werden",
+        "hasKey": "Du hast bereits einen ed25519-Schlüssel.",
+        "hint": "Füge einen öffentlichen Schlüssel bei deinem Git-Host (GitHub/GitLab) hinzu, um dich per SSH zu authentifizieren."
       },
       "updatesSection": "Updates",
       "autoUpdate": {
@@ -112,6 +183,20 @@
       "channelFallback": {
         "title": "Release-Channel geändert",
         "description": "Auf {channel} gewechselt."
+      },
+      "override": {
+        "inherit": "Erben (global)",
+        "on": "An",
+        "off": "Aus"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Commit-Assistent",
+          "hint": "Den Conventional-Commit-Assistenten im Commit-Feld anzeigen."
+        },
+        "loadFailed": "Commit-Assistent-Einstellung konnte nicht gelesen werden",
+        "saveFailed": "Commit-Assistent-Einstellung konnte nicht gespeichert werden"
       }
     },
     "showcase": {

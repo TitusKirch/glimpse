@@ -296,7 +296,8 @@
     "from": "Desde",
     "to": "Hasta",
     "pick": "Elige dos refs para comparar.",
-    "noDiff": "Sin diferencias."
+    "noDiff": "Sin diferencias.",
+    "selected": "Comparar estos dos"
   },
   "rebase": {
     "inProgress": "Rebase en curso — resuelve los conflictos y continúa.",
@@ -319,6 +320,47 @@
       "fixup": "Fixup",
       "drop": "Descartar"
     }
+  },
+  "merge": {
+    "open": "Editor de fusión…",
+    "title": "Resolver conflictos",
+    "region": "Conflicto",
+    "ours": "Nuestros",
+    "theirs": "Suyos",
+    "both": "Ambos",
+    "base": "Base",
+    "save": "Guardar resolución",
+    "regions": "{n} conflictos"
+  },
+  "patch": {
+    "export": "Exportar como patch…",
+    "apply": "Aplicar patch…"
+  },
+  "quickOpen": {
+    "menu": "Apertura rápida…",
+    "title": "Apertura rápida",
+    "placeholder": "Ir a un archivo, branch o commit…",
+    "empty": "Sin coincidencias"
+  },
+  "stats": {
+    "menu": "Estadísticas…",
+    "title": "Estadísticas del repositorio",
+    "totalCommits": "commits",
+    "contributors": "Principales colaboradores",
+    "activity": "Actividad reciente",
+    "churn": "Archivos más modificados",
+    "empty": "Aún no hay commits."
+  },
+  "tag": {
+    "title": "Crear etiqueta",
+    "description": "Etiqueta un commit. Añade un mensaje para una etiqueta anotada, o fírmala.",
+    "message": {
+      "label": "Mensaje",
+      "placeholder": "Mensaje de la etiqueta anotada (opcional)"
+    },
+    "messageHint": "Un mensaje la convierte en una etiqueta anotada.",
+    "sign": "Firmar etiqueta",
+    "signHint": "Las etiquetas firmadas son anotadas y usan tu clave de firma."
   },
   "reflog": {
     "title": "Reflog",

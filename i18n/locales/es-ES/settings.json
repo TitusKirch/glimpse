@@ -4,6 +4,16 @@
     "git": {
       "title": "Git"
     },
+    "repository": {
+      "title": "Repositorio",
+      "noRepo": "Abre un repositorio para editar su configuración.",
+      "override": {
+        "label": "Sobrescribir la configuración global de git",
+        "hint": "Usar ajustes propios de este repositorio en lugar de los globales.",
+        "failed": "No se pudo actualizar la anulación del repositorio"
+      },
+      "usesGlobal": "Este repositorio usa tu configuración global de git."
+    },
     "general": {
       "title": "General",
       "gitSection": "Git",
@@ -37,8 +47,6 @@
       "gitIdentity": {
         "section": "Identidad de Git",
         "globalHint": "Se usa para todos los repositorios.",
-        "overrideSection": "Este repositorio",
-        "overrideHint": "Anular la identidad solo para el repositorio actual.",
         "name": {
           "label": "Nombre",
           "placeholder": "Tu nombre"
@@ -48,7 +56,70 @@
           "placeholder": "tu{'@'}example.com"
         },
         "loadFailed": "No se pudo leer tu identidad de Git",
-        "saveFailed": "No se pudo guardar tu identidad de Git"
+        "saveFailed": "No se pudo guardar tu identidad de Git",
+        "localHint": "Sobrescribe la identidad global para este repositorio. Déjalo vacío para heredar el valor global."
+      },
+      "gitSigning": {
+        "section": "Firma de commits",
+        "enable": {
+          "label": "Firmar commits",
+          "hint": "Firma los nuevos commits con tu clave GPG o SSH."
+        },
+        "format": {
+          "label": "Formato de firma",
+          "hint": "Usa una clave OpenPGP (GPG) o SSH.",
+          "openpgp": "OpenPGP (GPG)",
+          "ssh": "SSH"
+        },
+        "key": {
+          "label": "Clave de firma",
+          "hint": "ID de clave o ruta para firmar.",
+          "placeholder": "p. ej. ABCD1234 o ~/.ssh/id_ed25519.pub",
+          "sshHint": "Elige una de tus claves SSH detectadas.",
+          "pick": "Elegir una clave…"
+        },
+        "loadFailed": "No se pudo leer tu configuración de firma",
+        "saveFailed": "No se pudo guardar tu configuración de firma"
+      },
+      "gitTarget": {
+        "section": "Destino de Git",
+        "mode": {
+          "label": "Resolución",
+          "hint": "Cómo glimpse ejecuta git para este repositorio."
+        },
+        "auto": "Automático",
+        "native": "Nativo (git del host)",
+        "custom": "Ruta de git personalizada",
+        "path": {
+          "label": "Ruta de git",
+          "hint": "Ruta al binario de git que se usará.",
+          "placeholder": "p. ej. /usr/bin/git"
+        },
+        "nativeGit": "Git nativo",
+        "resolved": "Se ejecuta vía: {target}",
+        "distros": "Distros WSL: {list}",
+        "saveFailed": "No se pudo guardar el destino de Git"
+      },
+      "ssh": {
+        "section": "SSH y credenciales",
+        "helper": "Gestor de credenciales",
+        "helperHint": "Guarda credenciales para remotos HTTPS; los remotos SSH usan las claves de abajo.",
+        "none": "ninguno configurado",
+        "keys": "Claves públicas SSH",
+        "noKeys": "No se encontraron claves SSH en ~/.ssh.",
+        "copy": "Copiar clave pública",
+        "useKey": {
+          "label": "Clave SSH para este repositorio",
+          "hint": "Usa una clave concreta para fetch, pull y push en este repositorio.",
+          "default": "Predeterminada",
+          "section": "Clave SSH"
+        },
+        "useKeyFailed": "No se pudo establecer la clave SSH para este repositorio",
+        "generate": "Generar clave SSH",
+        "generated": "Clave SSH generada y clave pública copiada",
+        "generateFailed": "No se pudo generar una clave SSH",
+        "hasKey": "Ya tienes una clave ed25519.",
+        "hint": "Añade una clave pública a tu host de git (GitHub/GitLab) para autenticarte por SSH."
       },
       "updatesSection": "Actualizaciones",
       "autoUpdate": {
@@ -112,6 +183,20 @@
       "channelFallback": {
         "title": "Canal de versiones cambiado",
         "description": "Se cambió a {channel}."
+      },
+      "override": {
+        "inherit": "Heredar (global)",
+        "on": "Activado",
+        "off": "Desactivado"
+      },
+      "conventional": {
+        "section": "Conventional Commits",
+        "enable": {
+          "label": "Asistente de commits",
+          "hint": "Mostrar el asistente de Conventional Commits en el cuadro de commit."
+        },
+        "loadFailed": "No se pudo leer la configuración del asistente de commits",
+        "saveFailed": "No se pudo guardar la configuración del asistente de commits"
       }
     },
     "showcase": {

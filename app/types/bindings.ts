@@ -184,3 +184,61 @@ export type RebaseStep = {
   hash: string;
   message: string | null;
 };
+
+export type ImageDiff = {
+  mime: string;
+  /**
+   * The committed (HEAD) image; null when the file is newly added.
+   */
+  old: string | null;
+  /**
+   * The working-tree image; null when the file was deleted.
+   */
+  new: string | null;
+};
+
+export type Contributor = { name: string; email: string; commits: number };
+
+export type ActivityPoint = { date: string; count: number };
+
+export type FileChurn = { path: string; changes: number };
+
+export type RepoStats = {
+  totalCommits: number;
+  /**
+   * Authors by commit count, descending.
+   */
+  contributors: Array<Contributor>;
+  /**
+   * Commits per day, ascending by date.
+   */
+  activity: Array<ActivityPoint>;
+  /**
+   * Most-changed files, descending (top 20).
+   */
+  churn: Array<FileChurn>;
+};
+
+export type SshKey = {
+  /**
+   * Absolute path to the private key (the `.pub` path with the extension
+   * dropped), in the form the repo's git environment expects (a Linux path
+   * for a WSL repo, a host path otherwise).
+   */
+  path: string;
+  /**
+   * The public key line (`<type> <base64> [comment]`).
+   */
+  publicKey: string;
+};
+
+export type SshStatus = {
+  /**
+   * The configured `credential.helper`, or empty when none is set.
+   */
+  helper: string;
+  /**
+   * Public SSH keys found under `~/.ssh` (path + contents).
+   */
+  publicKeys: Array<SshKey>;
+};

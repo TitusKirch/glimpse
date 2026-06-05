@@ -13,10 +13,13 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  ImageDiff,
   RebaseStep,
   ReflogEntry,
+  RepoStats,
   RepoInfo,
   SparseStatus,
+  SshStatus,
   StatusEntry,
   Submodule,
   Worktree
@@ -70,15 +73,16 @@ export const gitClient = {
   getConfig: ({
     path,
     key,
-    global = true
+    scope = 'global'
   }: {
     path: string;
     key: string;
-    global?: boolean;
+    // 'global' | 'local' | 'system', or '' for the effective value.
+    scope?: string;
   }) =>
     tauriInvoke<string>({
       command: 'get_config',
-      args: { path, key, global },
+      args: { path, key, scope },
       fallback: ''
     }),
 
@@ -97,6 +101,22 @@ export const gitClient = {
     tauriInvoke<null>({
       command: 'set_config',
       args: { path, key, value, global },
+      fallback: null
+    }),
+
+  // Remove a git config value at `scope` (default local) — drops an override.
+  unsetConfig: ({
+    path,
+    key,
+    scope = 'local'
+  }: {
+    path: string;
+    key: string;
+    scope?: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'unset_config',
+      args: { path, key, scope },
       fallback: null
     }),
 
@@ -173,6 +193,107 @@ export const gitClient = {
       command: 'blame',
       args: { path, file },
       fallback: []
+    }),
+
+  // SSH keys + credential-helper status for the repo's git environment.
+  sshStatus: (path: string) =>
+    tauriInvoke<SshStatus>({
+      command: 'ssh_status',
+      args: { path },
+      fallback: { helper: '', publicKeys: [] }
+    }),
+  // Generate an ed25519 SSH key (errors if one exists); returns its public key.
+  generateSshKey: (path: string) =>
+    tauriInvoke<string>({
+      command: 'generate_ssh_key',
+      args: { path },
+      fallback: ''
+    }),
+
+  // Installed WSL distros (Windows; empty elsewhere) for the git-target picker.
+  wslDistros: () =>
+    tauriInvoke<string[]>({
+      command: 'wsl_distros',
+      args: {},
+      fallback: []
+    }),
+
+  // Export a commit to a .patch file at `dest`.
+  exportPatch: ({
+    path,
+    hash,
+    dest
+  }: {
+    path: string;
+    hash: string;
+    dest: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'export_patch',
+      args: { path, hash, dest },
+      fallback: null
+    }),
+  // Apply a patch file via `am` (recreate commits) or `apply` (working tree).
+  applyPatch: ({
+    path,
+    src,
+    mode
+  }: {
+    path: string;
+    src: string;
+    mode: string;
+  }) =>
+    tauriInvoke<string>({
+      command: 'apply_patch',
+      args: { path, src, mode },
+      fallback: ''
+    }),
+
+  // All tracked file paths — the corpus for the quick-open fuzzy finder.
+  listFiles: (path: string) =>
+    tauriInvoke<string[]>({
+      command: 'list_files',
+      args: { path },
+      fallback: []
+    }),
+
+  // Repository insights (contributors, activity, churn) from git log.
+  repoStats: (path: string) =>
+    tauriInvoke<RepoStats>({
+      command: 'repo_stats',
+      args: { path },
+      fallback: { totalCommits: 0, contributors: [], activity: [], churn: [] }
+    }),
+
+  // The conflicted working file's content (with markers) for the merge editor.
+  conflictContent: ({ path, file }: { path: string; file: string }) =>
+    tauriInvoke<string>({
+      command: 'conflict_content',
+      args: { path, file },
+      fallback: ''
+    }),
+  // Save a merge-editor resolution and stage the file.
+  resolveConflictSave: ({
+    path,
+    file,
+    content
+  }: {
+    path: string;
+    file: string;
+    content: string;
+  }) =>
+    tauriInvoke<null>({
+      command: 'resolve_conflict_save',
+      args: { path, file, content },
+      fallback: null
+    }),
+
+  // Both sides of an image file as data: URLs (committed vs working tree).
+  imageDiff: ({ path, file }: { path: string; file: string }) =>
+    tauriInvoke<ImageDiff>({
+      command: 'image_diff',
+      args: { path, file },
+      fallback: { mime: '', old: null, new: null }
     }),
 
   // Stage (or unstage with reverse) a single hunk.
@@ -396,6 +517,21 @@ export const gitClient = {
     tauriInvoke<Commit[]>({
       command: 'rebase_commits',
       args: { path, start },
+      fallback: []
+    }),
+  // Pickaxe search: commits that add/remove `query` (-S, or -G when regex).
+  searchCommits: ({
+    path,
+    query,
+    regex
+  }: {
+    path: string;
+    query: string;
+    regex: boolean;
+  }) =>
+    tauriInvoke<Commit[]>({
+      command: 'search_commits',
+      args: { path, query, regex },
       fallback: []
     }),
   // Run an interactive rebase from a plan; `base` is the parent to replay onto
@@ -630,15 +766,19 @@ export const gitClient = {
   createTag: ({
     path,
     name,
-    hash = ''
+    hash = '',
+    message = '',
+    sign = false
   }: {
     path: string;
     name: string;
     hash?: string;
+    message?: string;
+    sign?: boolean;
   }) =>
     tauriInvoke<null>({
       command: 'create_tag',
-      args: { path, name, hash },
+      args: { path, name, hash, message, sign },
       fallback: null
     }),
 

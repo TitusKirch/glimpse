@@ -164,10 +164,10 @@ async function run() {
       </ul>
 
       <UiDialogFooter>
-        <UiButton variant="ghost" @click="hide">
+        <UiButton variant="ghost" icon="lucide:x" @click="hide">
           {{ t('common.cancel') }}
         </UiButton>
-        <UiButton :disabled="!valid" @click="run">
+        <UiButton icon="lucide:list-ordered" :disabled="!valid" @click="run">
           {{ t('rebasePlan.run') }}
         </UiButton>
       </UiDialogFooter>

@@ -1,5 +1,63 @@
 import { describe, expect, it } from 'vitest';
-import { highlightLines } from './highlight';
+import {
+  diffLang,
+  escapeHtml,
+  highlightLine,
+  highlightLines
+} from './highlight';
+
+describe('diffLang', () => {
+  it('maps known extensions to highlight.js languages', () => {
+    expect(diffLang('a.ts')).toBe('typescript');
+    expect(diffLang('a.RS')).toBe('rust');
+    expect(diffLang('component.vue')).toBe('xml');
+  });
+
+  it('returns empty for unknown or extensionless names', () => {
+    expect(diffLang('a.unknownext')).toBe('');
+    expect(diffLang('Makefile')).toBe('');
+  });
+});
+
+describe('escapeHtml', () => {
+  it('escapes &, < and >', () => {
+    expect(escapeHtml('a < b & c > d')).toBe('a &lt; b &amp; c &gt; d');
+  });
+
+  it('leaves plain text untouched', () => {
+    expect(escapeHtml('plain text')).toBe('plain text');
+  });
+});
+
+describe('highlightLine', () => {
+  it('returns empty for empty text', () => {
+    expect(highlightLine({ text: '', lang: 'javascript' })).toBe('');
+  });
+
+  it('escapes (no highlight) when no language is given', () => {
+    expect(highlightLine({ text: 'a < b', lang: '' })).toBe('a &lt; b');
+  });
+
+  it('highlights with a real language', () => {
+    expect(
+      highlightLine({ text: 'const a = 1', lang: 'javascript' })
+    ).toContain('<span');
+  });
+
+  it('falls back to escaped text on an unknown language', () => {
+    expect(highlightLine({ text: 'a < b', lang: 'not-a-real-lang' })).toBe(
+      'a &lt; b'
+    );
+  });
+});
+
+describe('highlightLines fallback', () => {
+  it('escapes and splits when the language throws', () => {
+    expect(
+      highlightLines({ text: 'a < b\nc', lang: 'not-a-real-lang' })
+    ).toEqual(['a &lt; b', 'c']);
+  });
+});
 
 // Count unbalanced spans on a single line — should always be 0 once split.
 function spanBalance(line: string): number {

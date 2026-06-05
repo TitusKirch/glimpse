@@ -8,6 +8,9 @@
     "empty": "Noch keine Commits",
     "emptyHint": "Dieser Branch hat keinen Verlauf.",
     "search": "Commits durchsuchen…",
+    "searchContent": "Dateiinhalte durchsuchen… (Enter)",
+    "contentSearch": "Dateiinhalte durchsuchen (Pickaxe)",
+    "regex": "Suche als Regex behandeln (-G)",
     "noMatches": "Keine passenden Commits",
     "loadMore": "Mehr Verlauf laden"
   }

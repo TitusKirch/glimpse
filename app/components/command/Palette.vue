@@ -17,6 +17,17 @@ const reflogOverlay = useOverlay('reflog');
 const compareOverlay = useOverlay('compare');
 const bisectOverlay = useOverlay('bisect');
 const worktreesOverlay = useOverlay('worktrees');
+const statsOverlay = useOverlay('stats');
+const quickOpenOverlay = useOverlay('quickOpen');
+
+// Apply a patch file the user picks (git am).
+async function applyPatch() {
+  const src = await openDialog({
+    multiple: false,
+    filters: [{ name: 'Patch', extensions: ['patch', 'diff', 'eml', 'mbox'] }]
+  });
+  if (typeof src === 'string') await repo.applyPatch({ src });
+}
 const submodulesOverlay = useOverlay('submodules');
 const sparseOverlay = useOverlay('sparse');
 const repo = useRepoStore();
@@ -317,6 +328,30 @@ const actions = computed<PaletteAction[]>(() => {
       icon: 'lucide:folder-git-2',
       labelKey: 'command.worktrees',
       run: () => worktreesOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'stats',
+      group: 'repository',
+      icon: 'lucide:chart-column',
+      labelKey: 'stats.menu',
+      run: () => statsOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'quickOpen',
+      group: 'view',
+      icon: 'lucide:search',
+      labelKey: 'quickOpen.menu',
+      run: () => quickOpenOverlay.show(),
+      visible: hasRepos
+    },
+    {
+      id: 'applyPatch',
+      group: 'repository',
+      icon: 'lucide:file-up',
+      labelKey: 'patch.apply',
+      run: () => applyPatch(),
       visible: hasRepos
     },
     {

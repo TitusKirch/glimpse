@@ -23,6 +23,12 @@
     "markResolved": "Als gelöst markieren",
     "clean": "Arbeitsverzeichnis sauber",
     "cleanHint": "Es gibt keine Änderungen zum Committen.",
-    "lfs": "Von Git LFS verwaltet"
+    "lfs": "Von Git LFS verwaltet",
+    "conventional": {
+      "toggle": "Conventional-Commit-Helfer",
+      "scope": "Scope",
+      "breaking": "Breaking",
+      "closes": "Closes #"
+    }
   }
 }

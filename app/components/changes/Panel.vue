@@ -5,6 +5,7 @@ import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
 const settings = useSettingsStore();
+const mergeEditor = useMergeEditor();
 const { t } = useI18n();
 
 const modLabel = navigator.platform.toLowerCase().includes('mac')
@@ -60,6 +61,41 @@ const canCommit = computed(
   () =>
     !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
 );
+
+// --- Conventional Commit composer (opt-in) ---------------------------------
+// Assembles a `type(scope)!: ` prefix on the subject line (see
+// applyConventionalPrefix — idempotent, so changing a control never stacks
+// prefixes and the user's typed subject is preserved).
+const ccType = ref('feat');
+const ccScope = ref('');
+const ccBreaking = ref(false);
+
+// On/off is shared, git-config-backed state (see useConventionalCommits) so the
+// settings toggle and this commit box stay in sync live.
+const {
+  enabled: ccEnabled,
+  load: loadConventional,
+  set: setConventional
+} = useConventionalCommits();
+onMounted(loadConventional);
+watch(() => repo.active?.path, loadConventional);
+
+function applyConventional() {
+  repo.commitMessage = applyConventionalPrefix(repo.commitMessage, {
+    type: ccType.value,
+    scope: ccScope.value,
+    breaking: ccBreaking.value
+  });
+}
+
+watch([ccType, ccScope, ccBreaking, ccEnabled], () => {
+  if (ccEnabled.value) applyConventional();
+});
+
+// Append a `Closes #` footer for the user to complete.
+function insertCloses() {
+  repo.commitMessage = `${repo.commitMessage.replace(/\s*$/, '')}\n\nCloses #`;
+}
 
 // Commit message form (TanStack Form + Zod). The store still owns
 // repo.commitMessage — the commit action, the amend prefill and the Cmd/Ctrl+↵
@@ -186,6 +222,11 @@ onMounted(autoResize);
                 />
               </UiDropdownMenuTrigger>
               <UiDropdownMenuContent align="end">
+                <UiDropdownMenuItem @click="mergeEditor.show(file.path)">
+                  <NuxtIcon name="lucide:git-merge" />
+                  {{ t('merge.open') }}
+                </UiDropdownMenuItem>
+                <UiDropdownMenuSeparator />
                 <UiDropdownMenuItem
                   @click="
                     repo.resolveConflict({ file: file.path, side: 'ours' })
@@ -316,6 +357,51 @@ onMounted(autoResize);
 
     <!-- commit box -->
     <form class="border-t p-2" @submit.prevent="commitForm.handleSubmit">
+      <div v-if="ccEnabled" class="mb-2 flex flex-wrap items-center gap-1.5">
+        <UiDropdownMenu>
+          <UiDropdownMenuTrigger as-child>
+            <UiButton
+              type="button"
+              variant="outline"
+              size="sm"
+              class="h-7 gap-1 px-2 text-xs"
+            >
+              {{ ccType }}
+              <NuxtIcon name="lucide:chevron-down" class="size-3 opacity-60" />
+            </UiButton>
+          </UiDropdownMenuTrigger>
+          <UiDropdownMenuContent align="start">
+            <UiDropdownMenuItem
+              v-for="ty in CONVENTIONAL_TYPES"
+              :key="ty"
+              @click="ccType = ty"
+            >
+              {{ ty }}
+            </UiDropdownMenuItem>
+          </UiDropdownMenuContent>
+        </UiDropdownMenu>
+        <input
+          v-model="ccScope"
+          :placeholder="t('changes.conventional.scope')"
+          class="h-7 w-24 rounded-md border bg-transparent px-2 text-xs outline-none"
+        />
+        <label class="flex items-center gap-1 text-xs text-muted-foreground">
+          <UiSwitch
+            :model-value="ccBreaking"
+            @update:model-value="(v) => (ccBreaking = v as boolean)"
+          />
+          {{ t('changes.conventional.breaking') }}
+        </label>
+        <UiButton
+          type="button"
+          size="sm"
+          variant="ghost"
+          class="ml-auto h-7 text-xs"
+          @click="insertCloses"
+        >
+          {{ t('changes.conventional.closes') }}
+        </UiButton>
+      </div>
       <div class="relative">
         <commitForm.Field v-slot="{ field }" name="message">
           <textarea
@@ -337,13 +423,31 @@ onMounted(autoResize);
       </div>
 
       <div class="mt-2 flex items-center justify-between gap-2">
-        <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-          <UiSwitch
-            :model-value="repo.amend"
-            @update:model-value="repo.setAmend($event)"
-          />
-          <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
-        </label>
+        <div class="flex items-center gap-3">
+          <label class="flex cursor-pointer items-center gap-1.5 text-xs">
+            <UiSwitch
+              :model-value="repo.amend"
+              @update:model-value="repo.setAmend($event)"
+            />
+            <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
+          </label>
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                icon="lucide:braces"
+                icon-size="sm"
+                :class="ccEnabled && 'text-primary'"
+                @click="setConventional(!ccEnabled)"
+              />
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{
+              t('changes.conventional.toggle')
+            }}</UiTooltipContent>
+          </UiTooltip>
+        </div>
         <UiKbd>{{ modLabel }}+↵</UiKbd>
       </div>
 

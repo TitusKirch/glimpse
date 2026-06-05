@@ -296,7 +296,8 @@
     "from": "Von",
     "to": "Bis",
     "pick": "Zwei Refs zum Vergleichen wählen.",
-    "noDiff": "Keine Unterschiede."
+    "noDiff": "Keine Unterschiede.",
+    "selected": "Diese beiden vergleichen"
   },
   "rebase": {
     "inProgress": "Rebase läuft — Konflikte lösen, dann fortfahren.",
@@ -319,6 +320,47 @@
       "fixup": "Fixup",
       "drop": "Verwerfen"
     }
+  },
+  "merge": {
+    "open": "Merge-Editor…",
+    "title": "Konflikte lösen",
+    "region": "Konflikt",
+    "ours": "Unsere",
+    "theirs": "Ihre",
+    "both": "Beide",
+    "base": "Basis",
+    "save": "Lösung speichern",
+    "regions": "{n} Konflikte"
+  },
+  "patch": {
+    "export": "Als Patch exportieren…",
+    "apply": "Patch anwenden…"
+  },
+  "quickOpen": {
+    "menu": "Schnellöffnen…",
+    "title": "Schnellöffnen",
+    "placeholder": "Zu Datei, Branch oder Commit springen…",
+    "empty": "Keine Treffer"
+  },
+  "stats": {
+    "menu": "Statistiken…",
+    "title": "Repository-Statistiken",
+    "totalCommits": "Commits",
+    "contributors": "Top-Mitwirkende",
+    "activity": "Letzte Aktivität",
+    "churn": "Meistgeänderte Dateien",
+    "empty": "Noch keine Commits."
+  },
+  "tag": {
+    "title": "Tag erstellen",
+    "description": "Einen Commit taggen. Mit Nachricht wird es ein annotiertes Tag, optional signiert.",
+    "message": {
+      "label": "Nachricht",
+      "placeholder": "Nachricht für annotiertes Tag (optional)"
+    },
+    "messageHint": "Eine Nachricht macht daraus ein annotiertes Tag.",
+    "sign": "Tag signieren",
+    "signHint": "Signierte Tags sind annotiert und nutzen deinen Signaturschlüssel."
   },
   "reflog": {
     "title": "Reflog",

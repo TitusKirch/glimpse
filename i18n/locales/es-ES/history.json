@@ -8,6 +8,9 @@
     "empty": "Aún no hay commits",
     "emptyHint": "Esta branch no tiene historial que mostrar.",
     "search": "Buscar commits…",
+    "searchContent": "Buscar en el contenido… (Enter)",
+    "contentSearch": "Buscar en el contenido (pickaxe)",
+    "regex": "Tratar la consulta como regex (-G)",
     "noMatches": "No hay commits coincidentes",
     "loadMore": "Cargar más historial"
   }

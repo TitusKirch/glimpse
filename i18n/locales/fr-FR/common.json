@@ -296,7 +296,8 @@
     "from": "De",
     "to": "À",
     "pick": "Choisissez deux réfs à comparer.",
-    "noDiff": "Aucune différence."
+    "noDiff": "Aucune différence.",
+    "selected": "Comparer ces deux"
   },
   "rebase": {
     "inProgress": "Rebase en cours — résolvez les conflits, puis continuez.",
@@ -319,6 +320,47 @@
       "fixup": "Fixup",
       "drop": "Supprimer"
     }
+  },
+  "merge": {
+    "open": "Éditeur de fusion…",
+    "title": "Résoudre les conflits",
+    "region": "Conflit",
+    "ours": "Nôtres",
+    "theirs": "Leurs",
+    "both": "Les deux",
+    "base": "Base",
+    "save": "Enregistrer la résolution",
+    "regions": "{n} conflits"
+  },
+  "patch": {
+    "export": "Exporter en patch…",
+    "apply": "Appliquer un patch…"
+  },
+  "quickOpen": {
+    "menu": "Ouverture rapide…",
+    "title": "Ouverture rapide",
+    "placeholder": "Aller à un fichier, une branche ou un commit…",
+    "empty": "Aucune correspondance"
+  },
+  "stats": {
+    "menu": "Statistiques…",
+    "title": "Statistiques du dépôt",
+    "totalCommits": "commits",
+    "contributors": "Principaux contributeurs",
+    "activity": "Activité récente",
+    "churn": "Fichiers les plus modifiés",
+    "empty": "Aucun commit pour le moment."
+  },
+  "tag": {
+    "title": "Créer une étiquette",
+    "description": "Étiqueter un commit. Ajoutez un message pour une étiquette annotée, ou signez-la.",
+    "message": {
+      "label": "Message",
+      "placeholder": "Message de l'étiquette annotée (optionnel)"
+    },
+    "messageHint": "Un message en fait une étiquette annotée.",
+    "sign": "Signer l'étiquette",
+    "signHint": "Les étiquettes signées sont annotées et utilisent votre clé de signature."
   },
   "reflog": {
     "title": "Reflog",

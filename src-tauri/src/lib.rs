@@ -485,11 +485,12 @@ async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
     git::Repo::open(&path).info()
 }
 
-/// Read a git config value. `global` selects `~/.gitconfig` over the repo's
-/// local config; `path` still routes the call (native vs. WSL git).
+/// Read a git config value at `scope` (`global` / `local` / `system`, or empty
+/// for the effective value after precedence); `path` routes the call (native vs.
+/// WSL git).
 #[tauri::command]
-async fn get_config(path: String, key: String, global: bool) -> Result<String, String> {
-    git::Repo::open(&path).config_get(&key, global)
+async fn get_config(path: String, key: String, scope: String) -> Result<String, String> {
+    git::Repo::open(&path).config_get(&key, &scope)
 }
 
 /// Write a git config value (used for the user's `user.name` / `user.email`
@@ -497,6 +498,12 @@ async fn get_config(path: String, key: String, global: bool) -> Result<String, S
 #[tauri::command]
 async fn set_config(path: String, key: String, value: String, global: bool) -> Result<(), String> {
     git::Repo::open(&path).config_set(&key, &value, global)
+}
+
+/// Remove a git config value at `scope` (e.g. drop a per-repo identity override).
+#[tauri::command]
+async fn unset_config(path: String, key: String, scope: String) -> Result<(), String> {
+    git::Repo::open(&path).config_unset(&key, &scope)
 }
 
 /// Clone `url` into the existing directory `path`, returning the new repo's host
@@ -749,6 +756,90 @@ async fn interactive_rebase(
 #[tauri::command]
 async fn rebase_commits(path: String, start: String) -> Result<Vec<git::Commit>, String> {
     git::Repo::open(&path).rebase_commits(&start)
+}
+
+/// Pickaxe search: commits that add/remove `query` (`-S`, or `-G` regex).
+#[tauri::command]
+async fn search_commits(
+    path: String,
+    query: String,
+    regex: bool,
+) -> Result<Vec<git::Commit>, String> {
+    git::Repo::open(&path).search_commits(&query, regex)
+}
+
+/// Both sides of an image file as `data:` URLs (committed vs working tree).
+#[tauri::command]
+async fn image_diff(path: String, file: String) -> Result<git::ImageDiff, String> {
+    git::Repo::open(&path).image_diff(&file)
+}
+
+/// The conflicted working file's content (with markers) for the merge editor.
+#[tauri::command]
+async fn conflict_content(path: String, file: String) -> Result<String, String> {
+    git::Repo::open(&path).conflict_content(&file)
+}
+
+/// Save a merge-editor resolution and stage the file.
+#[tauri::command]
+async fn resolve_conflict_save(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    file: String,
+    content: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).resolve_conflict_save(&file, &content)
+    })
+}
+
+/// Repository insights (contributors, activity, churn) from `git log`.
+#[tauri::command]
+async fn repo_stats(path: String) -> Result<git::RepoStats, String> {
+    git::Repo::open(&path).repo_stats()
+}
+
+/// All tracked file paths (for the quick-open fuzzy finder).
+#[tauri::command]
+async fn list_files(path: String) -> Result<Vec<String>, String> {
+    git::Repo::open(&path).list_files()
+}
+
+/// Export a commit to a `.patch` file at `dest`.
+#[tauri::command]
+async fn export_patch(path: String, hash: String, dest: String) -> Result<(), String> {
+    git::Repo::open(&path).export_patch(&hash, &dest)
+}
+
+/// Apply a patch file via `am` (recreate commits) or `apply` (working tree).
+#[tauri::command]
+async fn apply_patch(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    src: String,
+    mode: String,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).apply_patch(&src, &mode)
+    })
+}
+
+/// Installed WSL distros (for the per-repo git-target picker); empty off Windows.
+#[tauri::command]
+fn wsl_distros() -> Vec<String> {
+    crate::platform::wsl_distros()
+}
+
+/// SSH keys + credential-helper status for the repo's git environment.
+#[tauri::command]
+async fn ssh_status(path: String) -> Result<git::SshStatus, String> {
+    Ok(git::Repo::open(&path).ssh_status())
+}
+
+/// Generate an ed25519 SSH key in the repo's git environment.
+#[tauri::command]
+async fn generate_ssh_key(path: String) -> Result<String, String> {
+    git::Repo::open(&path).generate_ssh_key()
 }
 
 /// Start a bisect session between a bad and good ref.
@@ -1007,9 +1098,11 @@ async fn create_tag(
     path: String,
     name: String,
     hash: String,
+    message: String,
+    sign: bool,
 ) -> Result<(), String> {
     locked(&locks, &path, || {
-        git::Repo::open(&path).create_tag(&name, &hash)
+        git::Repo::open(&path).create_tag(&name, &hash, &message, sign)
     })
 }
 
@@ -1385,6 +1478,7 @@ pub fn run() {
             repo_info,
             get_config,
             set_config,
+            unset_config,
             clone_repo,
             init_repo,
             git_log,
@@ -1398,6 +1492,9 @@ pub fn run() {
             compare_file_diff,
             file_history,
             blame,
+            image_diff,
+            conflict_content,
+            resolve_conflict_save,
             apply_hunk,
             discard_hunk,
             apply_lines,
@@ -1415,6 +1512,14 @@ pub fn run() {
             rebase_abort,
             interactive_rebase,
             rebase_commits,
+            search_commits,
+            repo_stats,
+            list_files,
+            wsl_distros,
+            ssh_status,
+            generate_ssh_key,
+            export_patch,
+            apply_patch,
             bisect_start,
             bisect_mark,
             bisect_reset,

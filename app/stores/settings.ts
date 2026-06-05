@@ -39,6 +39,8 @@ export interface SettingsValues {
   sidebarResizable: boolean;
   sidebarWidth: number;
   diffMode: DiffMode;
+  // Soft-wrap long lines in the diff viewer (unified view).
+  diffWrap: boolean;
   fileView: FileView;
   monoScale: number;
   accent: Accent;
@@ -71,6 +73,7 @@ const MIGRATED_KEYS = [
   'sidebarResizable',
   'sidebarWidth',
   'diffMode',
+  'diffWrap',
   'fileView',
   'monoScale',
   'accent',
@@ -135,6 +138,7 @@ export const useSettingsStore = defineStore('settings', {
     sidebarResizable: true,
     sidebarWidth: 256,
     diffMode: 'split',
+    diffWrap: false,
     fileView: 'tree',
     monoScale: 1,
     accent: 'default',
@@ -170,6 +174,9 @@ export const useSettingsStore = defineStore('settings', {
     },
     setDiffMode(mode: DiffMode) {
       this.diffMode = mode;
+    },
+    toggleDiffWrap() {
+      this.diffWrap = !this.diffWrap;
     },
     setFileView(view: FileView) {
       this.fileView = view;

@@ -296,7 +296,8 @@
     "from": "From",
     "to": "To",
     "pick": "Pick two refs to compare.",
-    "noDiff": "No differences."
+    "noDiff": "No differences.",
+    "selected": "Compare these two"
   },
   "rebase": {
     "inProgress": "Rebase in progress — resolve conflicts, then continue.",
@@ -319,6 +320,47 @@
       "fixup": "Fixup",
       "drop": "Drop"
     }
+  },
+  "merge": {
+    "open": "Merge editor…",
+    "title": "Resolve conflicts",
+    "region": "Conflict",
+    "ours": "Ours",
+    "theirs": "Theirs",
+    "both": "Both",
+    "base": "Base",
+    "save": "Save resolution",
+    "regions": "{n} conflicts"
+  },
+  "patch": {
+    "export": "Export as patch…",
+    "apply": "Apply patch…"
+  },
+  "quickOpen": {
+    "menu": "Quick open…",
+    "title": "Quick open",
+    "placeholder": "Jump to a file, branch or commit…",
+    "empty": "No matches"
+  },
+  "stats": {
+    "menu": "Statistics…",
+    "title": "Repository statistics",
+    "totalCommits": "commits",
+    "contributors": "Top contributors",
+    "activity": "Recent activity",
+    "churn": "Most-changed files",
+    "empty": "No commits yet."
+  },
+  "tag": {
+    "title": "Create tag",
+    "description": "Tag a commit. Add a message for an annotated tag, or sign it.",
+    "message": {
+      "label": "Message",
+      "placeholder": "Annotated tag message (optional)"
+    },
+    "messageHint": "A message makes it an annotated tag.",
+    "sign": "Sign tag",
+    "signHint": "Signed tags are annotated and use your signing key."
   },
   "reflog": {
     "title": "Reflog",

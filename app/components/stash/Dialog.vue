@@ -109,10 +109,20 @@ async function submit() {
       </p>
 
       <div class="flex justify-end gap-2">
-        <UiButton variant="outline" type="button" @click="open = false">
+        <UiButton
+          variant="outline"
+          type="button"
+          icon="lucide:x"
+          @click="open = false"
+        >
           {{ t('common.cancel') }}
         </UiButton>
-        <UiButton type="button" :disabled="!canStash" @click="submit">
+        <UiButton
+          type="button"
+          icon="lucide:archive"
+          :disabled="!canStash"
+          @click="submit"
+        >
           {{ t('stash.submit') }}
         </UiButton>
       </div>

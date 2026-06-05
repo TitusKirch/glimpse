@@ -9,6 +9,7 @@ import { useEventListener } from '@vueuse/core';
 export function useShortcuts() {
   const repo = useRepoStore();
   const palette = useOverlay('commandPalette');
+  const quickOpen = useOverlay('quickOpen');
   const settings = useOverlay('settings');
   const help = useOverlay('help');
 
@@ -33,6 +34,11 @@ export function useShortcuts() {
     if (k === 'k') {
       e.preventDefault();
       palette.toggle();
+      return;
+    }
+    if (k === 'p') {
+      e.preventDefault();
+      if (repo.hasRepos) quickOpen.toggle();
       return;
     }
     if (k === ',') {

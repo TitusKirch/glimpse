@@ -81,13 +81,19 @@ async function disable() {
           <UiButton
             v-if="status.enabled"
             variant="outline"
+            icon="lucide:square-x"
             :pending="busy"
             @click="disable"
           >
             {{ t('sparse.disable') }}
           </UiButton>
           <span v-else />
-          <UiButton :disabled="!patterns.length" :pending="busy" @click="apply">
+          <UiButton
+            icon="lucide:check"
+            :disabled="!patterns.length"
+            :pending="busy"
+            @click="apply"
+          >
             {{ t('sparse.apply') }}
           </UiButton>
         </div>

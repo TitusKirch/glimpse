@@ -12,6 +12,7 @@
 //! Adding a new platform means adding its arm to [`resolve`] / [`native_flavor`]
 //! — callers never change.
 
+use crate::git::SshKey;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::Command;
@@ -50,28 +51,40 @@ impl GitTarget {
         }
     }
 
-    /// Build a `Command` running `git <args...>` against this target's repo.
+    /// The exact argv a git call runs: the program, any WSL/prefix args, the
+    /// defense-in-depth `-c core.fsmonitor=`, `-C <repo>`, then the subcommand
+    /// args. The single definition of the invocation — both `command`
+    /// (execution) and `describe` (the error string) build from it, so the two
+    /// can't drift, and the invocation is unit-testable without running git.
+    ///
+    /// `-c core.fsmonitor=` is defense in depth: a repository we merely inspect
+    /// must not run code through its own config. `core.fsmonitor` would otherwise
+    /// be executed by `git status` (run on every open), turning "open a repo"
+    /// into code execution; a command-line `-c` overrides repo and global config,
+    /// and disabling fsmonitor has no correctness impact on glimpse. (Diff/show
+    /// additionally pass `--no-ext-diff --no-textconv` at their call sites.)
+    pub fn argv(&self, args: &[&str]) -> Vec<String> {
+        let mut argv = vec![self.program.clone()];
+        argv.extend(self.prefix_args.iter().cloned());
+        argv.push("-c".into());
+        argv.push("core.fsmonitor=".into());
+        argv.push("-C".into());
+        argv.push(self.repo_arg.clone());
+        argv.extend(args.iter().map(|a| (*a).to_string()));
+        argv
+    }
+
+    /// Build a `Command` for `argv`. GIT_OPTIONAL_LOCKS=0 keeps read-only
+    /// commands (the watcher's repeated `git status`) off the optional index.lock
+    /// so they don't race a concurrent write ("Unable to create '…/index.lock':
+    /// File exists"). Native git reads it from the host env; the WSL target also
+    /// injects it inside the distro via `env` (host env doesn't cross wsl.exe).
     pub fn command(&self, args: &[&str]) -> Command {
-        let mut cmd = Command::new(&self.program);
+        let argv = self.argv(args);
+        let mut cmd = Command::new(&argv[0]);
         no_window(&mut cmd);
-        // Keep read-only commands (notably the watcher's repeated `git status`)
-        // from grabbing the *optional* index.lock, which would otherwise race a
-        // concurrent write and fail with "Unable to create '…/index.lock':
-        // File exists". Native git reads this from the host env; the WSL target
-        // also injects it inside the distro via `env` (host env doesn't cross
-        // the wsl.exe boundary), so set it here for the native case.
         cmd.env("GIT_OPTIONAL_LOCKS", "0");
-        cmd.args(&self.prefix_args);
-        // Defense in depth: a repository we merely inspect must not be able to
-        // run code through its own config. `core.fsmonitor` would otherwise be
-        // executed by `git status` (the command run on every open), turning
-        // "open a repo" into code execution. A command-line `-c` overrides repo
-        // and global config, and disabling fsmonitor has no correctness impact
-        // on glimpse (it never relies on it). Diff/show additionally pass
-        // `--no-ext-diff --no-textconv` at their call sites for the same reason.
-        cmd.arg("-c").arg("core.fsmonitor=");
-        cmd.arg("-C").arg(&self.repo_arg);
-        cmd.args(args);
+        cmd.args(&argv[1..]);
         cmd
     }
 
@@ -90,18 +103,17 @@ impl GitTarget {
         }
     }
 
-    /// The exact argv [`command`] would run, as a single string — appended to
-    /// error messages so a failing invocation (especially the WSL path) is
-    /// visible to the user instead of just git's bare stderr. Credentials
-    /// embedded in a remote URL (`https://user:token@host/…`) are redacted so a
-    /// failed `add_remote`/`fetch` doesn't echo a secret into a UI toast.
+    /// The invocation [`command`] runs, as a single string for error messages —
+    /// the failing argv (especially the WSL path) shown to the user instead of
+    /// just git's bare stderr. Credentials embedded in a remote URL
+    /// (`https://user:token@host/…`) are redacted so a failed `add_remote`/`fetch`
+    /// doesn't echo a secret into a UI toast.
     pub fn describe(&self, args: &[&str]) -> String {
-        let mut parts = vec![self.program.clone()];
-        parts.extend(self.prefix_args.iter().cloned());
-        parts.push("-C".into());
-        parts.push(self.repo_arg.clone());
-        parts.extend(args.iter().map(|a| redact_credentials(a)));
-        parts.join(" ")
+        self.argv(args)
+            .iter()
+            .map(|a| redact_credentials(a))
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     /// Read a working-tree file's content (native fs, or `cat` inside WSL).
@@ -130,6 +142,120 @@ impl GitTarget {
         std::fs::read_to_string(path).ok()
     }
 
+    /// Raw bytes of a working-tree file (native fs, or `cat` inside WSL) — the
+    /// binary counterpart of [`read_file`], for images and other blobs.
+    pub fn read_file_bytes(&self, rel: &str) -> Option<Vec<u8>> {
+        if rel.is_empty() || crate::git::is_unsafe_path(rel) {
+            return None;
+        }
+        if let Some(distro) = &self.distro {
+            let path = format!("{}/{}", self.repo_arg, rel);
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            let out = cmd
+                .args(["-d", distro, "--cd", &self.repo_arg, "--exec", "cat", &path])
+                .output()
+                .ok()?;
+            return out.status.success().then_some(out.stdout);
+        }
+        let path = std::path::Path::new(&self.repo_arg).join(rel);
+        std::fs::read(path).ok()
+    }
+
+    /// Public SSH keys (`*.pub`) under `~/.ssh` in the environment git runs in,
+    /// each paired with the path of its private half (for `ssh -i`). Best-effort;
+    /// empty on error.
+    pub fn ssh_public_keys(&self) -> Vec<SshKey> {
+        if let Some(distro) = &self.distro {
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            // Emit `<private-key-path>\t<public-key-line>` per key; the `[ -f ]`
+            // guard skips the literal glob when no `*.pub` exists.
+            let script = "for f in ~/.ssh/*.pub; do [ -f \"$f\" ] || continue; \
+                 printf '%s\\t%s\\n' \"${f%.pub}\" \"$(cat \"$f\")\"; done";
+            return cmd
+                .args(["-d", distro, "--exec", "sh", "-c", script])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| {
+                    String::from_utf8_lossy(&o.stdout)
+                        .lines()
+                        .filter_map(|l| {
+                            let (path, pk) = l.split_once('\t')?;
+                            let pk = pk.trim();
+                            (!pk.is_empty()).then(|| SshKey {
+                                path: path.to_string(),
+                                public_key: pk.to_string(),
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+        }
+        let Some(home) = home_dir() else {
+            return Vec::new();
+        };
+        let mut keys = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(std::path::Path::new(&home).join(".ssh")) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|e| e == "pub") {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        let trimmed = content.trim();
+                        if !trimmed.is_empty() {
+                            keys.push(SshKey {
+                                path: path.with_extension("").to_string_lossy().into_owned(),
+                                public_key: trimmed.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        keys
+    }
+
+    /// Generate an ed25519 key (no passphrase) at the default path if none exists,
+    /// returning its public key. Errors if a default key is already present (so it
+    /// never clobbers an existing one).
+    pub fn generate_ssh_key(&self) -> Result<String, String> {
+        if let Some(distro) = &self.distro {
+            let script = "test -f ~/.ssh/id_ed25519 && { echo 'a key already exists' >&2; exit 1; }; \
+                 mkdir -p ~/.ssh && ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519 -q && cat ~/.ssh/id_ed25519.pub";
+            let mut cmd = Command::new("wsl.exe");
+            no_window(&mut cmd);
+            let out = cmd
+                .args(["-d", distro, "--exec", "sh", "-c", script])
+                .output()
+                .map_err(|e| e.to_string())?;
+            if !out.status.success() {
+                return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+            }
+            return Ok(String::from_utf8_lossy(&out.stdout).trim().to_string());
+        }
+        let home = home_dir().ok_or("home directory not found")?;
+        let ssh = std::path::Path::new(&home).join(".ssh");
+        let key = ssh.join("id_ed25519");
+        if key.exists() {
+            return Err("an ed25519 key already exists".to_string());
+        }
+        std::fs::create_dir_all(&ssh).map_err(|e| e.to_string())?;
+        let mut cmd = Command::new("ssh-keygen");
+        no_window(&mut cmd);
+        let status = cmd
+            .args(["-t", "ed25519", "-N", "", "-q", "-f"])
+            .arg(&key)
+            .status()
+            .map_err(|e| format!("ssh-keygen not available: {e}"))?;
+        if !status.success() {
+            return Err("ssh-keygen failed".to_string());
+        }
+        std::fs::read_to_string(key.with_extension("pub"))
+            .map(|s| s.trim().to_string())
+            .map_err(|e| e.to_string())
+    }
+
     /// Native `git` on the host OS — the default on every platform.
     fn native(repo_path: &str) -> Self {
         GitTarget {
@@ -142,8 +268,96 @@ impl GitTarget {
     }
 }
 
+/// The user's home directory (`$HOME`, or `%USERPROFILE%` on Windows).
+fn home_dir() -> Option<String> {
+    std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .ok()
+}
+
+/// Read the `glimpse.target` value from a git config blob. `auto`/empty/unknown
+/// → None (use the automatic decision); `native` or an explicit git path → that
+/// override. Pure so it is unit-testable.
+fn parse_config_target(config: &str) -> Option<String> {
+    let mut in_glimpse = false;
+    for line in config.lines() {
+        let t = line.trim();
+        if let Some(section) = t.strip_prefix('[') {
+            in_glimpse = section
+                .trim_end_matches(']')
+                .trim()
+                .eq_ignore_ascii_case("glimpse");
+            continue;
+        }
+        if in_glimpse {
+            if let Some(rest) = t.strip_prefix("target") {
+                let value = rest.trim_start().strip_prefix('=')?.trim();
+                return (!value.is_empty()).then(|| value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Map a `glimpse.target` value to a [`GitTarget`] for `repo_path`. `native`
+/// forces native git (even on a `\\wsl$` path); a value containing a path
+/// separator is used as an explicit git binary; anything else (`auto`/unknown)
+/// → None (use the automatic decision). Pure so it is unit-testable.
+fn map_target_value(value: &str, repo_path: &str) -> Option<GitTarget> {
+    match value {
+        "native" => Some(GitTarget::native(repo_path)),
+        path if path.contains('/') || path.contains('\\') => Some(GitTarget {
+            program: path.to_string(),
+            prefix_args: Vec::new(),
+            repo_arg: repo_path.to_string(),
+            flavor: native_flavor(),
+            distro: None,
+        }),
+        _ => None,
+    }
+}
+
+/// Pick the highest-precedence `glimpse.target` from config blobs given lowest
+/// precedence first — a later blob overrides an earlier one, mirroring git's own
+/// scope ordering. Pure so the precedence is unit-testable.
+fn pick_target<'a>(blobs: impl IntoIterator<Item = &'a str>) -> Option<String> {
+    let mut value = None;
+    for blob in blobs {
+        if let Some(v) = parse_config_target(blob) {
+            value = Some(v);
+        }
+    }
+    value
+}
+
+/// The effective `glimpse.target` override for a repo, read straight from the git
+/// config files in git's precedence order (system → XDG → `~/.gitconfig` →
+/// repo-local; later wins). This is the single file-side reader of the value:
+/// resolve() runs *before* a git binary is chosen (it's deciding which git to
+/// run), so it can't shell out to `git config` the way the IPC layer does.
+/// Best-effort — unreadable files are skipped.
+fn target_override(repo_path: &str) -> Option<GitTarget> {
+    let mut paths = vec!["/etc/gitconfig".to_string()];
+    if let Some(home) = home_dir() {
+        let xdg = std::env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| format!("{home}/.config"));
+        paths.push(format!("{xdg}/git/config"));
+        paths.push(format!("{home}/.gitconfig"));
+    }
+    paths.push(format!("{repo_path}/.git/config"));
+    let blobs: Vec<String> = paths
+        .iter()
+        .filter_map(|p| std::fs::read_to_string(p).ok())
+        .collect();
+    map_target_value(&pick_target(blobs.iter().map(String::as_str))?, repo_path)
+}
+
 /// Decide how to run `git` for `repo_path` on this platform.
 pub fn resolve(repo_path: &str) -> GitTarget {
+    // An explicit glimpse.target (any scope; repo-local wins) overrides the
+    // automatic decision.
+    if let Some(target) = target_override(repo_path) {
+        return target;
+    }
     // WSL interop only exists on Windows; everywhere else git is always native.
     #[cfg(windows)]
     if let Some((distro, linux_path)) = parse_wsl_path(repo_path) {
@@ -174,6 +388,36 @@ pub fn resolve(repo_path: &str) -> GitTarget {
     }
 
     GitTarget::native(repo_path)
+}
+
+/// Installed WSL distro names (`wsl.exe -l -q`), for the per-repo target picker.
+/// Empty off Windows or when WSL isn't present. `wsl.exe` emits UTF-16LE.
+pub fn wsl_distros() -> Vec<String> {
+    #[cfg(windows)]
+    {
+        let mut cmd = Command::new("wsl.exe");
+        no_window(&mut cmd);
+        let Ok(out) = cmd.args(["-l", "-q"]).output() else {
+            return Vec::new();
+        };
+        if !out.status.success() {
+            return Vec::new();
+        }
+        let utf16: Vec<u16> = out
+            .stdout
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        String::from_utf16_lossy(&utf16)
+            .lines()
+            .map(|l| l.trim().trim_matches('\0').trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect()
+    }
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
 }
 
 /// Launch an external app rooted at the repo `path`. `app` is one of "files"
@@ -311,7 +555,85 @@ fn parse_wsl_path(path: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_wsl_path;
+    use super::{map_target_value, parse_config_target, parse_wsl_path, pick_target, GitTarget};
+
+    #[test]
+    fn parses_glimpse_target_override() {
+        let cfg = "[core]\n\tbare = false\n[glimpse]\n\ttarget = native\n";
+        assert_eq!(parse_config_target(cfg).as_deref(), Some("native"));
+        // A path value survives intact.
+        let cfg = "[glimpse]\ntarget = /opt/git/bin/git\n";
+        assert_eq!(
+            parse_config_target(cfg).as_deref(),
+            Some("/opt/git/bin/git")
+        );
+        // No glimpse section, or no target, → None.
+        assert_eq!(parse_config_target("[core]\n\tbare = false\n"), None);
+        assert_eq!(parse_config_target("[glimpse]\n\tother = x\n"), None);
+    }
+
+    #[test]
+    fn pick_target_takes_the_highest_precedence_value() {
+        // A later (higher-precedence) blob overrides an earlier one.
+        assert_eq!(
+            pick_target([
+                "[glimpse]\ntarget = native\n",
+                "[glimpse]\ntarget = /opt/git\n"
+            ])
+            .as_deref(),
+            Some("/opt/git")
+        );
+        // An earlier value survives when later blobs set nothing.
+        assert_eq!(
+            pick_target(["[glimpse]\ntarget = native\n", "[core]\nbare = false\n"]).as_deref(),
+            Some("native")
+        );
+        // Nothing anywhere.
+        assert_eq!(pick_target(["[core]\nx = 1\n"]), None);
+        assert_eq!(pick_target(Vec::<&str>::new()), None);
+    }
+
+    #[test]
+    fn argv_is_the_single_invocation_command_and_describe_share() {
+        let native = GitTarget::native("/repo");
+        assert_eq!(
+            native.argv(&["switch", "--", "main"]).join(" "),
+            "git -c core.fsmonitor= -C /repo switch -- main"
+        );
+        // A WSL-shaped target: the prefix args precede the safety flag + repo.
+        let wsl = GitTarget {
+            program: "wsl.exe".into(),
+            prefix_args: vec!["-d".into(), "Ubuntu".into(), "--exec".into(), "git".into()],
+            repo_arg: "/home/u/r".into(),
+            flavor: "wsl",
+            distro: Some("Ubuntu".into()),
+        };
+        assert_eq!(
+            wsl.argv(&["status"]).join(" "),
+            "wsl.exe -d Ubuntu --exec git -c core.fsmonitor= -C /home/u/r status"
+        );
+        // describe() renders exactly the argv (with credential redaction), so the
+        // two consumers can't drift.
+        assert_eq!(
+            native.describe(&["status"]),
+            native.argv(&["status"]).join(" ")
+        );
+    }
+
+    #[test]
+    fn maps_target_value_to_a_git_target() {
+        // `native` forces native git, even for a \\wsl$ path.
+        let t = map_target_value("native", "/repo").expect("native → target");
+        assert!(t.distro.is_none());
+        // A path value becomes an explicit git binary.
+        let t = map_target_value("/opt/git/bin/git", "/repo").expect("path → target");
+        assert_eq!(t.program, "/opt/git/bin/git");
+        assert!(t.distro.is_none());
+        // `auto` / unknown / empty → no override (use the automatic decision).
+        assert!(map_target_value("auto", "/repo").is_none());
+        assert!(map_target_value("wat", "/repo").is_none());
+        assert!(map_target_value("", "/repo").is_none());
+    }
 
     #[test]
     fn parses_wsl_unc_path() {

@@ -608,6 +608,15 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Save a resolution built in the merge editor and stage the file.
+    async saveResolution({ file, content }: { file: string; content: string }) {
+      return this.mutate({
+        run: () =>
+          gitClient.resolveConflictSave({ path: this.repoPath, file, content }),
+        refresh: 'status'
+      });
+    },
+
     async createBranch(name: string) {
       const trimmed = name.trim();
       if (!trimmed) return;
@@ -618,19 +627,21 @@ export const useRepoStore = defineStore('repo', {
     },
 
     async deleteBranch(name: string) {
-      return this.native(async () => {
-        const ok = await useConfirm().confirm({
+      return this.native(async () =>
+        // The confirm dialog stays open with a busy button until the delete
+        // settles (action form of useConfirm).
+        useConfirm().confirm({
           titleKey: 'confirm.deleteBranch.title',
           descriptionKey: 'confirm.deleteBranch.description',
           confirmKey: 'branch.delete',
           params: { name },
-          destructive: true
-        });
-        if (!ok) return;
-        await this.mutate({
-          run: () => gitClient.deleteBranch({ path: this.repoPath, name })
-        });
-      });
+          destructive: true,
+          action: () =>
+            this.mutate({
+              run: () => gitClient.deleteBranch({ path: this.repoPath, name })
+            })
+        })
+      );
     },
 
     // Create a branch via a name prompt (replaces the inline sidebar input).
@@ -957,19 +968,9 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    // Tag a commit (prompts for the tag name).
-    async tagAt(hash: string) {
-      return this.native(async () => {
-        const name = await usePrompt().prompt({
-          titleKey: 'commit.tagHere',
-          labelKey: 'form.tag.label',
-          placeholderKey: 'form.tag.placeholder',
-          submitKey: 'form.create',
-          schema: tagNameSchema
-        });
-        if (!name) return;
-        await this.createTag({ name, hash });
-      });
+    // Tag a commit — opens the tag dialog (name + optional message / signing).
+    tagAt(hash: string) {
+      useTagCreate().show(hash);
     },
 
     // Invert a single commit. Reverting a merge prompts for the mainline parent
@@ -1111,26 +1112,47 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
-    // Create a tag on HEAD via a name prompt.
-    async createTagPrompt() {
-      return this.native(async () => {
-        const name = await usePrompt().prompt({
-          titleKey: 'sidebar.newTag',
-          labelKey: 'form.tag.label',
-          placeholderKey: 'form.tag.placeholder',
-          submitKey: 'form.create',
-          schema: tagNameSchema
-        });
-        if (name) await this.createTag({ name });
-      });
+    // Create a tag on HEAD — opens the tag dialog.
+    createTagPrompt() {
+      useTagCreate().show('');
     },
 
-    async createTag({ name, hash = '' }: { name: string; hash?: string }) {
+    async createTag({
+      name,
+      hash = '',
+      message = '',
+      sign = false
+    }: {
+      name: string;
+      hash?: string;
+      message?: string;
+      sign?: boolean;
+    }) {
       const trimmed = name.trim();
       if (!trimmed) return;
       return this.mutate({
         run: () =>
-          gitClient.createTag({ path: this.repoPath, name: trimmed, hash })
+          gitClient.createTag({
+            path: this.repoPath,
+            name: trimmed,
+            hash,
+            message: message.trim(),
+            sign
+          })
+      });
+    },
+
+    // Export a commit to a .patch file (the caller picks `dest` via a dialog).
+    async exportPatch({ hash, dest }: { hash: string; dest: string }) {
+      return this.native(() =>
+        gitClient.exportPatch({ path: this.repoPath, hash, dest })
+      );
+    },
+    // Apply a patch file (`git am`) and reload — a conflict surfaces as an error.
+    async applyPatch({ src }: { src: string }) {
+      return this.native(async () => {
+        await gitClient.applyPatch({ path: this.repoPath, src, mode: 'am' });
+        await this.loadFromBackend(this.active?.path);
       });
     },
 
@@ -1579,36 +1601,28 @@ export const useRepoStore = defineStore('repo', {
           if (this.active !== r) return;
 
           // Preserve the user's selection across a reload (e.g. on window
-          // focus) instead of jumping back to the first commit/file. Only fall
-          // back to a default selection on the initial load.
-          const keepCommit =
-            r.selectedHash && r.commits.some((c) => c.hash === r.selectedHash);
-          const keepFile =
-            !r.selectedHash &&
-            r.selectedFile &&
-            r.status.some((f) => f.path === r.selectedFile);
-
-          if (keepCommit) {
-            await this.selectCommit(r.selectedHash!);
-          } else if (keepFile) {
-            await this.selectFile({
-              file: r.selectedFile!,
-              staged: r.selectedFileStaged
-            });
-          } else {
-            // Open the first changed file (or the newest commit) by default.
-            const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
-            if (first) {
-              await this.selectFile({
-                file: first.path,
-                staged: !first.unstaged && !first.untracked
-              });
-            } else if (r.commits[0]) {
-              await this.selectCommit(r.commits[0].hash);
-            } else {
-              r.diff = null;
-            }
-          }
+          // focus) instead of jumping back to the first commit/file; fall back
+          // to a default only when the previous selection is gone. The decision
+          // lives in the pure restoreSelection strategy.
+          const first = this.unstagedFiles[0] ?? this.stagedFiles[0];
+          const target = restoreSelection({
+            prevHash: r.selectedHash,
+            prevFile: r.selectedFile,
+            prevFileStaged: r.selectedFileStaged,
+            commitHashes: r.commits.map((c) => c.hash),
+            statusPaths: r.status.map((f) => f.path),
+            defaultFile: first
+              ? {
+                  file: first.path,
+                  staged: !first.unstaged && !first.untracked
+                }
+              : null,
+            defaultHash: r.commits[0]?.hash ?? null
+          });
+          if (target.kind === 'commit') await this.selectCommit(target.hash);
+          else if (target.kind === 'file')
+            await this.selectFile({ file: target.file, staged: target.staged });
+          else r.diff = null;
 
           useRecentStore().push({ path: top, name: r.name });
           this.watchActive();

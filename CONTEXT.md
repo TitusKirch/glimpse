@@ -23,7 +23,11 @@ selected (its body + changed files) or a working-tree **file** is selected
 underlying fields (`selectedHash`, `selectedBody`, `selectedFile`,
 `selectedFileStaged`, `commitFiles`) directly — flat projections, because most
 readers want one field (which commit row is highlighted, which file to blame),
-not the whole pair.
+not the whole pair. After a reload the restore-or-default decision — keep the
+previous commit/file when it still exists, else a sensible default — lives in the
+pure `restoreSelection` strategy (`app/utils/selectionRestore.ts`), returning a
+`SelectionTarget` the store applies; that keeps the mutual-exclusion logic
+testable without running the whole `loadFromBackend`.
 
 **native**
 The single Native/Browser gate for repo-store effects. A store action wraps its
@@ -42,7 +46,12 @@ How `git` is reached for a repository, decided once per repo by
 `platform::resolve()`: native git by default, or — on Windows only, for a
 `\\wsl$` / `\\wsl.localhost` path — the distro's git via
 `wsl.exe -d <distro> --cd <linux-path> --exec git`. A `Repo` holds one resolved
-`GitTarget`, so the platform seam is touched in exactly one place.
+`GitTarget`, so the platform seam is touched in exactly one place. An explicit
+`glimpse.target` (`native` or a git binary path) overrides the automatic
+decision; resolve reads it from the git config _files_ in git's precedence order
+(system → XDG → `~/.gitconfig` → repo-local, later wins) via one reader —
+`resolve` runs before any git is chosen, so it can't shell out to `git config`
+the way the IPC `get_config` does.
 
 **ResetMode**
 The `git reset` variant: `soft`, `mixed`, or `hard`. A serde enum on the Rust
@@ -56,6 +65,26 @@ extension is unknown or that grammar isn't loaded), gated by `hljs.getLanguage`.
 The single source of truth for syntax highlighting across both the diff and
 blame views (`app/utils/highlight.ts`); `parseDiff` consumes it rather than
 keeping its own copy.
+
+**gitConfig**
+The mechanism for reading/writing a git config key at a scope through the active
+repo's git (or the default repo when none is open). Owns the routing path and the
+_inherit_ rule: at `local` scope an empty value clears the key (so the global
+value is inherited again), at `global` scope an empty value is left untouched
+(never wipe the global identity). The settings components keep their own UI state
+and i18n toasts; the load/save/inherit round-trips live once in `useGitConfig`
+(`app/composables/useGitConfig.ts`). A boolean override is three-valued in the UI
+— Inherit / On / Off — converted to/from the config string by `toTriState` /
+`triStateConfig` (`app/utils/triState.ts`).
+
+**repoOverride**
+The per-repo git override policy: the set of local keys an override owns
+(`REPO_OVERRIDE_KEYS`), the `glimpse.override` flag that records "this repo is
+customised", and the effective scope a per-repo-aware write lands in. One home
+(`app/composables/useRepoOverride.ts`) — RepositoryPage's master switch, the
+commit box and the `gitConfig` conventional-commits writer consult it instead of
+restating the key list or re-reading the flag. Turning the override off clears the
+flag and every key in the set, so the repo falls back to global.
 
 **recent list / moveToFront**
 A persisted, most-recent-first, de-duplicated, capped list — used for recently
