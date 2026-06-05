@@ -435,7 +435,7 @@ onMounted(autoResize);
             <UiTooltipTrigger as-child>
               <UiButton
                 type="button"
-                :variant="ccEnabled ? 'secondary' : 'ghost'"
+                variant="ghost"
                 size="icon-sm"
                 icon="lucide:braces"
                 icon-size="sm"
