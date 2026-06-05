@@ -91,9 +91,9 @@ async function toggle(on: boolean) {
         />
       </SettingsRow>
 
-      <p v-if="!override" class="text-sm text-muted-foreground">
-        {{ t('settings.repository.usesGlobal') }}
-      </p>
+      <UiAlert v-if="!override" variant="info">
+        <p class="min-w-0">{{ t('settings.repository.usesGlobal') }}</p>
+      </UiAlert>
       <template v-else>
         <SettingsGitIdentity scope="local" />
         <SettingsGitSigning scope="local" />

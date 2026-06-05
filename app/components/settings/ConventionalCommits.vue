@@ -15,6 +15,8 @@ const repo = useRepoStore();
 const isGlobal = computed(() => props.scope === 'global');
 const enabled = ref(false); // global on/off
 const mode = ref<'inherit' | 'on' | 'off'>('inherit'); // local tri-state
+// Shared effective state so the commit box reflects a change here immediately.
+const cc = useConventionalCommits();
 
 async function routingPath() {
   return repo.active?.path ?? (await gitClient.defaultRepo());
@@ -46,16 +48,20 @@ function fail(e: unknown) {
   });
 }
 
-function toggle(on: boolean) {
+async function toggle(on: boolean) {
   enabled.value = on;
-  gitClient
-    .setConfig({
-      path: repo.active?.path ?? '',
+  cc.enabled.value = on; // optimistic — the commit box reacts at once
+  try {
+    await gitClient.setConfig({
+      path: await routingPath(),
       key: 'glimpse.conventionalCommits',
       value: on ? 'true' : 'false',
       global: true
-    })
-    .catch(fail);
+    });
+    await cc.load();
+  } catch (e) {
+    fail(e);
+  }
 }
 
 async function setMode(v: 'inherit' | 'on' | 'off') {
@@ -72,6 +78,7 @@ async function setMode(v: 'inherit' | 'on' | 'off') {
         global: false
       });
     }
+    await cc.load();
   } catch (e) {
     fail(e);
   }

@@ -70,40 +70,15 @@ const ccType = ref('feat');
 const ccScope = ref('');
 const ccBreaking = ref(false);
 
-// The composer's on/off lives in git config (glimpse.conventionalCommits):
-// effective for the active repo (local override, else global). The braces button
-// writes the scope in effect — local when this repo overrides globals.
-const ccEnabled = ref(false);
-
-async function loadConventional() {
-  if (!isTauri() || !repo.active) return;
-  ccEnabled.value =
-    (await gitClient.getConfig({
-      path: repo.active.path,
-      key: 'glimpse.conventionalCommits',
-      scope: ''
-    })) === 'true';
-}
+// On/off is shared, git-config-backed state (see useConventionalCommits) so the
+// settings toggle and this commit box stay in sync live.
+const {
+  enabled: ccEnabled,
+  load: loadConventional,
+  set: setConventional
+} = useConventionalCommits();
 onMounted(loadConventional);
 watch(() => repo.active?.path, loadConventional);
-
-async function toggleConventional() {
-  ccEnabled.value = !ccEnabled.value;
-  if (!isTauri() || !repo.active) return;
-  const path = repo.active.path;
-  const overriding =
-    (await gitClient.getConfig({
-      path,
-      key: 'glimpse.override',
-      scope: 'local'
-    })) === 'true';
-  await gitClient.setConfig({
-    path,
-    key: 'glimpse.conventionalCommits',
-    value: ccEnabled.value ? 'true' : 'false',
-    global: !overriding
-  });
-}
 
 function applyConventional() {
   repo.commitMessage = applyConventionalPrefix(repo.commitMessage, {
@@ -456,15 +431,22 @@ onMounted(autoResize);
             />
             <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
           </label>
-          <button
-            type="button"
-            class="text-muted-foreground transition-colors hover:text-foreground"
-            :class="ccEnabled && 'text-primary'"
-            :title="t('changes.conventional.toggle')"
-            @click="toggleConventional()"
-          >
-            <NuxtIcon name="lucide:braces" class="size-4" />
-          </button>
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                type="button"
+                :variant="ccEnabled ? 'secondary' : 'ghost'"
+                size="icon-sm"
+                icon="lucide:braces"
+                icon-size="sm"
+                :class="ccEnabled && 'text-primary'"
+                @click="setConventional(!ccEnabled)"
+              />
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{
+              t('changes.conventional.toggle')
+            }}</UiTooltipContent>
+          </UiTooltip>
         </div>
         <UiKbd>{{ modLabel }}+↵</UiKbd>
       </div>
