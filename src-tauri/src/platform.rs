@@ -51,28 +51,40 @@ impl GitTarget {
         }
     }
 
-    /// Build a `Command` running `git <args...>` against this target's repo.
+    /// The exact argv a git call runs: the program, any WSL/prefix args, the
+    /// defense-in-depth `-c core.fsmonitor=`, `-C <repo>`, then the subcommand
+    /// args. The single definition of the invocation — both `command`
+    /// (execution) and `describe` (the error string) build from it, so the two
+    /// can't drift, and the invocation is unit-testable without running git.
+    ///
+    /// `-c core.fsmonitor=` is defense in depth: a repository we merely inspect
+    /// must not run code through its own config. `core.fsmonitor` would otherwise
+    /// be executed by `git status` (run on every open), turning "open a repo"
+    /// into code execution; a command-line `-c` overrides repo and global config,
+    /// and disabling fsmonitor has no correctness impact on glimpse. (Diff/show
+    /// additionally pass `--no-ext-diff --no-textconv` at their call sites.)
+    pub fn argv(&self, args: &[&str]) -> Vec<String> {
+        let mut argv = vec![self.program.clone()];
+        argv.extend(self.prefix_args.iter().cloned());
+        argv.push("-c".into());
+        argv.push("core.fsmonitor=".into());
+        argv.push("-C".into());
+        argv.push(self.repo_arg.clone());
+        argv.extend(args.iter().map(|a| (*a).to_string()));
+        argv
+    }
+
+    /// Build a `Command` for `argv`. GIT_OPTIONAL_LOCKS=0 keeps read-only
+    /// commands (the watcher's repeated `git status`) off the optional index.lock
+    /// so they don't race a concurrent write ("Unable to create '…/index.lock':
+    /// File exists"). Native git reads it from the host env; the WSL target also
+    /// injects it inside the distro via `env` (host env doesn't cross wsl.exe).
     pub fn command(&self, args: &[&str]) -> Command {
-        let mut cmd = Command::new(&self.program);
+        let argv = self.argv(args);
+        let mut cmd = Command::new(&argv[0]);
         no_window(&mut cmd);
-        // Keep read-only commands (notably the watcher's repeated `git status`)
-        // from grabbing the *optional* index.lock, which would otherwise race a
-        // concurrent write and fail with "Unable to create '…/index.lock':
-        // File exists". Native git reads this from the host env; the WSL target
-        // also injects it inside the distro via `env` (host env doesn't cross
-        // the wsl.exe boundary), so set it here for the native case.
         cmd.env("GIT_OPTIONAL_LOCKS", "0");
-        cmd.args(&self.prefix_args);
-        // Defense in depth: a repository we merely inspect must not be able to
-        // run code through its own config. `core.fsmonitor` would otherwise be
-        // executed by `git status` (the command run on every open), turning
-        // "open a repo" into code execution. A command-line `-c` overrides repo
-        // and global config, and disabling fsmonitor has no correctness impact
-        // on glimpse (it never relies on it). Diff/show additionally pass
-        // `--no-ext-diff --no-textconv` at their call sites for the same reason.
-        cmd.arg("-c").arg("core.fsmonitor=");
-        cmd.arg("-C").arg(&self.repo_arg);
-        cmd.args(args);
+        cmd.args(&argv[1..]);
         cmd
     }
 
@@ -91,18 +103,17 @@ impl GitTarget {
         }
     }
 
-    /// The exact argv [`command`] would run, as a single string — appended to
-    /// error messages so a failing invocation (especially the WSL path) is
-    /// visible to the user instead of just git's bare stderr. Credentials
-    /// embedded in a remote URL (`https://user:token@host/…`) are redacted so a
-    /// failed `add_remote`/`fetch` doesn't echo a secret into a UI toast.
+    /// The invocation [`command`] runs, as a single string for error messages —
+    /// the failing argv (especially the WSL path) shown to the user instead of
+    /// just git's bare stderr. Credentials embedded in a remote URL
+    /// (`https://user:token@host/…`) are redacted so a failed `add_remote`/`fetch`
+    /// doesn't echo a secret into a UI toast.
     pub fn describe(&self, args: &[&str]) -> String {
-        let mut parts = vec![self.program.clone()];
-        parts.extend(self.prefix_args.iter().cloned());
-        parts.push("-C".into());
-        parts.push(self.repo_arg.clone());
-        parts.extend(args.iter().map(|a| redact_credentials(a)));
-        parts.join(" ")
+        self.argv(args)
+            .iter()
+            .map(|a| redact_credentials(a))
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     /// Read a working-tree file's content (native fs, or `cat` inside WSL).
@@ -544,7 +555,7 @@ fn parse_wsl_path(path: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{map_target_value, parse_config_target, parse_wsl_path, pick_target};
+    use super::{map_target_value, parse_config_target, parse_wsl_path, pick_target, GitTarget};
 
     #[test]
     fn parses_glimpse_target_override() {
@@ -580,6 +591,33 @@ mod tests {
         // Nothing anywhere.
         assert_eq!(pick_target(["[core]\nx = 1\n"]), None);
         assert_eq!(pick_target(Vec::<&str>::new()), None);
+    }
+
+    #[test]
+    fn argv_is_the_single_invocation_command_and_describe_share() {
+        let native = GitTarget::native("/repo");
+        assert_eq!(
+            native.argv(&["switch", "--", "main"]).join(" "),
+            "git -c core.fsmonitor= -C /repo switch -- main"
+        );
+        // A WSL-shaped target: the prefix args precede the safety flag + repo.
+        let wsl = GitTarget {
+            program: "wsl.exe".into(),
+            prefix_args: vec!["-d".into(), "Ubuntu".into(), "--exec".into(), "git".into()],
+            repo_arg: "/home/u/r".into(),
+            flavor: "wsl",
+            distro: Some("Ubuntu".into()),
+        };
+        assert_eq!(
+            wsl.argv(&["status"]).join(" "),
+            "wsl.exe -d Ubuntu --exec git -c core.fsmonitor= -C /home/u/r status"
+        );
+        // describe() renders exactly the argv (with credential redaction), so the
+        // two consumers can't drift.
+        assert_eq!(
+            native.describe(&["status"]),
+            native.argv(&["status"]).join(" ")
+        );
     }
 
     #[test]
