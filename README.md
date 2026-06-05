@@ -45,13 +45,13 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 
 - **Repositories** — open a local folder, clone a remote, or initialise a new repository.
 - **Viewing** — multi-branch commit graph, commit search by message or content (pickaxe `-S`/`-G`), side-by-side / unified / whole-file diffs with syntax highlighting, word-level diff, collapsible unchanged regions and soft word-wrap, image diffs (side-by-side / onion-skin), ignore-whitespace, blame, file history, list/tree file view, compare any two refs or two selected commits, repository statistics (contributors / activity / churn), GPG/SSH signature verification status, Git LFS-tracked files flagged.
-- **Staging & commits** — stage / unstage by file, hunk, or line, discard by file or hunk, discard all, commit, `commit --amend`, optional GPG/SSH commit signing, an opt-in conventional-commit composer, conflict resolution (use ours/theirs, mark resolved, or a region-by-region three-way merge editor).
+- **Staging & commits** — stage / unstage by file, hunk, or line, discard by file or hunk, discard all, commit, `commit --amend`, optional GPG/SSH commit signing, an opt-in conventional-commit composer (toggleable globally or per repo), conflict resolution (use ours/theirs, mark resolved, or a region-by-region three-way merge editor).
 - **Branches & tags** — create / switch / rename / delete branches, branch from a commit, publish (set upstream), merge in either direction, create / delete / push tags (lightweight, annotated, or signed), checkout a commit (detached HEAD).
 - **History rewriting** — cherry-pick / revert (one or many commits, incl. merge reverts), reset (soft / mixed / hard), rebase onto another ref or interactively (reword / squash / fixup / drop / reorder), guided bisect, reflog recovery view with undo-last-action, export commits as `.patch` and apply patches (`am` / `apply`).
 - **Stash** — save (selected paths, optionally including untracked), pop, apply, drop, preview contents.
 - **Worktrees, submodules & sparse-checkout** — list / add / remove / open linked worktrees, list / update / sync submodules, enable / disable and edit sparse-checkout paths.
 - **Remotes & sync** — add / rename / remove remotes, fetch, pull (incl. rebase, with per-pull strategy), push (set-upstream, `--force-with-lease`), push tags.
-- **Identity, signing & auth** — effective git identity per repo (WSL-aware, environment-labelled), commit/tag signing config, per-repo git-target override (auto / native / WSL distro / explicit git path), SSH key & credential-helper status with one-click ed25519 generation.
+- **Git settings — global defaults, overridable per repo** — git identity, commit/tag signing, the git target (auto / native / WSL distro / explicit git path), the conventional-commit composer, and SSH keys & credential helper are all configured globally; a single per-repository switch overrides any of them — including which SSH key the repo authenticates with (`core.sshCommand`). WSL-aware and environment-labelled, with one-click ed25519 generation.
 - **App** — command palette, global fuzzy quick-open (files / branches / commits), keyboard shortcuts, drag-reorderable multi-repo tabs, resizable sidebar, recent repositories, open in editor / terminal / file manager, built-in auto-update.
 
 </details>
@@ -115,7 +115,7 @@ On Windows it picks the right git **per repository**:
 - a **Windows path** (e.g. `C:\dev\repo`) → Windows `git`;
 - a **WSL path** (`\\wsl$\<distro>\…` / `\\wsl.localhost\<distro>\…`) → that distro's git, via `wsl.exe -d <distro> --cd <linux-path> --exec git …`.
 
-A per-repo override (**Settings → Git target**) can pin this to native git, a specific WSL distro, or an explicit git binary. Because Windows git and WSL git read **separate** global configs, the Git-identity panel shows the *effective* identity for each repo's environment and warns when none resolves; signing and SSH-key/credential-helper status are likewise read from the environment git actually runs in.
+The git target is a **global default** (auto by default) that **Settings → Repository** can override per repo — pinning a single repository to native git, a specific WSL distro, or an explicit git binary. Because Windows git and WSL git read **separate** global configs, the Git-identity panel shows the *effective* identity for each repo's environment; signing and SSH-key/credential-helper status are likewise read from the environment git actually runs in.
 
 On Linux and macOS git is simply native — there is no WSL concept. Live refresh over the `\\wsl$` 9P share is best-effort; the manual + on-focus refresh covers the rest.
 
