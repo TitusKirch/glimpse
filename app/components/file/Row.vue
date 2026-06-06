@@ -44,7 +44,7 @@ const dir = computed(() => {
   <div
     role="button"
     tabindex="0"
-    class="group flex w-full items-center gap-2 rounded-md py-1 pr-2 text-left transition-colors hover:bg-accent/60"
+    class="group flex w-full select-none items-center gap-2 rounded-md py-1 pr-2 text-left transition-colors hover:bg-accent/60"
     :class="active && 'bg-accent'"
     :style="indentStyle"
     :title="path"
