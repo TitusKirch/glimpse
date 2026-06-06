@@ -377,6 +377,7 @@ export const useRepoStore = defineStore('repo', {
 
     async selectCommit(hash: string) {
       const r = this.active;
+      if (!r) return;
       this.multiSel = [];
       r.selectedHash = hash;
       r.selectedBody = await gitClient.commitBody({ path: r.path, hash });
@@ -511,18 +512,24 @@ export const useRepoStore = defineStore('repo', {
 
     async stage(file: string) {
       return this.native(async () => {
-        await gitClient.stage({ path: this.repoPath, file });
-        await this.loadStatus();
-        if (this.active.selectedFile === file)
+        // Capture the target so a tab close/switch during the awaits can't make
+        // `this.active` undefined (crash) or land on the wrong tab.
+        const r = this.active;
+        if (!r) return;
+        await gitClient.stage({ path: r.path, file });
+        await this.loadStatus(r);
+        if (this.active === r && r.selectedFile === file)
           await this.selectFile({ file, staged: true });
       });
     },
 
     async unstage(file: string) {
       return this.native(async () => {
-        await gitClient.unstage({ path: this.repoPath, file });
-        await this.loadStatus();
-        if (this.active.selectedFile === file)
+        const r = this.active;
+        if (!r) return;
+        await gitClient.unstage({ path: r.path, file });
+        await this.loadStatus(r);
+        if (this.active === r && r.selectedFile === file)
           await this.selectFile({ file, staged: false });
       });
     },
@@ -562,9 +569,11 @@ export const useRepoStore = defineStore('repo', {
       return this.mutate({
         refresh: 'none',
         run: async () => {
-          await gitClient.discard({ path: this.repoPath, file, untracked });
-          await this.loadStatus();
-          if (this.active.selectedFile === file) this.active.diff = null;
+          const r = this.active;
+          if (!r) return;
+          await gitClient.discard({ path: r.path, file, untracked });
+          await this.loadStatus(r);
+          if (this.active === r && r.selectedFile === file) r.diff = null;
         }
       });
     },
