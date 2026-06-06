@@ -31,7 +31,8 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipContent>{{ t('sidebar.newBranch') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <UiSidebarMenu>
+    <SidebarSectionSkeleton v-if="repo.loading && !repo.branches.length" />
+    <UiSidebarMenu v-else>
       <SidebarBranchItem
         v-for="b in branchesMore.visible.value"
         :key="b.name"

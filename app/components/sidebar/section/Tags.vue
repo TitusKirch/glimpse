@@ -31,7 +31,8 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipContent>{{ t('sidebar.newTag') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <UiSidebarMenu>
+    <SidebarSectionSkeleton v-if="repo.loading && !repo.tags.length" />
+    <UiSidebarMenu v-else>
       <SidebarTagItem
         v-for="tag in tagsMore.visible.value"
         :key="tag"

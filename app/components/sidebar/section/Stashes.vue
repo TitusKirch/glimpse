@@ -23,13 +23,8 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipContent>{{ t('sidebar.stashPush') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <p
-      v-if="!repo.stashes.length"
-      class="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
-    >
-      {{ t('sidebar.noStashes') }}
-    </p>
-    <UiSidebarMenu>
+    <SidebarSectionSkeleton v-if="repo.loading && !repo.stashes.length" />
+    <UiSidebarMenu v-else>
       <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
         <UiSidebarMenuButton
           :tooltip="s.message"

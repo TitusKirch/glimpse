@@ -23,7 +23,8 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipContent>{{ t('sidebar.addRemote') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <UiSidebarMenu>
+    <SidebarSectionSkeleton v-if="repo.loading && !repo.remotes.length" />
+    <UiSidebarMenu v-else>
       <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
         <UiSidebarMenuButton :tooltip="r">
           <NuxtIcon name="lucide:cloud" class="shrink-0" />
