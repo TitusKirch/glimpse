@@ -71,6 +71,11 @@ export interface RepoState {
   // False until this tab's git data has been fetched. Restored tabs start as
   // unloaded placeholders and lazy-load on first activation.
   loaded: boolean;
+  // True while the tab's platform (flavor/distro) is being probed — drives the
+  // tab-icon spinner so a WSL tab shows a spinner, never the wrong-distro
+  // penguin, until its real distro is known (resolved in the background for
+  // placeholders that haven't been activated yet).
+  resolving: boolean;
   // True while a rebase is paused (e.g. on a conflict) — drives the rebase
   // banner with continue / skip / abort.
   rebaseInProgress: boolean;
@@ -105,6 +110,7 @@ function demoRepo(): RepoState {
     commitFiles: [],
     diff: gitMock.diff,
     loaded: true,
+    resolving: false,
     rebaseInProgress: false,
     bisectInProgress: false
   };
@@ -120,6 +126,10 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     // badge before it loads; corrected from real git output on load.
     flavor: /^[\\/]{2}wsl/i.test(path) ? 'wsl' : 'linux',
     distro: undefined,
+    // A WSL placeholder's distro isn't known until probed — spin its icon until
+    // then (resolved on activation or in the background) instead of flashing the
+    // generic penguin. Non-WSL tabs show no distro icon, so they never spin.
+    resolving: /^[\\/]{2}wsl/i.test(path),
     branches: [],
     remoteBranches: [],
     currentBranch: '',
@@ -145,6 +155,10 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
 // on the async `info` resolve and create a duplicate tab. Chaining them makes
 // each open see the tabs the previous one created.
 let openChain: Promise<unknown> = Promise.resolve();
+
+// Tab ids whose platform metadata is being probed in the background, so two
+// loads don't both fetch `info` for the same placeholder.
+const resolvingPlatform = new Set<string>();
 
 // A stash is referenced as `stash@{N}`. It needs stash-specific diff commands —
 // being a merge commit, `git show` would yield an unusable combined diff.
@@ -340,6 +354,9 @@ export const useRepoStore = defineStore('repo', {
           this.tabs.find((t) => t.path === activePath) ?? this.tabs[0];
         if (target) await this.selectTab(target.id);
         this.syncSession();
+        // First repo is loaded — settle the other tabs' platform icons in the
+        // background so they don't spin until the user clicks each one.
+        void this.resolveTabPlatforms();
       });
     },
 
@@ -1616,6 +1633,9 @@ export const useRepoStore = defineStore('repo', {
           r.path = top;
           r.flavor = (info.flavor as GitFlavor) ?? 'linux';
           r.distro = info.distro ?? undefined;
+          // Platform is known now — settle the tab icon before the heavier log/
+          // status load finishes.
+          r.resolving = false;
           r.branches = info.branches;
           r.remoteBranches = info.remoteBranches;
           r.currentBranch = info.currentBranch;
@@ -1668,7 +1688,42 @@ export const useRepoStore = defineStore('repo', {
           console.error('loadFromBackend failed:', err);
         } finally {
           this.loading = false;
+          // Stop the icon spinner even when the probe failed or the tab was
+          // switched away mid-load, so it never spins forever.
+          r.resolving = false;
         }
+      });
+    },
+
+    // Settle the platform (flavor/distro) for WSL placeholder tabs that haven't
+    // been activated yet, so their tab icon resolves in the background instead
+    // of spinning until the user clicks the tab. Metadata only — the full repo
+    // load still happens lazily on first activation.
+    async resolveTabPlatforms() {
+      return this.native(async () => {
+        const pending = this.tabs.filter(
+          (r) => r.resolving && !r.loaded && !resolvingPlatform.has(r.id)
+        );
+        await Promise.all(
+          pending.map(async (r) => {
+            resolvingPlatform.add(r.id);
+            try {
+              const info = await gitClient.info(r.path);
+              // Apply only if a full load hasn't already overtaken this probe.
+              const tab = this.repos[r.id];
+              if (tab && !tab.loaded) {
+                tab.flavor = (info.flavor as GitFlavor) ?? tab.flavor;
+                tab.distro = info.distro ?? undefined;
+              }
+            } catch {
+              // Best effort: a real activation will surface any error inline.
+            } finally {
+              const tab = this.repos[r.id];
+              if (tab) tab.resolving = false;
+              resolvingPlatform.delete(r.id);
+            }
+          })
+        );
       });
     }
   }

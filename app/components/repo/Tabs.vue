@@ -29,16 +29,10 @@ function distroIcon(distro?: string): string {
   return 'simple-icons:linux';
 }
 
-// While a freshly opened WSL tab is still resolving (distro not known, not yet
-// loaded), show a spinner instead of flashing the generic penguin before the
-// real distro icon arrives.
-function isResolvingDistro(tab: RepoState): boolean {
-  return !tab.distro && !tab.loaded;
-}
+// While a WSL tab is still resolving its distro, show a spinner instead of
+// flashing the generic penguin before the real distro icon arrives.
 function tabDistroIcon(tab: RepoState): string {
-  return isResolvingDistro(tab)
-    ? 'lucide:loader-circle'
-    : distroIcon(tab.distro);
+  return tab.resolving ? 'lucide:loader-circle' : distroIcon(tab.distro);
 }
 
 // Reorder via SortableJS (vuedraggable). `forceFallback` makes it drive the drag
@@ -83,11 +77,18 @@ function onReorder(tabs: RepoState[]) {
           <span>{{ tab.name }}</span>
           <UiTooltip v-if="tab.flavor === 'wsl'">
             <UiTooltipTrigger as-child>
-              <NuxtIcon
-                :name="tabDistroIcon(tab)"
-                class="size-3.5 shrink-0 text-muted-foreground"
-                :class="isResolvingDistro(tab) && 'animate-spin'"
-              />
+              <!-- Fixed-size, non-rotating wrapper is the tooltip anchor: a
+                   spinning icon's bounding box oscillates, which would make the
+                   tooltip jitter up/down during the rotation. -->
+              <span
+                class="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground"
+              >
+                <NuxtIcon
+                  :name="tabDistroIcon(tab)"
+                  class="size-3.5"
+                  :class="tab.resolving && 'animate-spin'"
+                />
+              </span>
             </UiTooltipTrigger>
             <UiTooltipContent>{{
               tab.distro
