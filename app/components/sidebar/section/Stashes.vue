@@ -14,6 +14,7 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
+            :aria-label="t('sidebar.stashPush')"
             @click="onActivate(() => stashOverlay.show())"
           >
             <NuxtIcon name="lucide:archive" class="shrink-0" />

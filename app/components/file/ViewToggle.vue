@@ -15,6 +15,7 @@ const { t } = useI18n();
           class="size-6"
           icon="lucide:list"
           icon-size="sm"
+          :aria-label="t('fileView.list')"
           @click="settings.setFileView('list')"
         />
       </UiTooltipTrigger>
@@ -28,6 +29,7 @@ const { t } = useI18n();
           class="size-6"
           icon="lucide:folder-tree"
           icon-size="sm"
+          :aria-label="t('fileView.tree')"
           @click="settings.setFileView('tree')"
         />
       </UiTooltipTrigger>

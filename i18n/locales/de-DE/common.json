@@ -30,7 +30,10 @@
     "openRepo": "Repository öffnen",
     "closeRepo": "Repository schließen",
     "initRepo": "Repository initialisieren",
-    "cloneRepo": "Repository klonen"
+    "cloneRepo": "Repository klonen",
+    "swap": "Tauschen",
+    "more": "Weitere Aktionen",
+    "copy": "Kopieren"
   },
   "theme": {
     "toggle": "Theme umschalten"
@@ -311,6 +314,8 @@
     "description": "Commits neu anordnen, umbenennen, zusammenführen (squash/fixup) oder verwerfen und dann den Rebase ausführen.",
     "publishedWarning": "Diese Commits liegen bereits auf einem Remote — sie umzuschreiben erfordert einen Force-Push.",
     "empty": "Keine Commits zum Rebasen.",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten",
     "messagePlaceholder": "Neue Commit-Nachricht",
     "run": "Rebase starten",
     "action": {

@@ -157,6 +157,7 @@ function refVariant(ref: string) {
               variant="ghost"
               size="icon-sm"
               icon="lucide:regex"
+              :aria-label="t('history.regex')"
               :class="regex && 'text-primary'"
               @click="toggleRegex"
             />
@@ -169,6 +170,7 @@ function refVariant(ref: string) {
               variant="ghost"
               size="icon-sm"
               icon="lucide:file-search"
+              :aria-label="t('history.contentSearch')"
               :class="content && 'text-primary'"
               @click="toggleContent"
             />

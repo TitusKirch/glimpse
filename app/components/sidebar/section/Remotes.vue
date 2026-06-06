@@ -14,6 +14,7 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
+            :aria-label="t('sidebar.addRemote')"
             @click="onActivate(() => remoteDialog.show())"
           >
             <NuxtIcon name="lucide:plus" class="shrink-0" />

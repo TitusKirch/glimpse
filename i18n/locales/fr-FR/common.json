@@ -30,7 +30,10 @@
     "openRepo": "Ouvrir un dépôt",
     "closeRepo": "Fermer le dépôt",
     "initRepo": "Initialiser un dépôt",
-    "cloneRepo": "Cloner un dépôt"
+    "cloneRepo": "Cloner un dépôt",
+    "swap": "Inverser",
+    "more": "Plus d'actions",
+    "copy": "Copier"
   },
   "theme": {
     "toggle": "Changer de thème"
@@ -311,6 +314,8 @@
     "description": "Réordonnez, reformulez, fusionnez (squash/fixup) ou supprimez des commits, puis lancez le rebase.",
     "publishedWarning": "Ces commits sont déjà sur un dépôt distant — les réécrire nécessitera un push forcé.",
     "empty": "Aucun commit à rebaser.",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
     "messagePlaceholder": "Nouveau message de commit",
     "run": "Lancer le rebase",
     "action": {

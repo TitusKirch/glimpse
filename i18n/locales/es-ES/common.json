@@ -30,7 +30,10 @@
     "openRepo": "Abrir repositorio",
     "closeRepo": "Cerrar repositorio",
     "initRepo": "Inicializar repositorio",
-    "cloneRepo": "Clonar repositorio"
+    "cloneRepo": "Clonar repositorio",
+    "swap": "Intercambiar",
+    "more": "Más acciones",
+    "copy": "Copiar"
   },
   "theme": {
     "toggle": "Cambiar tema"
@@ -311,6 +314,8 @@
     "description": "Reordena, reescribe, combina (squash/fixup) o descarta commits y luego ejecuta el rebase.",
     "publishedWarning": "Estos commits ya están en un remoto: reescribirlos requerirá un push forzado.",
     "empty": "No hay commits para rebasar.",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
     "messagePlaceholder": "Nuevo mensaje de commit",
     "run": "Iniciar rebase",
     "action": {

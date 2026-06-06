@@ -30,7 +30,10 @@
     "openRepo": "Open repository",
     "closeRepo": "Close repository",
     "initRepo": "Initialise repository",
-    "cloneRepo": "Clone repository"
+    "cloneRepo": "Clone repository",
+    "swap": "Swap",
+    "more": "More actions",
+    "copy": "Copy"
   },
   "theme": {
     "toggle": "Toggle theme"
@@ -311,6 +314,8 @@
     "description": "Reorder, reword, squash, fixup, or drop commits, then run the rebase.",
     "publishedWarning": "These commits are already on a remote — rewriting them will require a force-push.",
     "empty": "No commits to rebase.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
     "messagePlaceholder": "New commit message",
     "run": "Start rebase",
     "action": {

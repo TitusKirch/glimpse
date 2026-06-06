@@ -106,12 +106,18 @@ function swap() {
               </UiSelectItem>
             </UiSelectContent>
           </UiSelect>
-          <UiButton
-            variant="ghost"
-            size="icon-sm"
-            icon="lucide:arrow-right-left"
-            @click="swap"
-          />
+          <UiTooltip>
+            <UiTooltipTrigger as-child>
+              <UiButton
+                variant="ghost"
+                size="icon-sm"
+                icon="lucide:arrow-right-left"
+                :aria-label="t('actions.swap')"
+                @click="swap"
+              />
+            </UiTooltipTrigger>
+            <UiTooltipContent>{{ t('actions.swap') }}</UiTooltipContent>
+          </UiTooltip>
           <UiSelect
             :model-value="to"
             @update:model-value="(v) => (to = v as string)"

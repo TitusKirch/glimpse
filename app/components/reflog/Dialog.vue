@@ -70,6 +70,7 @@ async function checkout(hash: string) {
                 size="icon-sm"
                 icon="lucide:ellipsis"
                 class="shrink-0"
+                :aria-label="t('actions.more')"
               />
             </UiDropdownMenuTrigger>
             <UiDropdownMenuContent align="end">

@@ -14,6 +14,7 @@ function toggle() {
         variant="ghost"
         size="icon"
         :icon="colorMode.value === 'dark' ? 'lucide:moon' : 'lucide:sun'"
+        :aria-label="t('theme.toggle')"
         @click="toggle"
       />
     </UiTooltipTrigger>

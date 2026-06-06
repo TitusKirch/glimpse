@@ -22,6 +22,7 @@ const { open: actionTip, onActivate } = useDismissableTooltip();
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
+            :aria-label="t('sidebar.newTag')"
             @click="onActivate(() => repo.createTagPrompt())"
           >
             <NuxtIcon name="lucide:tag" class="shrink-0" />

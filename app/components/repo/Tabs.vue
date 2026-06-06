@@ -105,6 +105,7 @@ function onReorder(tabs: RepoState[]) {
           size="icon"
           class="size-7"
           icon="lucide:plus"
+          :aria-label="t('actions.openRepo')"
           @click="onOpenRepo(() => openRepoDialog.show())"
         />
       </UiTooltipTrigger>

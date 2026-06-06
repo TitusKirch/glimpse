@@ -119,6 +119,7 @@ async function run() {
                 variant="ghost"
                 size="icon-sm"
                 icon="lucide:chevron-up"
+                :aria-label="t('rebasePlan.moveUp')"
                 :disabled="i === 0"
                 @click="move(i, -1)"
               />
@@ -126,6 +127,7 @@ async function run() {
                 variant="ghost"
                 size="icon-sm"
                 icon="lucide:chevron-down"
+                :aria-label="t('rebasePlan.moveDown')"
                 :disabled="i === rows.length - 1"
                 @click="move(i, 1)"
               />
