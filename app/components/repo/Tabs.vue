@@ -7,8 +7,13 @@ const openRepoDialog = useOverlay('openRepo');
 const { t } = useI18n();
 
 // Dismiss the "+" button's tooltip as the open-repo dialog appears, so it
-// doesn't linger on the focused trigger over the dialog.
-const { open: openRepoTip, onActivate: onOpenRepo } = useDismissableTooltip();
+// doesn't linger (or reappear on focus-return) over the dialog.
+const {
+  open: openRepoTip,
+  onOpenChange: onOpenRepoTipChange,
+  hover: openRepoHover,
+  onActivate: onOpenRepo
+} = useDismissableTooltip();
 
 // Suppress tooltips (e.g. a tab's WSL-distro tooltip) while a tab reorder drag
 // is in flight, so the pointer sweeping over tabs doesn't pop them mid-drag.
@@ -112,7 +117,7 @@ function onReorder(tabs: RepoState[]) {
       </template>
     </draggable>
 
-    <UiTooltip v-model:open="openRepoTip">
+    <UiTooltip :open="openRepoTip" @update:open="onOpenRepoTipChange">
       <UiTooltipTrigger as-child>
         <UiButton
           variant="ghost"
@@ -120,6 +125,7 @@ function onReorder(tabs: RepoState[]) {
           class="size-7"
           icon="lucide:plus"
           :aria-label="t('actions.openRepo')"
+          v-bind="openRepoHover"
           @click="onOpenRepo(() => openRepoDialog.show())"
         />
       </UiTooltipTrigger>

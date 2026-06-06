@@ -4,17 +4,23 @@ const remoteDialog = useOverlay('remote');
 const { t } = useI18n();
 
 // Dismiss the action's tooltip as the dialog opens (it otherwise sticks over it).
-const { open: actionTip, onActivate } = useDismissableTooltip();
+const {
+  open: actionTip,
+  onOpenChange: onActionTipChange,
+  hover: actionHover,
+  onActivate
+} = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="remotes" :label="t('sidebar.remotes')">
     <template #action>
-      <UiTooltip v-model:open="actionTip">
+      <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
             :aria-label="t('sidebar.addRemote')"
+            v-bind="actionHover"
             @click="onActivate(() => remoteDialog.show())"
           >
             <NuxtIcon name="lucide:plus" class="shrink-0" />

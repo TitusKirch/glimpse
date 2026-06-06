@@ -12,17 +12,23 @@ const isCollapsed = computed(
 const branchesMore = useSidebarMore({ items: () => repo.branches });
 
 // Dismiss the action's tooltip as the prompt opens (it otherwise sticks over it).
-const { open: actionTip, onActivate } = useDismissableTooltip();
+const {
+  open: actionTip,
+  onOpenChange: onActionTipChange,
+  hover: actionHover,
+  onActivate
+} = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="branches" :label="t('sidebar.branches')">
     <template #action>
-      <UiTooltip v-model:open="actionTip">
+      <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
             :aria-label="t('sidebar.newBranch')"
+            v-bind="actionHover"
             @click="onActivate(() => repo.createBranchPrompt())"
           >
             <NuxtIcon name="lucide:git-branch-plus" class="shrink-0" />

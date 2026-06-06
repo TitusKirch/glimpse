@@ -4,17 +4,23 @@ const stashOverlay = useOverlay('stash');
 const { t } = useI18n();
 
 // Dismiss the action's tooltip as the overlay opens (it otherwise sticks over it).
-const { open: actionTip, onActivate } = useDismissableTooltip();
+const {
+  open: actionTip,
+  onOpenChange: onActionTipChange,
+  hover: actionHover,
+  onActivate
+} = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="stashes" :label="t('sidebar.stashes')">
     <template #action>
-      <UiTooltip v-model:open="actionTip">
+      <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
             :aria-label="t('sidebar.stashPush')"
+            v-bind="actionHover"
             @click="onActivate(() => stashOverlay.show())"
           >
             <NuxtIcon name="lucide:archive" class="shrink-0" />
