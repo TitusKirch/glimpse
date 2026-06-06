@@ -2,16 +2,19 @@
 const repo = useRepoStore();
 const remoteDialog = useOverlay('remote');
 const { t } = useI18n();
+
+// Dismiss the action's tooltip as the dialog opens (it otherwise sticks over it).
+const { open: actionTip, onActivate } = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="remotes" :label="t('sidebar.remotes')">
     <template #action>
-      <UiTooltip>
+      <UiTooltip v-model:open="actionTip">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
-            @click="remoteDialog.show()"
+            @click="onActivate(() => remoteDialog.show())"
           >
             <NuxtIcon name="lucide:plus" class="shrink-0" />
           </UiSidebarGroupAction>

@@ -2,16 +2,19 @@
 const repo = useRepoStore();
 const stashOverlay = useOverlay('stash');
 const { t } = useI18n();
+
+// Dismiss the action's tooltip as the overlay opens (it otherwise sticks over it).
+const { open: actionTip, onActivate } = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="stashes" :label="t('sidebar.stashes')">
     <template #action>
-      <UiTooltip>
+      <UiTooltip v-model:open="actionTip">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
-            @click="stashOverlay.show()"
+            @click="onActivate(() => stashOverlay.show())"
           >
             <NuxtIcon name="lucide:archive" class="shrink-0" />
           </UiSidebarGroupAction>

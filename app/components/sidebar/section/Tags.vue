@@ -10,16 +10,19 @@ const isCollapsed = computed(
 );
 
 const tagsMore = useSidebarMore({ items: () => repo.tags });
+
+// Dismiss the action's tooltip as the prompt opens (it otherwise sticks over it).
+const { open: actionTip, onActivate } = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="tags" :label="t('sidebar.tags')">
     <template #action>
-      <UiTooltip>
+      <UiTooltip v-model:open="actionTip">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
-            @click="repo.createTagPrompt()"
+            @click="onActivate(() => repo.createTagPrompt())"
           >
             <NuxtIcon name="lucide:tag" class="shrink-0" />
           </UiSidebarGroupAction>
