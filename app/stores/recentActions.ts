@@ -19,13 +19,14 @@ export const useRecentActionsStore = defineStore('recentActions', {
     // Record a use of `id`: drop any existing entry (no duplicates), prepend it
     // with a fresh timestamp so it bubbles to the top, then trim to the
     // configured maximum (Settings → General → Recent). Shares the
-    // move-to-front/dedup/trim core with the recent-repos list.
+    // move-to-front/dedup/trim core with the recent-repos list; the cap lives on
+    // the settings store.
     record(id: string) {
       this.actions = moveToFront({
         list: this.actions,
         item: { id, at: Date.now() },
         key: (a) => a.id,
-        max: useLayoutStore().recentActionsMax
+        max: useSettingsStore().recentActionsMax
       });
     },
     remove(id: string) {

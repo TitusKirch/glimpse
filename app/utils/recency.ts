@@ -3,7 +3,7 @@
 // store-free, so it is the test surface and every recency list (recent repos,
 // recently-used command-palette actions) reuses one implementation instead of
 // each store restating the move-to-front/dedup/trim algorithm. The cap policy
-// stays with the caller (the layout store), passed in as `max`.
+// stays with the caller (the settings store), passed in as `max`.
 
 export function moveToFront<T>({
   list,
