@@ -629,10 +629,11 @@ const recentReposInSearch = computed(() =>
             @select="run(() => repo.openRepo(r.path))"
           >
             <NuxtIcon name="lucide:history" />
-            <span class="min-w-0 flex-1 truncate">{{ r.name }}</span>
-            <span class="ml-2 truncate text-xs text-muted-foreground">{{
-              r.path
-            }}</span>
+            <span class="min-w-0 truncate">{{ r.name }}</span>
+            <span
+              class="ml-2 min-w-0 flex-1 truncate text-xs text-muted-foreground"
+              >{{ r.path }}</span
+            >
           </UiCommandItem>
         </UiCommandGroup>
       </template>
