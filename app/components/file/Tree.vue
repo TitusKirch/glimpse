@@ -152,7 +152,7 @@ const rows = computed<Row[]>(() => {
         v-if="r.kind === 'dir'"
         role="button"
         tabindex="0"
-        class="flex w-full cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-muted-foreground transition-colors hover:bg-accent/60"
+        class="flex w-full cursor-pointer select-none items-center gap-1 rounded-md py-1 pr-2 text-left text-muted-foreground transition-colors hover:bg-accent/60"
         :style="{ paddingLeft: `${0.5 + r.depth * 0.75}rem` }"
         @click="toggle(r.path)"
         @keydown.enter="toggle(r.path)"

@@ -45,12 +45,11 @@ const maxChurn = computed(() => churn.value[0]?.changes || 1);
       <div v-if="loading" class="space-y-3 py-2">
         <UiSkeleton v-for="n in 6" :key="n" class="h-6" />
       </div>
-      <p
+      <EmptyState
         v-else-if="!data || !data.totalCommits"
-        class="py-6 text-center text-sm text-muted-foreground"
-      >
-        {{ t('stats.empty') }}
-      </p>
+        icon="lucide:chart-column"
+        :title="t('stats.empty')"
+      />
       <div v-else class="max-h-[65vh] space-y-6 overflow-auto pr-1">
         <p class="text-sm">
           <span class="text-2xl font-semibold">{{ data.totalCommits }}</span>

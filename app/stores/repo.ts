@@ -71,6 +71,11 @@ export interface RepoState {
   // False until this tab's git data has been fetched. Restored tabs start as
   // unloaded placeholders and lazy-load on first activation.
   loaded: boolean;
+  // True while the tab's platform (flavor/distro) is being probed — drives the
+  // tab-icon spinner so a WSL tab shows a spinner, never the wrong-distro
+  // penguin, until its real distro is known (resolved in the background for
+  // placeholders that haven't been activated yet).
+  resolving: boolean;
   // True while a rebase is paused (e.g. on a conflict) — drives the rebase
   // banner with continue / skip / abort.
   rebaseInProgress: boolean;
@@ -105,6 +110,7 @@ function demoRepo(): RepoState {
     commitFiles: [],
     diff: gitMock.diff,
     loaded: true,
+    resolving: false,
     rebaseInProgress: false,
     bisectInProgress: false
   };
@@ -120,6 +126,10 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     // badge before it loads; corrected from real git output on load.
     flavor: /^[\\/]{2}wsl/i.test(path) ? 'wsl' : 'linux',
     distro: undefined,
+    // A WSL placeholder's distro isn't known until probed — spin its icon until
+    // then (resolved on activation or in the background) instead of flashing the
+    // generic penguin. Non-WSL tabs show no distro icon, so they never spin.
+    resolving: /^[\\/]{2}wsl/i.test(path),
     branches: [],
     remoteBranches: [],
     currentBranch: '',
@@ -145,6 +155,10 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
 // on the async `info` resolve and create a duplicate tab. Chaining them makes
 // each open see the tabs the previous one created.
 let openChain: Promise<unknown> = Promise.resolve();
+
+// Tab ids whose platform metadata is being probed in the background, so two
+// loads don't both fetch `info` for the same placeholder.
+const resolvingPlatform = new Set<string>();
 
 // A stash is referenced as `stash@{N}`. It needs stash-specific diff commands —
 // being a merge commit, `git show` would yield an unusable combined diff.
@@ -340,6 +354,9 @@ export const useRepoStore = defineStore('repo', {
           this.tabs.find((t) => t.path === activePath) ?? this.tabs[0];
         if (target) await this.selectTab(target.id);
         this.syncSession();
+        // First repo is loaded — settle the other tabs' platform icons in the
+        // background so they don't spin until the user clicks each one.
+        void this.resolveTabPlatforms();
       });
     },
 
@@ -377,6 +394,7 @@ export const useRepoStore = defineStore('repo', {
 
     async selectCommit(hash: string) {
       const r = this.active;
+      if (!r) return;
       this.multiSel = [];
       r.selectedHash = hash;
       r.selectedBody = await gitClient.commitBody({ path: r.path, hash });
@@ -511,18 +529,24 @@ export const useRepoStore = defineStore('repo', {
 
     async stage(file: string) {
       return this.native(async () => {
-        await gitClient.stage({ path: this.repoPath, file });
-        await this.loadStatus();
-        if (this.active.selectedFile === file)
+        // Capture the target so a tab close/switch during the awaits can't make
+        // `this.active` undefined (crash) or land on the wrong tab.
+        const r = this.active;
+        if (!r) return;
+        await gitClient.stage({ path: r.path, file });
+        await this.loadStatus(r);
+        if (this.active === r && r.selectedFile === file)
           await this.selectFile({ file, staged: true });
       });
     },
 
     async unstage(file: string) {
       return this.native(async () => {
-        await gitClient.unstage({ path: this.repoPath, file });
-        await this.loadStatus();
-        if (this.active.selectedFile === file)
+        const r = this.active;
+        if (!r) return;
+        await gitClient.unstage({ path: r.path, file });
+        await this.loadStatus(r);
+        if (this.active === r && r.selectedFile === file)
           await this.selectFile({ file, staged: false });
       });
     },
@@ -562,9 +586,11 @@ export const useRepoStore = defineStore('repo', {
       return this.mutate({
         refresh: 'none',
         run: async () => {
-          await gitClient.discard({ path: this.repoPath, file, untracked });
-          await this.loadStatus();
-          if (this.active.selectedFile === file) this.active.diff = null;
+          const r = this.active;
+          if (!r) return;
+          await gitClient.discard({ path: r.path, file, untracked });
+          await this.loadStatus(r);
+          if (this.active === r && r.selectedFile === file) r.diff = null;
         }
       });
     },
@@ -1535,18 +1561,38 @@ export const useRepoStore = defineStore('repo', {
             this.selectTab(known.id);
             return;
           }
-          const top = (await gitClient.info(path)).toplevel || path;
-          const existing = this.tabs.find((r) => r.path === top);
+          // Pop a provisional tab immediately at the requested path so opening
+          // feels instant; its toplevel/flavor/distro are reconciled below from
+          // a single `info` probe (the tab icon shows a spinner until then,
+          // never the wrong-distro penguin).
+          this.seq += 1;
+          const id = `r${this.seq}`;
+          this.repos[id] = blankRepo({ id, path });
+          this.order.push(id);
+          this.activeId = id;
+
+          let info: RepoInfo;
+          try {
+            info = await gitClient.info(path);
+          } catch (err) {
+            // The probe failed (not a repo / unreadable): drop the provisional
+            // tab and let `guarded` surface the error.
+            this.closeRepo(id);
+            throw err;
+          }
+          const top = info.toplevel || path;
+
+          // Toplevel dedup: opening a subdir of an already-open repo focuses the
+          // existing tab and discards the provisional one.
+          const existing = this.tabs.find((r) => r.id !== id && r.path === top);
           if (existing) {
+            this.closeRepo(id);
             this.selectTab(existing.id);
             return;
           }
-          this.seq += 1;
-          const id = `r${this.seq}`;
-          this.repos[id] = blankRepo({ id, path: top });
-          this.order.push(id);
-          this.activeId = id;
-          await this.loadFromBackend(top);
+          // The user may have closed the provisional tab during the probe.
+          if (!this.repos[id]) return;
+          await this.loadFromBackend(top, { info, target: this.repos[id] });
           this.syncSession();
         })
       );
@@ -1559,27 +1605,37 @@ export const useRepoStore = defineStore('repo', {
 
     // Load real git output into the active repo. Without a path it resolves the
     // process CWD (initial open); with one it (re)loads that repo's tab.
-    async loadFromBackend(path?: string) {
+    // `opts.target` writes into a specific tab instead of whatever is active now
+    // (used by `doOpenRepo`, whose provisional tab may not stay active across
+    // the load); `opts.info` feeds an already-fetched probe so the open path
+    // doesn't pay for a second `info` round-trip.
+    async loadFromBackend(
+      path?: string,
+      opts?: { info?: RepoInfo; target?: RepoState }
+    ) {
       // Capture the target repo SYNCHRONOUSLY, before any await. The active tab
       // can change while we're loading (the user switches/opens another repo),
       // and this load's result must land in the repo it was started for — not
       // whatever happens to be active when the awaits resolve. Reading
       // `this.active` lazily after an await is what let one project's data leak
       // into another's tab.
-      const r = this.active;
+      const r = opts?.target ?? this.active;
       if (!r) return;
       return this.native(async () => {
         this.loading = true;
         this.loadError = null;
         try {
           const start = path ?? (await gitClient.defaultRepo());
-          const info = await gitClient.info(start);
+          const info = opts?.info ?? (await gitClient.info(start));
           const top = info.toplevel || start;
 
           r.name = top.split(/[\\/]/).pop() || 'repo';
           r.path = top;
           r.flavor = (info.flavor as GitFlavor) ?? 'linux';
           r.distro = info.distro ?? undefined;
+          // Platform is known now — settle the tab icon before the heavier log/
+          // status load finishes.
+          r.resolving = false;
           r.branches = info.branches;
           r.remoteBranches = info.remoteBranches;
           r.currentBranch = info.currentBranch;
@@ -1632,7 +1688,42 @@ export const useRepoStore = defineStore('repo', {
           console.error('loadFromBackend failed:', err);
         } finally {
           this.loading = false;
+          // Stop the icon spinner even when the probe failed or the tab was
+          // switched away mid-load, so it never spins forever.
+          r.resolving = false;
         }
+      });
+    },
+
+    // Settle the platform (flavor/distro) for WSL placeholder tabs that haven't
+    // been activated yet, so their tab icon resolves in the background instead
+    // of spinning until the user clicks the tab. Metadata only — the full repo
+    // load still happens lazily on first activation.
+    async resolveTabPlatforms() {
+      return this.native(async () => {
+        const pending = this.tabs.filter(
+          (r) => r.resolving && !r.loaded && !resolvingPlatform.has(r.id)
+        );
+        await Promise.all(
+          pending.map(async (r) => {
+            resolvingPlatform.add(r.id);
+            try {
+              const info = await gitClient.info(r.path);
+              // Apply only if a full load hasn't already overtaken this probe.
+              const tab = this.repos[r.id];
+              if (tab && !tab.loaded) {
+                tab.flavor = (info.flavor as GitFlavor) ?? tab.flavor;
+                tab.distro = info.distro ?? undefined;
+              }
+            } catch {
+              // Best effort: a real activation will surface any error inline.
+            } finally {
+              const tab = this.repos[r.id];
+              if (tab) tab.resolving = false;
+              resolvingPlatform.delete(r.id);
+            }
+          })
+        );
       });
     }
   }

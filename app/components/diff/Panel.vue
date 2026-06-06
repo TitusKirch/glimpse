@@ -89,6 +89,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
                 variant="ghost"
                 size="icon-sm"
                 icon="lucide:user-round-search"
+                :aria-label="t('diff.blame')"
                 :class="blame && 'text-primary'"
                 @click="blame = !blame"
               />
@@ -101,6 +102,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
                 variant="ghost"
                 size="icon-sm"
                 icon="lucide:pilcrow"
+                :aria-label="t('diff.ignoreWhitespace')"
                 :class="layout.ignoreWhitespace && 'text-primary'"
                 @click="toggleWhitespace"
               />
@@ -115,6 +117,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
                 variant="ghost"
                 size="icon-sm"
                 icon="lucide:wrap-text"
+                :aria-label="t('diff.wrap')"
                 :class="settings.diffWrap && 'text-primary'"
                 @click="settings.toggleDiffWrap()"
               />
@@ -127,6 +130,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
                 variant="ghost"
                 size="icon-sm"
                 icon="lucide:history"
+                :aria-label="t('diff.fileHistory')"
                 @click="historyOpen = true"
               />
             </UiTooltipTrigger>
@@ -134,7 +138,12 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
           </UiTooltip>
           <UiDropdownMenu>
             <UiDropdownMenuTrigger as-child>
-              <UiButton variant="ghost" size="icon-sm" icon="lucide:copy" />
+              <UiButton
+                variant="ghost"
+                size="icon-sm"
+                icon="lucide:copy"
+                :aria-label="t('actions.copy')"
+              />
             </UiDropdownMenuTrigger>
             <UiDropdownMenuContent align="end">
               <UiDropdownMenuItem @click="copyPath">
@@ -203,6 +212,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
                   size="icon"
                   class="size-6"
                   icon="lucide:ellipsis"
+                  :aria-label="t('actions.more')"
                 />
               </UiDropdownMenuTrigger>
               <UiDropdownMenuContent align="end">

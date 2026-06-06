@@ -218,6 +218,7 @@ onMounted(autoResize);
                   class="size-5 opacity-0 group-hover:opacity-100"
                   icon="lucide:ellipsis"
                   icon-size="sm"
+                  :aria-label="t('actions.more')"
                   @click.stop
                 />
               </UiDropdownMenuTrigger>
@@ -277,6 +278,7 @@ onMounted(autoResize);
                   class="size-5 opacity-0 group-hover:opacity-100"
                   icon="lucide:minus"
                   icon-size="sm"
+                  :aria-label="t('changes.unstage')"
                   @click.stop="repo.unstage(file.path)"
                 />
               </UiTooltipTrigger>
@@ -302,6 +304,7 @@ onMounted(autoResize);
                 class="ml-auto size-5 opacity-0 group-hover/sec:opacity-100"
                 icon="lucide:undo-2"
                 icon-size="sm"
+                :aria-label="t('changes.discardAll')"
                 @click="repo.discardAll()"
               />
             </UiTooltipTrigger>
@@ -323,6 +326,7 @@ onMounted(autoResize);
                   class="size-5 opacity-0 group-hover:opacity-100"
                   icon="lucide:undo-2"
                   icon-size="sm"
+                  :aria-label="t('changes.discard')"
                   @click.stop="
                     repo.discard({ file: file.path, untracked: file.untracked })
                   "
@@ -338,6 +342,7 @@ onMounted(autoResize);
                   class="size-5 opacity-0 group-hover:opacity-100"
                   icon="lucide:plus"
                   icon-size="sm"
+                  :aria-label="t('changes.stage')"
                   @click.stop="repo.stage(file.path)"
                 />
               </UiTooltipTrigger>
@@ -439,6 +444,7 @@ onMounted(autoResize);
                 size="icon-sm"
                 icon="lucide:braces"
                 icon-size="sm"
+                :aria-label="t('changes.conventional.toggle')"
                 :class="ccEnabled && 'text-primary'"
                 @click="setConventional(!ccEnabled)"
               />

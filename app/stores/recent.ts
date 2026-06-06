@@ -16,13 +16,14 @@ export const useRecentStore = defineStore('recent', {
   actions: {
     // Move/insert `path` to the front (most-recent-first), de-duplicated, then
     // trim to the user-configured maximum (Settings → General → Recent). The
-    // move-to-front/dedup/trim mechanics live in the shared `moveToFront` core.
+    // move-to-front/dedup/trim mechanics live in the shared `moveToFront` core;
+    // the cap lives on the settings store.
     push({ path, name }: { path: string; name: string }) {
       this.repos = moveToFront({
         list: this.repos,
         item: { path, name },
         key: (r) => r.path,
-        max: useLayoutStore().recentReposMax
+        max: useSettingsStore().recentReposMax
       });
     },
     remove(path: string) {

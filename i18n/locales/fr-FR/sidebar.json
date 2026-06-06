@@ -13,7 +13,6 @@
     "stashPop": "Appliquer et supprimer",
     "stashApply": "Appliquer",
     "stashDrop": "Supprimer",
-    "noStashes": "Aucun stash",
     "addRemote": "Ajouter un remote",
     "remoteName": "nom (par ex. origin)",
     "remoteUrl": "URL du remote",

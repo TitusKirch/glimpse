@@ -93,9 +93,11 @@ function stateVariant(s: string) {
       <div v-if="loading" class="space-y-2">
         <UiSkeleton v-for="n in 3" :key="n" class="h-9" />
       </div>
-      <p v-else-if="!subs.length" class="py-4 text-sm text-muted-foreground">
-        {{ t('submodule.empty') }}
-      </p>
+      <EmptyState
+        v-else-if="!subs.length"
+        icon="lucide:box"
+        :title="t('submodule.empty')"
+      />
       <ul v-else class="max-h-[55vh] space-y-1 overflow-auto">
         <li
           v-for="s in subs"

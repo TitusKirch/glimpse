@@ -2,16 +2,26 @@
 const repo = useRepoStore();
 const stashOverlay = useOverlay('stash');
 const { t } = useI18n();
+
+// Dismiss the action's tooltip as the overlay opens (it otherwise sticks over it).
+const {
+  open: actionTip,
+  onOpenChange: onActionTipChange,
+  hover: actionHover,
+  onActivate
+} = useDismissableTooltip();
 </script>
 
 <template>
   <SidebarSection section-id="stashes" :label="t('sidebar.stashes')">
     <template #action>
-      <UiTooltip>
+      <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
           <UiSidebarGroupAction
             class="size-6 cursor-pointer"
-            @click="stashOverlay.show()"
+            :aria-label="t('sidebar.stashPush')"
+            v-bind="actionHover"
+            @click="onActivate(() => stashOverlay.show())"
           >
             <NuxtIcon name="lucide:archive" class="shrink-0" />
           </UiSidebarGroupAction>
@@ -19,13 +29,8 @@ const { t } = useI18n();
         <UiTooltipContent>{{ t('sidebar.stashPush') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <p
-      v-if="!repo.stashes.length"
-      class="px-2 py-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
-    >
-      {{ t('sidebar.noStashes') }}
-    </p>
-    <UiSidebarMenu>
+    <SidebarSectionSkeleton v-if="repo.loading && !repo.stashes.length" />
+    <UiSidebarMenu v-else>
       <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
         <UiSidebarMenuButton
           :tooltip="s.message"

@@ -6,6 +6,15 @@ const repo = useRepoStore();
 const openRepoDialog = useOverlay('openRepo');
 const { t } = useI18n();
 
+// Dismiss the "+" button's tooltip as the open-repo dialog appears, so it
+// doesn't linger (or reappear on focus-return) over the dialog.
+const {
+  open: openRepoTip,
+  onOpenChange: onOpenRepoTipChange,
+  hover: openRepoHover,
+  onActivate: onOpenRepo
+} = useDismissableTooltip();
+
 // Suppress tooltips (e.g. a tab's WSL-distro tooltip) while a tab reorder drag
 // is in flight, so the pointer sweeping over tabs doesn't pop them mid-drag.
 const { startReorder, endReorder } = useDragReorder();
@@ -23,6 +32,12 @@ function distroIcon(distro?: string): string {
   if (d.includes('alpine')) return 'simple-icons:alpinelinux';
   if (d.includes('mint')) return 'simple-icons:linuxmint';
   return 'simple-icons:linux';
+}
+
+// While a WSL tab is still resolving its distro, show a spinner instead of
+// flashing the generic penguin before the real distro icon arrives.
+function tabDistroIcon(tab: RepoState): string {
+  return tab.resolving ? 'lucide:loader-circle' : distroIcon(tab.distro);
 }
 
 // Reorder via SortableJS (vuedraggable). `forceFallback` makes it drive the drag
@@ -67,10 +82,18 @@ function onReorder(tabs: RepoState[]) {
           <span>{{ tab.name }}</span>
           <UiTooltip v-if="tab.flavor === 'wsl'">
             <UiTooltipTrigger as-child>
-              <NuxtIcon
-                :name="distroIcon(tab.distro)"
-                class="size-3.5 shrink-0 text-muted-foreground"
-              />
+              <!-- Fixed-size, non-rotating wrapper is the tooltip anchor: a
+                   spinning icon's bounding box oscillates, which would make the
+                   tooltip jitter up/down during the rotation. -->
+              <span
+                class="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground"
+              >
+                <NuxtIcon
+                  :name="tabDistroIcon(tab)"
+                  class="size-3.5"
+                  :class="tab.resolving && 'animate-spin'"
+                />
+              </span>
             </UiTooltipTrigger>
             <UiTooltipContent>{{
               tab.distro
@@ -94,14 +117,16 @@ function onReorder(tabs: RepoState[]) {
       </template>
     </draggable>
 
-    <UiTooltip>
+    <UiTooltip :open="openRepoTip" @update:open="onOpenRepoTipChange">
       <UiTooltipTrigger as-child>
         <UiButton
           variant="ghost"
           size="icon"
           class="size-7"
           icon="lucide:plus"
-          @click="openRepoDialog.show()"
+          :aria-label="t('actions.openRepo')"
+          v-bind="openRepoHover"
+          @click="onOpenRepo(() => openRepoDialog.show())"
         />
       </UiTooltipTrigger>
       <UiTooltipContent>{{ t('actions.openRepo') }}</UiTooltipContent>

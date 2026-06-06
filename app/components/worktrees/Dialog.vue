@@ -136,6 +136,7 @@ function subtitle(w: Worktree): string {
             size="icon-sm"
             class="text-destructive hover:text-destructive"
             icon="lucide:trash-2"
+            :aria-label="t('worktree.remove')"
             @click="remove(w.path)"
           />
         </li>

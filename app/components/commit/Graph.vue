@@ -157,6 +157,7 @@ function refVariant(ref: string) {
               variant="ghost"
               size="icon-sm"
               icon="lucide:regex"
+              :aria-label="t('history.regex')"
               :class="regex && 'text-primary'"
               @click="toggleRegex"
             />
@@ -169,6 +170,7 @@ function refVariant(ref: string) {
               variant="ghost"
               size="icon-sm"
               icon="lucide:file-search"
+              :aria-label="t('history.contentSearch')"
               :class="content && 'text-primary'"
               @click="toggleContent"
             />
@@ -179,7 +181,7 @@ function refVariant(ref: string) {
     </div>
 
     <!-- filtered flat list -->
-    <div v-if="query" class="min-h-0 flex-1 overflow-auto">
+    <div v-if="query" class="min-h-0 flex-1 overflow-auto select-none">
       <EmptyState
         v-if="!results.length"
         icon="lucide:search-x"
@@ -212,7 +214,11 @@ function refVariant(ref: string) {
     </div>
 
     <!-- graph (virtualized rows + full-height SVG lane overlay) -->
-    <div ref="scrollEl" v-else class="relative min-h-0 flex-1 overflow-auto">
+    <div
+      ref="scrollEl"
+      v-else
+      class="relative min-h-0 flex-1 overflow-auto select-none"
+    >
       <div class="relative" :style="{ height: layout.height + 'px' }">
         <!-- lane lines + nodes — kept above the rows so a selected/hovered
              row's background never hides the lanes -->

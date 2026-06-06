@@ -45,12 +45,11 @@ async function checkout(hash: string) {
       <div v-if="loading" class="space-y-2 py-2">
         <UiSkeleton v-for="n in 8" :key="n" class="h-7" />
       </div>
-      <p
+      <EmptyState
         v-else-if="!entries.length"
-        class="py-6 text-center text-sm text-muted-foreground"
-      >
-        {{ t('reflog.empty') }}
-      </p>
+        icon="lucide:history"
+        :title="t('reflog.empty')"
+      />
       <ul v-else class="max-h-[60vh] space-y-0.5 overflow-auto">
         <li
           v-for="e in entries"
@@ -71,6 +70,7 @@ async function checkout(hash: string) {
                 size="icon-sm"
                 icon="lucide:ellipsis"
                 class="shrink-0"
+                :aria-label="t('actions.more')"
               />
             </UiDropdownMenuTrigger>
             <UiDropdownMenuContent align="end">
