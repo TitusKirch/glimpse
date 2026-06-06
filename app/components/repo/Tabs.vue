@@ -29,6 +29,18 @@ function distroIcon(distro?: string): string {
   return 'simple-icons:linux';
 }
 
+// While a freshly opened WSL tab is still resolving (distro not known, not yet
+// loaded), show a spinner instead of flashing the generic penguin before the
+// real distro icon arrives.
+function isResolvingDistro(tab: RepoState): boolean {
+  return !tab.distro && !tab.loaded;
+}
+function tabDistroIcon(tab: RepoState): string {
+  return isResolvingDistro(tab)
+    ? 'lucide:loader-circle'
+    : distroIcon(tab.distro);
+}
+
 // Reorder via SortableJS (vuedraggable). `forceFallback` makes it drive the drag
 // with its own pointer-based fallback instead of the native HTML5 Drag-and-Drop
 // API. SortableJS uses native DnD by default, but the Windows WebView2 release
@@ -72,8 +84,9 @@ function onReorder(tabs: RepoState[]) {
           <UiTooltip v-if="tab.flavor === 'wsl'">
             <UiTooltipTrigger as-child>
               <NuxtIcon
-                :name="distroIcon(tab.distro)"
+                :name="tabDistroIcon(tab)"
                 class="size-3.5 shrink-0 text-muted-foreground"
+                :class="isResolvingDistro(tab) && 'animate-spin'"
               />
             </UiTooltipTrigger>
             <UiTooltipContent>{{

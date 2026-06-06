@@ -1544,18 +1544,38 @@ export const useRepoStore = defineStore('repo', {
             this.selectTab(known.id);
             return;
           }
-          const top = (await gitClient.info(path)).toplevel || path;
-          const existing = this.tabs.find((r) => r.path === top);
+          // Pop a provisional tab immediately at the requested path so opening
+          // feels instant; its toplevel/flavor/distro are reconciled below from
+          // a single `info` probe (the tab icon shows a spinner until then,
+          // never the wrong-distro penguin).
+          this.seq += 1;
+          const id = `r${this.seq}`;
+          this.repos[id] = blankRepo({ id, path });
+          this.order.push(id);
+          this.activeId = id;
+
+          let info: RepoInfo;
+          try {
+            info = await gitClient.info(path);
+          } catch (err) {
+            // The probe failed (not a repo / unreadable): drop the provisional
+            // tab and let `guarded` surface the error.
+            this.closeRepo(id);
+            throw err;
+          }
+          const top = info.toplevel || path;
+
+          // Toplevel dedup: opening a subdir of an already-open repo focuses the
+          // existing tab and discards the provisional one.
+          const existing = this.tabs.find((r) => r.id !== id && r.path === top);
           if (existing) {
+            this.closeRepo(id);
             this.selectTab(existing.id);
             return;
           }
-          this.seq += 1;
-          const id = `r${this.seq}`;
-          this.repos[id] = blankRepo({ id, path: top });
-          this.order.push(id);
-          this.activeId = id;
-          await this.loadFromBackend(top);
+          // The user may have closed the provisional tab during the probe.
+          if (!this.repos[id]) return;
+          await this.loadFromBackend(top, { info, target: this.repos[id] });
           this.syncSession();
         })
       );
@@ -1568,21 +1588,28 @@ export const useRepoStore = defineStore('repo', {
 
     // Load real git output into the active repo. Without a path it resolves the
     // process CWD (initial open); with one it (re)loads that repo's tab.
-    async loadFromBackend(path?: string) {
+    // `opts.target` writes into a specific tab instead of whatever is active now
+    // (used by `doOpenRepo`, whose provisional tab may not stay active across
+    // the load); `opts.info` feeds an already-fetched probe so the open path
+    // doesn't pay for a second `info` round-trip.
+    async loadFromBackend(
+      path?: string,
+      opts?: { info?: RepoInfo; target?: RepoState }
+    ) {
       // Capture the target repo SYNCHRONOUSLY, before any await. The active tab
       // can change while we're loading (the user switches/opens another repo),
       // and this load's result must land in the repo it was started for — not
       // whatever happens to be active when the awaits resolve. Reading
       // `this.active` lazily after an await is what let one project's data leak
       // into another's tab.
-      const r = this.active;
+      const r = opts?.target ?? this.active;
       if (!r) return;
       return this.native(async () => {
         this.loading = true;
         this.loadError = null;
         try {
           const start = path ?? (await gitClient.defaultRepo());
-          const info = await gitClient.info(start);
+          const info = opts?.info ?? (await gitClient.info(start));
           const top = info.toplevel || start;
 
           r.name = top.split(/[\\/]/).pop() || 'repo';
