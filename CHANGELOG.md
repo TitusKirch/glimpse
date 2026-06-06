@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.11.0](https://github.com/TitusKirch/glimpse/compare/v0.10.0...v0.11.0) (2026-06-06)
+
+
+### Features
+
+* **repo:** open repos instantly with the correct distro icon ([7c47f91](https://github.com/TitusKirch/glimpse/commit/7c47f91607b381175089336aa274c9578962a2fd)), closes [#89](https://github.com/TitusKirch/glimpse/issues/89)
+* **sidebar:** show per-section skeletons while loading ([c8d5052](https://github.com/TitusKirch/glimpse/commit/c8d50524d23db7152c3a07e9b54caf224ec0c476))
+
+
+### Bug Fixes
+
+* **a11y:** give icon-only buttons accessible names ([95a5a0b](https://github.com/TitusKirch/glimpse/commit/95a5a0b6a0c3f5f13a4309c6a8a600a6f3dcc8f4)), closes [#91](https://github.com/TitusKirch/glimpse/issues/91)
+* **command:** show the full repo name and trim the path in the recent list ([07e4192](https://github.com/TitusKirch/glimpse/commit/07e41920461e112ee6ae0cab22a426d5a02f78b1))
+* **recent:** read the recency cap from the settings store ([9ff50e6](https://github.com/TitusKirch/glimpse/commit/9ff50e6091ec56d417a6b75c1ecdd6fe8e1e67cc)), closes [#87](https://github.com/TitusKirch/glimpse/issues/87)
+* **repo:** guard this.active across awaits in stage/unstage/discard ([4ee2fd1](https://github.com/TitusKirch/glimpse/commit/4ee2fd1ebfaa755b764655a380b238d58ebade2f)), closes [#92](https://github.com/TitusKirch/glimpse/issues/92)
+* **repo:** resolve background tabs' distro and stop the icon spinner jitter ([01b4436](https://github.com/TitusKirch/glimpse/commit/01b4436bfec92ee824cc43dcac0c0c5f0036a57e))
+* **settings:** use a UiAlert info box for the Repository empty state ([e785b0f](https://github.com/TitusKirch/glimpse/commit/e785b0fef084823b75d7aac895023f2c1cd87138)), closes [#88](https://github.com/TitusKirch/glimpse/issues/88)
+* **ui:** dismiss tooltips when their button opens a dialog ([b64a9af](https://github.com/TitusKirch/glimpse/commit/b64a9afbf7271811de7a7ff603e67bc1f0661d7c)), closes [#86](https://github.com/TitusKirch/glimpse/issues/86)
+* **ui:** make read-only list rows non-selectable ([7d4ce54](https://github.com/TitusKirch/glimpse/commit/7d4ce546e990db1dfbc184233266649dbaff057f)), closes [#85](https://github.com/TitusKirch/glimpse/issues/85)
+* **ui:** stop dialog-button tooltips reappearing on focus return ([ec09d27](https://github.com/TitusKirch/glimpse/commit/ec09d27f49cf50ac55986730cb8cf473a1d759ad))
+
 ## [0.10.0](https://github.com/TitusKirch/glimpse/compare/v0.9.0...v0.10.0) (2026-06-05)
 
 
