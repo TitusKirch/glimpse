@@ -43,9 +43,9 @@ async function toggle(on: boolean) {
 
 <template>
   <section class="w-full space-y-8">
-    <p v-if="!repo.active" class="text-sm text-muted-foreground">
-      {{ t('settings.repository.noRepo') }}
-    </p>
+    <UiAlert v-if="!repo.active" variant="info">
+      <p class="min-w-0">{{ t('settings.repository.noRepo') }}</p>
+    </UiAlert>
     <template v-else>
       <SettingsRow
         label="settings.repository.override.label"
