@@ -305,6 +305,10 @@
         "label": "Anchura (px)",
         "hint": "Anchura de la barra lateral expandida, 192–512. Por defecto 256px."
       },
+      "hideEmptySections": {
+        "label": "Ocultar secciones vacías",
+        "hint": "Oculta las secciones de la barra lateral sin elementos en lugar de mostrar un marcador."
+      },
       "graphSection": "Grafo",
       "shortenDependabot": {
         "label": "Acortar ramas de Dependabot",

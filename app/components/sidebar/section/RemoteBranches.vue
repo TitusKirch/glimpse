@@ -18,11 +18,11 @@ const remoteBranchesMore = useSidebarMore({
   <SidebarSection
     section-id="remoteBranches"
     :label="t('sidebar.remoteBranches')"
+    :count="repo.remoteBranches.length"
+    :loading="repo.loading"
+    :empty-label="t('sidebar.noRemoteBranches')"
   >
-    <SidebarSectionSkeleton
-      v-if="repo.loading && !repo.remoteBranches.length"
-    />
-    <UiSidebarMenu v-else>
+    <UiSidebarMenu>
       <SidebarRemoteBranchItem
         v-for="rb in remoteBranchesMore.visible.value"
         :key="rb"

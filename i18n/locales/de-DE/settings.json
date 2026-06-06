@@ -305,6 +305,10 @@
         "label": "Breite (px)",
         "hint": "Breite der aufgeklappten Seitenleiste, 192–512. Standard 256px."
       },
+      "hideEmptySections": {
+        "label": "Leere Sektionen verstecken",
+        "hint": "Sidebar-Sektionen ohne Einträge ausblenden, statt einen Platzhalter zu zeigen."
+      },
       "graphSection": "Graph",
       "shortenDependabot": {
         "label": "Dependabot-Branches kürzen",

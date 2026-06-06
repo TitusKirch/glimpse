@@ -8,6 +8,14 @@ import { useSidebar } from '@/components/ui/sidebar';
 const props = defineProps<{
   sectionId: string;
   label: string;
+  // Item count + loading flag drive the section's placeholder states: a skeleton
+  // while loading-with-nothing-yet, and the `emptyLabel` "none yet" line once
+  // loaded with no items. Whether an empty section is shown at all is decided
+  // upstream in Sidebar.vue (the hide-empty-sections setting). Sections that omit
+  // `count` always render their slot.
+  count?: number;
+  loading?: boolean;
+  emptyLabel?: string;
 }>();
 
 const { t } = useI18n();
@@ -22,6 +30,17 @@ const collapsed = computed(() =>
   layout.sidebarCollapsedSections.includes(props.sectionId)
 );
 const editMode = computed(() => layout.sidebarEditMode && !isIcon.value);
+
+// Loading with nothing to show yet → skeleton (not on refresh, where items are
+// already present). Loaded with nothing → a "none yet" line. Whether an empty
+// section is shown at all is decided upstream (visibleSections), so here we just
+// render the placeholder when we are shown empty.
+const showSkeleton = computed(
+  () => props.count === 0 && props.loading === true
+);
+const showEmptyLabel = computed(
+  () => props.count === 0 && props.loading !== true && !!props.emptyLabel
+);
 </script>
 
 <template>
@@ -59,7 +78,14 @@ const editMode = computed(() => layout.sidebarEditMode && !isIcon.value);
     <slot name="action" />
 
     <UiSidebarGroupContent v-show="!collapsed || isIcon">
-      <slot />
+      <SidebarSectionSkeleton v-if="showSkeleton" />
+      <p
+        v-else-if="showEmptyLabel"
+        class="px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+      >
+        {{ emptyLabel }}
+      </p>
+      <slot v-else />
     </UiSidebarGroupContent>
   </UiSidebarGroup>
 </template>

@@ -13,7 +13,13 @@ const {
 </script>
 
 <template>
-  <SidebarSection section-id="remotes" :label="t('sidebar.remotes')">
+  <SidebarSection
+    section-id="remotes"
+    :label="t('sidebar.remotes')"
+    :count="repo.remotes.length"
+    :loading="repo.loading"
+    :empty-label="t('sidebar.noRemotes')"
+  >
     <template #action>
       <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
@@ -29,8 +35,7 @@ const {
         <UiTooltipContent>{{ t('sidebar.addRemote') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <SidebarSectionSkeleton v-if="repo.loading && !repo.remotes.length" />
-    <UiSidebarMenu v-else>
+    <UiSidebarMenu>
       <UiSidebarMenuItem v-for="r in repo.remotes" :key="r">
         <UiSidebarMenuButton :tooltip="r">
           <NuxtIcon name="lucide:cloud" class="shrink-0" />

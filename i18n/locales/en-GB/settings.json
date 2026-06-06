@@ -305,6 +305,10 @@
         "label": "Width (px)",
         "hint": "Expanded sidebar width, 192–512. Default 256px."
       },
+      "hideEmptySections": {
+        "label": "Hide empty sections",
+        "hint": "Hide sidebar sections that have no items, instead of showing a placeholder."
+      },
       "graphSection": "Graph",
       "shortenDependabot": {
         "label": "Shorten Dependabot branches",

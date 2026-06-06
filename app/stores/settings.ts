@@ -38,6 +38,9 @@ export interface SettingsValues {
   recentActionsInSearch: number;
   sidebarResizable: boolean;
   sidebarWidth: number;
+  // Hide sidebar sections (branches, remotes, …) that have no items, instead of
+  // showing a "none yet" placeholder. Off by default.
+  hideEmptySidebarSections: boolean;
   diffMode: DiffMode;
   // Soft-wrap long lines in the diff viewer (unified view).
   diffWrap: boolean;
@@ -137,6 +140,7 @@ export const useSettingsStore = defineStore('settings', {
     recentActionsInSearch: 6,
     sidebarResizable: true,
     sidebarWidth: 256,
+    hideEmptySidebarSections: false,
     diffMode: 'split',
     diffWrap: false,
     fileView: 'tree',

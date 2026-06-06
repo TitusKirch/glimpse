@@ -21,7 +21,13 @@ const {
 </script>
 
 <template>
-  <SidebarSection section-id="tags" :label="t('sidebar.tags')">
+  <SidebarSection
+    section-id="tags"
+    :label="t('sidebar.tags')"
+    :count="repo.tags.length"
+    :loading="repo.loading"
+    :empty-label="t('sidebar.noTags')"
+  >
     <template #action>
       <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
@@ -37,8 +43,7 @@ const {
         <UiTooltipContent>{{ t('sidebar.newTag') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <SidebarSectionSkeleton v-if="repo.loading && !repo.tags.length" />
-    <UiSidebarMenu v-else>
+    <UiSidebarMenu>
       <SidebarTagItem
         v-for="tag in tagsMore.visible.value"
         :key="tag"
