@@ -1317,6 +1317,22 @@ fn higher_update(
     }
 }
 
+/// Check one channel's feed for an update. A channel whose manifest isn't
+/// published yet — most often a beta whose `latest.json` is still being built and
+/// uploaded — makes the updater return `ReleaseNotFound` ("could not fetch a
+/// valid release JSON from the remote"). That's "nothing to offer yet", not a
+/// failure, so map it to `None` instead of surfacing a scary error to the user.
+#[cfg(desktop)]
+async fn check_feed(
+    updater: tauri_plugin_updater::Updater,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    match updater.check().await {
+        Ok(update) => Ok(update),
+        Err(tauri_plugin_updater::Error::ReleaseNotFound) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 /// Resolve the update to offer for a channel. The beta channel *graduates* to
 /// stable: it offers the highest version across *both* the beta and stable
 /// feeds, so a beta user moves to the final release the moment it's out
@@ -1332,12 +1348,12 @@ async fn resolve_update(
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
     if channel != "beta" {
         let updater = channel_updater(app, channel, force)?;
-        return updater.check().await.map_err(|e| e.to_string());
+        return check_feed(updater).await;
     }
     let mut best: Option<tauri_plugin_updater::Update> = None;
     for ch in ["beta", "stable"] {
         let updater = channel_updater(app, ch, force)?;
-        if let Some(candidate) = updater.check().await.map_err(|e| e.to_string())? {
+        if let Some(candidate) = check_feed(updater).await? {
             best = Some(match best {
                 Some(current) => higher_update(current, candidate),
                 None => candidate,
