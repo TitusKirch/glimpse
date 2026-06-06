@@ -101,12 +101,11 @@ async function run() {
       <div v-if="loading" class="space-y-2 py-2">
         <UiSkeleton v-for="n in 5" :key="n" class="h-10" />
       </div>
-      <p
+      <EmptyState
         v-else-if="!rows.length"
-        class="py-6 text-center text-sm text-muted-foreground"
-      >
-        {{ t('rebasePlan.empty') }}
-      </p>
+        icon="lucide:list-ordered"
+        :title="t('rebasePlan.empty')"
+      />
       <ul v-else class="max-h-[55vh] space-y-1 overflow-auto">
         <li
           v-for="(row, i) in rows"
