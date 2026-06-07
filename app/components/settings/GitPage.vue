@@ -33,6 +33,19 @@ const { t } = useI18n();
             @update:model-value="(v) => (settings.changelists = v as boolean)"
           />
         </SettingsRow>
+        <SettingsRow
+          label="settings.general.changelists.hunkCommit.label"
+          hint="settings.general.changelists.hunkCommit.hint"
+        >
+          <UiSwitch
+            :model-value="settings.changelistHunkCommit"
+            :disabled="!settings.changelists"
+            class="shrink-0"
+            @update:model-value="
+              (v) => (settings.changelistHunkCommit = v as boolean)
+            "
+          />
+        </SettingsRow>
       </div>
     </div>
   </section>

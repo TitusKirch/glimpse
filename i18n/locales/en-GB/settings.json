@@ -20,7 +20,11 @@
       "changelists": {
         "section": "Changelists",
         "label": "Enable",
-        "hint": "Group pending changes into named lists you can commit one at a time, instead of the plain staged/unstaged view."
+        "hint": "Group pending changes into named lists you can commit one at a time, instead of the plain staged/unstaged view.",
+        "hunkCommit": {
+          "label": "Review & commit hunks",
+          "hint": "Add a per-hunk review step so you can commit only part of a file from a changelist. Experimental — the review UI is still rough."
+        }
       },
       "cliSection": "Command line",
       "cli": {

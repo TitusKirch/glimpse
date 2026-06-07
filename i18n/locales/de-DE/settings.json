@@ -20,7 +20,11 @@
       "changelists": {
         "section": "Changelists",
         "label": "Aktivieren",
-        "hint": "Ausstehende Änderungen in benannte Listen gruppieren, die einzeln committet werden können — statt der einfachen staged/unstaged-Ansicht."
+        "hint": "Ausstehende Änderungen in benannte Listen gruppieren, die einzeln committet werden können — statt der einfachen staged/unstaged-Ansicht.",
+        "hunkCommit": {
+          "label": "Hunks prüfen & committen",
+          "hint": "Fügt einen Hunk-Review-Schritt hinzu, um nur einen Teil einer Datei aus einer Changelist zu committen. Experimentell — die Review-Oberfläche ist noch grob."
+        }
       },
       "cliSection": "Kommandozeile",
       "cli": {

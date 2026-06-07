@@ -503,9 +503,11 @@ watch(
       />
     </div>
 
-    <!-- review & commit only selected hunks of the active list -->
+    <!-- review & commit only selected hunks of the active list (opt-in) -->
     <button
-      v-if="(activeList?.members.length ?? 0) > 0"
+      v-if="
+        settings.changelistHunkCommit && (activeList?.members.length ?? 0) > 0
+      "
       type="button"
       class="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
       @click="reviewOverlay.show()"

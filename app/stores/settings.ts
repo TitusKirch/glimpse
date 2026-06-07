@@ -48,6 +48,10 @@ export interface SettingsValues {
   // Group pending changes into named changelists in the Changes panel instead of
   // the plain staged/unstaged view. On by default.
   changelists: boolean;
+  // Show the per-hunk "Review & commit hunks…" step in the changelist panel, to
+  // commit only part of a file. Off by default — the review UX is still rough
+  // (see #106); this opts into it.
+  changelistHunkCommit: boolean;
   monoScale: number;
   accent: Accent;
   shortenDependabot: boolean;
@@ -148,6 +152,7 @@ export const useSettingsStore = defineStore('settings', {
     diffWrap: false,
     fileView: 'tree',
     changelists: true,
+    changelistHunkCommit: false,
     monoScale: 1,
     accent: 'default',
     shortenDependabot: true,
