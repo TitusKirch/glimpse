@@ -131,6 +131,38 @@ const commitContext = computed(() =>
 function moveAll(fromId: string, toId: string) {
   changelists.moveAll(repo.repoPath, fromId, toId);
 }
+
+// Quick one-click add: move a file straight into the active list.
+function addToActive(path: string) {
+  if (activeList.value)
+    changelists.moveFile(repo.repoPath, path, activeList.value.id);
+}
+
+// Multi-select across all lists, for bulk moves. Panel-level so files from any
+// list can be selected together.
+const selected = reactive(new Set<string>());
+function toggleSelect(path: string) {
+  if (selected.has(path)) selected.delete(path);
+  else selected.add(path);
+}
+function clearSelection() {
+  selected.clear();
+}
+function moveSelected(toId: string) {
+  for (const p of Array.from(selected))
+    changelists.moveFile(repo.repoPath, p, toId);
+  selected.clear();
+}
+// Drop selected paths that are no longer changed (committed / discarded), and
+// reset selection when switching repos.
+watch(changedPaths, (paths) => {
+  const live = new Set(paths);
+  for (const p of Array.from(selected)) if (!live.has(p)) selected.delete(p);
+});
+watch(
+  () => repo.repoPath,
+  () => selected.clear()
+);
 </script>
 
 <template>
@@ -230,6 +262,46 @@ function moveAll(fromId: string, toId: string) {
             t('changes.changelist.newList')
           }}</UiTooltipContent>
         </UiTooltip>
+      </div>
+
+      <!-- bulk action bar (visible while files are selected) -->
+      <div
+        v-if="selected.size"
+        class="mx-1 mb-1 flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1.5 text-xs"
+      >
+        <span class="font-medium">{{
+          t('changes.changelist.selected', { n: selected.size })
+        }}</span>
+        <UiDropdownMenu>
+          <UiDropdownMenuTrigger as-child>
+            <UiButton
+              size="sm"
+              variant="outline"
+              class="h-6 gap-1 px-2 text-xs"
+            >
+              <NuxtIcon name="lucide:folder-input" class="size-3" />
+              {{ t('changes.changelist.moveSelected') }}
+              <NuxtIcon name="lucide:chevron-down" class="size-3 opacity-60" />
+            </UiButton>
+          </UiDropdownMenuTrigger>
+          <UiDropdownMenuContent align="start">
+            <UiDropdownMenuItem
+              v-for="l in state.lists"
+              :key="l.id"
+              @click="moveSelected(l.id)"
+            >
+              {{ listLabel(l) }}
+            </UiDropdownMenuItem>
+          </UiDropdownMenuContent>
+        </UiDropdownMenu>
+        <UiButton
+          size="sm"
+          variant="ghost"
+          class="ml-auto h-6 px-2 text-xs"
+          @click="clearSelection"
+        >
+          {{ t('changes.changelist.clearSelection') }}
+        </UiButton>
       </div>
 
       <!-- one section per changelist -->
@@ -348,9 +420,22 @@ function moveAll(fromId: string, toId: string) {
             :files="itemsFor(list)"
             :view="settings.fileView"
             :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
+            selectable
+            :selected-set="selected"
             @select="(p) => repo.selectFile({ file: p, staged: false })"
+            @toggle="toggleSelect"
           >
             <template #actions="{ file }">
+              <UiButton
+                v-if="list.id !== state.activeId"
+                variant="ghost"
+                size="icon"
+                class="size-5 opacity-0 group-hover:opacity-100"
+                icon="lucide:corner-up-right"
+                icon-size="sm"
+                :aria-label="t('changes.changelist.addToActive')"
+                @click.stop="addToActive(file.path)"
+              />
               <UiDropdownMenu>
                 <UiDropdownMenuTrigger as-child>
                   <UiButton

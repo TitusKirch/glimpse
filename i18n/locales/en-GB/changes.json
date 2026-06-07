@@ -24,6 +24,7 @@
     "clean": "Working tree clean",
     "cleanHint": "There are no changes to commit.",
     "lfs": "Tracked by Git LFS",
+    "select": "Select",
     "conventional": {
       "toggle": "Conventional Commit helper",
       "scope": "scope",
@@ -41,6 +42,10 @@
       "delete": "Delete changelist",
       "moveTo": "Move to",
       "moveAll": "Move all to",
+      "addToActive": "Add to active list",
+      "selected": "{n} selected",
+      "moveSelected": "Move to",
+      "clearSelection": "Clear",
       "committing": "Committing into {name}",
       "collapse": "Collapse / expand",
       "empty": "No files"

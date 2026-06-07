@@ -24,6 +24,7 @@
     "clean": "Arbeitsverzeichnis sauber",
     "cleanHint": "Es gibt keine Änderungen zum Committen.",
     "lfs": "Von Git LFS verwaltet",
+    "select": "Auswählen",
     "conventional": {
       "toggle": "Conventional-Commit-Helfer",
       "scope": "Scope",
@@ -41,6 +42,10 @@
       "delete": "Changelist löschen",
       "moveTo": "Verschieben nach",
       "moveAll": "Alle verschieben nach",
+      "addToActive": "Zur aktiven Liste",
+      "selected": "{n} ausgewählt",
+      "moveSelected": "Verschieben nach",
+      "clearSelection": "Aufheben",
       "committing": "Commit in {name}",
       "collapse": "Ein-/ausklappen",
       "empty": "Keine Dateien"

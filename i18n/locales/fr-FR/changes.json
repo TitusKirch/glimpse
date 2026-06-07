@@ -24,6 +24,7 @@
     "clean": "Arbre de travail propre",
     "cleanHint": "Aucune modification à valider.",
     "lfs": "Géré par Git LFS",
+    "select": "Sélectionner",
     "conventional": {
       "toggle": "Assistant Conventional Commit",
       "scope": "portée",
@@ -41,6 +42,10 @@
       "delete": "Supprimer la changelist",
       "moveTo": "Déplacer vers",
       "moveAll": "Tout déplacer vers",
+      "addToActive": "Ajouter à la liste active",
+      "selected": "{n} sélectionné(s)",
+      "moveSelected": "Déplacer vers",
+      "clearSelection": "Effacer",
       "committing": "Commit dans {name}",
       "collapse": "Réduire / développer",
       "empty": "Aucun fichier"
