@@ -304,7 +304,13 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
         :file-name="repo.diff.fileName"
         :old-content="repo.diff.oldContent"
         :new-content="repo.diff.newContent"
-        :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
+        :hunk-action="
+          settings.changelists
+            ? null
+            : repo.selectedFileStaged
+              ? 'unstage'
+              : 'stage'
+        "
         @stage-hunk="onStageHunk"
         @discard-hunk="onDiscardHunk"
         @stage-lines="onStageLines"
