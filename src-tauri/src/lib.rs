@@ -1,3 +1,5 @@
+mod changelist;
+mod cli;
 mod git;
 mod platform;
 
@@ -1438,6 +1440,13 @@ async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // A `glimpse cl …` invocation is handled headlessly here and the process
+    // exits before any window/Tauri setup; anything else falls through to the
+    // normal app launch.
+    if let Some(code) = cli::try_run_cli() {
+        std::process::exit(code);
+    }
+
     let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .manage(RepoLocks::default());
