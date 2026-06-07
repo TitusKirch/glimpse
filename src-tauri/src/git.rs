@@ -1134,6 +1134,39 @@ impl Repo {
         self.run(&commit)
     }
 
+    /// Commit a selection that may include only *part* of a file. Each entry is
+    /// a path plus the hunks to stage from it — an empty hunk list means the
+    /// whole file. The index is reset, the chosen files/hunks are staged (whole
+    /// files via `add -A`, partial files by applying each hunk to the index like
+    /// [`apply_hunk`]), then committed, leaving every unselected hunk in the
+    /// working tree. Powers "review & commit hunks" for a changelist; the
+    /// selection is made at commit time, so no fragile sub-file state is stored.
+    pub fn commit_partial(
+        &self,
+        message: &str,
+        files: &[(String, Vec<String>)],
+        amend: bool,
+    ) -> Result<String, String> {
+        for (path, _) in files {
+            reject_unsafe_path(path)?;
+        }
+        self.run(&["reset", "-q"])?;
+        for (path, hunks) in files {
+            if hunks.is_empty() {
+                self.run(&["add", "-A", "--", path])?;
+            } else {
+                for hunk in hunks {
+                    self.apply_hunk(path, hunk, false)?;
+                }
+            }
+        }
+        let mut commit = vec!["commit", "-m", message];
+        if amend {
+            commit.push("--amend");
+        }
+        self.run(&commit)
+    }
+
     /// Absolute, host-visible path of this repo's changelist store
     /// (`<git-dir>/glimpse/changelists.json`). The git dir is resolved by git
     /// (`rev-parse --absolute-git-dir`) so it is correct for linked worktrees and

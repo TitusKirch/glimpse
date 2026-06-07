@@ -403,6 +403,7 @@ const otherPullStrategies = computed(() =>
   <InitDialog />
   <CloneDialog />
   <StashDialog />
+  <ChangesCommitReview />
   <ReflogDialog />
   <CompareDialog />
   <BisectDialog />

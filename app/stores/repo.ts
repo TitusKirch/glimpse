@@ -592,6 +592,31 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Commit a per-file hunk selection (review & commit a changelist partially)
+    // via `commit_partial`: stages exactly the chosen files/hunks, leaving every
+    // unselected hunk in the working tree. `files` with empty `hunks` commit
+    // whole. Mirrors commitList's guards and refresh.
+    async commitPartial(files: { path: string; hunks: string[] }[]) {
+      const message = this.commitMessage.trim();
+      if (!message) return;
+      if (!this.amend && !files.length) return;
+      const amend = this.amend;
+      return this.mutate({
+        refresh: 'none',
+        run: async () => {
+          await gitClient.commitPartial({
+            path: this.repoPath,
+            message,
+            files,
+            amend
+          });
+          this.commitMessage = '';
+          this.amend = false;
+          await Promise.all([this.loadStatus(), this.loadLog()]);
+        }
+      });
+    },
+
     // Toggle amend mode. Turning it on prefills the editor with the previous
     // commit's message; turning it off clears it again.
     async setAmend(on: boolean) {

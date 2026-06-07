@@ -489,6 +489,26 @@ export const gitClient = {
       fallback: null
     }),
 
+  // Commit a per-file hunk selection: stage exactly the chosen files/hunks
+  // (empty `hunks` = the whole file) then commit, leaving the rest dirty. Backs
+  // "review & commit hunks" for a changelist.
+  commitPartial: ({
+    path,
+    message,
+    files,
+    amend = false
+  }: {
+    path: string;
+    message: string;
+    files: { path: string; hunks: string[] }[];
+    amend?: boolean;
+  }) =>
+    tauriInvoke<string>({
+      command: 'commit_partial',
+      args: { path, message, files, amend },
+      fallback: ''
+    }),
+
   // Subject + body of HEAD, used to prefill an amend.
   headMessage: (path: string) =>
     tauriInvoke<string>({

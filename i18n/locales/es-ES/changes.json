@@ -43,12 +43,23 @@
       "moveTo": "Mover a",
       "moveAll": "Mover todo a",
       "addToActive": "Añadir a la lista activa",
+      "reviewCommit": "Revisar y confirmar hunks…",
       "selected": "{n} seleccionados",
       "moveSelected": "Mover a",
       "clearSelection": "Limpiar",
       "committing": "Confirmando en {name}",
       "collapse": "Contraer / expandir",
       "empty": "Sin archivos"
+    },
+    "commitReview": {
+      "title": "Revisar y confirmar",
+      "subtitle": "Elige qué hunks de cada archivo confirmar en {name}.",
+      "loading": "Cargando diffs…",
+      "empty": "No hay archivos en esta changelist.",
+      "wholeFile": "archivo completo",
+      "needMessage": "Escribe primero un mensaje de confirmación.",
+      "count": "{n} archivo(s)",
+      "commit": "Confirmar selección"
     }
   }
 }

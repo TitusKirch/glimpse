@@ -43,12 +43,23 @@
       "moveTo": "Verschieben nach",
       "moveAll": "Alle verschieben nach",
       "addToActive": "Zur aktiven Liste",
+      "reviewCommit": "Hunks prüfen & committen…",
       "selected": "{n} ausgewählt",
       "moveSelected": "Verschieben nach",
       "clearSelection": "Aufheben",
       "committing": "Commit in {name}",
       "collapse": "Ein-/ausklappen",
       "empty": "Keine Dateien"
+    },
+    "commitReview": {
+      "title": "Prüfen & committen",
+      "subtitle": "Wähle, welche Hunks jeder Datei in {name} committet werden.",
+      "loading": "Diffs werden geladen…",
+      "empty": "Keine Dateien in dieser Changelist.",
+      "wholeFile": "ganze Datei",
+      "needMessage": "Gib zuerst eine Commit-Nachricht ein.",
+      "count": "{n} Datei(en)",
+      "commit": "Auswahl committen"
     }
   }
 }

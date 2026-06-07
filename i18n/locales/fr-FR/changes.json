@@ -43,12 +43,23 @@
       "moveTo": "Déplacer vers",
       "moveAll": "Tout déplacer vers",
       "addToActive": "Ajouter à la liste active",
+      "reviewCommit": "Vérifier et committer les hunks…",
       "selected": "{n} sélectionné(s)",
       "moveSelected": "Déplacer vers",
       "clearSelection": "Effacer",
       "committing": "Commit dans {name}",
       "collapse": "Réduire / développer",
       "empty": "Aucun fichier"
+    },
+    "commitReview": {
+      "title": "Vérifier et committer",
+      "subtitle": "Choisissez les hunks de chaque fichier à committer dans {name}.",
+      "loading": "Chargement des diffs…",
+      "empty": "Aucun fichier dans cette changelist.",
+      "wholeFile": "fichier entier",
+      "needMessage": "Saisissez d'abord un message de commit.",
+      "count": "{n} fichier(s)",
+      "commit": "Committer la sélection"
     }
   }
 }

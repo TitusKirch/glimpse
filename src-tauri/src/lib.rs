@@ -700,6 +700,30 @@ async fn head_message(path: String) -> Result<String, String> {
     git::Repo::open(&path).head_message()
 }
 
+// One file's contribution to a partial commit: a path plus the hunks to stage
+// from it (empty = the whole file). Command arg only, so not part of bindings.
+#[derive(serde::Deserialize)]
+struct PartialFile {
+    path: String,
+    hunks: Vec<String>,
+}
+
+// Commit a per-file hunk selection (review & commit a changelist partially):
+// stage exactly the chosen files/hunks, then commit, leaving the rest dirty.
+#[tauri::command]
+async fn commit_partial(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    files: Vec<PartialFile>,
+    amend: bool,
+) -> Result<String, String> {
+    let files: Vec<(String, Vec<String>)> = files.into_iter().map(|f| (f.path, f.hunks)).collect();
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit_partial(&message, &files, amend)
+    })
+}
+
 // Read the git-native changelist store (`<git-dir>/glimpse/changelists.json`).
 // `None` when it has never been written. No lock: a read never races a writer
 // into a torn state because writes are atomic (temp file + rename).
@@ -1561,6 +1585,7 @@ pub fn run() {
             unstage,
             commit,
             commit_paths,
+            commit_partial,
             read_changelists,
             write_changelists,
             head_message,

@@ -132,6 +132,9 @@ function moveAll(fromId: string, toId: string) {
   changelists.moveAll(repo.repoPath, fromId, toId);
 }
 
+// Open the review dialog to commit only selected hunks of the active list.
+const reviewOverlay = useOverlay('commitReview');
+
 // Quick one-click add: move a file straight into the active list.
 function addToActive(path: string) {
   if (activeList.value)
@@ -499,6 +502,17 @@ watch(
         :description="t('changes.cleanHint')"
       />
     </div>
+
+    <!-- review & commit only selected hunks of the active list -->
+    <button
+      v-if="(activeList?.members.length ?? 0) > 0"
+      type="button"
+      class="flex w-full cursor-pointer items-center justify-center gap-1.5 border-t py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      @click="reviewOverlay.show()"
+    >
+      <NuxtIcon name="lucide:scissors" class="size-3.5" />
+      {{ t('changes.changelist.reviewCommit') }}
+    </button>
 
     <!-- commit box (commits the active changelist) -->
     <ChangesCommitBox

@@ -43,12 +43,23 @@
       "moveTo": "Move to",
       "moveAll": "Move all to",
       "addToActive": "Add to active list",
+      "reviewCommit": "Review & commit hunks…",
       "selected": "{n} selected",
       "moveSelected": "Move to",
       "clearSelection": "Clear",
       "committing": "Committing into {name}",
       "collapse": "Collapse / expand",
       "empty": "No files"
+    },
+    "commitReview": {
+      "title": "Review & commit",
+      "subtitle": "Choose which hunks of each file to commit into {name}.",
+      "loading": "Loading diffs…",
+      "empty": "No files in this changelist.",
+      "wholeFile": "whole file",
+      "needMessage": "Enter a commit message in the box first.",
+      "count": "{n} file(s)",
+      "commit": "Commit selected"
     }
   }
 }
