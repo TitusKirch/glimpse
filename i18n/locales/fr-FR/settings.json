@@ -17,6 +17,11 @@
     "general": {
       "title": "Général",
       "gitSection": "Git",
+      "changelists": {
+        "section": "Changelists",
+        "label": "Activer",
+        "hint": "Regrouper les modifications en attente dans des listes nommées que l'on peut valider une par une, au lieu de la vue staged/unstaged."
+      },
       "cliSection": "Ligne de commande",
       "cli": {
         "label": "Lanceur en ligne de commande",

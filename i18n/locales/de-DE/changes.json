@@ -29,6 +29,18 @@
       "scope": "Scope",
       "breaking": "Breaking",
       "closes": "Closes #"
+    },
+    "changelist": {
+      "title": "Changelists",
+      "default": "Standard",
+      "newList": "Neue Changelist",
+      "renameList": "Changelist umbenennen",
+      "nameLabel": "Name",
+      "namePlaceholder": "Changelist-Name…",
+      "setActive": "Als aktiv festlegen",
+      "delete": "Changelist löschen",
+      "moveTo": "Verschieben nach",
+      "empty": "Keine Dateien"
     }
   }
 }

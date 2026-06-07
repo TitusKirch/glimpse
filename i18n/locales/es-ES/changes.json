@@ -29,6 +29,18 @@
       "scope": "ámbito",
       "breaking": "Ruptura",
       "closes": "Closes #"
+    },
+    "changelist": {
+      "title": "Changelists",
+      "default": "Predeterminada",
+      "newList": "Nueva changelist",
+      "renameList": "Renombrar changelist",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Nombre de la changelist…",
+      "setActive": "Marcar como activa",
+      "delete": "Eliminar changelist",
+      "moveTo": "Mover a",
+      "empty": "Sin archivos"
     }
   }
 }

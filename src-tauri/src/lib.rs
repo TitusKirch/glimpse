@@ -681,6 +681,19 @@ async fn commit(
 }
 
 #[tauri::command]
+async fn commit_paths(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    files: Vec<String>,
+    amend: bool,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit_paths(&message, &files, amend)
+    })
+}
+
+#[tauri::command]
 async fn head_message(path: String) -> Result<String, String> {
     git::Repo::open(&path).head_message()
 }
@@ -1517,6 +1530,7 @@ pub fn run() {
             stage,
             unstage,
             commit,
+            commit_paths,
             head_message,
             discard,
             checkout_branch,

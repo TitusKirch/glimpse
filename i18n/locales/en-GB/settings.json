@@ -17,6 +17,11 @@
     "general": {
       "title": "General",
       "gitSection": "Git",
+      "changelists": {
+        "section": "Changelists",
+        "label": "Enable",
+        "hint": "Group pending changes into named lists you can commit one at a time, instead of the plain staged/unstaged view."
+      },
       "cliSection": "Command line",
       "cli": {
         "label": "Command-line launcher",

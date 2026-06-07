@@ -17,6 +17,11 @@
     "general": {
       "title": "Allgemein",
       "gitSection": "Git",
+      "changelists": {
+        "section": "Changelists",
+        "label": "Aktivieren",
+        "hint": "Ausstehende Änderungen in benannte Listen gruppieren, die einzeln committet werden können — statt der einfachen staged/unstaged-Ansicht."
+      },
       "cliSection": "Kommandozeile",
       "cli": {
         "label": "Kommandozeilen-Starter",

@@ -17,6 +17,11 @@
     "general": {
       "title": "General",
       "gitSection": "Git",
+      "changelists": {
+        "section": "Changelists",
+        "label": "Activar",
+        "hint": "Agrupa los cambios pendientes en listas con nombre que puedes confirmar una a una, en lugar de la vista staged/unstaged."
+      },
       "cliSection": "Línea de comandos",
       "cli": {
         "label": "Lanzador de línea de comandos",

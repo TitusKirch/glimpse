@@ -29,6 +29,18 @@
       "scope": "portée",
       "breaking": "Rupture",
       "closes": "Closes #"
+    },
+    "changelist": {
+      "title": "Changelists",
+      "default": "Par défaut",
+      "newList": "Nouvelle changelist",
+      "renameList": "Renommer la changelist",
+      "nameLabel": "Nom",
+      "namePlaceholder": "Nom de la changelist…",
+      "setActive": "Définir comme active",
+      "delete": "Supprimer la changelist",
+      "moveTo": "Déplacer vers",
+      "empty": "Aucun fichier"
     }
   }
 }

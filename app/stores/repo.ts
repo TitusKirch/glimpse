@@ -569,6 +569,29 @@ export const useRepoStore = defineStore('repo', {
       });
     },
 
+    // Commit exactly `files` (one changelist) via the backend `commit_paths`:
+    // stages only those paths, leaving the other lists' changes uncommitted.
+    async commitList(files: string[]) {
+      const message = this.commitMessage.trim();
+      if (!message) return;
+      if (!this.amend && !files.length) return;
+      const amend = this.amend;
+      return this.mutate({
+        refresh: 'none',
+        run: async () => {
+          await gitClient.commitPaths({
+            path: this.repoPath,
+            message,
+            files,
+            amend
+          });
+          this.commitMessage = '';
+          this.amend = false;
+          await Promise.all([this.loadStatus(), this.loadLog()]);
+        }
+      });
+    },
+
     // Toggle amend mode. Turning it on prefills the editor with the previous
     // commit's message; turning it off clears it again.
     async setAmend(on: boolean) {

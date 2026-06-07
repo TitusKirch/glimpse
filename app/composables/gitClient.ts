@@ -450,6 +450,25 @@ export const gitClient = {
       fallback: ''
     }),
 
+  // Commit exactly `files` (stage only those paths, then commit) — the backend
+  // primitive behind committing a single changelist.
+  commitPaths: ({
+    path,
+    message,
+    files,
+    amend = false
+  }: {
+    path: string;
+    message: string;
+    files: string[];
+    amend?: boolean;
+  }) =>
+    tauriInvoke<string>({
+      command: 'commit_paths',
+      args: { path, message, files, amend },
+      fallback: ''
+    }),
+
   // Subject + body of HEAD, used to prefill an amend.
   headMessage: (path: string) =>
     tauriInvoke<string>({

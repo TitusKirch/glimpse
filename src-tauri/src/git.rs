@@ -1106,6 +1106,34 @@ impl Repo {
         self.run(&args)
     }
 
+    /// Commit exactly `files`: clear the index, stage only those paths, then
+    /// commit — leaving every other change in the working tree uncommitted. The
+    /// backend primitive behind "commit one changelist". `-A` is needed so the
+    /// staging covers modifications, additions AND deletions (a plain
+    /// `git commit -- <paths>` can't add untracked files). An empty `files` with
+    /// `amend` is a reword (index resets to HEAD, nothing new staged).
+    pub fn commit_paths(
+        &self,
+        message: &str,
+        files: &[String],
+        amend: bool,
+    ) -> Result<String, String> {
+        for f in files {
+            reject_unsafe_path(f)?;
+        }
+        self.run(&["reset", "-q"])?;
+        if !files.is_empty() {
+            let mut add = vec!["add", "-A", "--"];
+            add.extend(files.iter().map(String::as_str));
+            self.run(&add)?;
+        }
+        let mut commit = vec!["commit", "-m", message];
+        if amend {
+            commit.push("--amend");
+        }
+        self.run(&commit)
+    }
+
     /// Subject + body of the most recent commit, to prefill an amend.
     pub fn head_message(&self) -> Result<String, String> {
         Ok(self
