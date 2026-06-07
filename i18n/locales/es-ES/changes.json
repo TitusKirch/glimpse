@@ -58,7 +58,10 @@
       "empty": "No hay archivos en esta changelist.",
       "wholeFile": "archivo completo",
       "needMessage": "Escribe primero un mensaje de confirmación.",
-      "count": "{n} archivo(s)",
+      "selectAll": "Seleccionar todo",
+      "selectNone": "Ninguno",
+      "hunk": "Hunk {n}",
+      "summary": "{files} archivo(s), {hunks} hunk(s)",
       "commit": "Confirmar selección"
     }
   }

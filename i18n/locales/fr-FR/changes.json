@@ -58,7 +58,10 @@
       "empty": "Aucun fichier dans cette changelist.",
       "wholeFile": "fichier entier",
       "needMessage": "Saisissez d'abord un message de commit.",
-      "count": "{n} fichier(s)",
+      "selectAll": "Tout sélectionner",
+      "selectNone": "Aucun",
+      "hunk": "Hunk {n}",
+      "summary": "{files} fichier(s), {hunks} hunk(s)",
       "commit": "Committer la sélection"
     }
   }

@@ -58,7 +58,10 @@
       "empty": "Keine Dateien in dieser Changelist.",
       "wholeFile": "ganze Datei",
       "needMessage": "Gib zuerst eine Commit-Nachricht ein.",
-      "count": "{n} Datei(en)",
+      "selectAll": "Alle auswählen",
+      "selectNone": "Keine",
+      "hunk": "Hunk {n}",
+      "summary": "{files} Datei(en), {hunks} Hunk(s)",
       "commit": "Auswahl committen"
     }
   }

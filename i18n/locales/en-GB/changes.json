@@ -57,8 +57,11 @@
       "loading": "Loading diffs…",
       "empty": "No files in this changelist.",
       "wholeFile": "whole file",
-      "needMessage": "Enter a commit message in the box first.",
-      "count": "{n} file(s)",
+      "needMessage": "Enter a commit message first.",
+      "selectAll": "Select all",
+      "selectNone": "Select none",
+      "hunk": "Hunk {n}",
+      "summary": "{files} file(s), {hunks} hunk(s)",
       "commit": "Commit selected"
     }
   }
