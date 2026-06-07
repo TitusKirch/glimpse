@@ -7,6 +7,9 @@ import {
   moveFile,
   listOf,
   reconcile,
+  serialize,
+  deserialize,
+  CHANGELIST_SCHEMA_VERSION,
   DEFAULT_ID
 } from './changelist';
 
@@ -67,5 +70,51 @@ describe('changelist model', () => {
     expect(s.activeId).toBe(DEFAULT_ID);
     s = reconcile(s, ['x.ts']);
     expect(listOf(s, 'x.ts')).toBe(DEFAULT_ID);
+  });
+});
+
+describe('changelist persistence (on-disk contract)', () => {
+  it('round-trips state through serialize/deserialize', () => {
+    let s = initialState();
+    ({ state: s } = createList(s, 'Feature'));
+    const featureId = s.lists[1]!.id;
+    s = setActive(s, featureId);
+    s = moveFile(s, 'a.ts', featureId);
+    const back = deserialize(serialize(s));
+    expect(back).toEqual(s);
+  });
+
+  it('writes a versioned payload', () => {
+    expect(JSON.parse(serialize(initialState())).version).toBe(
+      CHANGELIST_SCHEMA_VERSION
+    );
+  });
+
+  it('returns null for missing, corrupt or wrong-version JSON', () => {
+    expect(deserialize(null)).toBeNull();
+    expect(deserialize('')).toBeNull();
+    expect(deserialize('{not json')).toBeNull();
+    expect(
+      deserialize(
+        JSON.stringify({ version: 999, activeId: 'default', lists: [] })
+      )
+    ).toBeNull();
+  });
+
+  it('normalizes untrusted input: re-adds Default first, dedups paths, fixes activeId', () => {
+    const s = deserialize(
+      JSON.stringify({
+        version: CHANGELIST_SCHEMA_VERSION,
+        activeId: 'ghost',
+        lists: [
+          { id: 'feature', name: 'Feature', members: ['a.ts', 'b.ts'] },
+          { id: 'other', name: 'Other', members: ['a.ts'] } // a.ts duplicated
+        ]
+      })
+    );
+    expect(s).not.toBeNull();
+    expect(s!.lists[0]!.id).toBe(DEFAULT_ID); // Default re-added at front
+    expect(s!.activeId).toBe(DEFAULT_ID); // unknown active id reset
+    expect(listOf(s!, 'a.ts')).toBe('feature'); // first list keeps the dup
   });
 });

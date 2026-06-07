@@ -3,6 +3,8 @@
 // list). No I/O — the store and panel call into this. Validated as a prototype
 // (prototypes/changelist) before being lifted here.
 
+import { z } from 'zod';
+
 export interface Changelist {
   id: string;
   name: string; // doubles as the commit message/description
@@ -129,4 +131,84 @@ export function reconcile(
   const target = lists.find((l) => l.id === activeId)!;
   for (const p of changedPaths) if (!assigned.has(p)) target.members.push(p);
   return { lists, activeId };
+}
+
+// ── On-disk contract ──────────────────────────────────────────────────────
+// Membership is persisted as JSON in the git dir (`<git-dir>/glimpse/
+// changelists.json`) so it travels with the working copy and any external tool
+// — the CLI, an AI agent — can read/write it by the same documented shape. Bump
+// the version when that shape changes incompatibly; an unrecognised version is
+// treated as "no stored membership" rather than mis-parsed.
+export const CHANGELIST_SCHEMA_VERSION = 1;
+
+const storedSchema = z.object({
+  version: z.literal(CHANGELIST_SCHEMA_VERSION),
+  activeId: z.string(),
+  lists: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      members: z.array(z.string())
+    })
+  )
+});
+
+// Enforce the model invariants on (possibly untrusted) input: the Default list
+// always exists and comes first, a path lives in exactly one list (first wins),
+// and the active id points at a real list. So a hand-edited or CLI-written file
+// can never put the model into an illegal state.
+function normalize(state: ChangelistState): ChangelistState {
+  const lists = state.lists.map((l) => ({
+    id: l.id,
+    name: l.name,
+    members: [...l.members]
+  }));
+  const defIdx = lists.findIndex((l) => l.id === DEFAULT_ID);
+  if (defIdx < 0) {
+    lists.unshift({ id: DEFAULT_ID, name: 'Default', members: [] });
+  } else if (defIdx > 0) {
+    lists.unshift(lists.splice(defIdx, 1)[0]!);
+  }
+  const seen = new Set<string>();
+  for (const l of lists)
+    l.members = l.members.filter((p) => !seen.has(p) && seen.add(p));
+  const activeId = lists.some((l) => l.id === state.activeId)
+    ? state.activeId
+    : DEFAULT_ID;
+  return { lists, activeId };
+}
+
+// Serialize state to the on-disk JSON contract. Pretty-printed so the file stays
+// human- and diff-friendly (it lives in the git dir, not the working tree).
+export function serialize(state: ChangelistState): string {
+  return JSON.stringify(
+    {
+      version: CHANGELIST_SCHEMA_VERSION,
+      activeId: state.activeId,
+      lists: state.lists
+    },
+    null,
+    2
+  );
+}
+
+// Parse the on-disk JSON back to state, or null when it is missing, corrupt, or
+// from an incompatible version — the caller then falls back (cache or
+// initialState) instead of throwing. The result is always normalized.
+export function deserialize(
+  json: string | null | undefined
+): ChangelistState | null {
+  if (!json) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return null;
+  }
+  const result = storedSchema.safeParse(parsed);
+  if (!result.success) return null;
+  return normalize({
+    activeId: result.data.activeId,
+    lists: result.data.lists
+  });
 }

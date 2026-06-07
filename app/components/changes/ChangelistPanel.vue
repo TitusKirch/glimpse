@@ -31,13 +31,24 @@ const changedPaths = computed(() =>
   repo.status.filter((s) => !s.conflicted).map((s) => s.path)
 );
 
-// Keep membership in sync with the real working tree — covers commits, discards
-// and any git run on the side. Runs for the active repo whenever its status or
-// identity changes.
+// Re-read membership from the git-native store when switching to / re-opening a
+// repo, to pick up edits made by an external tool (the CLI, an agent).
 watch(
-  [() => repo.repoPath, changedPaths],
-  ([path]) => {
-    if (path && path !== '.') changelists.reconcile(path, changedPaths.value);
+  () => repo.repoPath,
+  (path) => {
+    if (path && path !== '.') void changelists.reload(path);
+  },
+  { immediate: true }
+);
+
+// Keep membership in sync with the real working tree — covers commits, discards
+// and any git run on the side. Runs whenever the changed-paths set changes (it
+// awaits the initial load first, so a slow read can't lose the reconcile).
+watch(
+  changedPaths,
+  () => {
+    if (repo.repoPath && repo.repoPath !== '.')
+      void changelists.sync(repo.repoPath, changedPaths.value);
   },
   { immediate: true }
 );

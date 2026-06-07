@@ -1134,6 +1134,52 @@ impl Repo {
         self.run(&commit)
     }
 
+    /// Absolute, host-visible path of this repo's changelist store
+    /// (`<git-dir>/glimpse/changelists.json`). The git dir is resolved by git
+    /// (`rev-parse --absolute-git-dir`) so it is correct for linked worktrees and
+    /// `.git`-file setups, then mapped through `host_path` so it is reachable from
+    /// the host fs (the WSL share on Windows) — the same approach
+    /// [`interactive_rebase`] uses for its todo file. Living inside the git dir,
+    /// the file is per-worktree and never committed or pushed, yet any tool (the
+    /// CLI, an agent) can read/write it by this same rule.
+    fn changelists_file(&self) -> Result<String, String> {
+        let git_dir = self
+            .run(&["rev-parse", "--absolute-git-dir"])?
+            .trim()
+            .to_string();
+        Ok(self
+            .target
+            .host_path(&format!("{git_dir}/glimpse/changelists.json")))
+    }
+
+    /// Read the raw changelist store JSON, or `None` if it has never been
+    /// written. Membership is soft state: a missing file simply means "no groups
+    /// yet", so the absence is `Ok(None)`, not an error.
+    pub fn read_changelists(&self) -> Result<Option<String>, String> {
+        let path = self.changelists_file()?;
+        match std::fs::read_to_string(&path) {
+            Ok(s) => Ok(Some(s)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(format!("failed to read changelists: {e}")),
+        }
+    }
+
+    /// Write the changelist store JSON atomically (temp file + rename) so a
+    /// concurrent reader — including an external CLI/agent — never observes a
+    /// half-written file. Creates `<git-dir>/glimpse/` on first write.
+    pub fn write_changelists(&self, json: &str) -> Result<(), String> {
+        let path = self.changelists_file()?;
+        let p = std::path::Path::new(&path);
+        if let Some(dir) = p.parent() {
+            std::fs::create_dir_all(dir)
+                .map_err(|e| format!("failed to create changelists dir: {e}"))?;
+        }
+        let tmp = format!("{path}.tmp");
+        std::fs::write(&tmp, json).map_err(|e| format!("failed to write changelists: {e}"))?;
+        std::fs::rename(&tmp, &path).map_err(|e| format!("failed to write changelists: {e}"))?;
+        Ok(())
+    }
+
     /// Subject + body of the most recent commit, to prefill an amend.
     pub fn head_message(&self) -> Result<String, String> {
         Ok(self

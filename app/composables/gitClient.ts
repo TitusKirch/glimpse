@@ -469,6 +469,26 @@ export const gitClient = {
       fallback: ''
     }),
 
+  // Read the git-native changelist store (`<git-dir>/glimpse/changelists.json`),
+  // the portable source of truth for changelist membership. Null when it has
+  // never been written, and in the browser demo (where membership stays in the
+  // localStorage cache).
+  readChangelists: (path: string) =>
+    tauriInvoke<string | null>({
+      command: 'read_changelists',
+      args: { path },
+      fallback: null
+    }),
+
+  // Persist the changelist store JSON to the git dir (atomic write). No-op
+  // fallback in the browser demo.
+  writeChangelists: ({ path, json }: { path: string; json: string }) =>
+    tauriInvoke<null>({
+      command: 'write_changelists',
+      args: { path, json },
+      fallback: null
+    }),
+
   // Subject + body of HEAD, used to prefill an amend.
   headMessage: (path: string) =>
     tauriInvoke<string>({

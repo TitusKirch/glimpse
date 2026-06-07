@@ -698,6 +698,27 @@ async fn head_message(path: String) -> Result<String, String> {
     git::Repo::open(&path).head_message()
 }
 
+// Read the git-native changelist store (`<git-dir>/glimpse/changelists.json`).
+// `None` when it has never been written. No lock: a read never races a writer
+// into a torn state because writes are atomic (temp file + rename).
+#[tauri::command]
+async fn read_changelists(path: String) -> Result<Option<String>, String> {
+    git::Repo::open(&path).read_changelists()
+}
+
+// Write the git-native changelist store. Locked like every other mutation so two
+// concurrent saves can't interleave.
+#[tauri::command]
+async fn write_changelists(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    json: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).write_changelists(&json)
+    })
+}
+
 #[tauri::command]
 async fn discard(
     locks: State<'_, RepoLocks>,
@@ -1531,6 +1552,8 @@ pub fn run() {
             unstage,
             commit,
             commit_paths,
+            read_changelists,
+            write_changelists,
             head_message,
             discard,
             checkout_branch,
