@@ -40,6 +40,9 @@
       "setActive": "Set as active",
       "delete": "Delete changelist",
       "moveTo": "Move to",
+      "moveAll": "Move all to",
+      "committing": "Committing into {name}",
+      "collapse": "Collapse / expand",
       "empty": "No files"
     }
   }

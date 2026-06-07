@@ -108,6 +108,29 @@ async function renameList(id: string) {
 function commitActive() {
   repo.commitList(activeList.value?.members ?? []);
 }
+
+// Per-list collapse, remembered for the session (keyed by repo + list id so it
+// survives switching repos and back).
+const collapsed = reactive(new Set<string>());
+const collapseKey = (id: string) => `${repo.repoPath}::${id}`;
+const isCollapsed = (id: string) => collapsed.has(collapseKey(id));
+function toggleCollapsed(id: string) {
+  const k = collapseKey(id);
+  if (collapsed.has(k)) collapsed.delete(k);
+  else collapsed.add(k);
+}
+
+// The commit box targets the active list — surface its name there so it is never
+// ambiguous which list the commit button will commit.
+const commitContext = computed(() =>
+  activeList.value
+    ? t('changes.changelist.committing', { name: listLabel(activeList.value) })
+    : ''
+);
+
+function moveAll(fromId: string, toId: string) {
+  changelists.moveAll(repo.repoPath, fromId, toId);
+}
 </script>
 
 <template>
@@ -210,10 +233,35 @@ function commitActive() {
       </div>
 
       <!-- one section per changelist -->
-      <section v-for="list in state.lists" :key="list.id" class="group/cl px-1">
+      <section
+        v-for="list in state.lists"
+        :key="list.id"
+        class="group/cl px-1"
+        :class="list.id === state.activeId && 'rounded-md bg-primary/5'"
+      >
         <div
-          class="sticky top-0 z-10 flex items-center gap-2 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+          class="sticky top-0 z-10 flex items-center gap-1 bg-background px-2 py-1.5 text-xs font-semibold tracking-wide uppercase"
+          :class="
+            list.id === state.activeId
+              ? 'text-foreground'
+              : 'text-muted-foreground'
+          "
         >
+          <button
+            type="button"
+            class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-60 hover:opacity-100"
+            :aria-label="t('changes.changelist.collapse')"
+            @click="toggleCollapsed(list.id)"
+          >
+            <NuxtIcon
+              :name="
+                isCollapsed(list.id)
+                  ? 'lucide:chevron-right'
+                  : 'lucide:chevron-down'
+              "
+              class="size-3.5"
+            />
+          </button>
           <button
             type="button"
             class="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left"
@@ -256,6 +304,23 @@ function commitActive() {
                 <NuxtIcon name="lucide:pencil" />
                 {{ t('form.rename') }}
               </UiDropdownMenuItem>
+              <UiDropdownMenuSub
+                v-if="list.members.length && state.lists.length > 1"
+              >
+                <UiDropdownMenuSubTrigger>
+                  <NuxtIcon name="lucide:folder-input" />
+                  {{ t('changes.changelist.moveAll') }}
+                </UiDropdownMenuSubTrigger>
+                <UiDropdownMenuSubContent>
+                  <UiDropdownMenuItem
+                    v-for="other in state.lists.filter((l) => l.id !== list.id)"
+                    :key="other.id"
+                    @click="moveAll(list.id, other.id)"
+                  >
+                    {{ listLabel(other) }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuSubContent>
+              </UiDropdownMenuSub>
               <template v-if="list.id !== DEFAULT_ID">
                 <UiDropdownMenuSeparator />
                 <UiDropdownMenuItem
@@ -270,66 +335,76 @@ function commitActive() {
           </UiDropdownMenu>
         </div>
 
-        <p
-          v-if="!list.members.length"
-          class="px-3 py-1.5 text-xs text-muted-foreground"
-        >
-          {{ t('changes.changelist.empty') }}
-        </p>
-        <FileTree
-          v-else
-          :files="itemsFor(list)"
-          :view="settings.fileView"
-          :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
-          @select="(p) => repo.selectFile({ file: p, staged: false })"
-        >
-          <template #actions="{ file }">
-            <UiDropdownMenu>
-              <UiDropdownMenuTrigger as-child>
-                <UiButton
-                  variant="ghost"
-                  size="icon"
-                  class="size-5 opacity-0 group-hover:opacity-100"
-                  icon="lucide:ellipsis"
-                  icon-size="sm"
-                  :aria-label="t('actions.more')"
-                  @click.stop
-                />
-              </UiDropdownMenuTrigger>
-              <UiDropdownMenuContent align="end">
-                <UiDropdownMenuSub v-if="state.lists.length > 1">
-                  <UiDropdownMenuSubTrigger>
-                    <NuxtIcon name="lucide:folder-input" />
-                    {{ t('changes.changelist.moveTo') }}
-                  </UiDropdownMenuSubTrigger>
-                  <UiDropdownMenuSubContent>
-                    <UiDropdownMenuItem
-                      v-for="other in state.lists.filter(
-                        (l) => l.id !== list.id
-                      )"
-                      :key="other.id"
-                      @click="
-                        changelists.moveFile(repo.repoPath, file.path, other.id)
-                      "
-                    >
-                      {{ listLabel(other) }}
-                    </UiDropdownMenuItem>
-                  </UiDropdownMenuSubContent>
-                </UiDropdownMenuSub>
-                <UiDropdownMenuSeparator v-if="state.lists.length > 1" />
-                <UiDropdownMenuItem
-                  class="text-destructive focus:text-destructive"
-                  @click="
-                    repo.discard({ file: file.path, untracked: file.untracked })
-                  "
-                >
-                  <NuxtIcon name="lucide:undo-2" />
-                  {{ t('changes.discard') }}
-                </UiDropdownMenuItem>
-              </UiDropdownMenuContent>
-            </UiDropdownMenu>
-          </template>
-        </FileTree>
+        <template v-if="!isCollapsed(list.id)">
+          <p
+            v-if="!list.members.length"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground/70 italic"
+          >
+            <NuxtIcon name="lucide:minus" class="size-3 shrink-0" />
+            {{ t('changes.changelist.empty') }}
+          </p>
+          <FileTree
+            v-else
+            :files="itemsFor(list)"
+            :view="settings.fileView"
+            :selected="!repo.selectedFileStaged ? repo.selectedFile : null"
+            @select="(p) => repo.selectFile({ file: p, staged: false })"
+          >
+            <template #actions="{ file }">
+              <UiDropdownMenu>
+                <UiDropdownMenuTrigger as-child>
+                  <UiButton
+                    variant="ghost"
+                    size="icon"
+                    class="size-5 opacity-0 group-hover:opacity-100"
+                    icon="lucide:ellipsis"
+                    icon-size="sm"
+                    :aria-label="t('actions.more')"
+                    @click.stop
+                  />
+                </UiDropdownMenuTrigger>
+                <UiDropdownMenuContent align="end">
+                  <UiDropdownMenuSub v-if="state.lists.length > 1">
+                    <UiDropdownMenuSubTrigger>
+                      <NuxtIcon name="lucide:folder-input" />
+                      {{ t('changes.changelist.moveTo') }}
+                    </UiDropdownMenuSubTrigger>
+                    <UiDropdownMenuSubContent>
+                      <UiDropdownMenuItem
+                        v-for="other in state.lists.filter(
+                          (l) => l.id !== list.id
+                        )"
+                        :key="other.id"
+                        @click="
+                          changelists.moveFile(
+                            repo.repoPath,
+                            file.path,
+                            other.id
+                          )
+                        "
+                      >
+                        {{ listLabel(other) }}
+                      </UiDropdownMenuItem>
+                    </UiDropdownMenuSubContent>
+                  </UiDropdownMenuSub>
+                  <UiDropdownMenuSeparator v-if="state.lists.length > 1" />
+                  <UiDropdownMenuItem
+                    class="text-destructive focus:text-destructive"
+                    @click="
+                      repo.discard({
+                        file: file.path,
+                        untracked: file.untracked
+                      })
+                    "
+                  >
+                    <NuxtIcon name="lucide:undo-2" />
+                    {{ t('changes.discard') }}
+                  </UiDropdownMenuItem>
+                </UiDropdownMenuContent>
+              </UiDropdownMenu>
+            </template>
+          </FileTree>
+        </template>
       </section>
 
       <EmptyState
@@ -343,6 +418,7 @@ function commitActive() {
     <!-- commit box (commits the active changelist) -->
     <ChangesCommitBox
       :count="activeList?.members.length ?? 0"
+      :context-label="commitContext"
       @submit="commitActive"
     />
   </div>

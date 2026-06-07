@@ -7,7 +7,10 @@
 import { useForm } from '@tanstack/vue-form';
 import { z } from 'zod';
 
-const props = defineProps<{ count: number }>();
+// `contextLabel` (optional) names what is being committed — the ChangelistPanel
+// passes the active list so it is unmistakable which list the button targets;
+// the staged Panel leaves it unset.
+const props = defineProps<{ count: number; contextLabel?: string }>();
 const emit = defineEmits<{ submit: [] }>();
 
 const repo = useRepoStore();
@@ -194,6 +197,14 @@ onMounted(autoResize);
       </div>
       <UiKbd>{{ modLabel }}+↵</UiKbd>
     </div>
+
+    <p
+      v-if="contextLabel"
+      class="mt-2 flex items-center gap-1 truncate text-xs text-muted-foreground"
+    >
+      <NuxtIcon name="lucide:corner-down-right" class="size-3 shrink-0" />
+      <span class="truncate">{{ contextLabel }}</span>
+    </p>
 
     <UiButton
       class="mt-2 w-full"

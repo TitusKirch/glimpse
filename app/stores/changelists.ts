@@ -161,6 +161,16 @@ export const useChangelistsStore = defineStore('changelists', {
     moveFile(toplevel: string, file: string, toId: string) {
       this.byRepo[toplevel] = moveFileState(this.ensure(toplevel), file, toId);
       this.schedulePersist(toplevel);
+    },
+    // Move every file out of `fromId` into `toId` in one update (the "move all"
+    // header action).
+    moveAll(toplevel: string, fromId: string, toId: string) {
+      const from = this.ensure(toplevel).lists.find((l) => l.id === fromId);
+      if (!from) return;
+      let next = this.byRepo[toplevel]!;
+      for (const file of from.members) next = moveFileState(next, file, toId);
+      this.byRepo[toplevel] = next;
+      this.schedulePersist(toplevel);
     }
   },
   persist: true

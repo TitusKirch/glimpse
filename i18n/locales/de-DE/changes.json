@@ -40,6 +40,9 @@
       "setActive": "Als aktiv festlegen",
       "delete": "Changelist löschen",
       "moveTo": "Verschieben nach",
+      "moveAll": "Alle verschieben nach",
+      "committing": "Commit in {name}",
+      "collapse": "Ein-/ausklappen",
       "empty": "Keine Dateien"
     }
   }

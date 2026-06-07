@@ -40,6 +40,9 @@
       "setActive": "Marcar como activa",
       "delete": "Eliminar changelist",
       "moveTo": "Mover a",
+      "moveAll": "Mover todo a",
+      "committing": "Confirmando en {name}",
+      "collapse": "Contraer / expandir",
       "empty": "Sin archivos"
     }
   }
