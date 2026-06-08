@@ -315,7 +315,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
         @discard-hunk="onDiscardHunk"
         @stage-lines="onStageLines"
       />
-      <div v-else-if="repo.loading" class="space-y-2 p-4">
+      <div v-else-if="repo.loading && !repo.loaded" class="space-y-2 p-4">
         <UiSkeleton
           v-for="n in 12"
           :key="n"

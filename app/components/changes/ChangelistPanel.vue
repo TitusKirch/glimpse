@@ -174,8 +174,8 @@ watch(
     <ChangesBanners />
 
     <div class="min-h-0 flex-1 overflow-auto">
-      <!-- loading skeleton -->
-      <div v-if="repo.loading && !repo.status.length" class="space-y-2 p-3">
+      <!-- loading skeleton (first load only — a refresh keeps what's shown) -->
+      <div v-if="repo.loading && !repo.loaded" class="space-y-2 p-3">
         <UiSkeleton v-for="n in 6" :key="n" class="h-6 w-full" />
       </div>
 
@@ -241,7 +241,7 @@ watch(
 
       <!-- changelists toolbar -->
       <div
-        v-if="!repo.loading || repo.status.length"
+        v-if="repo.loaded || repo.status.length"
         class="flex items-center gap-2 px-2 pt-2 pb-1"
       >
         <span
@@ -496,7 +496,7 @@ watch(
       </section>
 
       <EmptyState
-        v-if="!repo.loading && !repo.status.length"
+        v-if="repo.loaded && !repo.status.length"
         icon="lucide:check"
         :title="t('changes.clean')"
         :description="t('changes.cleanHint')"

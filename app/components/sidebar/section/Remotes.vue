@@ -18,6 +18,7 @@ const {
     :label="t('sidebar.remotes')"
     :count="repo.remotes.length"
     :loading="repo.loading"
+    :loaded="repo.loaded"
     :empty-label="t('sidebar.noRemotes')"
   >
     <template #action>

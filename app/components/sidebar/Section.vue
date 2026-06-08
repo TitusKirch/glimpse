@@ -15,6 +15,10 @@ const props = defineProps<{
   // `count` always render their slot.
   count?: number;
   loading?: boolean;
+  // True once this repo has loaded at least once. Together with `loading` it
+  // tells a first-load (skeleton) apart from a background refresh (keep what's
+  // shown), so the skeleton doesn't flash on every refetch.
+  loaded?: boolean;
   emptyLabel?: string;
 }>();
 
@@ -31,15 +35,15 @@ const collapsed = computed(() =>
 );
 const editMode = computed(() => layout.sidebarEditMode && !isIcon.value);
 
-// Loading with nothing to show yet → skeleton (not on refresh, where items are
-// already present). Loaded with nothing → a "none yet" line. Whether an empty
-// section is shown at all is decided upstream (visibleSections), so here we just
-// render the placeholder when we are shown empty.
+// First load with nothing to show yet → skeleton. On a refresh (already loaded,
+// even if the list is empty) we keep the "none yet" line instead of flashing the
+// skeleton again. Whether an empty section is shown at all is decided upstream
+// (visibleSections), so here we just render the placeholder when we are shown empty.
 const showSkeleton = computed(
-  () => props.count === 0 && props.loading === true
+  () => props.count === 0 && props.loading === true && props.loaded !== true
 );
 const showEmptyLabel = computed(
-  () => props.count === 0 && props.loading !== true && !!props.emptyLabel
+  () => props.count === 0 && !showSkeleton.value && !!props.emptyLabel
 );
 </script>
 

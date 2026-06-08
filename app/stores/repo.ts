@@ -268,6 +268,13 @@ export const useRepoStore = defineStore('repo', {
     diff(): DiffData | null {
       return this.active?.diff ?? null;
     },
+    // True once the active repo's git data has loaded at least once. Skeletons
+    // gate on `loading && !loaded` so they show only on the first load, not on
+    // background refreshes (window focus, manual refetch) where the data — even
+    // an empty list — is already on screen and should stay put.
+    loaded(): boolean {
+      return this.active?.loaded ?? false;
+    },
     selectedCommit(): Commit | null {
       const r = this.active;
       if (!r) return null;
