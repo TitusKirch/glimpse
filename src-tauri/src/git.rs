@@ -13,6 +13,12 @@ mod parse;
 
 const US: char = '\u{1f}'; // unit separator, safe field delimiter
 
+// `git log` date rendering for commit lists shown in the UI (graph history,
+// search, file history, commit detail): date + local time so the day *and*
+// HH:MM:SS are visible, not just the day. Repository stats keep `--date=short`
+// because they aggregate commits by day.
+const LOG_DATE: &str = "--date=format:%Y-%m-%d %H:%M:%S";
+
 fn lines(s: &str) -> impl Iterator<Item = &str> {
     s.lines().filter(|l| !l.trim().is_empty())
 }
@@ -707,7 +713,7 @@ impl Repo {
         let n = format!("-n{limit}");
         // `--all` so every branch/remote/tag tip shows as its own parallel lane;
         // `--topo-order` keeps a branch's commits contiguous for a clean graph.
-        let out = self.run(&["log", "--all", "--topo-order", "--date=short", &fmt, &n])?;
+        let out = self.run(&["log", "--all", "--topo-order", LOG_DATE, &fmt, &n])?;
         Ok(parse::log(&out))
     }
 
@@ -726,7 +732,7 @@ impl Repo {
         };
         let fmt =
             format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
-        let out = self.run(&["log", "--all", "--date=short", "-n200", &fmt, &flag])?;
+        let out = self.run(&["log", "--all", LOG_DATE, "-n200", &fmt, &flag])?;
         Ok(parse::log(&out))
     }
 
@@ -1085,7 +1091,7 @@ impl Repo {
     pub fn file_history(&self, file: &str) -> Result<Vec<Commit>, String> {
         reject_unsafe_path(file)?;
         let fmt = format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s");
-        let out = self.run(&["log", "--follow", "--date=short", &fmt, "--", file])?;
+        let out = self.run(&["log", "--follow", LOG_DATE, &fmt, "--", file])?;
         Ok(parse::log(&out))
     }
 
@@ -1336,7 +1342,7 @@ impl Repo {
         };
         let fmt =
             format!("--pretty=format:%H{US}%P{US}%an{US}%ad{US}%D{US}%s{US}%G?{US}%GS{US}%GK");
-        let out = self.run(&["log", "--reverse", "--date=short", &fmt, &range])?;
+        let out = self.run(&["log", "--reverse", LOG_DATE, &fmt, &range])?;
         Ok(parse::log(&out))
     }
 
