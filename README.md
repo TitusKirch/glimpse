@@ -34,6 +34,7 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 - **🌳 Graph & history** — the full multi-branch commit graph, history search by message **or content** (pickaxe `-S`/`-G`), per-commit detail, GPG/SSH signature verification, and a repository-statistics panel (contributors, activity, file churn).
 - **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, collapsible unchanged regions, soft word-wrap, **image diffs** (side-by-side / onion-skin), ignore-whitespace, blame, and file history.
 - **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend (optionally signed, with an opt-in conventional-commit composer), and resolve conflicts whole-file or with a **region-by-region three-way merge editor**.
+- **🗂️ Changelists & a CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time. Membership is stored as a **git-native, human-readable JSON file**, and a bundled headless **`glimpse cl`** command lets scripts and AI agents read and drive the same changelists from the terminal.
 - **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), **annotated/signed tags**, and stash save/pop/apply/drop.
 - **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs **or two selected commits**, reflog recovery with one-click undo, **export/apply patches**, plus worktrees, submodules, and sparse-checkout.
 - **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
@@ -46,6 +47,7 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 - **Repositories** — open a local folder, clone a remote, or initialise a new repository.
 - **Viewing** — multi-branch commit graph, commit search by message or content (pickaxe `-S`/`-G`), side-by-side / unified / whole-file diffs with syntax highlighting, word-level diff, collapsible unchanged regions and soft word-wrap, image diffs (side-by-side / onion-skin), ignore-whitespace, blame, file history, list/tree file view, compare any two refs or two selected commits, repository statistics (contributors / activity / churn), GPG/SSH signature verification status, Git LFS-tracked files flagged.
 - **Staging & commits** — stage / unstage by file, hunk, or line, discard by file or hunk, discard all, commit, `commit --amend`, optional GPG/SSH commit signing, an opt-in conventional-commit composer (toggleable globally or per repo), conflict resolution (use ours/theirs, mark resolved, or a region-by-region three-way merge editor).
+- **Changelists** — group pending changes into named lists over one working tree (file-level, JetBrains-style; a permanent Default list, new changes routed to the active list), commit one list at a time without staging the rest. Enabled by default (toggle in Settings → Git for the classic staged/unstaged view). Membership is persisted git-natively (`<git-dir>/glimpse/changelists.json`, versioned and human-readable) and drivable from a bundled headless CLI (`glimpse cl ls|add|mv|rm|active|commit`, with `--json` and `-C <dir>`) for scripts and AI agents. An opt-in extra lets you review & commit only selected hunks of a list from the GUI.
 - **Branches & tags** — create / switch / rename / delete branches, branch from a commit, publish (set upstream), merge in either direction, create / delete / push tags (lightweight, annotated, or signed), checkout a commit (detached HEAD).
 - **History rewriting** — cherry-pick / revert (one or many commits, incl. merge reverts), reset (soft / mixed / hard), rebase onto another ref or interactively (reword / squash / fixup / drop / reorder), guided bisect, reflog recovery view with undo-last-action, export commits as `.patch` and apply patches (`am` / `apply`).
 - **Stash** — save (selected paths, optionally including untracked), pop, apply, drop, preview contents.
@@ -118,6 +120,35 @@ On Windows it picks the right git **per repository**:
 The git target is a **global default** (auto by default) that **Settings → Repository** can override per repo — pinning a single repository to native git, a specific WSL distro, or an explicit git binary. Because Windows git and WSL git read **separate** global configs, the Git-identity panel shows the *effective* identity for each repo's environment; signing and SSH-key/credential-helper status are likewise read from the environment git actually runs in.
 
 On Linux and macOS git is simply native — there is no WSL concept. Live refresh over the `\\wsl$` 9P share is best-effort; the manual + on-focus refresh covers the rest.
+
+## 🗂️ Changelists & automation
+
+**Changelists** group your pending changes into named sets over a single working tree — like JetBrains changelists, but git-native. Each changed file belongs to exactly one list (a permanent **Default** list always exists; brand-new changes land in the _active_ list), and you commit one list at a time without staging the rest. It's enabled by default in the Changes panel; turn it off in **Settings → Git** to get the classic staged/unstaged view back.
+
+Membership is **not** locked inside glimpse — it lives in your repository, in a small, versioned, human-readable JSON file:
+
+```
+<git-dir>/glimpse/changelists.json
+```
+
+A headless CLI ships in the **same binary**, so the very same changelists are drivable from a terminal:
+
+```bash
+glimpse cl                                    # list changelists and their files
+glimpse cl add "Refactor"                     # create a list and make it active
+glimpse cl mv Refactor src/a.ts src/b.ts      # move files into a list
+glimpse cl active Refactor                     # set the active list
+glimpse cl commit Refactor -m "refactor: …"   # commit exactly that list's files
+glimpse cl ls --json                          # machine-readable state (the file contract)
+```
+
+`<list>` matches by id or by name (case-insensitive); `--json` makes a command emit the JSON contract (and report errors as `{"error": …}`); `-C <dir>` targets another repository. A list-commit is **index-less** — it resets, stages exactly that list's files, then commits, leaving everything else dirty.
+
+> [!TIP]
+> Because the state is a plain JSON file in the git directory (reachable across the `\\wsl$` share on Windows) and a list-commit never touches the staging index, **scripts and AI coding agents can read and drive changelists too** — carving a sprawling diff into reviewable, separately-committable sets, deterministically, without the GUI.
+
+> [!NOTE]
+> Committing only **part** of a file (hunk-level) is a GUI-only, opt-in extra (**Settings → Git**); the CLI works at file granularity. The CLI runs reliably on Linux and macOS today — on Windows its console output is still best-effort.
 
 ## 🧪 Development
 

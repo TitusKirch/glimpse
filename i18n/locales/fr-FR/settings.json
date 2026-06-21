@@ -17,6 +17,15 @@
     "general": {
       "title": "Général",
       "gitSection": "Git",
+      "changelists": {
+        "section": "Changelists",
+        "label": "Activer",
+        "hint": "Regrouper les modifications en attente dans des listes nommées que l'on peut valider une par une, au lieu de la vue staged/unstaged.",
+        "hunkCommit": {
+          "label": "Vérifier et committer les hunks",
+          "hint": "Ajoute une étape de revue par hunk pour committer seulement une partie d'un fichier depuis une changelist. Expérimental — l'interface de revue est encore sommaire."
+        }
+      },
       "cliSection": "Ligne de commande",
       "cli": {
         "label": "Lanceur en ligne de commande",

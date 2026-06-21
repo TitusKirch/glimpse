@@ -1106,6 +1106,113 @@ impl Repo {
         self.run(&args)
     }
 
+    /// Commit exactly `files`: clear the index, stage only those paths, then
+    /// commit — leaving every other change in the working tree uncommitted. The
+    /// backend primitive behind "commit one changelist". `-A` is needed so the
+    /// staging covers modifications, additions AND deletions (a plain
+    /// `git commit -- <paths>` can't add untracked files). An empty `files` with
+    /// `amend` is a reword (index resets to HEAD, nothing new staged).
+    pub fn commit_paths(
+        &self,
+        message: &str,
+        files: &[String],
+        amend: bool,
+    ) -> Result<String, String> {
+        for f in files {
+            reject_unsafe_path(f)?;
+        }
+        self.run(&["reset", "-q"])?;
+        if !files.is_empty() {
+            let mut add = vec!["add", "-A", "--"];
+            add.extend(files.iter().map(String::as_str));
+            self.run(&add)?;
+        }
+        let mut commit = vec!["commit", "-m", message];
+        if amend {
+            commit.push("--amend");
+        }
+        self.run(&commit)
+    }
+
+    /// Commit a selection that may include only *part* of a file. Each entry is
+    /// a path plus the hunks to stage from it — an empty hunk list means the
+    /// whole file. The index is reset, the chosen files/hunks are staged (whole
+    /// files via `add -A`, partial files by applying each hunk to the index like
+    /// [`apply_hunk`]), then committed, leaving every unselected hunk in the
+    /// working tree. Powers "review & commit hunks" for a changelist; the
+    /// selection is made at commit time, so no fragile sub-file state is stored.
+    pub fn commit_partial(
+        &self,
+        message: &str,
+        files: &[(String, Vec<String>)],
+        amend: bool,
+    ) -> Result<String, String> {
+        for (path, _) in files {
+            reject_unsafe_path(path)?;
+        }
+        self.run(&["reset", "-q"])?;
+        for (path, hunks) in files {
+            if hunks.is_empty() {
+                self.run(&["add", "-A", "--", path])?;
+            } else {
+                for hunk in hunks {
+                    self.apply_hunk(path, hunk, false)?;
+                }
+            }
+        }
+        let mut commit = vec!["commit", "-m", message];
+        if amend {
+            commit.push("--amend");
+        }
+        self.run(&commit)
+    }
+
+    /// Absolute, host-visible path of this repo's changelist store
+    /// (`<git-dir>/glimpse/changelists.json`). The git dir is resolved by git
+    /// (`rev-parse --absolute-git-dir`) so it is correct for linked worktrees and
+    /// `.git`-file setups, then mapped through `host_path` so it is reachable from
+    /// the host fs (the WSL share on Windows) — the same approach
+    /// [`interactive_rebase`] uses for its todo file. Living inside the git dir,
+    /// the file is per-worktree and never committed or pushed, yet any tool (the
+    /// CLI, an agent) can read/write it by this same rule.
+    fn changelists_file(&self) -> Result<String, String> {
+        let git_dir = self
+            .run(&["rev-parse", "--absolute-git-dir"])?
+            .trim()
+            .to_string();
+        Ok(self
+            .target
+            .host_path(&format!("{git_dir}/glimpse/changelists.json")))
+    }
+
+    /// Read the raw changelist store JSON, or `None` if it has never been
+    /// written. Membership is soft state: a missing file simply means "no groups
+    /// yet", so the absence is `Ok(None)`, not an error.
+    pub fn read_changelists(&self) -> Result<Option<String>, String> {
+        let path = self.changelists_file()?;
+        match std::fs::read_to_string(&path) {
+            Ok(s) => Ok(Some(s)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(format!("failed to read changelists: {e}")),
+        }
+    }
+
+    /// Write the changelist store JSON atomically (temp file + rename) so a
+    /// concurrent reader — including an external CLI/agent — never observes a
+    /// half-written file. Creates `<git-dir>/glimpse/` on first write.
+    pub fn write_changelists(&self, json: &str) -> Result<(), String> {
+        let path = self.changelists_file()?;
+        let p = std::path::Path::new(&path);
+        if let Some(dir) = p.parent() {
+            std::fs::create_dir_all(dir)
+                .map_err(|e| format!("failed to create changelists dir: {e}"))?;
+        }
+        let tmp = format!("{path}.tmp");
+        std::fs::write(&tmp, json).map_err(|e| format!("failed to write changelists: {e}"))?;
+        std::fs::rename(&tmp, &path).map_err(|e| format!("failed to write changelists: {e}"))?;
+        Ok(())
+    }
+
     /// Subject + body of the most recent commit, to prefill an amend.
     pub fn head_message(&self) -> Result<String, String> {
         Ok(self
@@ -2006,5 +2113,106 @@ mod validate_tests {
         ] {
             assert!(reject_unsafe_path(ok).is_ok(), "should allow {ok:?}");
         }
+    }
+}
+
+/// End-to-end tests against a real `git` in a throwaway repo. These exercise the
+/// changelist commit primitive ([`Repo::commit_paths`]) — the file-level commit
+/// both the GUI's per-list commit and the headless `glimpse cl commit` rely on —
+/// and assert its core contract: commit exactly the listed paths, leave the rest
+/// dirty.
+#[cfg(test)]
+mod commit_paths_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    /// Run `git -C <dir> <args>` with a hermetic, signing-free identity so the
+    /// test never depends on (or mutates) the developer's global git config.
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn porcelain(dir: &Path) -> String {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["status", "--porcelain"])
+            .output()
+            .expect("run git status");
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    fn head_files(dir: &Path) -> String {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["show", "--name-only", "--format=", "HEAD"])
+            .output()
+            .expect("run git show");
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    #[test]
+    fn commit_paths_commits_only_listed_files_and_leaves_the_rest_dirty() {
+        // A per-process scratch repo, removed before and after so reruns are clean.
+        let dir: PathBuf =
+            std::env::temp_dir().join(format!("glimpse-commit-paths-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+
+        // Baseline commit with two tracked files.
+        std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
+        std::fs::write(dir.join("b.txt"), "b1\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+
+        // Now: modify both tracked files and add an untracked one.
+        std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
+        std::fs::write(dir.join("b.txt"), "b2\n").unwrap();
+        std::fs::write(dir.join("c.txt"), "c1\n").unwrap();
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        repo.commit_paths("change a", &["a.txt".to_string()], false)
+            .expect("commit_paths succeeds");
+
+        // The new HEAD carries a.txt and nothing else.
+        let head = head_files(&dir);
+        assert!(
+            head.contains("a.txt"),
+            "a.txt should be committed: {head:?}"
+        );
+        assert!(
+            !head.contains("b.txt"),
+            "b.txt must not be committed: {head:?}"
+        );
+
+        // b.txt stays modified, c.txt stays untracked — the rest is left dirty.
+        let status = porcelain(&dir);
+        assert!(
+            status.contains("b.txt"),
+            "b.txt should remain dirty: {status:?}"
+        );
+        assert!(
+            status.contains("c.txt"),
+            "c.txt should remain untracked: {status:?}"
+        );
+        assert!(
+            !status.contains("a.txt"),
+            "a.txt should be clean after commit: {status:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

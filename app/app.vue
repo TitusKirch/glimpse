@@ -376,7 +376,8 @@ const otherPullStrategies = computed(() =>
               </UiTabsList>
             </div>
             <UiTabsContent value="changes" class="mt-0 min-h-0 flex-1">
-              <ChangesPanel />
+              <ChangesChangelistPanel v-if="settingsStore.changelists" />
+              <ChangesPanel v-else />
             </UiTabsContent>
             <UiTabsContent value="history" class="mt-0 min-h-0 flex-1">
               <CommitGraph />
@@ -402,6 +403,7 @@ const otherPullStrategies = computed(() =>
   <InitDialog />
   <CloneDialog />
   <StashDialog />
+  <ChangesCommitReview />
   <ReflogDialog />
   <CompareDialog />
   <BisectDialog />

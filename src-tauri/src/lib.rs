@@ -1,3 +1,5 @@
+mod changelist;
+mod cli;
 mod git;
 mod platform;
 
@@ -681,8 +683,66 @@ async fn commit(
 }
 
 #[tauri::command]
+async fn commit_paths(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    files: Vec<String>,
+    amend: bool,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit_paths(&message, &files, amend)
+    })
+}
+
+#[tauri::command]
 async fn head_message(path: String) -> Result<String, String> {
     git::Repo::open(&path).head_message()
+}
+
+// One file's contribution to a partial commit: a path plus the hunks to stage
+// from it (empty = the whole file). Command arg only, so not part of bindings.
+#[derive(serde::Deserialize)]
+struct PartialFile {
+    path: String,
+    hunks: Vec<String>,
+}
+
+// Commit a per-file hunk selection (review & commit a changelist partially):
+// stage exactly the chosen files/hunks, then commit, leaving the rest dirty.
+#[tauri::command]
+async fn commit_partial(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    files: Vec<PartialFile>,
+    amend: bool,
+) -> Result<String, String> {
+    let files: Vec<(String, Vec<String>)> = files.into_iter().map(|f| (f.path, f.hunks)).collect();
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit_partial(&message, &files, amend)
+    })
+}
+
+// Read the git-native changelist store (`<git-dir>/glimpse/changelists.json`).
+// `None` when it has never been written. No lock: a read never races a writer
+// into a torn state because writes are atomic (temp file + rename).
+#[tauri::command]
+async fn read_changelists(path: String) -> Result<Option<String>, String> {
+    git::Repo::open(&path).read_changelists()
+}
+
+// Write the git-native changelist store. Locked like every other mutation so two
+// concurrent saves can't interleave.
+#[tauri::command]
+async fn write_changelists(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    json: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).write_changelists(&json)
+    })
 }
 
 #[tauri::command]
@@ -1404,6 +1464,13 @@ async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // A `glimpse cl …` invocation is handled headlessly here and the process
+    // exits before any window/Tauri setup; anything else falls through to the
+    // normal app launch.
+    if let Some(code) = cli::try_run_cli() {
+        std::process::exit(code);
+    }
+
     let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .manage(RepoLocks::default());
@@ -1517,6 +1584,10 @@ pub fn run() {
             stage,
             unstage,
             commit,
+            commit_paths,
+            commit_partial,
+            read_changelists,
+            write_changelists,
             head_message,
             discard,
             checkout_branch,

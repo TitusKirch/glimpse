@@ -20,6 +20,7 @@ const remoteBranchesMore = useSidebarMore({
     :label="t('sidebar.remoteBranches')"
     :count="repo.remoteBranches.length"
     :loading="repo.loading"
+    :loaded="repo.loaded"
     :empty-label="t('sidebar.noRemoteBranches')"
   >
     <UiSidebarMenu>

@@ -26,6 +26,7 @@ const {
     :label="t('sidebar.tags')"
     :count="repo.tags.length"
     :loading="repo.loading"
+    :loaded="repo.loaded"
     :empty-label="t('sidebar.noTags')"
   >
     <template #action>

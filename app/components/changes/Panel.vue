@@ -1,16 +1,10 @@
 <script setup lang="ts">
-import { useForm } from '@tanstack/vue-form';
-import { z } from 'zod';
 import type { StatusEntry } from '@/stores/repo';
 
 const repo = useRepoStore();
 const settings = useSettingsStore();
 const mergeEditor = useMergeEditor();
 const { t } = useI18n();
-
-const modLabel = navigator.platform.toLowerCase().includes('mac')
-  ? '⌘'
-  : 'Ctrl';
 
 // Single, consistent letter per file: A = new/untracked, M = modified,
 // D = deleted, R = renamed. (git's literal "?"/"U" codes are not user-facing.)
@@ -43,156 +37,16 @@ const unstagedItems = computed(() =>
 const conflictItems = computed(() =>
   repo.conflictedFiles.map((f) => ({ ...f, status: 'U' }))
 );
-
-// Subject is the first line; git convention favours <= 50 chars (warn), and
-// hard-wraps the eye at 72 (over). Drives the live counter colour.
-const subjectLen = computed(
-  () => repo.commitMessage.split('\n')[0]?.length ?? 0
-);
-const subjectClass = computed(() =>
-  subjectLen.value > 72
-    ? 'text-destructive'
-    : subjectLen.value > 50
-      ? 'text-warning'
-      : 'text-muted-foreground'
-);
-
-const canCommit = computed(
-  () =>
-    !!repo.commitMessage.trim() && (repo.amend || repo.stagedFiles.length > 0)
-);
-
-// --- Conventional Commit composer (opt-in) ---------------------------------
-// Assembles a `type(scope)!: ` prefix on the subject line (see
-// applyConventionalPrefix — idempotent, so changing a control never stacks
-// prefixes and the user's typed subject is preserved).
-const ccType = ref('feat');
-const ccScope = ref('');
-const ccBreaking = ref(false);
-
-// On/off is shared, git-config-backed state (see useConventionalCommits) so the
-// settings toggle and this commit box stay in sync live.
-const {
-  enabled: ccEnabled,
-  load: loadConventional,
-  set: setConventional
-} = useConventionalCommits();
-onMounted(loadConventional);
-watch(() => repo.active?.path, loadConventional);
-
-function applyConventional() {
-  repo.commitMessage = applyConventionalPrefix(repo.commitMessage, {
-    type: ccType.value,
-    scope: ccScope.value,
-    breaking: ccBreaking.value
-  });
-}
-
-watch([ccType, ccScope, ccBreaking, ccEnabled], () => {
-  if (ccEnabled.value) applyConventional();
-});
-
-// Append a `Closes #` footer for the user to complete.
-function insertCloses() {
-  repo.commitMessage = `${repo.commitMessage.replace(/\s*$/, '')}\n\nCloses #`;
-}
-
-// Commit message form (TanStack Form + Zod). The store still owns
-// repo.commitMessage — the commit action, the amend prefill and the Cmd/Ctrl+↵
-// shortcut all read it — so the field two-way syncs with it.
-const commitForm = useForm({
-  defaultValues: { message: repo.commitMessage },
-  validators: { onChange: z.object({ message: z.string().trim().min(1) }) },
-  onSubmit: () => repo.commit()
-});
-watch(
-  () => commitForm.state.values.message,
-  (m) => {
-    if (repo.commitMessage !== m) repo.commitMessage = m;
-  }
-);
-watch(
-  () => repo.commitMessage,
-  (m) => {
-    if (commitForm.state.values.message !== m)
-      commitForm.setFieldValue('message', m);
-  }
-);
-
-// Auto-grow the commit box with its content: reset to 'auto' then snap to the
-// scroll height. A CSS min/max-height keeps it between ~3 rows and a cap (then
-// it scrolls internally), so a long body never swallows the file list.
-const commitBox = ref<HTMLTextAreaElement | null>(null);
-function autoResize() {
-  const el = commitBox.value;
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight}px`;
-}
-// Re-fit on programmatic changes too (amend prefill, post-commit clear).
-watch(
-  () => repo.commitMessage,
-  () => nextTick(autoResize)
-);
-onMounted(autoResize);
 </script>
 
 <template>
   <div class="flex h-full flex-col text-sm">
     <FileViewToggle class="border-b" />
-
-    <!-- rebase paused (e.g. on a conflict): continue / skip / abort -->
-    <div
-      v-if="repo.rebaseInProgress"
-      class="flex flex-wrap items-center gap-2 border-b bg-warning/10 px-3 py-2 text-xs"
-    >
-      <NuxtIcon name="lucide:git-graph" class="size-4 shrink-0 text-warning" />
-      <span class="min-w-0 flex-1">{{ t('rebase.inProgress') }}</span>
-      <UiButton size="sm" variant="outline" @click="repo.rebaseContinue()">
-        {{ t('rebase.continue') }}
-      </UiButton>
-      <UiButton size="sm" variant="ghost" @click="repo.rebaseSkip()">
-        {{ t('rebase.skip') }}
-      </UiButton>
-      <UiButton
-        size="sm"
-        variant="ghost"
-        class="text-destructive hover:text-destructive"
-        @click="repo.rebaseAbort()"
-      >
-        {{ t('rebase.abort') }}
-      </UiButton>
-    </div>
-
-    <!-- bisect in progress: test the checked-out commit, then mark it -->
-    <div
-      v-if="repo.bisectInProgress"
-      class="flex flex-wrap items-center gap-2 border-b bg-primary/10 px-3 py-2 text-xs"
-    >
-      <NuxtIcon name="lucide:bug" class="size-4 shrink-0 text-primary" />
-      <span class="min-w-0 flex-1">{{ t('bisect.testing') }}</span>
-      <UiButton size="sm" variant="outline" @click="repo.bisectMark('good')">
-        {{ t('bisect.markGood') }}
-      </UiButton>
-      <UiButton size="sm" variant="outline" @click="repo.bisectMark('bad')">
-        {{ t('bisect.markBad') }}
-      </UiButton>
-      <UiButton size="sm" variant="ghost" @click="repo.bisectMark('skip')">
-        {{ t('bisect.skip') }}
-      </UiButton>
-      <UiButton
-        size="sm"
-        variant="ghost"
-        class="text-destructive hover:text-destructive"
-        @click="repo.bisectReset()"
-      >
-        {{ t('bisect.reset') }}
-      </UiButton>
-    </div>
+    <ChangesBanners />
 
     <div class="min-h-0 flex-1 overflow-auto">
-      <!-- loading skeleton -->
-      <div v-if="repo.loading && !repo.status.length" class="space-y-2 p-3">
+      <!-- loading skeleton (first load only — a refresh keeps what's shown) -->
+      <div v-if="repo.loading && !repo.loaded" class="space-y-2 p-3">
         <UiSkeleton v-for="n in 6" :key="n" class="h-6 w-full" />
       </div>
 
@@ -353,121 +207,17 @@ onMounted(autoResize);
       </section>
 
       <EmptyState
-        v-if="!repo.loading && !repo.status.length"
+        v-if="repo.loaded && !repo.status.length"
         icon="lucide:check"
         :title="t('changes.clean')"
         :description="t('changes.cleanHint')"
       />
     </div>
 
-    <!-- commit box -->
-    <form class="border-t p-2" @submit.prevent="commitForm.handleSubmit">
-      <div v-if="ccEnabled" class="mb-2 flex flex-wrap items-center gap-1.5">
-        <UiDropdownMenu>
-          <UiDropdownMenuTrigger as-child>
-            <UiButton
-              type="button"
-              variant="outline"
-              size="sm"
-              class="h-7 gap-1 px-2 text-xs"
-            >
-              {{ ccType }}
-              <NuxtIcon name="lucide:chevron-down" class="size-3 opacity-60" />
-            </UiButton>
-          </UiDropdownMenuTrigger>
-          <UiDropdownMenuContent align="start">
-            <UiDropdownMenuItem
-              v-for="ty in CONVENTIONAL_TYPES"
-              :key="ty"
-              @click="ccType = ty"
-            >
-              {{ ty }}
-            </UiDropdownMenuItem>
-          </UiDropdownMenuContent>
-        </UiDropdownMenu>
-        <input
-          v-model="ccScope"
-          :placeholder="t('changes.conventional.scope')"
-          class="h-7 w-24 rounded-md border bg-transparent px-2 text-xs outline-none"
-        />
-        <label class="flex items-center gap-1 text-xs text-muted-foreground">
-          <UiSwitch
-            :model-value="ccBreaking"
-            @update:model-value="(v) => (ccBreaking = v as boolean)"
-          />
-          {{ t('changes.conventional.breaking') }}
-        </label>
-        <UiButton
-          type="button"
-          size="sm"
-          variant="ghost"
-          class="ml-auto h-7 text-xs"
-          @click="insertCloses"
-        >
-          {{ t('changes.conventional.closes') }}
-        </UiButton>
-      </div>
-      <div class="relative">
-        <commitForm.Field v-slot="{ field }" name="message">
-          <textarea
-            ref="commitBox"
-            :value="field.state.value"
-            :placeholder="t('changes.commit.placeholder')"
-            class="max-h-48 min-h-[4.5rem] w-full resize-none overflow-y-auto rounded-md border bg-transparent px-2 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            @input="
-              field.handleChange(($event.target as HTMLTextAreaElement).value);
-              autoResize();
-            "
-          />
-        </commitForm.Field>
-        <span
-          class="pointer-events-none absolute right-2 bottom-1.5 font-mono text-[10px]"
-          :class="subjectClass"
-          >{{ subjectLen }}</span
-        >
-      </div>
-
-      <div class="mt-2 flex items-center justify-between gap-2">
-        <div class="flex items-center gap-3">
-          <label class="flex cursor-pointer items-center gap-1.5 text-xs">
-            <UiSwitch
-              :model-value="repo.amend"
-              @update:model-value="repo.setAmend($event)"
-            />
-            <span class="text-muted-foreground">{{ t('changes.amend') }}</span>
-          </label>
-          <UiTooltip>
-            <UiTooltipTrigger as-child>
-              <UiButton
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                icon="lucide:braces"
-                icon-size="sm"
-                :aria-label="t('changes.conventional.toggle')"
-                :class="ccEnabled && 'text-primary'"
-                @click="setConventional(!ccEnabled)"
-              />
-            </UiTooltipTrigger>
-            <UiTooltipContent>{{
-              t('changes.conventional.toggle')
-            }}</UiTooltipContent>
-          </UiTooltip>
-        </div>
-        <UiKbd>{{ modLabel }}+↵</UiKbd>
-      </div>
-
-      <UiButton
-        class="mt-2 w-full"
-        size="sm"
-        type="submit"
-        :disabled="!canCommit"
-      >
-        {{ repo.amend ? t('changes.amendCommit') : t('changes.commit.label') }}
-        <span v-if="!repo.amend && repo.stagedFiles.length"
-          >({{ repo.stagedFiles.length }})</span
-        >
-      </UiButton>
-    </form>
+    <!-- commit box (commits the staged set) -->
+    <ChangesCommitBox
+      :count="repo.stagedFiles.length"
+      @submit="repo.commit()"
+    />
   </div>
 </template>

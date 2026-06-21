@@ -24,11 +24,45 @@
     "clean": "Árbol de trabajo limpio",
     "cleanHint": "No hay cambios para confirmar.",
     "lfs": "Gestionado por Git LFS",
+    "select": "Seleccionar",
     "conventional": {
       "toggle": "Asistente de Conventional Commit",
       "scope": "ámbito",
       "breaking": "Ruptura",
       "closes": "Closes #"
+    },
+    "changelist": {
+      "title": "Changelists",
+      "default": "Predeterminada",
+      "newList": "Nueva changelist",
+      "renameList": "Renombrar changelist",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Nombre de la changelist…",
+      "setActive": "Marcar como activa",
+      "delete": "Eliminar changelist",
+      "moveTo": "Mover a",
+      "moveAll": "Mover todo a",
+      "addToActive": "Añadir a la lista activa",
+      "reviewCommit": "Revisar y confirmar hunks…",
+      "selected": "{n} seleccionados",
+      "moveSelected": "Mover a",
+      "clearSelection": "Limpiar",
+      "committing": "Confirmando en {name}",
+      "collapse": "Contraer / expandir",
+      "empty": "Sin archivos"
+    },
+    "commitReview": {
+      "title": "Revisar y confirmar",
+      "subtitle": "Elige qué hunks de cada archivo confirmar en {name}.",
+      "loading": "Cargando diffs…",
+      "empty": "No hay archivos en esta changelist.",
+      "wholeFile": "archivo completo",
+      "needMessage": "Escribe primero un mensaje de confirmación.",
+      "selectAll": "Seleccionar todo",
+      "selectNone": "Ninguno",
+      "hunk": "Hunk {n}",
+      "summary": "{files} archivo(s), {hunks} hunk(s)",
+      "commit": "Confirmar selección"
     }
   }
 }

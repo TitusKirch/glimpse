@@ -304,12 +304,18 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
         :file-name="repo.diff.fileName"
         :old-content="repo.diff.oldContent"
         :new-content="repo.diff.newContent"
-        :hunk-action="repo.selectedFileStaged ? 'unstage' : 'stage'"
+        :hunk-action="
+          settings.changelists
+            ? null
+            : repo.selectedFileStaged
+              ? 'unstage'
+              : 'stage'
+        "
         @stage-hunk="onStageHunk"
         @discard-hunk="onDiscardHunk"
         @stage-lines="onStageLines"
       />
-      <div v-else-if="repo.loading" class="space-y-2 p-4">
+      <div v-else-if="repo.loading && !repo.loaded" class="space-y-2 p-4">
         <UiSkeleton
           v-for="n in 12"
           :key="n"

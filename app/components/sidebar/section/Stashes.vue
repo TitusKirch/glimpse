@@ -18,6 +18,7 @@ const {
     :label="t('sidebar.stashes')"
     :count="repo.stashes.length"
     :loading="repo.loading"
+    :loaded="repo.loaded"
     :empty-label="t('sidebar.noStashes')"
   >
     <template #action>

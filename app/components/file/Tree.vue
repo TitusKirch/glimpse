@@ -16,9 +16,13 @@ const props = defineProps<{
   files: FileItem[];
   view: 'list' | 'tree';
   selected?: string | null;
+  // Opt-in multi-select (changelist panel): render per-row checkboxes and report
+  // toggles. `selectedSet` holds the checked paths. Off elsewhere.
+  selectable?: boolean;
+  selectedSet?: Set<string>;
 }>();
 
-const emit = defineEmits<{ select: [path: string] }>();
+const emit = defineEmits<{ select: [path: string]; toggle: [path: string] }>();
 
 interface TreeFile {
   type: 'file';
@@ -134,7 +138,10 @@ const rows = computed<Row[]>(() => {
       :status="f.status"
       :is-lfs="f.isLfs"
       :active="selected === f.path"
+      :selectable="selectable"
+      :selected="selectedSet?.has(f.path)"
       @select="emit('select', f.path)"
+      @toggle="emit('toggle', f.path)"
     >
       <template #actions>
         <slot name="actions" :file="f" />
@@ -174,9 +181,12 @@ const rows = computed<Row[]>(() => {
         :status="r.file.status"
         :is-lfs="r.file.isLfs"
         :active="selected === r.file.path"
+        :selectable="selectable"
+        :selected="selectedSet?.has(r.file.path)"
         name-only
         :depth="r.depth"
         @select="emit('select', r.file.path)"
+        @toggle="emit('toggle', r.file.path)"
       >
         <template #actions>
           <slot name="actions" :file="r.file" />

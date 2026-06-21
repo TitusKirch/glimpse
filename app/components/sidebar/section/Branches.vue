@@ -26,6 +26,7 @@ const {
     :label="t('sidebar.branches')"
     :count="repo.branches.length"
     :loading="repo.loading"
+    :loaded="repo.loaded"
     :empty-label="t('sidebar.noBranches')"
   >
     <template #action>
