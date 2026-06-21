@@ -95,6 +95,12 @@ fn run(args: &[String]) -> i32 {
     };
     match result {
         Ok(()) => 0,
+        // Structured error output under --json so an agent can parse failures the
+        // same way it parses success; plain prefixed line otherwise.
+        Err(e) if json => {
+            eprintln!("{}", serde_json::json!({ "error": e }));
+            1
+        }
         Err(e) => fail(&e),
     }
 }
