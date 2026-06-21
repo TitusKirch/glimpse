@@ -17,6 +17,15 @@
     "general": {
       "title": "General",
       "gitSection": "Git",
+      "changelists": {
+        "section": "Changelists",
+        "label": "Activar",
+        "hint": "Agrupa los cambios pendientes en listas con nombre que puedes confirmar una a una, en lugar de la vista staged/unstaged.",
+        "hunkCommit": {
+          "label": "Revisar y confirmar hunks",
+          "hint": "Añade un paso de revisión por hunks para confirmar solo parte de un archivo desde una changelist. Experimental: la interfaz de revisión aún es básica."
+        }
+      },
       "cliSection": "Línea de comandos",
       "cli": {
         "label": "Lanzador de línea de comandos",
@@ -304,6 +313,10 @@
       "sidebarWidth": {
         "label": "Anchura (px)",
         "hint": "Anchura de la barra lateral expandida, 192–512. Por defecto 256px."
+      },
+      "hideEmptySections": {
+        "label": "Ocultar secciones vacías",
+        "hint": "Oculta las secciones de la barra lateral sin elementos en lugar de mostrar un marcador."
       },
       "graphSection": "Grafo",
       "shortenDependabot": {

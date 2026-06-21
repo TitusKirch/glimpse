@@ -114,8 +114,8 @@ function refVariant(ref: string) {
 </script>
 
 <template>
-  <!-- loading skeleton -->
-  <div v-if="repo.loading && !repo.commits.length" class="space-y-3 p-4">
+  <!-- loading skeleton (first load only — a refresh keeps the graph/empty state) -->
+  <div v-if="repo.loading && !repo.loaded" class="space-y-3 p-4">
     <div v-for="n in 8" :key="n" class="flex items-center gap-3">
       <UiSkeleton class="size-2.5 rounded-full" />
       <UiSkeleton class="h-4" :style="{ width: 40 + ((n * 7) % 50) + '%' }" />

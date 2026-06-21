@@ -53,16 +53,23 @@ function startResize(e: PointerEvent) {
 }
 
 // Sidebar sections render in the user's persisted order; each can be collapsed,
-// and in edit mode dragged by its handle to reorder. Only sections that have
-// something to show participate (remote branches hide when there are none), so a
-// reorder of the visible subset is merged back into the full order with the
-// hidden sections pinned to their slots.
+// and in edit mode dragged by its handle to reorder. By default every section
+// participates and an empty one shows a "none yet" line; with "hide empty
+// sections" on, a loaded-empty section drops out entirely. Sections stay visible
+// during the first load so their skeleton can show; on a refresh they're already
+// loaded, so an empty hidden section stays hidden instead of popping in and out. A
+// reorder of the visible subset is merged back into the full order with the hidden
+// sections pinned to their slots.
+function sectionVisible(count: number): boolean {
+  if (repo.loading && !repo.loaded) return true;
+  return settingsStore.hideEmptySidebarSections ? count > 0 : true;
+}
 const SECTION_VISIBLE: Record<string, () => boolean> = {
-  branches: () => true,
-  remotes: () => true,
-  remoteBranches: () => repo.remoteBranches.length > 0,
-  tags: () => true,
-  stashes: () => true
+  branches: () => sectionVisible(repo.branches.length),
+  remotes: () => sectionVisible(repo.remotes.length),
+  remoteBranches: () => sectionVisible(repo.remoteBranches.length),
+  tags: () => sectionVisible(repo.tags.length),
+  stashes: () => sectionVisible(repo.stashes.length)
 };
 const visibleSections = computed(() =>
   layout.sidebarSectionOrder.filter((id) => SECTION_VISIBLE[id]?.() ?? false)

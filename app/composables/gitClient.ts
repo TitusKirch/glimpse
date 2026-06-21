@@ -450,6 +450,65 @@ export const gitClient = {
       fallback: ''
     }),
 
+  // Commit exactly `files` (stage only those paths, then commit) — the backend
+  // primitive behind committing a single changelist.
+  commitPaths: ({
+    path,
+    message,
+    files,
+    amend = false
+  }: {
+    path: string;
+    message: string;
+    files: string[];
+    amend?: boolean;
+  }) =>
+    tauriInvoke<string>({
+      command: 'commit_paths',
+      args: { path, message, files, amend },
+      fallback: ''
+    }),
+
+  // Read the git-native changelist store (`<git-dir>/glimpse/changelists.json`),
+  // the portable source of truth for changelist membership. Null when it has
+  // never been written, and in the browser demo (where membership stays in the
+  // localStorage cache).
+  readChangelists: (path: string) =>
+    tauriInvoke<string | null>({
+      command: 'read_changelists',
+      args: { path },
+      fallback: null
+    }),
+
+  // Persist the changelist store JSON to the git dir (atomic write). No-op
+  // fallback in the browser demo.
+  writeChangelists: ({ path, json }: { path: string; json: string }) =>
+    tauriInvoke<null>({
+      command: 'write_changelists',
+      args: { path, json },
+      fallback: null
+    }),
+
+  // Commit a per-file hunk selection: stage exactly the chosen files/hunks
+  // (empty `hunks` = the whole file) then commit, leaving the rest dirty. Backs
+  // "review & commit hunks" for a changelist.
+  commitPartial: ({
+    path,
+    message,
+    files,
+    amend = false
+  }: {
+    path: string;
+    message: string;
+    files: { path: string; hunks: string[] }[];
+    amend?: boolean;
+  }) =>
+    tauriInvoke<string>({
+      command: 'commit_partial',
+      args: { path, message, files, amend },
+      fallback: ''
+    }),
+
   // Subject + body of HEAD, used to prefill an amend.
   headMessage: (path: string) =>
     tauriInvoke<string>({

@@ -21,7 +21,14 @@ const {
 </script>
 
 <template>
-  <SidebarSection section-id="branches" :label="t('sidebar.branches')">
+  <SidebarSection
+    section-id="branches"
+    :label="t('sidebar.branches')"
+    :count="repo.branches.length"
+    :loading="repo.loading"
+    :loaded="repo.loaded"
+    :empty-label="t('sidebar.noBranches')"
+  >
     <template #action>
       <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
@@ -37,8 +44,7 @@ const {
         <UiTooltipContent>{{ t('sidebar.newBranch') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <SidebarSectionSkeleton v-if="repo.loading && !repo.branches.length" />
-    <UiSidebarMenu v-else>
+    <UiSidebarMenu>
       <SidebarBranchItem
         v-for="b in branchesMore.visible.value"
         :key="b.name"

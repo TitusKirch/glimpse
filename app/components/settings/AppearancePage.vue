@@ -246,6 +246,22 @@ const fontScales = [
             />
           </form.Field>
         </SettingsRow>
+        <SettingsRow
+          label="settings.appearance.hideEmptySections.label"
+          hint="settings.appearance.hideEmptySections.hint"
+        >
+          <form.Field
+            v-slot="{ field }"
+            name="hideEmptySidebarSections"
+            :listeners="persist('hideEmptySidebarSections')"
+          >
+            <UiSwitch
+              :model-value="field.state.value"
+              class="shrink-0"
+              @update:model-value="(v) => field.handleChange(v as never)"
+            />
+          </form.Field>
+        </SettingsRow>
       </div>
     </div>
 

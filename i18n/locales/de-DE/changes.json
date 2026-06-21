@@ -24,11 +24,45 @@
     "clean": "Arbeitsverzeichnis sauber",
     "cleanHint": "Es gibt keine Änderungen zum Committen.",
     "lfs": "Von Git LFS verwaltet",
+    "select": "Auswählen",
     "conventional": {
       "toggle": "Conventional-Commit-Helfer",
       "scope": "Scope",
       "breaking": "Breaking",
       "closes": "Closes #"
+    },
+    "changelist": {
+      "title": "Changelists",
+      "default": "Standard",
+      "newList": "Neue Changelist",
+      "renameList": "Changelist umbenennen",
+      "nameLabel": "Name",
+      "namePlaceholder": "Changelist-Name…",
+      "setActive": "Als aktiv festlegen",
+      "delete": "Changelist löschen",
+      "moveTo": "Verschieben nach",
+      "moveAll": "Alle verschieben nach",
+      "addToActive": "Zur aktiven Liste",
+      "reviewCommit": "Hunks prüfen & committen…",
+      "selected": "{n} ausgewählt",
+      "moveSelected": "Verschieben nach",
+      "clearSelection": "Aufheben",
+      "committing": "Commit in {name}",
+      "collapse": "Ein-/ausklappen",
+      "empty": "Keine Dateien"
+    },
+    "commitReview": {
+      "title": "Prüfen & committen",
+      "subtitle": "Wähle, welche Hunks jeder Datei in {name} committet werden.",
+      "loading": "Diffs werden geladen…",
+      "empty": "Keine Dateien in dieser Changelist.",
+      "wholeFile": "ganze Datei",
+      "needMessage": "Gib zuerst eine Commit-Nachricht ein.",
+      "selectAll": "Alle auswählen",
+      "selectNone": "Keine",
+      "hunk": "Hunk {n}",
+      "summary": "{files} Datei(en), {hunks} Hunk(s)",
+      "commit": "Auswahl committen"
     }
   }
 }

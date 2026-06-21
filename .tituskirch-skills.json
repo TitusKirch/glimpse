@@ -1,0 +1,15 @@
+{
+  "language": "en",
+  "issue": {
+    "backend": "github",
+    "language": { "title": "en", "body": "en" },
+    "title": { "convention": "plain" },
+    "labels": { "exclude": ["stack:*", "autorelease:*", "dependencies"] },
+    "github": { "template": null }
+  },
+  "pr": {
+    "backend": "github",
+    "base": "dev",
+    "title": { "convention": "conventional" }
+  }
+}

@@ -1,3 +1,5 @@
+mod changelist;
+mod cli;
 mod git;
 mod platform;
 
@@ -681,8 +683,66 @@ async fn commit(
 }
 
 #[tauri::command]
+async fn commit_paths(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    files: Vec<String>,
+    amend: bool,
+) -> Result<String, String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit_paths(&message, &files, amend)
+    })
+}
+
+#[tauri::command]
 async fn head_message(path: String) -> Result<String, String> {
     git::Repo::open(&path).head_message()
+}
+
+// One file's contribution to a partial commit: a path plus the hunks to stage
+// from it (empty = the whole file). Command arg only, so not part of bindings.
+#[derive(serde::Deserialize)]
+struct PartialFile {
+    path: String,
+    hunks: Vec<String>,
+}
+
+// Commit a per-file hunk selection (review & commit a changelist partially):
+// stage exactly the chosen files/hunks, then commit, leaving the rest dirty.
+#[tauri::command]
+async fn commit_partial(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    message: String,
+    files: Vec<PartialFile>,
+    amend: bool,
+) -> Result<String, String> {
+    let files: Vec<(String, Vec<String>)> = files.into_iter().map(|f| (f.path, f.hunks)).collect();
+    locked(&locks, &path, || {
+        git::Repo::open(&path).commit_partial(&message, &files, amend)
+    })
+}
+
+// Read the git-native changelist store (`<git-dir>/glimpse/changelists.json`).
+// `None` when it has never been written. No lock: a read never races a writer
+// into a torn state because writes are atomic (temp file + rename).
+#[tauri::command]
+async fn read_changelists(path: String) -> Result<Option<String>, String> {
+    git::Repo::open(&path).read_changelists()
+}
+
+// Write the git-native changelist store. Locked like every other mutation so two
+// concurrent saves can't interleave.
+#[tauri::command]
+async fn write_changelists(
+    locks: State<'_, RepoLocks>,
+    path: String,
+    json: String,
+) -> Result<(), String> {
+    locked(&locks, &path, || {
+        git::Repo::open(&path).write_changelists(&json)
+    })
 }
 
 #[tauri::command]
@@ -1317,6 +1377,22 @@ fn higher_update(
     }
 }
 
+/// Check one channel's feed for an update. A channel whose manifest isn't
+/// published yet — most often a beta whose `latest.json` is still being built and
+/// uploaded — makes the updater return `ReleaseNotFound` ("could not fetch a
+/// valid release JSON from the remote"). That's "nothing to offer yet", not a
+/// failure, so map it to `None` instead of surfacing a scary error to the user.
+#[cfg(desktop)]
+async fn check_feed(
+    updater: tauri_plugin_updater::Updater,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    match updater.check().await {
+        Ok(update) => Ok(update),
+        Err(tauri_plugin_updater::Error::ReleaseNotFound) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 /// Resolve the update to offer for a channel. The beta channel *graduates* to
 /// stable: it offers the highest version across *both* the beta and stable
 /// feeds, so a beta user moves to the final release the moment it's out
@@ -1332,12 +1408,12 @@ async fn resolve_update(
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
     if channel != "beta" {
         let updater = channel_updater(app, channel, force)?;
-        return updater.check().await.map_err(|e| e.to_string());
+        return check_feed(updater).await;
     }
     let mut best: Option<tauri_plugin_updater::Update> = None;
     for ch in ["beta", "stable"] {
         let updater = channel_updater(app, ch, force)?;
-        if let Some(candidate) = updater.check().await.map_err(|e| e.to_string())? {
+        if let Some(candidate) = check_feed(updater).await? {
             best = Some(match best {
                 Some(current) => higher_update(current, candidate),
                 None => candidate,
@@ -1388,6 +1464,13 @@ async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // A `glimpse cl …` invocation is handled headlessly here and the process
+    // exits before any window/Tauri setup; anything else falls through to the
+    // normal app launch.
+    if let Some(code) = cli::try_run_cli() {
+        std::process::exit(code);
+    }
+
     let builder = tauri::Builder::default()
         .manage(WatcherState(Mutex::new(None)))
         .manage(RepoLocks::default());
@@ -1501,6 +1584,10 @@ pub fn run() {
             stage,
             unstage,
             commit,
+            commit_paths,
+            commit_partial,
+            read_changelists,
+            write_changelists,
             head_message,
             discard,
             checkout_branch,

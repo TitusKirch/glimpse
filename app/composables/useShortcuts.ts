@@ -8,10 +8,21 @@ import { useEventListener } from '@vueuse/core';
 
 export function useShortcuts() {
   const repo = useRepoStore();
+  const settingsStore = useSettingsStore();
+  const changelists = useChangelistsStore();
   const palette = useOverlay('commandPalette');
   const quickOpen = useOverlay('quickOpen');
   const settings = useOverlay('settings');
   const help = useOverlay('help');
+
+  // Cmd/Ctrl+↵ commits: the active changelist when changelists are on, else the
+  // staged set.
+  function commitFromShortcut() {
+    if (!settingsStore.changelists) return repo.commit();
+    const cl = changelists.forRepo(repo.repoPath);
+    const active = cl.lists.find((l) => l.id === cl.activeId) ?? cl.lists[0];
+    return repo.commitList(active?.members ?? []);
+  }
 
   const isMac = navigator.platform.toLowerCase().includes('mac');
 
@@ -56,7 +67,7 @@ export function useShortcuts() {
     }
     if (k === 'enter') {
       e.preventDefault();
-      void repo.commit();
+      void commitFromShortcut();
       return;
     }
 

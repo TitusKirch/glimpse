@@ -13,7 +13,14 @@ const {
 </script>
 
 <template>
-  <SidebarSection section-id="stashes" :label="t('sidebar.stashes')">
+  <SidebarSection
+    section-id="stashes"
+    :label="t('sidebar.stashes')"
+    :count="repo.stashes.length"
+    :loading="repo.loading"
+    :loaded="repo.loaded"
+    :empty-label="t('sidebar.noStashes')"
+  >
     <template #action>
       <UiTooltip :open="actionTip" @update:open="onActionTipChange">
         <UiTooltipTrigger as-child>
@@ -29,8 +36,7 @@ const {
         <UiTooltipContent>{{ t('sidebar.stashPush') }}</UiTooltipContent>
       </UiTooltip>
     </template>
-    <SidebarSectionSkeleton v-if="repo.loading && !repo.stashes.length" />
-    <UiSidebarMenu v-else>
+    <UiSidebarMenu>
       <UiSidebarMenuItem v-for="s in repo.stashes" :key="s.reference">
         <UiSidebarMenuButton
           :tooltip="s.message"

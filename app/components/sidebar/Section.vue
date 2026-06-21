@@ -8,6 +8,18 @@ import { useSidebar } from '@/components/ui/sidebar';
 const props = defineProps<{
   sectionId: string;
   label: string;
+  // Item count + loading flag drive the section's placeholder states: a skeleton
+  // while loading-with-nothing-yet, and the `emptyLabel` "none yet" line once
+  // loaded with no items. Whether an empty section is shown at all is decided
+  // upstream in Sidebar.vue (the hide-empty-sections setting). Sections that omit
+  // `count` always render their slot.
+  count?: number;
+  loading?: boolean;
+  // True once this repo has loaded at least once. Together with `loading` it
+  // tells a first-load (skeleton) apart from a background refresh (keep what's
+  // shown), so the skeleton doesn't flash on every refetch.
+  loaded?: boolean;
+  emptyLabel?: string;
 }>();
 
 const { t } = useI18n();
@@ -22,6 +34,17 @@ const collapsed = computed(() =>
   layout.sidebarCollapsedSections.includes(props.sectionId)
 );
 const editMode = computed(() => layout.sidebarEditMode && !isIcon.value);
+
+// First load with nothing to show yet → skeleton. On a refresh (already loaded,
+// even if the list is empty) we keep the "none yet" line instead of flashing the
+// skeleton again. Whether an empty section is shown at all is decided upstream
+// (visibleSections), so here we just render the placeholder when we are shown empty.
+const showSkeleton = computed(
+  () => props.count === 0 && props.loading === true && props.loaded !== true
+);
+const showEmptyLabel = computed(
+  () => props.count === 0 && !showSkeleton.value && !!props.emptyLabel
+);
 </script>
 
 <template>
@@ -59,7 +82,14 @@ const editMode = computed(() => layout.sidebarEditMode && !isIcon.value);
     <slot name="action" />
 
     <UiSidebarGroupContent v-show="!collapsed || isIcon">
-      <slot />
+      <SidebarSectionSkeleton v-if="showSkeleton" />
+      <p
+        v-else-if="showEmptyLabel"
+        class="px-2 py-1.5 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden"
+      >
+        {{ emptyLabel }}
+      </p>
+      <slot v-else />
     </UiSidebarGroupContent>
   </UiSidebarGroup>
 </template>

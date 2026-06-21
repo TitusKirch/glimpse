@@ -11,9 +11,14 @@ const props = defineProps<{
   // Tracked by Git LFS — shows an "LFS" badge so a pointer change reads as a
   // binary object, not a tiny text edit.
   isLfs?: boolean;
+  // Opt-in multi-select (changelist panel only): show a leading checkbox and
+  // emit `toggle` when it's clicked. Off everywhere else, so the shared diff
+  // file list is unaffected. `selected` reflects the checkbox state.
+  selectable?: boolean;
+  selected?: boolean;
 }>();
 
-defineEmits<{ select: [] }>();
+defineEmits<{ select: []; toggle: [] }>();
 
 const { t } = useI18n();
 
@@ -51,6 +56,21 @@ const dir = computed(() => {
     @click="$emit('select')"
     @keydown.enter="$emit('select')"
   >
+    <button
+      v-if="selectable"
+      type="button"
+      class="flex size-4 shrink-0 cursor-pointer items-center justify-center"
+      :class="selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+      :aria-label="t('changes.select')"
+      @click.stop="$emit('toggle')"
+      @keydown.enter.stop="$emit('toggle')"
+    >
+      <NuxtIcon
+        :name="selected ? 'lucide:square-check' : 'lucide:square'"
+        class="size-4"
+        :class="selected ? 'text-primary' : 'text-muted-foreground'"
+      />
+    </button>
     <span
       class="flex w-4 shrink-0 items-center justify-center font-mono text-[11px] font-bold"
       :class="COLOR[status] ?? 'text-muted-foreground'"
