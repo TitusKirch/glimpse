@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.12.0](https://github.com/TitusKirch/glimpse/compare/v0.11.0...v0.12.0) (2026-06-21)
+
+
+### Features
+
+* changelists (0.12.0) — feature, storage, UX, CLI, hunk-commit ([#97](https://github.com/TitusKirch/glimpse/issues/97)) ([d059475](https://github.com/TitusKirch/glimpse/commit/d059475470c799f6eb38948d229a2fea5bf17e8f))
+* **changes:** clearer changelist panel — active list, collapse, move-all ([aa4c30e](https://github.com/TitusKirch/glimpse/commit/aa4c30e67a3d65dbd1c98b1b1c6247c094ac96de)), closes [#100](https://github.com/TitusKirch/glimpse/issues/100)
+* **changes:** group pending changes into named changelists ([eda4eb8](https://github.com/TitusKirch/glimpse/commit/eda4eb8abc9d307d63d980b83c8fcb3c127f0ca2))
+* **changes:** quick-add and multi-select files in changelists ([63fa51e](https://github.com/TitusKirch/glimpse/commit/63fa51e29487418391952a658786c2ff095154c5)), closes [#105](https://github.com/TitusKirch/glimpse/issues/105)
+* **changes:** review & commit selected hunks from a changelist ([e9257b7](https://github.com/TitusKirch/glimpse/commit/e9257b7da8d56e467e9b346d25fbbdcc150b0b52)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **changes:** self-contained review-&-commit dialog ([230a523](https://github.com/TitusKirch/glimpse/commit/230a5234346701b23c77b5146b0161c88eb4d8e1)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **changes:** store changelist membership in the git dir ([7c95c24](https://github.com/TitusKirch/glimpse/commit/7c95c243b369ca1bbe268bb1c53a9465321a9c77)), closes [#99](https://github.com/TitusKirch/glimpse/issues/99)
+* **cli:** drive changelists from the command line ([98a2373](https://github.com/TitusKirch/glimpse/commit/98a23735e005d9829428a45d63b0c804930f5bda)), closes [#101](https://github.com/TitusKirch/glimpse/issues/101)
+* **cli:** emit structured JSON errors under --json ([1d4c695](https://github.com/TitusKirch/glimpse/commit/1d4c6950f9406879ff283cac52cf6ea63798d4ed))
+* **history:** show the time of day in commit dates ([b4f11a2](https://github.com/TitusKirch/glimpse/commit/b4f11a2b56a4a58475919e7832347e0f7232bc9d))
+* **settings:** gate changelist hunk-commit behind an off-by-default setting ([5fba67a](https://github.com/TitusKirch/glimpse/commit/5fba67af0a093a9eed3bb67fee8f76034a6e7010)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **sidebar:** show a 'none yet' line for empty sections + hide-empty option ([816b135](https://github.com/TitusKirch/glimpse/commit/816b135122c106bcaa72f8d0b8d6d1d3f462dda7))
+
+
+### Bug Fixes
+
+* **diff:** hide index hunk-staging controls in changelist mode ([bcd9d3d](https://github.com/TitusKirch/glimpse/commit/bcd9d3d3638ea7e907bd39b41586965fa3bb9186)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **loading:** show skeletons only on first load, not on refresh ([fe84d98](https://github.com/TitusKirch/glimpse/commit/fe84d987df94165674b486beb290982b5f374824)), closes [#107](https://github.com/TitusKirch/glimpse/issues/107)
+* **updater:** treat a not-yet-published manifest as no update ([e137291](https://github.com/TitusKirch/glimpse/commit/e1372916ef6967141cc1043c3f826abf2e876c19))
+
 ## [0.11.0](https://github.com/TitusKirch/glimpse/compare/v0.10.0...v0.11.0) (2026-06-06)
 
 
