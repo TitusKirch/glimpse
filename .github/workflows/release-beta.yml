@@ -259,3 +259,7 @@ jobs:
             --notes "Holds latest.json for the beta auto-updater. Installers live in the versioned \`$TAG\` prerelease." \
             --prerelease
           gh release upload beta latest.json --repo "$GITHUB_REPOSITORY" --clobber
+          # Deleting + recreating the fixed `beta` tag occasionally yields a
+          # DRAFT (GitHub eventual consistency), which 404s the public updater
+          # URL. Force it published so the manifest always resolves.
+          gh release edit beta --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
