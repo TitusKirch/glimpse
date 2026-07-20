@@ -1884,27 +1884,29 @@ impl Repo {
 #[test]
 #[ignore = "writes app/types/bindings.ts; regenerate via `pnpm bindings`"]
 fn export_bindings() {
+    // ts-rs 12 takes an explicit `&Config`; defaults reproduce the pre-12 output.
+    let cfg = ts_rs::Config::default();
     let decls = [
-        Commit::decl(),
-        Branch::decl(),
-        ReflogEntry::decl(),
-        Worktree::decl(),
-        Submodule::decl(),
-        SparseStatus::decl(),
-        StashEntry::decl(),
-        RepoInfo::decl(),
-        DiffData::decl(),
-        CommitFile::decl(),
-        BlameLine::decl(),
-        StatusEntry::decl(),
-        RebaseStep::decl(),
-        ImageDiff::decl(),
-        Contributor::decl(),
-        ActivityPoint::decl(),
-        FileChurn::decl(),
-        RepoStats::decl(),
-        SshKey::decl(),
-        SshStatus::decl(),
+        Commit::decl(&cfg),
+        Branch::decl(&cfg),
+        ReflogEntry::decl(&cfg),
+        Worktree::decl(&cfg),
+        Submodule::decl(&cfg),
+        SparseStatus::decl(&cfg),
+        StashEntry::decl(&cfg),
+        RepoInfo::decl(&cfg),
+        DiffData::decl(&cfg),
+        CommitFile::decl(&cfg),
+        BlameLine::decl(&cfg),
+        StatusEntry::decl(&cfg),
+        RebaseStep::decl(&cfg),
+        ImageDiff::decl(&cfg),
+        Contributor::decl(&cfg),
+        ActivityPoint::decl(&cfg),
+        FileChurn::decl(&cfg),
+        RepoStats::decl(&cfg),
+        SshKey::decl(&cfg),
+        SshStatus::decl(&cfg),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
