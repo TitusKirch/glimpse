@@ -65,7 +65,7 @@
     "fuse.js": "^7.5.0",
     "highlight.js": "^11.11.1",
     "nuxt": "^4.4.8",
-    "pinia": "^3.0.4",
+    "pinia": "^4.0.2",
     "reka-ui": "^2.10.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
