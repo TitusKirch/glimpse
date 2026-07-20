@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.12.1](https://github.com/TitusKirch/glimpse/compare/v0.12.0...v0.12.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* align dependabot labels to the stack: convention ([f54365b](https://github.com/TitusKirch/glimpse/commit/f54365b5cd67fc0aa6bf53afc591f5655a0abb60))
+* **deps:** bump quick-xml to 0.41.0 via plist 1.10.0 ([32da7b2](https://github.com/TitusKirch/glimpse/commit/32da7b20260ff7f8117f91303329e1af1ad114e3))
+* **git:** pass Config to ts-rs decl() for ts-rs 12 ([c34c77b](https://github.com/TitusKirch/glimpse/commit/c34c77b2679e27fcfbaa7224f1b42c96be205de4))
+
 ## [0.12.0](https://github.com/TitusKirch/glimpse/compare/v0.11.0...v0.12.0) (2026-06-21)
 
 
