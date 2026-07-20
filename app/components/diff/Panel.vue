@@ -192,8 +192,7 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
         <div class="h-full overflow-auto px-4 py-3">
           <pre
             class="font-sans text-sm leading-relaxed break-words whitespace-pre-wrap"
-            >{{ repo.selectedBody || repo.selectedCommit?.subject }}</pre
-          >
+            >{{ repo.selectedBody || repo.selectedCommit?.subject }}</pre>
           <div
             v-if="repo.selectedCommit"
             class="mt-2 flex items-center gap-2 text-xs text-muted-foreground"

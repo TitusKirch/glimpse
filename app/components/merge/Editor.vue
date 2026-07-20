@@ -85,8 +85,7 @@ async function save() {
           <pre
             v-if="seg.type === 'text'"
             class="px-2 whitespace-pre-wrap text-muted-foreground"
-            >{{ seg.text }}</pre
-          >
+            >{{ seg.text }}</pre>
           <div v-else class="my-2 overflow-hidden rounded-md border">
             <div
               class="flex flex-wrap items-center gap-1 border-b bg-muted/40 px-2 py-1"
@@ -118,14 +117,12 @@ async function save() {
                     ? 'bg-green-500/10'
                     : ''
                 "
-                >{{ seg.ours }}</pre
-              >
+                >{{ seg.ours }}</pre>
               <pre
                 v-if="seg.base"
                 class="border-r px-2 py-1 whitespace-pre-wrap text-muted-foreground"
                 :class="choices[i] === 'base' ? 'bg-blue-500/10' : ''"
-                >{{ seg.base }}</pre
-              >
+                >{{ seg.base }}</pre>
               <pre
                 class="px-2 py-1 whitespace-pre-wrap"
                 :class="
@@ -133,8 +130,7 @@ async function save() {
                     ? 'bg-blue-500/10'
                     : ''
                 "
-                >{{ seg.theirs }}</pre
-              >
+                >{{ seg.theirs }}</pre>
             </div>
           </div>
         </template>
