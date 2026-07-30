@@ -53,12 +53,12 @@ function onReorder(tabs: RepoState[]) {
 </script>
 
 <template>
-  <div class="flex items-center gap-1">
+  <div class="flex min-w-0 items-center gap-1">
     <draggable
       :model-value="repo.tabs"
       item-key="id"
       tag="div"
-      class="flex items-center gap-1"
+      class="flex min-w-0 items-center gap-1"
       :animation="150"
       :force-fallback="true"
       :fallback-tolerance="3"
@@ -71,7 +71,7 @@ function onReorder(tabs: RepoState[]) {
     >
       <template #item="{ element: tab }">
         <div
-          class="group flex cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors select-none"
+          class="group flex min-w-0 cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors select-none"
           :class="
             tab.id === repo.activeTabId
               ? 'bg-accent text-accent-foreground'
@@ -79,7 +79,7 @@ function onReorder(tabs: RepoState[]) {
           "
           @click="repo.selectTab(tab.id)"
         >
-          <span>{{ tab.name }}</span>
+          <RepoTabLabel :name="tab.name" />
           <UiTooltip v-if="tab.flavor === 'wsl'">
             <UiTooltipTrigger as-child>
               <!-- Fixed-size, non-rotating wrapper is the tooltip anchor: a
@@ -122,7 +122,7 @@ function onReorder(tabs: RepoState[]) {
         <UiButton
           variant="ghost"
           size="icon"
-          class="size-7"
+          class="size-7 shrink-0"
           icon="lucide:plus"
           :aria-label="t('actions.openRepo')"
           v-bind="openRepoHover"
