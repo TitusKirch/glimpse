@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.12.2](https://github.com/TitusKirch/glimpse/compare/v0.12.1...v0.12.2) (2026-07-30)
+
+
+### Features
+
+* route questions, ideas and possible bugs to the Discord forum ([aa4316f](https://github.com/TitusKirch/glimpse/commit/aa4316f472c25cdeb1d69789ff5c3ed59e08fdfa))
+
+
+### Bug Fixes
+
+* align issue-template labels with the label catalog ([8c2c6ad](https://github.com/TitusKirch/glimpse/commit/8c2c6ad2ce24e0765c05bd72d43b3abc4f5226fe))
+* **repo:** truncate long tab names instead of wrapping ([10bf454](https://github.com/TitusKirch/glimpse/commit/10bf454daabb840a750df6c2e739dc65dc3c7623)), closes [#133](https://github.com/TitusKirch/glimpse/issues/133)
+
+
+### Miscellaneous Chores
+
+* release 0.12.2 instead of 0.13.0 ([92f195c](https://github.com/TitusKirch/glimpse/commit/92f195c2ef6c06755a1e5fc8613d7f1a7e124e70))
+
 ## [0.12.1](https://github.com/TitusKirch/glimpse/compare/v0.12.0...v0.12.1) (2026-07-20)
 
 
