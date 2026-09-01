@@ -8,65 +8,41 @@ on:
       - main
       - dev
     types: [opened, synchronize, reopened, ready_for_review]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - LICENSE
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
-  lint:
-    name: Lint & Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event.pull_request.draft == false
-    steps:
-      - uses: actions/checkout@v7
+  check:
+    name: CI
+    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@f81bbe5fb5e8055b55a1ef5f861cc63a8e253622 # v0.1.3
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+  rust:
+    name: Rust
+    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@f81bbe5fb5e8055b55a1ef5f861cc63a8e253622 # v0.1.3
+    with:
+      working-directory: src-tauri
+      platforms: '["ubuntu-latest", "windows-latest", "macos-latest"]'
+      system-dependencies: >-
+        libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+        libxdo-dev libssl-dev build-essential file wget
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Format check
-        run: pnpm format
-
-      - name: Unit tests
-        run: pnpm test
-
-  # Supply-chain gate for the Rust crate: security advisories (RustSec),
-  # license policy, and crate-source allowlist. Config: src-tauri/deny.toml.
-  deny:
-    name: Cargo deny
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event.pull_request.draft == false
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
-        with:
-          manifest-path: src-tauri/Cargo.toml
-          command: check
-
-  build:
-    name: Build (${{ matrix.os }})
+  # NOT A BODY, and deliberately so: linking the Nuxt frontend into the Tauri
+  # binary is what this repo ships, and no other repo in the estate does it.
+  # `needs: rust` keeps the shape the copy had — the expensive 3-OS link never
+  # starts unless fmt, clippy and the tests passed — and lets it restore the
+  # cargo cache that job just wrote.
+  tauri:
+    name: Tauri build (${{ matrix.os }})
+    needs: rust
     runs-on: ${{ matrix.os }}
-    # Gate the expensive 3-OS matrix on lint/format/tests: if those fail the
-    # build never starts, saving ~13 min of runner time per failed check.
-    needs: lint
     timeout-minutes: 30
+    permissions:
+      contents: read
     if: github.event.pull_request.draft == false
     strategy:
       fail-fast: false
@@ -75,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
       - uses: actions/setup-node@v7
         with:
@@ -98,8 +74,6 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-        with:
-          components: rustfmt, clippy
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
@@ -108,18 +82,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Rust format check
-        run: cargo fmt --all --check
-        working-directory: src-tauri
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-        working-directory: src-tauri
-
-      - name: Rust tests
-        run: cargo test --all-features
-        working-directory: src-tauri
 
       - name: Tauri build (compile, no installers)
         run: pnpm tauri build --no-bundle
