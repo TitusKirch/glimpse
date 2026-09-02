@@ -158,92 +158,23 @@ jobs:
             --notes "Experimental build of \`$GITHUB_REF_NAME\` — v$VERSION. Not for general use." \
             --prerelease
 
+  # The build is identical in both release chains, so it lives in one place. See
+  # _tauri-build.yml for what the two differed in — four lines out of eighty-eight.
   build:
-    name: Build (${{ matrix.platform }})
+    name: Build
     needs: prepare
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libxdo-dev \
-            libssl-dev \
-            build-essential \
-            file \
-            wget
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-
-      - name: Cache Rust build
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Fetch updater signing secrets from Bitwarden
-        uses: bitwarden/sm-action@1238aae8fc64b212641190a9227c8a734ab1a793 # v3.0.1
-        with:
-          access_token: ${{ secrets.BWS_ACCESS_TOKEN }}
-          cloud_region: eu
-          secrets: |
-            2fc619e7-4c67-4f40-9a63-b45b017af6d9 > TAURI_SIGNING_PRIVATE_KEY
-            1fb62037-259b-45ec-b0fa-b45b017ab6e7 > TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-
-      # tauri-action reads the version from tauri.conf.json; stamp the experiment one.
-      - name: Stamp experiment version
-        shell: bash
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          tmp=$(mktemp)
-          jq --arg v "$VERSION" '.version = $v' \
-            src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
-
-      # Authenticode-sign the Windows .exe + NSIS installer via Azure Artifact
-      # Signing (injects bundle.windows.signCommand before the build) — see
-      # WINDOWS-SIGNING-SETUP.local.md.
-      - name: Set up Windows code signing (Azure Artifact Signing)
-        if: runner.os == 'Windows'
-        uses: ./.github/actions/windows-codesigning
-        with:
-          bws-access-token: ${{ secrets.BWS_ACCESS_TOKEN }}
-
-      # GLIMPSE_EXPERIMENT bakes the slug into the binary (option_env!), so the
-      # running app shows the experiment name in the sidebar. No latest.json here
-      # (finalize builds it once).
-      - name: Build and upload installers
-        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          GLIMPSE_EXPERIMENT: ${{ needs.prepare.outputs.slug }}
-        with:
-          tagName: ${{ needs.prepare.outputs.tag }}
-          releaseDraft: false
-          prerelease: true
-          includeUpdaterJson: false
+    permissions:
+      contents: write
+    uses: ./.github/workflows/_tauri-build.yml
+    with:
+      matrix: ${{ needs.prepare.outputs.matrix }}
+      version: ${{ needs.prepare.outputs.version }}
+      tag: ${{ needs.prepare.outputs.tag }}
+      job-name: Build
+      matrix-label: platform
+      experiment-slug: ${{ needs.prepare.outputs.slug }}
+    secrets:
+      BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
 
   finalize:
     name: Publish updater manifest

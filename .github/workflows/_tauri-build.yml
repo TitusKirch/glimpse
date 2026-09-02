@@ -1,0 +1,158 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Tauri Build
+
+# The build half of both release chains, which were step-for-step identical.
+#
+# MEASURED, NOT ASSUMED: `release-beta.yml` and `release-experiment.yml` carried
+# the same eight steps in the same order — apt dependencies, Rust, the cargo
+# cache, pnpm install, the updater signing key from Bitwarden, the version stamp,
+# Windows code signing, and tauri-action. Diffing the two jobs left exactly four
+# differences: the job name, where the matrix comes from, one comment, and the
+# `GLIMPSE_EXPERIMENT` variable. All four are inputs below.
+#
+# LOCAL RATHER THAN CENTRAL, deliberately. `kirchDev/workflows` holds what more
+# than one repo needs, and this repo is the estate's only Tauri app — a central
+# body here would be a bet on a second one that does not exist. `gildstone` draws
+# the same line with its own `_test-*.yml`.
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        description: >-
+          JSON strategy matrix. A beta builds all three platforms; an experiment
+          builds the subset its dispatch asked for.
+        required: true
+        type: string
+      version:
+        description: Version stamped into tauri.conf.json — tauri-action reads it from there.
+        required: true
+        type: string
+      tag:
+        description: Release tag the installers are uploaded to.
+        required: true
+        type: string
+      job-name:
+        description: Name shown per matrix leg.
+        required: false
+        type: string
+        default: Build
+      matrix-label:
+        description: >-
+          Which matrix key names the leg in the job title — `os` for a fixed
+          three-platform build, `platform` for a computed subset.
+        required: false
+        type: string
+        default: platform
+      experiment-slug:
+        description: >-
+          Baked into the binary through `option_env!`, so the running app shows
+          the experiment name in its sidebar. Empty for a beta, which has none.
+        required: false
+        type: string
+        default: ''
+      timeout-minutes:
+        description: Per-platform timeout — a cold Tauri build is slow.
+        required: false
+        type: number
+        default: 45
+    secrets:
+      BWS_ACCESS_TOKEN:
+        description: Bitwarden Secrets Manager access token — opens the updater signing key.
+        required: true
+
+jobs:
+  build:
+    name: ${{ inputs.job-name }} (${{ matrix[inputs.matrix-label] }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      # tauri-action uploads the installers onto the release.
+      contents: write
+    strategy:
+      # One platform failing must not cancel the others — knowing that only
+      # Windows broke is the reason for building a matrix at all.
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Linux only: the macOS and Windows images carry what Tauri links against,
+      # while a Linux image is minimal by design.
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            wget
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The updater signing key never becomes a GitHub secret — same runtime
+      # pattern as the App PEMs elsewhere in the estate.
+      - name: Fetch updater signing secrets from Bitwarden
+        uses: bitwarden/sm-action@1238aae8fc64b212641190a9227c8a734ab1a793 # v3.0.1
+        with:
+          access_token: ${{ secrets.BWS_ACCESS_TOKEN }}
+          cloud_region: eu
+          secrets: |
+            2fc619e7-4c67-4f40-9a63-b45b017af6d9 > TAURI_SIGNING_PRIVATE_KEY
+            1fb62037-259b-45ec-b0fa-b45b017ab6e7 > TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+
+      # tauri-action reads the version from tauri.conf.json rather than a flag,
+      # so it has to be written into the file before the build.
+      - name: Stamp the version
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          tmp=$(mktemp)
+          jq --arg v "$VERSION" '.version = $v' \
+            src-tauri/tauri.conf.json > "$tmp" && mv "$tmp" src-tauri/tauri.conf.json
+
+      # Authenticode-signs the Windows .exe and NSIS installer through Azure
+      # Artifact Signing, by injecting bundle.windows.signCommand before the
+      # build — see WINDOWS-SIGNING-SETUP.local.md.
+      - name: Set up Windows code signing (Azure Artifact Signing)
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/windows-codesigning
+        with:
+          bws-access-token: ${{ secrets.BWS_ACCESS_TOKEN }}
+
+      # No latest.json here: `finalize` builds it once, so the parallel legs only
+      # ever upload distinct files and cannot race each other.
+      - name: Build and upload installers
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GLIMPSE_EXPERIMENT: ${{ inputs.experiment-slug }}
+        with:
+          tagName: ${{ inputs.tag }}
+          releaseDraft: false
+          prerelease: true
+          includeUpdaterJson: false
