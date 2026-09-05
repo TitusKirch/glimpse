@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.13.0](https://github.com/TitusKirch/glimpse/compare/v0.12.2...v0.13.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* move to pnpm 12
+* this repository now requires pnpm 12.
+
+### Features
+
+* **ci:** call the central workflow bodies instead of copying them ([d1da865](https://github.com/TitusKirch/glimpse/commit/d1da865c2ae7b261e547b4ae7b22f36dabbc6c1c))
+
+
+### Bug Fixes
+
+* **ci:** let the queue PR body wrap itself ([c54e863](https://github.com/TitusKirch/glimpse/commit/c54e863be6e261a8482e3acee30e6878d7e2c610))
+* **ci:** pin the workflow bodies to v0.2.0 and drop paths-ignore ([173c9ab](https://github.com/TitusKirch/glimpse/commit/173c9ab12b81ac0e56412e6b0e04bddf08689186))
+* **ci:** pin the workflow bodies to v0.5.0 ([1e431b7](https://github.com/TitusKirch/glimpse/commit/1e431b751fe03092d84ae460d3326cd4bd260f39))
+* **ci:** pin the workflow bodies to v0.7.0 ([34d985d](https://github.com/TitusKirch/glimpse/commit/34d985d25ffa76eaccd2f893f406ab45d0d76ac3))
+* **ci:** read the Queue App PEM from this owner's own -ci mirror ([3a1eb1d](https://github.com/TitusKirch/glimpse/commit/3a1eb1d3ff345e717f0c26be5d594448f226279e))
+
+
+### Reverts
+
+* go back to pnpm 11.25.0 ([e53209c](https://github.com/TitusKirch/glimpse/commit/e53209cc41c2c5ed3dc8d6763606045a369ebff0))
+
+
+### Miscellaneous Chores
+
+* move to pnpm 12 ([9669374](https://github.com/TitusKirch/glimpse/commit/9669374820101354ac2ae7cd125c546e232b1ec7))
+* move to pnpm 12 ([9e0c255](https://github.com/TitusKirch/glimpse/commit/9e0c25540c2ff9ffb92936079a11abf07a004a49))
+
 ## [0.12.2](https://github.com/TitusKirch/glimpse/compare/v0.12.1...v0.12.2) (2026-07-30)
 
 
