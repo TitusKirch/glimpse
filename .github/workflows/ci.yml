@@ -53,7 +53,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6
+      # HELD at v6.0.10 deliberately — do not bump without checking Windows.
+      # v6.1.0 (d9184bf) leaves `pnpm` unrunnable on windows-latest: the shell
+      # finds nothing to run, so `pnpm install` and `pnpm tauri build` each
+      # return 0 in about a second having done nothing, and the job goes green
+      # without building. See #164. `_tauri-build.yml` is on this same sha.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - uses: actions/setup-node@v7
         with:
@@ -87,3 +92,10 @@ jobs:
 
       - name: Tauri build (compile, no installers)
         run: pnpm tauri build --no-bundle
+
+      # A Vue auto-import Nuxt decided not to inject leaves a bare `ref(` in the
+      # bundle and throws only once that component renders — invisible to `pnpm
+      # dev`, invisible to the unit tests, and fatal in the packaged app. The
+      # build above already produced `.output/public`, so the scan is free.
+      - name: Check the bundle for free Vue-API identifiers
+        run: node scripts/check-bundle-globals.mjs
