@@ -22,7 +22,7 @@ runs:
     # job env (via $GITHUB_ENV), so the AZURE_CLIENT_* auth vars are inherited by
     # artifact-signing-cli when `tauri build` (a later step) spawns it.
     - name: Fetch Azure Artifact Signing secrets from Bitwarden
-      uses: bitwarden/sm-action@27c0c9dcab679d7250dbab91227c85b49ffa5e0f # v3.0.0
+      uses: bitwarden/sm-action@1238aae8fc64b212641190a9227c8a734ab1a793 # v3.0.1
       with:
         access_token: ${{ inputs.bws-access-token }}
         cloud_region: eu

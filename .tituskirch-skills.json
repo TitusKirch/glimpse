@@ -67,7 +67,8 @@
       "repo": false
     },
     "review": {
-      "maxRounds": 3
+      "maxRounds": 3,
+      "timeout": 1800
     },
     "priorityLabels": [
       "priority: urgent",
