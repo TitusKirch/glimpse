@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.13.0](https://github.com/TitusKirch/glimpse/compare/v0.12.2...v0.13.0) (2026-09-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* move to pnpm 12
+* this repository now requires pnpm 12.
+
+### Features
+
+* **build:** ship source maps for the app's own code ([705b4cb](https://github.com/TitusKirch/glimpse/commit/705b4cbf4216734467d3a05fbb89091b04eb9f36)), closes [#158](https://github.com/TitusKirch/glimpse/issues/158)
+* **ci:** call the central workflow bodies instead of copying them ([d1da865](https://github.com/TitusKirch/glimpse/commit/d1da865c2ae7b261e547b4ae7b22f36dabbc6c1c))
+* **error:** offer a manual update check on the fatal error page ([750d2e7](https://github.com/TitusKirch/glimpse/commit/750d2e7fe5425a2826120c9b39c438dbb7d9920a)), closes [#167](https://github.com/TitusKirch/glimpse/issues/167)
+* **error:** show version, OS and build info on the fatal error page ([ea0a0c1](https://github.com/TitusKirch/glimpse/commit/ea0a0c1d0431c81b6b7149f1ed474383b5866cc6)), closes [#157](https://github.com/TitusKirch/glimpse/issues/157)
+
+
+### Bug Fixes
+
+* **ci:** let the queue PR body wrap itself ([c54e863](https://github.com/TitusKirch/glimpse/commit/c54e863be6e261a8482e3acee30e6878d7e2c610))
+* **ci:** pin the workflow bodies to v0.2.0 and drop paths-ignore ([173c9ab](https://github.com/TitusKirch/glimpse/commit/173c9ab12b81ac0e56412e6b0e04bddf08689186))
+* **ci:** pin the workflow bodies to v0.5.0 ([1e431b7](https://github.com/TitusKirch/glimpse/commit/1e431b751fe03092d84ae460d3326cd4bd260f39))
+* **ci:** pin the workflow bodies to v0.7.0 ([34d985d](https://github.com/TitusKirch/glimpse/commit/34d985d25ffa76eaccd2f893f406ab45d0d76ac3))
+* **ci:** read the pre-major flags from the whole release-please config ([#170](https://github.com/TitusKirch/glimpse/issues/170)) ([1bf4162](https://github.com/TitusKirch/glimpse/commit/1bf416276147968fd5c911fc8a84ffbb6dc6b06b))
+* **ci:** read the Queue App PEM from this owner's own -ci mirror ([3a1eb1d](https://github.com/TitusKirch/glimpse/commit/3a1eb1d3ff345e717f0c26be5d594448f226279e))
+* **deps:** update the cargo lockfile to the latest compatible versions ([c3f07f4](https://github.com/TitusKirch/glimpse/commit/c3f07f46df6ced61ee5d444f28173a0c327c8647))
+* **deps:** update the npm dependencies to their latest minor versions ([4a4889d](https://github.com/TitusKirch/glimpse/commit/4a4889db276795a9d66ab4c44ce877b3939731cc))
+* **history:** stop the commit graph shadowing Vue's ref auto-import ([48c1b3d](https://github.com/TitusKirch/glimpse/commit/48c1b3d442443a50492b8de4ab9aa00378960f3f)), closes [#156](https://github.com/TitusKirch/glimpse/issues/156)
+
+
+### Reverts
+
+* go back to pnpm 11.25.0 ([e53209c](https://github.com/TitusKirch/glimpse/commit/e53209cc41c2c5ed3dc8d6763606045a369ebff0))
+
+
+### Miscellaneous Chores
+
+* move to pnpm 12 ([9669374](https://github.com/TitusKirch/glimpse/commit/9669374820101354ac2ae7cd125c546e232b1ec7))
+* move to pnpm 12 ([9e0c255](https://github.com/TitusKirch/glimpse/commit/9e0c25540c2ff9ffb92936079a11abf07a004a49))
+
 ## [0.12.2](https://github.com/TitusKirch/glimpse/compare/v0.12.1...v0.12.2) (2026-07-30)
 
 
