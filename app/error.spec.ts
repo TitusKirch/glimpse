@@ -25,6 +25,14 @@ vi.mock('@tauri-apps/plugin-os', () => ({
   arch: () => osArch()
 }));
 
+// The page reaches the Rust updater through a dynamic import, so the module has
+// to be mocked rather than the composable: it deliberately does not use
+// useUpdater() (see error.vue).
+const invoke = vi.fn();
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => invoke(...args)
+}));
+
 const copy = vi.fn();
 const opened = vi.fn();
 
@@ -38,6 +46,8 @@ const error = {
 beforeEach(() => {
   copy.mockClear();
   opened.mockClear();
+  invoke.mockReset();
+  localStorage.clear();
   osType = () => 'windows';
   osVersion = () => '10.0.19045';
   osArch = () => 'x86_64';
@@ -166,6 +176,114 @@ describe('error page', () => {
     };
     const w = mountPage();
     expect(w.text()).toContain('unknown');
+    expect(w.text()).toContain('ref is not defined');
+  });
+});
+
+describe('error page — manual update check', () => {
+  function select(w: ReturnType<typeof mountPage>) {
+    return w.find('select#update-channel');
+  }
+
+  it('offers all three channels', () => {
+    const options = select(mountPage())
+      .findAll('option')
+      .map((o) => o.attributes('value'));
+    expect(options).toEqual(['stable', 'beta', 'experiment']);
+  });
+
+  it('defaults to the persisted channel', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({ releaseChannel: 'beta' })
+    );
+    expect((select(mountPage()).element as HTMLSelectElement).value).toBe(
+      'beta'
+    );
+  });
+
+  it('falls back to the running build channel when nothing is persisted', () => {
+    (globalThis as Record<string, unknown>).useRuntimeConfig = () => ({
+      public: { appVersion: '0.12.0-beta.3' }
+    });
+    expect((select(mountPage()).element as HTMLSelectElement).value).toBe(
+      'beta'
+    );
+  });
+
+  it('reports when the channel is already up to date', async () => {
+    invoke.mockResolvedValue(null);
+    const w = mountPage();
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(w.text()).toContain('No update available');
+  });
+
+  it('installs an available update and remembers the channel', async () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({ releaseChannel: 'stable', accent: 'blue' })
+    );
+    invoke.mockImplementation((command: string) =>
+      command === 'check_update'
+        ? Promise.resolve('0.13.0')
+        : Promise.resolve(null)
+    );
+    const w = mountPage();
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    expect(invoke).toHaveBeenCalledWith('install_update', expect.anything());
+    expect(w.text()).toContain('0.13.0');
+    expect(w.text()).toContain('Restart glimpse');
+    // Amended in place: every other setting survives.
+    const blob = JSON.parse(localStorage.getItem('settings') as string);
+    expect(blob).toEqual({ releaseChannel: 'stable', accent: 'blue' });
+  });
+
+  it('forces the install when switching away from the running channel', async () => {
+    invoke.mockResolvedValue(null);
+    const w = mountPage();
+    await select(w).setValue('beta');
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    // Running build is 0.11.0 (stable), so beta is a channel switch: force, or a
+    // beta older than the installed stable would never be offered.
+    expect(invoke).toHaveBeenCalledWith('check_update', {
+      channel: 'beta',
+      force: true
+    });
+  });
+
+  it('never invents a settings blob when none was stored', async () => {
+    invoke.mockImplementation((command: string) =>
+      command === 'check_update'
+        ? Promise.resolve('0.13.0')
+        : Promise.resolve(null)
+    );
+    const w = mountPage();
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    expect(localStorage.getItem('settings')).toBeNull();
+  });
+
+  it('explains the experiment channel instead of checking blindly', async () => {
+    const w = mountPage();
+    await select(w).setValue('experiment');
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(w.text()).toContain('No experiment is selected');
+  });
+
+  it('reports a failed check inline and keeps the page readable', async () => {
+    invoke.mockRejectedValue(new Error('no signing key'));
+    const w = mountPage();
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    expect(w.text()).toContain('Update failed');
+    expect(w.text()).toContain('no signing key');
+    // The diagnostics the page exists for are still on screen.
     expect(w.text()).toContain('ref is not defined');
   });
 });
