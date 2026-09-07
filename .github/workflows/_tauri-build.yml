@@ -11,6 +11,10 @@ name: Tauri Build
 # differences: the job name, where the matrix comes from, one comment, and the
 # `GLIMPSE_EXPERIMENT` variable. All four are inputs below.
 #
+# `release-stable.yml` joined later and needed two more — `ref` and `prerelease`
+# — because a stable build uploads onto a release someone else already published
+# and can be asked to rebuild a tag that has already shipped.
+#
 # LOCAL RATHER THAN CENTRAL, deliberately. `kirchDev/workflows` holds what more
 # than one repo needs, and this repo is the estate's only Tauri app — a central
 # body here would be a bet on a second one that does not exist. `gildstone` draws
@@ -44,6 +48,26 @@ on:
         required: false
         type: string
         default: platform
+      ref:
+        description: >-
+          Commit, branch or tag to build. Empty means the ref that triggered the
+          run, which is what both release chains want. A REBUILD of an already
+          shipped tag is the exception: the workflow definition has to come from
+          the default branch (that is where `workflow_dispatch` can see it) while
+          the SOURCE has to come from the tag, and only an explicit ref can pull
+          those two apart.
+        required: false
+        type: string
+        default: ''
+      prerelease:
+        description: >-
+          Whether the release the installers land on is a prerelease. Beta and
+          experiment builds create their own prerelease and keep it one; a stable
+          build uploads onto the release release-please already published, and
+          passing `true` there would quietly demote it.
+        required: false
+        type: boolean
+        default: true
       experiment-slug:
         description: >-
           Baked into the binary through `option_env!`, so the running app shows
@@ -76,6 +100,8 @@ jobs:
       matrix: ${{ fromJSON(inputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
@@ -154,5 +180,5 @@ jobs:
         with:
           tagName: ${{ inputs.tag }}
           releaseDraft: false
-          prerelease: true
+          prerelease: ${{ inputs.prerelease }}
           includeUpdaterJson: false
