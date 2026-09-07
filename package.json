@@ -88,17 +88,17 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
     "@vitejs/plugin-vue": "^6.0.8",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "5.0.0",
     "@vue/test-utils": "^2.5.0",
     "happy-dom": "^20.14.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.4.1",
-    "oxfmt": "0.60.0",
+    "oxfmt": "0.66.0",
     "oxlint": "^1.81.0",
     "pinia-plugin-persistedstate": "^4.7.1",
     "shadcn-nuxt": "^2.8.2",
-    "taze": "^19.17.2",
-    "vitest": "^4.1.11"
+    "taze": "^21.1.0",
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=24"
