@@ -105,10 +105,15 @@ watch([content, query], () => {
 
 // Map a ref type to a semantic badge variant (no per-call colour classes):
 // HEAD = success, tag = warning, remote-tracking = outline, local = info.
-function refVariant(ref: string) {
-  if (ref.startsWith('HEAD')) return 'success' as const;
-  if (ref.startsWith('tag:')) return 'warning' as const;
-  if (ref.includes('/')) return 'outline' as const;
+//
+// The parameter is `refName`, not `ref`: binding a Vue auto-import name anywhere
+// in an SFC — a `v-for` alias, a parameter — can stop Nuxt injecting the real
+// `import { ref } from 'vue'`, which fails only in the production bundle. The
+// bundle scan in `scripts/check-bundle-globals.mjs` is the guard against that.
+function refVariant(refName: string) {
+  if (refName.startsWith('HEAD')) return 'success' as const;
+  if (refName.startsWith('tag:')) return 'warning' as const;
+  if (refName.includes('/')) return 'outline' as const;
   return 'info' as const;
 }
 </script>
@@ -279,13 +284,15 @@ function refVariant(ref: string) {
             >
               <div class="min-w-0 flex-1 overflow-hidden">
                 <div class="flex min-w-0 items-center gap-1.5">
-                  <UiTooltip v-for="ref in vr.commit.refs" :key="ref">
+                  <UiTooltip v-for="refName in vr.commit.refs" :key="refName">
                     <UiTooltipTrigger as-child>
-                      <UiBadge :variant="refVariant(ref)" size="sm">
-                        {{ refLabel(ref) }}
+                      <UiBadge :variant="refVariant(refName)" size="sm">
+                        {{ refLabel(refName) }}
                       </UiBadge>
                     </UiTooltipTrigger>
-                    <UiTooltipContent>{{ fullRefLabel(ref) }}</UiTooltipContent>
+                    <UiTooltipContent>{{
+                      fullRefLabel(refName)
+                    }}</UiTooltipContent>
                   </UiTooltip>
                   <span class="truncate text-sm font-medium">{{
                     vr.commit.subject
