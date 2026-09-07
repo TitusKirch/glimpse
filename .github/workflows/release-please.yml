@@ -16,3 +16,21 @@ jobs:
     uses: kirchDev/workflows/.github/workflows/_release-please.yml@1e57db95ff601f03ae87b78e329ef238f9d0cbf6 # v0.8.2
     secrets:
       BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
+
+  # The central body cuts the tag, the changelog and the release page, and stops
+  # there — publishing the artifact stays in the repo that owns it, which is why
+  # the body exposes these two outputs at all. For a desktop app the artifact is
+  # the installers, so without this job a release ships an empty download list
+  # and no `latest.json`, silently breaking the updater for everyone already on
+  # a stable build. That is exactly what happened to v0.13.0.
+  release-stable:
+    name: Release Stable
+    needs: release-please
+    if: needs.release-please.outputs.release-created == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/release-stable.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag-name }}
+    secrets:
+      BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
