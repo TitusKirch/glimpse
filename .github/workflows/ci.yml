@@ -87,3 +87,10 @@ jobs:
 
       - name: Tauri build (compile, no installers)
         run: pnpm tauri build --no-bundle
+
+      # A Vue auto-import Nuxt decided not to inject leaves a bare `ref(` in the
+      # bundle and throws only once that component renders — invisible to `pnpm
+      # dev`, invisible to the unit tests, and fatal in the packaged app. The
+      # build above already produced `.output/public`, so the scan is free.
+      - name: Check the bundle for free Vue-API identifiers
+        run: node scripts/check-bundle-globals.mjs
