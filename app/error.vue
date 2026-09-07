@@ -118,6 +118,120 @@ function report() {
   )}`;
   void openExternal(url);
 }
+
+// Recovery: a manual update check, because the automatic one cannot run here.
+// The launch check lives in app.vue's onMounted, so a build that fails to boot
+// never reaches it — and that is exactly the build this page is showing. Without
+// this, a bad release propagates over auto-update and then disables the
+// mechanism that would have replaced it (#167).
+//
+// Deliberately NOT useUpdater(): that needs vue-i18n, the Pinia store and
+// vue-sonner, no <Toaster> is mounted on this page, and those are among the
+// things that may be part of what broke. Status prints inline instead, and the
+// Rust commands are reached the way enrichOs() reaches tauri-plugin-os.
+type Channel = 'stable' | 'beta' | 'experiment';
+
+const CHANNELS: { value: Channel; label: string }[] = [
+  { value: 'stable', label: 'Stable' },
+  { value: 'beta', label: 'Beta' },
+  { value: 'experiment', label: 'Experiment' }
+];
+
+// pinia-plugin-persistedstate keys its blob by the store id and the settings
+// store configures no custom key, so this is that store as last written. Read
+// directly because instantiating the store is one of the things that may fail.
+function persistedSettings(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem('settings');
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// The channel the running build belongs to, read off its version the way
+// useUpdater() does. An experiment build is not distinguishable from its version
+// alone, so that one case leans on the persisted preference.
+function runningChannel(): Channel {
+  if (persistedSettings().releaseChannel === 'experiment') return 'experiment';
+  return version.includes('-beta.') ? 'beta' : 'stable';
+}
+
+const channel = ref<Channel>(
+  (() => {
+    const stored = persistedSettings().releaseChannel;
+    return stored === 'stable' || stored === 'beta' || stored === 'experiment'
+      ? stored
+      : runningChannel();
+  })()
+);
+const checking = ref(false);
+const updateStatus = ref('');
+
+// Best-effort and never destructive: with no blob there is no settings state to
+// amend, and writing one here would hand the recovered app a single-key object
+// in place of every other setting it had.
+function rememberChannel(next: Channel) {
+  try {
+    const raw = localStorage.getItem('settings');
+    if (!raw) return;
+    const blob = JSON.parse(raw);
+    if (!blob || typeof blob !== 'object') return;
+    blob.releaseChannel = next;
+    localStorage.setItem('settings', JSON.stringify(blob));
+  } catch {
+    // The update still installed; losing the preference is not worth failing on.
+  }
+}
+
+async function checkForUpdates() {
+  if (checking.value) return;
+  if (!isTauri()) {
+    updateStatus.value = 'Updates are only available in the desktop app.';
+    return;
+  }
+  // An experiment manifest is per-slug and this page cannot list them, so it can
+  // only reuse a slug already chosen in Settings.
+  const slug = String(persistedSettings().selectedExperiment ?? '');
+  const target =
+    channel.value === 'experiment'
+      ? slug
+        ? `experiment:${slug}`
+        : ''
+      : channel.value;
+  if (!target) {
+    updateStatus.value =
+      'No experiment is selected, so there is no manifest to check. Pick Stable or Beta to get back to a working build.';
+    return;
+  }
+  // Force when moving channel, so the target channel's current build installs
+  // even if it is not strictly newer - beta to stable is a deliberate downgrade,
+  // and getting off a broken channel is the whole point of this control.
+  const force = channel.value !== runningChannel();
+  checking.value = true;
+  updateStatus.value = 'Checking for updates...';
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const available = await invoke<string | null>('check_update', {
+      channel: target,
+      force
+    });
+    if (!available) {
+      updateStatus.value = `No update available on ${channel.value}.`;
+      return;
+    }
+    updateStatus.value = `Installing ${available}...`;
+    await invoke('install_update', { channel: target, force });
+    rememberChannel(channel.value);
+    updateStatus.value = `Installed ${available}. Restart glimpse to finish.`;
+  } catch (err) {
+    updateStatus.value = `Update failed: ${String(err)}`;
+    console.error('update check failed:', err);
+  } finally {
+    checking.value = false;
+  }
+}
 </script>
 
 <template>
@@ -178,6 +292,40 @@ function report() {
         >
           Report this
         </button>
+      </div>
+
+      <div class="space-y-2 rounded-md border p-4">
+        <p class="text-xs text-muted-foreground">
+          A broken build cannot update itself: the check that normally runs at
+          launch never gets that far. Install a newer build from here, or switch
+          channel to get off this one.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="text-xs text-muted-foreground" for="update-channel">
+            Channel
+          </label>
+          <select
+            id="update-channel"
+            v-model="channel"
+            :disabled="checking"
+            class="rounded-md border bg-background px-2 py-1.5 text-xs"
+          >
+            <option v-for="c in CHANNELS" :key="c.value" :value="c.value">
+              {{ c.label }}
+            </option>
+          </select>
+          <button
+            type="button"
+            :disabled="checking"
+            class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+            @click="checkForUpdates"
+          >
+            {{ checking ? 'Checking...' : 'Check for updates' }}
+          </button>
+        </div>
+        <p v-if="updateStatus" class="break-words text-xs">
+          {{ updateStatus }}
+        </p>
       </div>
 
       <p class="text-xs text-muted-foreground">
