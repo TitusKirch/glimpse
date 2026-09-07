@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { appSourcemaps } from './build/appSourcemaps';
+import pkg from './package.json' with { type: 'json' };
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -8,6 +9,16 @@ export default defineNuxtConfig({
 
   // Desktop app: single-page, no server rendering.
   ssr: false,
+
+  runtimeConfig: {
+    public: {
+      // Baked in here so the fatal error page (app/error.vue) can report the
+      // version without asking the desktop shell over IPC — by the time that
+      // page renders, the app never got far enough to ask. Kept in step with
+      // src-tauri/tauri.conf.json by release-please.
+      appVersion: pkg.version
+    }
+  },
 
   // Ship client source maps so a release stack trace names a file under `app/`
   // and a line, instead of `ClNIOtIm.js:1:48213`. The maps the build emits
@@ -56,6 +67,8 @@ export default defineNuxtConfig({
         '@tauri-apps/api/event',
         '@tauri-apps/plugin-dialog',
         '@tauri-apps/plugin-opener',
+        // Loaded lazily by app/error.vue, so pre-bundling it matters twice over.
+        '@tauri-apps/plugin-os',
         '@tauri-apps/plugin-deep-link',
         '@tauri-apps/plugin-updater',
         '@tanstack/vue-virtual',
