@@ -1,4 +1,6 @@
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
+import { appSourcemaps } from './build/appSourcemaps';
 import pkg from './package.json' with { type: 'json' };
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -17,6 +19,12 @@ export default defineNuxtConfig({
       appVersion: pkg.version
     }
   },
+
+  // Ship client source maps so a release stack trace names a file under `app/`
+  // and a line, instead of `ClNIOtIm.js:1:48213`. The maps the build emits
+  // cover every dependency too (~8 MB against a 2.4 MB bundle); the
+  // `appSourcemaps` plugin below strips them back to this repo's own code.
+  sourcemap: { client: true, server: false },
 
   modules: [
     '@nuxt/icon',
@@ -37,7 +45,13 @@ export default defineNuxtConfig({
   css: ['~/assets/css/tailwind.css', 'vue-sonner/style.css'],
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      appSourcemaps({
+        rootDir: fileURLToPath(new URL('.', import.meta.url)),
+        appDir: fileURLToPath(new URL('./app', import.meta.url))
+      })
+    ],
     // Tauri expects a fixed dev server; fail loudly instead of hopping ports.
     clearScreen: false,
     server: { strictPort: true },
