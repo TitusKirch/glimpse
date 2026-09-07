@@ -159,6 +159,23 @@ fn take_cli_open_path() -> Option<String> {
     None
 }
 
+/// Open the webview inspector for the calling window. Wired to F12 in the
+/// frontend so someone filing a bug reaches the real stack trace without being
+/// told a magic environment variable first — glimpse is MIT-licensed with public
+/// source, so there is nothing to withhold. The `devtools` feature on the
+/// `tauri` dependency is what keeps this compiled into release builds.
+#[cfg(desktop)]
+#[tauri::command]
+fn open_devtools(window: tauri::WebviewWindow) {
+    window.open_devtools();
+}
+
+// Mobile inspects over the platform's own remote debugging; a no-op stub keeps
+// the command set identical.
+#[cfg(not(desktop))]
+#[tauri::command]
+fn open_devtools() {}
+
 /// Install a `glimpse` launcher onto the user's PATH so a repo can be opened
 /// from a terminal (`glimpse .`, like `code .`). Idempotent — re-running just
 /// refreshes it. Returns the installed launcher path. See `install_cli_impl`.
@@ -1518,13 +1535,15 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            // Logging is registered in release builds too, not just under
+            // `cfg!(debug_assertions)`: a bug report is worth far more with the
+            // log file behind it, and without this a packaged build wrote none.
+            // The plugin's default targets are stdout plus the OS log directory.
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build(),
+            )?;
             // Register the glimpse:// scheme at runtime (needed for dev/Linux);
             // a no-op once the installed bundle owns it.
             #[cfg(desktop)]
@@ -1557,6 +1576,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             default_repo,
             take_cli_open_path,
+            open_devtools,
             install_cli,
             cli_install_status,
             watch_repo,
