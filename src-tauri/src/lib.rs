@@ -1499,6 +1499,8 @@ pub fn run() {
     let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // OS name/version/arch for the fatal error page's diagnostics block.
+        .plugin(tauri_plugin_os::init())
         // Persists window size/position/maximized state across restarts.
         // Restores on launch (before show) and saves on exit — handled natively.
         .plugin(tauri_plugin_window_state::Builder::default().build())
