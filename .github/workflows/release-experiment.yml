@@ -121,13 +121,21 @@ jobs:
           const [maj, min, pat] = last.split('.').map(Number);
           const breaking = /(^|\n)\w+(\(.+?\))?!:|BREAKING CHANGE/.test(log);
           const feat = /(^|\n)feat(\(.+?\))?:/.test(log);
-          const preMajor = maj === 0 && pkg['bump-minor-pre-major'];
-          const patchForMinor = pkg['bump-patch-for-minor-pre-major'];
+          // release-please treats top-level config keys as defaults inherited by
+          // every package, and this repo declares the pre-major flags there rather
+          // than inside packages["."]. Reading only the package block therefore
+          // sees a flag that IS set as unset - and with bump-minor-pre-major
+          // ignored, the first breaking commit on a 0.x line bumps to 1.0.0
+          // instead of the next minor. Fall back the way release-please does.
+          const opt = (k) => (pkg[k] !== undefined ? pkg[k] : cfg[k]);
+          const preMajor = maj === 0 && opt('bump-minor-pre-major');
+          const patchForMinor = opt('bump-patch-for-minor-pre-major');
           let base;
           if (breaking) base = preMajor ? `${maj}.${min + 1}.0` : `${maj + 1}.0.0`;
           else if (feat) base = preMajor && patchForMinor ? `${maj}.${min}.${pat + 1}` : `${maj}.${min + 1}.0`;
           else base = `${maj}.${min}.${pat + 1}`;
-          if (pkg['release-as'] && cmp(pkg['release-as'], last) > 0) base = pkg['release-as'];
+          const releaseAs = opt('release-as');
+          if (releaseAs && cmp(releaseAs, last) > 0) base = releaseAs;
           // Per-experiment counter: one past this experiment's current build.
           const re = /-exp\.(\d+)$/;
           let prev = 0;
