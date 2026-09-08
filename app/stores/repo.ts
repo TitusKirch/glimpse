@@ -31,6 +31,10 @@ import type { PullStrategy } from '~/stores/layout';
 // flicker.
 const MIN_SPINNER_MS = 300;
 
+// One page of history. A tab opens at one page and "load more history" adds
+// another.
+const LOG_PAGE = 200;
+
 export type {
   BlameLine,
   Branch,
@@ -68,6 +72,15 @@ export interface RepoState {
   selectedFileStaged: boolean;
   commitFiles: CommitFile[];
   diff: DiffData | null;
+  // How many commits this tab loads, raised a page at a time by "load more
+  // history". It belongs to the tab because it drives a per-tab fetch: as
+  // app-wide state, asking for depth in one repository raised what every other
+  // open tab fetched on its next load, so the retained commits — and the graph
+  // nodes drawn from them — cost the raised limit times the number of open
+  // tabs. Living here it also expires with the tab: closing one takes its depth
+  // with it, so a reopened tab walks back through history from one page rather
+  // than resurrecting a depth the user has shut away.
+  logLimit: number;
   // False until this tab's git data has been fetched. Restored tabs start as
   // unloaded placeholders and lazy-load on first activation.
   loaded: boolean;
@@ -109,6 +122,7 @@ function demoRepo(): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: gitMock.diff,
+    logLimit: LOG_PAGE,
     loaded: true,
     resolving: false,
     rebaseInProgress: false,
@@ -144,6 +158,7 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: null,
+    logLimit: LOG_PAGE,
     loaded: false,
     rebaseInProgress: false,
     bisectInProgress: false
@@ -204,8 +219,6 @@ export const useRepoStore = defineStore('repo', {
     // Which remote sync (if any) is in flight — drives the button spinner.
     syncing: null as 'fetch' | 'pull' | 'push' | null,
     refreshing: false,
-    // How many commits to load; raised by "load more history".
-    logLimit: 200,
     loadingMore: false,
     // Whether the last log fetch hit the limit (i.e. more history exists). Stored
     // rather than derived so it doesn't flip false mid-load and hide the button.
@@ -1572,26 +1585,32 @@ export const useRepoStore = defineStore('repo', {
         if (!r) return;
         const commits = await gitClient.log({
           path: r.path,
-          limit: this.logLimit
+          limit: r.logLimit
         });
         if (commits.length) r.commits = commits;
         // Hitting the limit means git had more to give → another page exists.
-        this.hasMore = commits.length >= this.logLimit;
+        this.hasMore = commits.length >= r.logLimit;
       });
     },
 
-    // Load another page of history (raise the log limit and reload). The button
-    // stays put and shows a spinner; `hasMore` only flips after the reload, so it
-    // hides only when there is genuinely nothing left. A 300ms floor keeps the
-    // spinner from flashing on fast local loads.
+    // Load another page of history (raise this tab's log limit and reload). The
+    // button stays put and shows a spinner; `hasMore` only flips after the
+    // reload, so it hides only when there is genuinely nothing left. A 300ms
+    // floor keeps the spinner from flashing on fast local loads.
     async loadMoreHistory() {
       if (this.loadingMore) return;
+      // Capture the repo that asked before any await. The user can switch tabs
+      // while the deeper page is in flight, and both the raise and the reload it
+      // pays for must land on the repository whose button was clicked, not on
+      // whichever tab happens to be active when it resolves.
+      const r = this.active;
+      if (!r) return;
       return this.native(async () => {
         this.loadingMore = true;
-        this.logLimit += 200;
+        r.logLimit += LOG_PAGE;
         try {
           await Promise.all([
-            this.loadLog(),
+            this.loadLog(r),
             new Promise((resolve) => setTimeout(resolve, 300))
           ]);
         } finally {
