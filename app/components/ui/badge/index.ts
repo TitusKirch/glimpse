@@ -14,16 +14,18 @@ export const badgeVariants = cva(
           'border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
-        // Soft, borderless semantic tints: a 10% colour wash + a legible
-        // 600/400 text shade (the theme tokens are tuned as solid fills and
-        // read too light as text on the wash in light mode). No hard border.
-        info: 'border-transparent bg-blue-500/10 text-blue-600 dark:text-blue-400',
+        // Ours, not upstream's. A dense inline chip takes the *fill* half of
+        // the semantic rule: a solid theme token with the foreground it is
+        // paired with, so the colour is legible without the token ever
+        // carrying text on its own wash. `Alert` takes the accent half.
+        // The pairs are measured in `app/assets/css/contrast.test.ts`.
+        info: 'border-transparent bg-info text-info-foreground [a&]:hover:bg-info/90',
         success:
-          'border-transparent bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+          'border-transparent bg-success text-success-foreground [a&]:hover:bg-success/90',
         warning:
-          'border-transparent bg-amber-500/10 text-amber-600 dark:text-amber-400',
+          'border-transparent bg-warning text-warning-foreground [a&]:hover:bg-warning/90',
         destructive:
-          'border-transparent bg-red-500/10 text-red-600 dark:text-red-400'
+          'border-transparent bg-destructive text-destructive-foreground [a&]:hover:bg-destructive/90'
       },
       size: {
         // `sm` is the dense variant for the commit-graph ref badges.

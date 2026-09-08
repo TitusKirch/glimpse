@@ -2,7 +2,7 @@
 import type { HTMLAttributes } from 'vue';
 import type { AlertVariants } from '.';
 import { cn } from '@/lib/utils';
-import { alertVariants } from '.';
+import { alertIconVariants, alertVariants } from '.';
 
 const props = defineProps<{
   class?: HTMLAttributes['class'];
@@ -10,11 +10,11 @@ const props = defineProps<{
 }>();
 
 // The leading icon is derived purely from the variant — callers pass nothing.
-// Explicit size class (not a `[&>svg]` selector) so it renders regardless of
-// how NuxtIcon emits the glyph (svg vs css mask).
 const variantIcons: Record<string, string> = {
   default: 'lucide:info',
   info: 'lucide:info',
+  success: 'lucide:circle-check',
+  warning: 'lucide:triangle-alert',
   destructive: 'lucide:circle-alert'
 };
 const icon = computed(() => variantIcons[props.variant ?? 'default']);
@@ -26,7 +26,7 @@ const icon = computed(() => variantIcons[props.variant ?? 'default']);
     :class="cn(alertVariants({ variant }), props.class)"
     role="alert"
   >
-    <NuxtIcon :name="icon" class="size-4 shrink-0 translate-y-0.5" />
+    <NuxtIcon :name="icon" :class="alertIconVariants({ variant })" />
     <div class="min-w-0 flex-1 space-y-0.5"><slot /></div>
   </div>
 </template>

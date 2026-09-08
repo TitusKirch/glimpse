@@ -9,13 +9,13 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        // Buttons keep shadcn's own set: a confirm button is the loudest thing
+        // on the dialog it sits in, so `destructive` takes the fill half of
+        // the semantic rule (a solid token with its paired foreground) rather
+        // than the wash it used to wear. `success` / `warning` / `info` are
+        // gone — nothing bound them, and upstream has no such variants.
         destructive:
-          'border border-destructive/25 bg-destructive/10 text-destructive shadow-xs hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:bg-destructive/15 dark:focus-visible:ring-destructive/40',
-        success:
-          'border border-success/25 bg-success/10 text-success shadow-xs hover:bg-success/20 dark:bg-success/15',
-        warning:
-          'border border-warning/25 bg-warning/10 text-warning shadow-xs hover:bg-warning/20 dark:bg-warning/15',
-        info: 'border border-info/25 bg-info/10 text-info shadow-xs hover:bg-info/20 dark:bg-info/15',
+          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
         outline:
           'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary:
