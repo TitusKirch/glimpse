@@ -194,6 +194,35 @@ describe('changelists store release() vs. an in-flight read (#186)', () => {
     expect(store.byRepo[TOP]).toBeUndefined();
     expect(writeChangelists).not.toHaveBeenCalled();
   });
+
+  // Review round 1: `persistNow` is the fourth writer into `lastWritten`, and
+  // it writes AFTER its await. The debounce fires it and forgets it, so a tab
+  // closed while that write is in flight left the entry re-created for a repo
+  // with no tab — the costliest entry, and the one nothing would remove again.
+  it('does not let a write resolving after release restore the snapshot', async () => {
+    let settle: () => void = () => {};
+    writeChangelists.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        settle = resolve;
+      })
+    );
+    const store = useChangelistsStore();
+    store.byRepo[TOP] = initialState();
+    const inFlight = store.persistNow(TOP);
+
+    await store.release(TOP);
+    settle();
+    await inFlight;
+
+    // The snapshot is what proves it: if `lastWritten` came back, the store
+    // believes that JSON is on disk and a fresh save of the same content is
+    // skipped as a no-op. So ask for exactly that and require a write.
+    writeChangelists.mockClear();
+    store.byRepo[TOP] = initialState();
+    store.schedulePersist(TOP);
+    await vi.advanceTimersByTimeAsync(PAST_DEBOUNCE);
+    expect(writeChangelists).toHaveBeenCalled();
+  });
 });
 
 describe('closeRepo releases changelist bookkeeping (#186)', () => {

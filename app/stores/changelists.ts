@@ -31,14 +31,23 @@ const SAVE_DEBOUNCE_MS = 300;
 // loads), pending debounce timers, the set of repos with unsaved local edits
 // (so an external re-read never clobbers them), and the last JSON we read/wrote
 // per repo (so a reconcile that changes nothing writes nothing — which also
-// stops our own write from looping back through the FS watcher). All four are
-// keyed by repo toplevel and emptied by `release` when a tab closes; nothing
-// else removes an entry, so a repo that skips that call is resident for the
-// rest of the session.
+// stops our own write from looping back through the FS watcher), and the write
+// currently in flight. All are keyed by repo toplevel and emptied by `release`
+// when a tab closes; nothing else removes an entry, so a repo that skips that
+// call is resident for the rest of the session.
 const loading = new Map<string, Promise<void>>();
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const dirty = new Set<string>();
 const lastWritten = new Map<string, string>();
+// The write currently in flight per repo. It does two jobs, both of which the
+// close-during-read guards on `load`/`reload`/`sync` do not reach. First, it is
+// the liveness marker `persistNow` compares against after its await: a write
+// that resolves for a repo already released must not re-create `lastWritten`,
+// which is the costliest entry and would then never be removed again. Compared
+// by IDENTITY, so a close-then-reopen lets the newer write win. Second, holding
+// it lets a release's flush queue behind a write already in flight, instead of
+// racing it and letting the older payload land last.
+const writing = new Map<string, Promise<void>>();
 
 const real = (toplevel: string) => !!toplevel && toplevel !== '.';
 
@@ -131,7 +140,17 @@ export const useChangelistsStore = defineStore('changelists', {
     async persistNow(toplevel: string) {
       if (!real(toplevel)) return;
       const json = serialize(this.forRepo(toplevel));
-      await gitClient.writeChangelists({ path: toplevel, json });
+      const write = gitClient
+        .writeChangelists({ path: toplevel, json })
+        .then(() => {});
+      writing.set(toplevel, write);
+      await write;
+      // The tab may have closed while that write was in flight. `release` drops
+      // the entry, so a write that is no longer the registered one belongs to a
+      // repo that has been let go (or superseded by a newer one) and must not
+      // write its bookkeeping back.
+      if (writing.get(toplevel) !== write) return;
+      writing.delete(toplevel);
       lastWritten.set(toplevel, json);
       dirty.delete(toplevel);
     },
@@ -185,9 +204,18 @@ export const useChangelistsStore = defineStore('changelists', {
       loading.delete(toplevel);
       dirty.delete(toplevel);
       lastWritten.delete(toplevel);
+      // Taking the entry invalidates any write still in flight, so it cannot
+      // write its bookkeeping back once it lands.
+      const inFlight = writing.get(toplevel);
+      writing.delete(toplevel);
       delete this.byRepo[toplevel];
-      if (pending)
-        await gitClient.writeChangelists({ path: toplevel, json: pending });
+      if (!pending) return;
+      // Queue behind that write rather than racing it: an edit made after the
+      // debounce fired is newer than the payload already on its way, and
+      // nothing orders two IPC calls, so the older one could otherwise land
+      // last and lose the newest edit.
+      if (inFlight) await inFlight.catch(() => {});
+      await gitClient.writeChangelists({ path: toplevel, json: pending });
     },
 
     createList(toplevel: string, name: string): string {

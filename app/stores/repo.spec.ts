@@ -46,7 +46,7 @@ const { useSessionStore } = await import('./session');
 g.useSessionStore = useSessionStore;
 // `closeRepo` releases the closed repo's changelist state (#186); these specs
 // are about the store's own bookkeeping, so it only has to exist for that call.
-g.useChangelistsStore = () => ({ release: () => {} });
+g.useChangelistsStore = () => ({ release: () => Promise.resolve() });
 
 const { isResolvingPlatform, useRepoStore } = await import('./repo');
 

@@ -1604,7 +1604,18 @@ export const useRepoStore = defineStore('repo', {
       // resident for the rest of the session (and, persisted, beyond it). It is
       // keyed by path, so keep it while another tab still shows the same repo.
       if (!this.tabs.some((t) => t.path === closing.path))
-        void useChangelistsStore().release(closing.path);
+        // `release` flushes a pending edit, so it can reject on a real write.
+        // Nobody awaits it — closing a tab must not block on git — so route the
+        // failure the way `reloadActive` does rather than letting it escape as
+        // an unhandled rejection: it would be the user's last changelist edit
+        // going missing with nothing said.
+        useChangelistsStore()
+          .release(closing.path)
+          .catch((err: unknown) => {
+            const raw = typeof err === 'string' ? err : String(err);
+            this.lastError = cleanGitError(raw);
+            console.error('changelist release failed:', err);
+          });
       if (this.activeId === id) {
         const next = this.order[idx] ?? this.order[idx - 1] ?? '';
         // Route the neighbour through selectTab rather than just pointing

@@ -52,7 +52,7 @@ g.cleanGitError = (raw: string) => raw;
 g.useRecentStore = () => ({ push: () => {} });
 // `closeRepo` releases the closed repo's changelist state (#186); this spec is
 // about history depth, so the store only has to exist for that call.
-g.useChangelistsStore = () => ({ release: () => {} });
+g.useChangelistsStore = () => ({ release: () => Promise.resolve() });
 g.useSessionStore = () => ({
   openPaths: [],
   activePath: '',
