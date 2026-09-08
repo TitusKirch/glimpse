@@ -302,9 +302,15 @@ function refVariant(refName: string) {
     </div>
 
     <!-- graph (virtualized rows + full-height SVG lane overlay) -->
+    <!-- data-testid: this element and the rows below exist only when real
+         commits rendered — the loading skeleton and the empty state above are
+         separate branches. The e2e smoke test asserts on them for exactly that
+         reason; a structural selector would match the sidebar's menu list and
+         pass without the graph ever appearing. -->
     <div
       ref="scrollEl"
       v-else
+      data-testid="commit-graph"
       class="relative min-h-0 flex-1 overflow-auto select-none"
       @wheel="panGraph"
     >
@@ -359,6 +365,7 @@ function refVariant(refName: string) {
             :hash="vr.commit.hash"
           >
             <li
+              data-testid="commit-row"
               class="absolute right-0 left-0 flex cursor-pointer items-center gap-3 border-l pr-3 pl-3 transition-colors"
               :style="{
                 height: vr.size + 'px',
