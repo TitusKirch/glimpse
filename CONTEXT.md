@@ -120,6 +120,19 @@ sidebar badge slot, alongside (never instead of) the EXPERIMENT / BETA build
 identity — build identity and runtime state say different things. The detailed
 list and the single "turn everything off" live on the Simulation page.
 
+**UpdaterBackend**
+The updater as `useUpdater` uses it: `check`, `install` (reporting whole
+percents) and the `restart` offered afterwards. One shape with two
+implementations — the real one over the Rust `check_update` / `install_update` /
+`restart_app` commands, and a simulated one built from the Simulation page's
+switches (`app/utils/updaterSimulation.ts`). The composable picks **one** per run
+and never mixes them, which is what makes "a simulated update can never start a
+real download, install or restart" structural rather than a guard: the simulated
+backend holds no IPC to reach one with. Progress arrives as an `update-progress`
+event and updates a single toast in place; the restart at the end is _offered_,
+never taken automatically, because glimpse holds unfinished commit messages and
+conflict resolutions and an app that vanishes mid-merge destroys work.
+
 **trigger**
 A developer control that fires a one-off action so a surface can be looked at on
 purpose — a toast, one of the promise dialogs, or a deliberate crash. The
