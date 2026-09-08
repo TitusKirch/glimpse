@@ -9,7 +9,7 @@
 // here is typically a bundling fault in a shared chunk, and a page built from
 // the same pieces would go down with them. The accepted cost is some
 // duplication against useAppVersion() and English-only strings on this one page.
-import type { Diagnostics } from '~/utils/diagnostics';
+import type { BuildKind, Diagnostics } from '~/utils/diagnostics';
 
 const props = defineProps<{
   // Structural rather than Nuxt's NuxtError: one less module to resolve, and
@@ -25,37 +25,71 @@ const props = defineProps<{
 const BUG_REPORT_URL =
   'https://github.com/TitusKirch/glimpse/issues/new?template=bug_report.yml';
 
-// Baked in at build time (nuxt.config runtimeConfig) rather than read back from
-// the desktop shell over IPC — the app never got far enough to ask.
-const version = (() => {
+const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+
+// The facts come from the shared assembly, so the block pasted from a crash and
+// the one pasted from Settings → Diagnostics are the same format — but the call
+// is defensive, because a broken shared chunk is exactly the failure that brings
+// someone here and it could take the composable with it. The fallback is what
+// this page computed inline before the extraction; between the two, the report
+// renders whatever else is gone.
+const facts = (() => {
   try {
-    return String(useRuntimeConfig().public.appVersion || 'unknown');
+    return useDiagnostics();
   } catch {
-    return 'unknown';
+    return inlineDiagnostics();
   }
 })();
-const build = import.meta.dev ? 'dev' : 'release';
+const { version, build, os, webview, route } = facts;
 
-const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
-const webview = webviewFromUserAgent(userAgent);
-const route = routeFromLocation(
-  typeof window === 'undefined' ? undefined : window.location
-);
-
-// The user-agent reading shows immediately; tauri-plugin-os replaces it if and
-// when it answers. It goes over IPC, so it is enrichment and never a
-// precondition — if the call never returns, this line simply stays.
-const os = ref(osFromUserAgent(userAgent));
-onMounted(() => void enrichOs());
-async function enrichOs() {
-  try {
-    if (!isTauri()) return;
-    const plugin = await import('@tauri-apps/plugin-os');
-    const line = formatPluginOs(plugin.type(), plugin.version(), plugin.arch());
-    if (line !== 'unknown') os.value = line;
-  } catch {
-    // Keep the user-agent reading; the page is never blank for want of this.
+function inlineDiagnostics() {
+  // Baked in at build time (nuxt.config runtimeConfig) rather than read back
+  // from the desktop shell over IPC — the app never got far enough to ask.
+  const version = (() => {
+    try {
+      return String(useRuntimeConfig().public.appVersion || 'unknown');
+    } catch {
+      return 'unknown';
+    }
+  })();
+  const build: BuildKind = import.meta.dev ? 'dev' : 'release';
+  const webview = webviewFromUserAgent(userAgent);
+  const route = routeFromLocation(
+    typeof window === 'undefined' ? undefined : window.location
+  );
+  // The user-agent reading shows immediately; tauri-plugin-os replaces it if and
+  // when it answers. It goes over IPC, so it is enrichment and never a
+  // precondition — if the call never returns, this line simply stays.
+  const os = ref(osFromUserAgent(userAgent));
+  onMounted(() => void enrichOs());
+  async function enrichOs() {
+    try {
+      if (!isTauri()) return;
+      const plugin = await import('@tauri-apps/plugin-os');
+      const line = formatPluginOs(
+        plugin.type(),
+        plugin.version(),
+        plugin.arch()
+      );
+      if (line !== 'unknown') os.value = line;
+    } catch {
+      // Keep the user-agent reading; the page is never blank for want of this.
+    }
   }
+  return {
+    version,
+    build,
+    os,
+    webview,
+    route,
+    diagnostics: computed<Diagnostics>(() => ({
+      version,
+      build,
+      os: os.value,
+      webview,
+      route
+    }))
+  };
 }
 
 const status = computed(() => {
@@ -69,11 +103,7 @@ const message = computed(
 const stack = computed(() => props.error?.stack);
 
 const diagnostics = computed<Diagnostics>(() => ({
-  version,
-  build,
-  os: os.value,
-  webview,
-  route,
+  ...facts.diagnostics.value,
   status: status.value,
   message: message.value,
   stack: stack.value

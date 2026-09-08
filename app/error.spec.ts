@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { computed, onMounted, ref } from 'vue';
 import ErrorPage from './error.vue';
+import { useDiagnostics } from './composables/useDiagnostics';
 import {
   formatDiagnosticsMarkdown,
   formatPluginOs,
@@ -65,6 +66,10 @@ beforeEach(() => {
   g.isTauri = () => true;
   g.useCopy = () => copy;
   g.openExternal = opened;
+  // The real shared assembly, not a stub: the page's contract is that these
+  // facts come from the one place both it and Settings -> Diagnostics read, so
+  // every spec below exercises that path. The fallback has a spec of its own.
+  g.useDiagnostics = useDiagnostics;
   g.formatDiagnosticsMarkdown = formatDiagnosticsMarkdown;
   g.formatPluginOs = formatPluginOs;
   g.osFromUserAgent = osFromUserAgent;
@@ -168,6 +173,23 @@ describe('error page', () => {
     const w = mountPage({});
     expect(w.text().length).toBeGreaterThan(0);
     expect(w.find('details').exists()).toBe(false);
+  });
+
+  it('still reports every fact when the shared assembly is unavailable', async () => {
+    // The failure this page exists for: a broken shared chunk takes
+    // useDiagnostics() with it. The page must not go down with it.
+    (globalThis as Record<string, unknown>).useDiagnostics = () => {
+      throw new Error('shared chunk failed to load');
+    };
+    const w = mountPage();
+    expect(w.text()).toContain('0.11.0');
+    expect(w.text()).toContain('WebView2 131.0.2903.86');
+    expect(w.text()).toContain('ref is not defined');
+    expect(w.text()).toContain('500 Internal Server Error');
+    // Down to the OS enrichment, which the fallback runs for itself.
+    expect(w.text()).toContain('Windows NT 10.0');
+    await flushPromises();
+    expect(w.text()).toContain('Windows 10.0.19045 (x86_64)');
   });
 
   it('still renders when the runtime config cannot be read', () => {
