@@ -549,6 +549,33 @@ async fn git_version(path: String) -> Result<String, String> {
     git::Repo::open(&path).version()
 }
 
+/// The git invocations this process has made — the exact argv, how long each
+/// took and whether it failed — for Settings → Developer → Diagnostics.
+/// Read-only: there is no command to clear or amend it, because the buffer is a
+/// record of what happened and a bug report is the thing it feeds.
+///
+/// Recording is on from process start rather than from whenever dev mode is
+/// switched on, so someone who hits a bug and *then* goes looking still finds
+/// the call that caused it. The buffer lives in memory only and dies with the
+/// process (see `git::trace`).
+#[tauri::command]
+async fn git_command_log() -> Vec<git::trace::GitCommandEntry> {
+    git::trace::entries()
+}
+
+/// Flip the Simulation page's git fault switches: make every git call fail, take
+/// [`git::trace::SLOW_MS`] longer, or both. Scoped to git by construction —
+/// everything else the app does over IPC keeps working, so a switch can never
+/// take out the route to switching it off.
+///
+/// The frontend's (session-only) simulation store is the source of truth and
+/// re-asserts it at boot, which is what keeps a webview reload from orphaning a
+/// switch that is on with nothing on screen saying so.
+#[tauri::command]
+async fn set_git_simulation(fail: bool, slow: bool) {
+    git::trace::set_faults(git::trace::Faults { fail, slow });
+}
+
 /// Read a git config value at `scope` (`global` / `local` / `system`, or empty
 /// for the effective value after precedence); `path` routes the call (native vs.
 /// WSL git).
@@ -1628,6 +1655,8 @@ pub fn run() {
             watch_repo,
             repo_info,
             git_version,
+            git_command_log,
+            set_git_simulation,
             get_config,
             set_config,
             unset_config,

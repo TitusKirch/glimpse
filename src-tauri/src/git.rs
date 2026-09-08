@@ -7,9 +7,11 @@ use crate::platform::{self, GitTarget};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::process::Stdio;
+use std::time::Instant;
 use ts_rs::TS;
 
 mod parse;
+pub mod trace;
 
 const US: char = '\u{1f}'; // unit separator, safe field delimiter
 
@@ -569,16 +571,58 @@ impl Repo {
     }
 
     /// Run `git <args>` against this repo, returning stdout or trimmed stderr.
+    ///
+    /// This is the one place git actually starts, which makes it the one place
+    /// that can say what ran — so it is also where the [`trace`] command log is
+    /// written and where the Simulation page's fault switches are applied. Both
+    /// belong here rather than at the IPC seam: an IPC call is not a git call
+    /// (`status()` runs `git status` *and* `lfs_paths()`), so a seam in the
+    /// frontend would log one `git_status` line and still leave a mis-routed git
+    /// target invisible.
+    ///
+    /// [`run_diff`](Self::run_diff), [`run_bytes`](Self::run_bytes) and
+    /// [`run_stdin`](Self::run_stdin) deliberately stay outside both: they are
+    /// narrow specialisations whose callers already go through here for the
+    /// surrounding work, and neither an injected failure nor a log line has
+    /// anywhere useful to land in a path that swallows its own errors.
     fn run(&self, args: &[&str]) -> Result<String, String> {
-        let output =
-            self.target.command(args).output().map_err(|e| {
-                format!("failed to run git: {e}\n\n$ {}", self.target.describe(args))
-            })?;
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-            return Err(format!("{stderr}\n\n$ {}", self.target.describe(args)));
+        self.run_with(args, trace::faults())
+    }
+
+    /// [`run`](Self::run) with the fault switches passed in rather than read off
+    /// the process-wide state — the seam a test can drive without flipping a
+    /// global the rest of the suite is running git against.
+    fn run_with(&self, args: &[&str], faults: trace::Faults) -> Result<String, String> {
+        // Started before the injected delay on purpose: the logged duration is
+        // what the app waited, not what git took. While a fault switch is on the
+        // app is bent and says so; a log that under-reported the wait would be
+        // reporting on a session that did not happen.
+        let started = Instant::now();
+        // A simulated slow call is a real sleep, and it happens before the
+        // failure check so "slow, and *then* fails" is a walkable path too.
+        if let Some(delay) = faults.delay() {
+            std::thread::sleep(delay);
         }
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        // Rendered once per call rather than only on failure now that the log
+        // wants it — a string build against a subprocess spawn.
+        let described = self.target.describe(args);
+        let fail = |message: &str| {
+            trace::record(described.clone(), started.elapsed(), false, message);
+            format!("{message}\n\n$ {described}")
+        };
+        if let Some(injected) = faults.injected_failure() {
+            return Err(fail(injected));
+        }
+        match self.target.command(args).output() {
+            Err(e) => Err(fail(&format!("failed to run git: {e}"))),
+            Ok(output) if !output.status.success() => {
+                Err(fail(String::from_utf8_lossy(&output.stderr).trim()))
+            }
+            Ok(output) => {
+                trace::record(described, started.elapsed(), true, "");
+                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+            }
+        }
     }
 
     /// Like [`run`], but treats exit code 1 as success — `git diff --no-index`
@@ -1917,6 +1961,7 @@ fn export_bindings() {
         RepoStats::decl(&cfg),
         SshKey::decl(&cfg),
         SshStatus::decl(&cfg),
+        trace::GitCommandEntry::decl(&cfg),
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
@@ -2249,5 +2294,90 @@ mod version_tests {
         assert!(v.starts_with("git version "), "unexpected output: {v:?}");
         // Trimmed, because it goes straight into a pasted markdown list item.
         assert_eq!(v, v.trim());
+    }
+}
+
+#[cfg(test)]
+mod command_log_tests {
+    use super::{trace, Repo};
+
+    #[test]
+    fn every_git_call_lands_in_the_command_log() {
+        // A real invocation through the public surface. The buffer is
+        // process-wide and the rest of the suite runs git too, so this looks for
+        // its own call rather than assuming it is alone in there.
+        let v = Repo::open("").version().expect("git --version");
+        assert!(v.starts_with("git version "));
+        let entries = trace::entries();
+        let mine = entries
+            .iter()
+            .rev()
+            .find(|e| e.command.ends_with("--version"))
+            .expect("the --version call was recorded");
+        assert!(mine.ok, "a call that worked was recorded as failed");
+        assert_eq!(mine.error, "", "a call that worked has nothing to say");
+        // The whole invocation, not just the subcommand: a git target routed to
+        // the wrong place is invisible unless the argv that ran is there.
+        assert!(
+            mine.command.contains("-c core.fsmonitor="),
+            "not the real argv: {}",
+            mine.command
+        );
+    }
+
+    #[test]
+    fn a_failed_call_records_gits_own_message() {
+        let dir = std::env::temp_dir().join(format!("glimpse-cmdlog-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let path = dir.to_str().unwrap().to_string();
+
+        // Not a repository, so git fails and says why.
+        let err = Repo::open(&path).info().err().expect("not a repository");
+        let entries = trace::entries();
+        let mine = entries
+            .iter()
+            .rev()
+            .find(|e| e.command.contains(&path))
+            .expect("the failed call was recorded");
+        assert!(!mine.ok, "a call that failed was recorded as fine");
+        assert!(!mine.error.is_empty(), "a failure with no message");
+        assert!(
+            err.contains(&mine.error),
+            "the log and the error disagree: {:?} vs {err:?}",
+            mine.error
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_injected_failure_travels_the_real_error_path() {
+        // Faults are passed in rather than read off the process-wide switch:
+        // the suite runs in parallel, and a test that flipped the global would
+        // make every other test's git calls fail too.
+        let repo = Repo::open(".");
+        let err = repo
+            .run_with(
+                &["status"],
+                trace::Faults {
+                    fail: true,
+                    slow: false,
+                },
+            )
+            .expect_err("the injected failure is a failure");
+        // Same shape a real failure has — git's message, then the invocation —
+        // so cleanGitError and the UI toast see nothing unusual.
+        assert!(err.starts_with(trace::INJECTED_FAILURE), "{err}");
+        assert!(err.contains("\n\n$ "), "the invocation is missing: {err}");
+        // And it is recorded like one, without git ever having run.
+        let entries = trace::entries();
+        let mine = entries
+            .iter()
+            .rev()
+            .find(|e| e.error == trace::INJECTED_FAILURE)
+            .expect("the injected failure was recorded");
+        assert!(!mine.ok);
+        assert!(mine.command.ends_with("status"), "{}", mine.command);
     }
 }
