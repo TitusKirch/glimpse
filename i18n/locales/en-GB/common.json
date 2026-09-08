@@ -7,6 +7,9 @@
   },
   "error": {
     "title": "Error",
+    "unhandled": {
+      "title": "Something went wrong in the background"
+    },
     "loadFailed": "Could not load this repository",
     "retry": "Retry"
   },
@@ -41,17 +44,22 @@
   "updater": {
     "available": "Update {version} available",
     "installing": "Downloading and installing…",
-    "installed": "Update installed — restart to apply",
+    "installed": "Update installed",
     "upToDate": "You're on the latest version",
     "failed": "Update check failed",
-    "noExperiment": "Pick an experiment first"
+    "noExperiment": "Pick an experiment first",
+    "downloading": "Downloading… {percent}%",
+    "restart": "Restart now",
+    "restartHint": "Restart glimpse to run the new version.",
+    "restartSimulated": "Nothing restarted — this update is simulated.",
+    "restartFailed": "Restart failed"
   },
-  "copied": "Copied to clipboard",
   "help": {
     "title": "Keyboard shortcuts",
     "contextHint": "Tip: right-click a commit for more actions."
   },
   "common": {
+    "copied": "Copied to clipboard",
     "cancel": "Cancel",
     "browse": "Browse…"
   },

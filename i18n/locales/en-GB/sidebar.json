@@ -29,6 +29,7 @@
     "localOnly": "local",
     "localOnlyHint": "Local only — not on a remote yet",
     "experimentBadge": "Experimental",
+    "simulationBadge": "Simulation",
     "reorderHint": "Drag to reorder",
     "collapseSection": "Collapse section",
     "expandSection": "Expand section",

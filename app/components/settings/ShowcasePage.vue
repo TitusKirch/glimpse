@@ -1,11 +1,36 @@
 <script setup lang="ts">
 const { t } = useI18n();
 
-// Showcase page: every badge variant at a glance (the design-system reference).
+// Showcase page: the design-system reference for the semantic colours. All
+// three components that carry them are here, so the two treatments — the
+// accent on a panel, the fill on a chip or a button — stand side by side
+// rather than having to be reconstructed from three `index.ts` files.
 const badgeKinds = [
   'default',
   'secondary',
   'outline',
+  'info',
+  'success',
+  'warning',
+  'destructive'
+] as const;
+
+const alertKinds = [
+  'default',
+  'info',
+  'success',
+  'warning',
+  'destructive'
+] as const;
+
+// shadcn's own set first, then the semantic fills — the same four colours the
+// badges above carry, so the fill treatment reads as one family across both.
+const buttonKinds = [
+  'default',
+  'secondary',
+  'outline',
+  'ghost',
+  'link',
   'info',
   'success',
   'warning',
@@ -41,6 +66,41 @@ const badgeKinds = [
         <UiBadge variant="info" icon="lucide:star">
           {{ t('settings.showcase.badges.withIcon') }}
         </UiBadge>
+      </div>
+    </div>
+
+    <div>
+      <h3
+        class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+      >
+        {{ t('settings.showcase.alerts.label') }}
+      </h3>
+      <p class="mb-3 text-xs text-muted-foreground">
+        {{ t('settings.showcase.alerts.hint') }}
+      </p>
+      <div class="space-y-2">
+        <UiAlert v-for="v in alertKinds" :key="v" :variant="v">
+          <UiAlertTitle>{{ v }}</UiAlertTitle>
+          <UiAlertDescription>
+            {{ t('settings.showcase.alerts.body') }}
+          </UiAlertDescription>
+        </UiAlert>
+      </div>
+    </div>
+
+    <div>
+      <h3
+        class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+      >
+        {{ t('settings.showcase.buttons.label') }}
+      </h3>
+      <p class="mb-3 text-xs text-muted-foreground">
+        {{ t('settings.showcase.buttons.hint') }}
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <UiButton v-for="v in buttonKinds" :key="v" :variant="v" size="sm">
+          {{ v }}
+        </UiButton>
       </div>
     </div>
   </section>

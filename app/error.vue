@@ -9,7 +9,7 @@
 // here is typically a bundling fault in a shared chunk, and a page built from
 // the same pieces would go down with them. The accepted cost is some
 // duplication against useAppVersion() and English-only strings on this one page.
-import type { Diagnostics } from '~/utils/diagnostics';
+import type { BuildKind, Diagnostics } from '~/utils/diagnostics';
 
 const props = defineProps<{
   // Structural rather than Nuxt's NuxtError: one less module to resolve, and
@@ -25,37 +25,99 @@ const props = defineProps<{
 const BUG_REPORT_URL =
   'https://github.com/TitusKirch/glimpse/issues/new?template=bug_report.yml';
 
-// Baked in at build time (nuxt.config runtimeConfig) rather than read back from
-// the desktop shell over IPC — the app never got far enough to ask.
-const version = (() => {
-  try {
-    return String(useRuntimeConfig().public.appVersion || 'unknown');
-  } catch {
-    return 'unknown';
-  }
-})();
-const build = import.meta.dev ? 'dev' : 'release';
+// The controls have to look like the rest of the app without being the rest of
+// the app: importing UiButton/UiSelect would put this page back in the very
+// component chunk whose failure brings people here. So the classes are mirrored
+// from app/components/ui/button (outline variant) and .../ui/select
+// (SelectTrigger), both at the `sm` size, onto plain elements. Copies drift —
+// that is the accepted cost, and the reason they sit here as named constants
+// rather than being spelt out three times in the template below.
+const BUTTON_CLASS =
+  'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 ' +
+  'whitespace-nowrap rounded-md border bg-background px-3 text-sm font-medium ' +
+  'shadow-xs transition-all outline-none hover:bg-accent ' +
+  'hover:text-accent-foreground focus-visible:border-ring ' +
+  'focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
+  'disabled:pointer-events-none disabled:opacity-50 dark:border-input ' +
+  'dark:bg-input/30 dark:hover:bg-input/50';
+
+// `appearance-none` drops the platform arrow (a GTK widget that ignores the
+// theme); the chevron beside it in the template replaces it, so pr-8 reserves
+// that space. Without it the select is the one control that still announces
+// which toolkit drew it.
+const SELECT_CLASS =
+  'h-8 w-fit cursor-pointer appearance-none rounded-md border border-input ' +
+  'bg-transparent py-0 pl-3 pr-8 text-sm shadow-xs ' +
+  'transition-[color,box-shadow] outline-none focus-visible:border-ring ' +
+  'focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 ' +
+  'dark:hover:bg-input/50';
 
 const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
-const webview = webviewFromUserAgent(userAgent);
-const route = routeFromLocation(
-  typeof window === 'undefined' ? undefined : window.location
-);
 
-// The user-agent reading shows immediately; tauri-plugin-os replaces it if and
-// when it answers. It goes over IPC, so it is enrichment and never a
-// precondition — if the call never returns, this line simply stays.
-const os = ref(osFromUserAgent(userAgent));
-onMounted(() => void enrichOs());
-async function enrichOs() {
+// The facts come from the shared assembly, so the block pasted from a crash and
+// the one pasted from Settings → Diagnostics are the same format — but the call
+// is defensive, because a broken shared chunk is exactly the failure that brings
+// someone here and it could take the composable with it. The fallback is what
+// this page computed inline before the extraction; between the two, the report
+// renders whatever else is gone.
+const facts = (() => {
   try {
-    if (!isTauri()) return;
-    const plugin = await import('@tauri-apps/plugin-os');
-    const line = formatPluginOs(plugin.type(), plugin.version(), plugin.arch());
-    if (line !== 'unknown') os.value = line;
+    return useDiagnostics();
   } catch {
-    // Keep the user-agent reading; the page is never blank for want of this.
+    return inlineDiagnostics();
   }
+})();
+const { version, build, os, webview, route } = facts;
+
+function inlineDiagnostics() {
+  // Baked in at build time (nuxt.config runtimeConfig) rather than read back
+  // from the desktop shell over IPC — the app never got far enough to ask.
+  const version = (() => {
+    try {
+      return String(useRuntimeConfig().public.appVersion || 'unknown');
+    } catch {
+      return 'unknown';
+    }
+  })();
+  const build: BuildKind = import.meta.dev ? 'dev' : 'release';
+  const webview = webviewFromUserAgent(userAgent);
+  const route = routeFromLocation(
+    typeof window === 'undefined' ? undefined : window.location
+  );
+  // The user-agent reading shows immediately; tauri-plugin-os replaces it if and
+  // when it answers. It goes over IPC, so it is enrichment and never a
+  // precondition — if the call never returns, this line simply stays.
+  const os = ref(osFromUserAgent(userAgent));
+  onMounted(() => void enrichOs());
+  async function enrichOs() {
+    try {
+      if (!isTauri()) return;
+      const plugin = await import('@tauri-apps/plugin-os');
+      const line = formatPluginOs(
+        plugin.type(),
+        plugin.version(),
+        plugin.arch()
+      );
+      if (line !== 'unknown') os.value = line;
+    } catch {
+      // Keep the user-agent reading; the page is never blank for want of this.
+    }
+  }
+  return {
+    version,
+    build,
+    os,
+    webview,
+    route,
+    diagnostics: computed<Diagnostics>(() => ({
+      version,
+      build,
+      os: os.value,
+      webview,
+      route
+    }))
+  };
 }
 
 const status = computed(() => {
@@ -69,11 +131,7 @@ const message = computed(
 const stack = computed(() => props.error?.stack);
 
 const diagnostics = computed<Diagnostics>(() => ({
-  version,
-  build,
-  os: os.value,
-  webview,
-  route,
+  ...facts.diagnostics.value,
   status: status.value,
   message: message.value,
   stack: stack.value
@@ -168,6 +226,12 @@ const channel = ref<Channel>(
 );
 const checking = ref(false);
 const updateStatus = ref('');
+// An installed update only takes effect on a restart, and this page shows
+// *because* the running build is broken — so leaving the user on it is the one
+// outcome the recovery must not end in. Offered rather than done automatically,
+// for the same reason as everywhere else: unfinished work is worth more than the
+// seconds saved.
+const installed = ref(false);
 
 // Best-effort and never destructive: with no blob there is no settings state to
 // amend, and writing one here would hand the recovered app a single-key object
@@ -224,12 +288,25 @@ async function checkForUpdates() {
     updateStatus.value = `Installing ${available}...`;
     await invoke('install_update', { channel: target, force });
     rememberChannel(channel.value);
-    updateStatus.value = `Installed ${available}. Restart glimpse to finish.`;
+    installed.value = true;
+    updateStatus.value = `Installed ${available}. Restart glimpse to run it.`;
   } catch (err) {
     updateStatus.value = `Update failed: ${String(err)}`;
     console.error('update check failed:', err);
   } finally {
     checking.value = false;
+  }
+}
+
+// Reached the way enrichOs() reaches tauri-plugin-os: a dynamic import, so a
+// broken shared chunk cannot take this page's own render down with it.
+async function restart() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('restart_app');
+  } catch (err) {
+    updateStatus.value = `Restart failed: ${String(err)}. Quit and reopen glimpse to run the installed version.`;
+    console.error('restart failed:', err);
   }
 }
 </script>
@@ -251,7 +328,7 @@ async function checkForUpdates() {
       </div>
 
       <dl
-        class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border p-4 text-xs"
+        class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border p-4 text-xs shadow-xs"
       >
         <template v-for="row in rows" :key="row.label">
           <dt class="text-muted-foreground">{{ row.label }}</dt>
@@ -259,9 +336,9 @@ async function checkForUpdates() {
         </template>
       </dl>
 
-      <details v-if="stack" class="rounded-md border text-xs">
+      <details v-if="stack" class="rounded-md border shadow-xs">
         <summary
-          class="cursor-pointer select-none px-4 py-2 text-muted-foreground"
+          class="cursor-pointer select-none px-4 py-2 text-sm text-muted-foreground"
         >
           Stack trace
         </summary>
@@ -271,56 +348,69 @@ async function checkForUpdates() {
       </details>
 
       <div class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-          @click="reload"
-        >
+        <button type="button" :class="BUTTON_CLASS" @click="reload">
           Reload
         </button>
-        <button
-          type="button"
-          class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-          @click="copyDiagnostics"
-        >
+        <button type="button" :class="BUTTON_CLASS" @click="copyDiagnostics">
           Copy diagnostics
         </button>
-        <button
-          type="button"
-          class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
-          @click="report"
-        >
+        <button type="button" :class="BUTTON_CLASS" @click="report">
           Report this
         </button>
       </div>
 
-      <div class="space-y-2 rounded-md border p-4">
+      <div class="space-y-2 rounded-md border p-4 shadow-xs">
         <p class="text-xs text-muted-foreground">
           A broken build cannot update itself: the check that normally runs at
           launch never gets that far. Install a newer build from here, or switch
           channel to get off this one.
         </p>
         <div class="flex flex-wrap items-center gap-2">
-          <label class="text-xs text-muted-foreground" for="update-channel">
+          <label class="text-sm text-muted-foreground" for="update-channel">
             Channel
           </label>
-          <select
-            id="update-channel"
-            v-model="channel"
-            :disabled="checking"
-            class="rounded-md border bg-background px-2 py-1.5 text-xs"
-          >
-            <option v-for="c in CHANNELS" :key="c.value" :value="c.value">
-              {{ c.label }}
-            </option>
-          </select>
+          <div class="relative inline-flex items-center">
+            <select
+              id="update-channel"
+              v-model="channel"
+              :disabled="checking"
+              :class="SELECT_CLASS"
+            >
+              <option v-for="c in CHANNELS" :key="c.value" :value="c.value">
+                {{ c.label }}
+              </option>
+            </select>
+            <!-- Inline rather than <NuxtIcon>: the icon component is one more
+                 chunk this page refuses to depend on. Drawn on top of the
+                 select, so it must not swallow the click that opens it. -->
+            <svg
+              class="pointer-events-none absolute right-2.5 size-4 opacity-50"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
           <button
             type="button"
             :disabled="checking"
-            class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+            :class="BUTTON_CLASS"
             @click="checkForUpdates"
           >
             {{ checking ? 'Checking...' : 'Check for updates' }}
+          </button>
+          <button
+            v-if="installed"
+            type="button"
+            :class="BUTTON_CLASS"
+            @click="restart"
+          >
+            Restart now
           </button>
         </div>
         <p v-if="updateStatus" class="break-words text-xs">

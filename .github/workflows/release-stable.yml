@@ -106,7 +106,7 @@ jobs:
     timeout-minutes: 10
     steps:
       # Assembled once, here, rather than by each matrix leg: the legs run in
-      # parallel and `includeUpdaterJson` has them all write the same manifest,
+      # parallel and `uploadUpdaterJson` has them all write the same manifest,
       # so the last writer wins and the other platform disappears from it.
       - name: Build latest.json and attach it to the release
         env:

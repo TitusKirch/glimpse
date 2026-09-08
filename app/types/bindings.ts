@@ -242,3 +242,33 @@ export type SshStatus = {
    */
   publicKeys: Array<SshKey>;
 };
+
+export type GitCommandEntry = {
+  /**
+   * Per-process counter, so the frontend has a stable key and a gap is
+   * visible when the buffer has dropped the oldest entries.
+   */
+  seq: number;
+  /**
+   * Wall clock, milliseconds since the Unix epoch. Rendered by the frontend
+   * in the viewer's own locale rather than formatted here.
+   */
+  at: number;
+  /**
+   * The invocation as [`GitTarget::describe`](crate::platform::GitTarget::describe)
+   * renders it — program, WSL prefix, flags and all, with URL credentials
+   * redacted.
+   */
+  command: string;
+  /**
+   * How long the subprocess took, start to finish.
+   */
+  durationMs: number;
+  ok: boolean;
+  /**
+   * Git's stderr when the call failed, redacted and truncated; empty when it
+   * succeeded. A failure line without git's own message is close to useless
+   * in the bug report this log exists to feed.
+   */
+  error: string;
+};

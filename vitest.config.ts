@@ -30,6 +30,7 @@ export default defineConfig({
         'app/utils/**/*.ts',
         'app/lib/**/*.ts',
         'app/stores/settings.ts',
+        'app/stores/simulation.ts',
         'app/composables/gitClient.ts',
         'app/composables/gitMock.ts',
         'app/composables/tauriInvoke.ts',
@@ -37,7 +38,10 @@ export default defineConfig({
         'app/composables/cleanGitError.ts',
         'app/composables/parseConflicts.ts',
         'app/composables/parseDiff.ts',
+        'app/composables/commitGraphLanes.ts',
         'app/composables/commitGraphLayout.ts',
+        'app/composables/graphPan.ts',
+        'app/composables/useGraphColumnWidth.ts',
         'app/composables/useSearch.ts'
       ],
       exclude: ['**/*.{test,spec}.ts'],

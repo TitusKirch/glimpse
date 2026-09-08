@@ -170,6 +170,12 @@ jobs:
 
       # No latest.json here: `finalize` builds it once, so the parallel legs only
       # ever upload distinct files and cannot race each other.
+      #
+      # THE INPUT NAME IS LORE-BEARING. tauri-action v1 renamed this from
+      # `includeUpdaterJson`, and an unknown input is a warning annotation, not
+      # an error — the run stays green while the switch silently reverts to its
+      # default. That is how the v0.13.0 rebuild had both legs write the shared
+      # manifest anyway; only `finalize`'s `--clobber` afterwards hid it.
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
@@ -181,4 +187,4 @@ jobs:
           tagName: ${{ inputs.tag }}
           releaseDraft: false
           prerelease: ${{ inputs.prerelease }}
-          includeUpdaterJson: false
+          uploadUpdaterJson: false

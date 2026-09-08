@@ -92,3 +92,59 @@ opened repositories and recently used command-palette actions. The mechanics
 (move/insert to front, dedup by a stable key, trim to `max`) live once in the
 pure `moveToFront` core (`app/utils/recency.ts`); each store supplies the key and
 the cap (owned by the layout store, under Settings → General → Recent).
+
+**diagnostics**
+The facts a bug report needs about the running app — version and build kind,
+release channel and experiment slug, OS, WebView, the git that actually runs,
+and the route — plus the markdown they paste as. One format
+(`app/utils/diagnostics.ts`), one assembly (`useDiagnostics()`), two surfaces:
+the fatal error page (`app/error.vue`) adds the error's status/message/stack,
+Settings → Diagnostics adds what only a working app shell can reach (channel,
+experiment, `git --version`, the resolved target). Every field either surface
+cannot answer is optional and simply omitted, so the two produce the same block
+rather than two dialects of one. The assembly inherits the error page's rules —
+no store, no i18n, no shadcn component, IPC only as enrichment — because it runs
+on the page that shows _because_ the app shell broke; `error.vue` calls it in a
+try/catch and falls back to computing the facts inline.
+
+**simulation**
+A developer switch that deliberately bends how the running app behaves — make
+IPC fail, pretend an update is available. The opposite of a _diagnostic_, which
+only observes; that split is the axis the Developer settings group is ordered
+along (Showcase → Triggers → Diagnostics → Simulation,
+`app/utils/developerPages.ts`). Simulations are **session-only**: the store
+(`app/stores/simulation.ts`) is the one that is deliberately not persisted, so a
+switch can never greet someone after a restart and a forgotten switch can never
+be reported as a real bug. While any is active it is announced app-wide in the
+sidebar badge slot, alongside (never instead of) the EXPERIMENT / BETA build
+identity — build identity and runtime state say different things. The detailed
+list and the single "turn everything off" live on the Simulation page.
+
+**UpdaterBackend**
+The updater as `useUpdater` uses it: `check`, `install` (reporting whole
+percents) and the `restart` offered afterwards. One shape with two
+implementations — the real one over the Rust `check_update` / `install_update` /
+`restart_app` commands, and a simulated one built from the Simulation page's
+switches (`app/utils/updaterSimulation.ts`). The composable picks **one** per run
+and never mixes them, which is what makes "a simulated update can never start a
+real download, install or restart" structural rather than a guard: the simulated
+backend holds no IPC to reach one with. Progress arrives as an `update-progress`
+event and updates a single toast in place; the restart at the end is _offered_,
+never taken automatically, because glimpse holds unfinished commit messages and
+conflict resolutions and an app that vanishes mid-merge destroys work.
+
+**trigger**
+A developer control that fires a one-off action so a surface can be looked at on
+purpose — a toast, one of the promise dialogs, or a deliberate crash. The
+opposite of a _simulation_, which stays on and bends the app until it is switched
+off; that split is the axis the Developer settings group is ordered along. The
+**crash** triggers are the one group that ends the current session, so each says
+what it is about to do and waits for a confirmation; they exist because the fatal
+error page and the diagnostics block it renders otherwise only show once
+something has already gone wrong. What they provoke is routed app-wide by
+`app/plugins/errors.client.ts`, by how much of the app is left standing: an error
+out of render, a watcher or an event handler hands over to `app/error.vue`, while
+an unhandled promise rejection is only an error toast, because the rendered app
+still works. The backend trigger is the Rust `dev_panic` command — compiled into
+release builds the way `open_devtools` is, and reachable only from the Developer
+pages `devMode` unlocks.

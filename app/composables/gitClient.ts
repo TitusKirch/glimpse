@@ -13,6 +13,7 @@ import type {
   Commit,
   CommitFile,
   DiffData,
+  GitCommandEntry,
   ImageDiff,
   RebaseStep,
   ReflogEntry,
@@ -208,6 +209,39 @@ export const gitClient = {
       command: 'generate_ssh_key',
       args: { path },
       fallback: ''
+    }),
+
+  // `git --version` from the git this repo resolves to (an empty path answers
+  // for the plain native git). Empty in the browser demo — the Diagnostics page
+  // drops the line rather than reporting a git version nothing ran.
+  gitVersion: (path: string) =>
+    tauriInvoke<string>({
+      command: 'git_version',
+      args: { path },
+      fallback: ''
+    }),
+
+  // The git calls this session has made, oldest first — the exact invocation,
+  // how long it took and whether it failed. Recorded in the backend, because
+  // that is the only place that can see a git call: one IPC call is not one git
+  // call (`git_status` runs `git status` *and* the LFS lookup), and a mis-routed
+  // git target is invisible from this side of the seam. Empty in the browser
+  // demo, which has no backend to have run anything.
+  gitCommandLog: () =>
+    tauriInvoke<GitCommandEntry[]>({
+      command: 'git_command_log',
+      args: {},
+      fallback: []
+    }),
+
+  // Flip the developer Simulation page's git fault switches. Both travel
+  // together — the backend holds one pair, so sending half of it would carry the
+  // other flag's stale value. No-op in the browser demo.
+  setGitSimulation: ({ fail, slow }: { fail: boolean; slow: boolean }) =>
+    tauriInvoke<null>({
+      command: 'set_git_simulation',
+      args: { fail, slow },
+      fallback: null
     }),
 
   // Installed WSL distros (Windows; empty elsewhere) for the git-target picker.

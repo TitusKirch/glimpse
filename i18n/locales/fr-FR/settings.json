@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Expérimentation",
         "withIcon": "Avec icône"
+      },
+      "alerts": {
+        "label": "Alertes",
+        "hint": "Toutes les variantes d'alerte — la couleur sémantique est sur l'icône et le filet gauche, jamais sur le texte.",
+        "body": "La surface reste neutre pour que la couleur n'ait pas à être lisible en tant que texte."
+      },
+      "buttons": {
+        "label": "Boutons",
+        "hint": "Toutes les variantes de bouton — une couleur sémantique remplit le bouton avec le premier plan auquel elle est associée."
       }
     },
     "triggers": {
@@ -227,6 +236,28 @@
       "dialogs": {
         "label": "Dialogues",
         "hint": "Ouvrir les dialogues qu'on ne voit normalement pas directement."
+      },
+      "crashes": {
+        "label": "Plantages",
+        "hint": "Casser l'application volontairement, pour pouvoir regarder tranquillement les écrans qui n'apparaissent qu'une fois que quelque chose a déjà cassé. Chacun de ces boutons met fin à la session en cours.",
+        "render": {
+          "button": "Erreur de rendu",
+          "title": "Casser l'interface ?",
+          "description": "Un composant lèvera une erreur pendant son rendu, l'application bascule donc sur la page d'erreur fatale. Rechargez depuis celle-ci pour revenir.",
+          "action": "Casser"
+        },
+        "rejection": {
+          "button": "Rejet non géré",
+          "title": "Faire échouer une tâche en arrière-plan ?",
+          "description": "Une promesse sera rejetée sans que personne ne l'attende. L'application continue de fonctionner et le signale par un toast d'erreur.",
+          "action": "Faire échouer"
+        },
+        "backend": {
+          "button": "Panique du backend",
+          "title": "Faire planter le backend ?",
+          "description": "Une commande déclenchera une panique dans le backend Rust. L'application continue de tourner, mais cet appel ne reçoit jamais de réponse — tout ce qui l'attend attendra indéfiniment. Rechargez pour revenir.",
+          "action": "Faire planter"
+        }
       },
       "cancelled": "Annulé",
       "confirm": {
@@ -268,6 +299,71 @@
         "label": "Erreur",
         "title": "Erreur",
         "description": "Une erreur s'est produite."
+      }
+    },
+    "diagnostics": {
+      "title": "Diagnostic",
+      "report": {
+        "label": "Rapport",
+        "hint": "Les informations dont un rapport de bug a besoin, telles que la page d'erreur fatale les affiche. Copiez-les en markdown et collez-les dans un ticket.",
+        "copy": "Copier le diagnostic"
+      },
+      "rows": {
+        "version": "Version",
+        "channel": "Canal",
+        "experiment": "Expérimentation",
+        "os": "Système",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Cible Git",
+        "route": "Route"
+      },
+      "commandLog": {
+        "label": "Journal des commandes",
+        "hint": "Chaque appel git de cette session — la commande exacte, sa durée et s'il a échoué. Conservé uniquement en mémoire, jamais écrit sur le disque, et plafonné : les appels les plus anciens disparaissent. Les identifiants présents dans une URL distante sont masqués avant tout affichage ou toute copie.",
+        "refresh": "Actualiser",
+        "copy": "Copier le journal des commandes",
+        "search": "Filtrer les appels…",
+        "empty": "Aucun appel git enregistré pour l'instant.",
+        "noMatches": "Aucun appel git ne correspond à ce filtre."
+      },
+      "inspector": {
+        "label": "Inspecteur",
+        "hint": "Ouvre les outils de développement de la WebView — la console, le journal réseau et la trace complète. F12 fait la même chose depuis n'importe où dans l'application. Application de bureau uniquement.",
+        "open": "Ouvrir l'inspecteur"
+      }
+    },
+    "simulation": {
+      "title": "Simulation",
+      "active": {
+        "label": "Simulations actives",
+        "hint": "Les simulations modifient délibérément le comportement de l'application. Elles ne durent que cette session et sont effacées au redémarrage."
+      },
+      "none": "Rien n'est simulé.",
+      "disableAll": "Tout désactiver",
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "Les interrupteurs qui modifient le comportement à l'exécution. Ils ne touchent que les appels git — le reste de l'application, cette page comprise, continue de fonctionner et un interrupteur peut toujours être désactivé."
+        },
+        "updater": {
+          "label": "Mises à jour",
+          "hint": "Place le programme de mise à jour dans un état qui exigerait autrement une version publiée. Tout est simulé côté interface uniquement : aucun téléchargement, aucune installation et aucun redémarrage réels ne peuvent en découler."
+        }
+      },
+      "flags": {
+        "gitFailure": "Faire échouer chaque appel git",
+        "gitSlow": "Ralentir chaque appel git",
+        "updateAvailable": "Simuler une mise à jour disponible",
+        "updateCheckFailed": "Faire échouer la vérification des mises à jour",
+        "updateDownloadFailed": "Faire échouer le téléchargement de la mise à jour"
+      },
+      "hints": {
+        "gitFailure": "Chaque appel git échoue avec une erreur simulée, afin de parcourir volontairement les chemins d'erreur plutôt que de casser un dépôt.",
+        "gitSlow": "Chaque appel git prend quelques secondes de plus qu'en réalité, afin d'observer tranquillement les états de chargement.",
+        "updateAvailable": "La prochaine vérification propose une version simulée, puis parcourt la progression du téléchargement, l’état installé et la proposition de redémarrage — sans aucune version publiée.",
+        "updateCheckFailed": "La prochaine vérification échoue, afin de lire son message d’erreur et sa formulation sans casser le flux de versions.",
+        "updateDownloadFailed": "Une mise à jour est proposée et son téléchargement abandonne à mi-chemin, afin de parcourir le chemin d’une installation interrompue."
       }
     },
     "appearance": {

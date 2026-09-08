@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import { useElementSize } from '@vueuse/core';
 import { useForm } from '@tanstack/vue-form';
 import { z } from 'zod';
 import type { Commit } from '~/types/bindings';
@@ -15,6 +16,8 @@ const layout = computed(() => commitGraphLayout({ commits: repo.commits }));
 // Virtualize the commit rows so large repos stay smooth; the SVG lane overlay
 // is cheap and stays full-height, the heavy per-row DOM is windowed.
 const scrollEl = ref<HTMLElement | null>(null);
+const gutterEl = ref<HTMLElement | null>(null);
+const { width: paneWidth } = useElementSize(scrollEl);
 const rowVirtualizer = useVirtualizer(
   computed(() => ({
     count: repo.commits.length,
@@ -30,6 +33,70 @@ const virtualRows = computed(() =>
     commit: repo.commits[vr.index]!
   }))
 );
+
+// The graph column is sized from the rows the virtualizer is actually holding
+// (the viewport plus its overscan), not from the widest point of the whole
+// loaded log — so the long single-lane stretches hand their width back to the
+// commit subjects, and loading another page of older history no longer pushes
+// the rows already on screen to the right. `useGraphColumnWidth` adds the rules
+// on top: never more than its share of the pane, grow at once, give the width
+// back after a hold.
+const visibleRows = computed(() => {
+  const items = rowVirtualizer.value.getVirtualItems();
+  return {
+    first: items[0]?.index ?? 0,
+    last: items[items.length - 1]?.index ?? 0
+  };
+});
+
+// Measured over a block around those rows rather than over the rows themselves,
+// so the width holds still while you scroll through one — see `measuredBlock`
+// for why the frequency of the change, not its shape, is what reads as broken.
+// At the 60px row height a 50-row block is ~3000px of scrolling between one
+// possible width change and the next.
+const GRAPH_MEASURE_BLOCK = 50;
+const measuredRows = computed(() =>
+  measuredBlock(visibleRows.value, GRAPH_MEASURE_BLOCK, repo.commits.length)
+);
+const { width: graphWidth, overflow: graphOverflow } = useGraphColumnWidth(
+  () =>
+    layout.value.widthForRows(
+      measuredRows.value.first,
+      measuredRows.value.last
+    ),
+  paneWidth
+);
+// Rounded once and shared, so the gutter's edge and every row's indent stay
+// exactly aligned when the cap lands the width on a fraction of a pixel.
+const graphWidthPx = computed(() => Math.round(graphWidth.value) + 'px');
+
+// Past the cap the graph is wider than its column, so it pans on its own rather
+// than hiding lanes. The gutter stays click-through (rows are selectable across
+// their full width), which is why the pan is forwarded from the list's wheel
+// events instead of relying on the gutter receiving them — and why the decision
+// of whether a gesture is the graph's at all lives in `graphPan`, where it can
+// be tested. Claiming a mostly-vertical trackpad swipe here would cost the
+// commit list its own scrolling.
+function panGraph(event: WheelEvent) {
+  const el = gutterEl.value;
+  if (!el) return;
+  const pan = graphPanTarget(event, el.scrollLeft, graphOverflow.value);
+  if (!pan.claim) return;
+  el.scrollLeft = pan.scrollLeft;
+  event.preventDefault();
+}
+
+// A stretch that no longer overflows leaves the gutter scrolled where the wide
+// one left it, with lane 0 off the left edge of a column whose rows are already
+// indented correctly — and no way back, since there is nothing left to pan.
+// Driven by the overflow the column actually has on screen, so it is still
+// correct while a narrower stretch is being held out.
+watch(graphOverflow, (maxPan) => {
+  const el = gutterEl.value;
+  if (!el) return;
+  const clamped = clampGraphPan(el.scrollLeft, maxPan);
+  if (clamped !== el.scrollLeft) el.scrollLeft = clamped;
+});
 
 // Scroll the selected commit into view (e.g. when opened from blame), so the
 // highlighted row is actually visible.
@@ -223,35 +290,47 @@ function refVariant(refName: string) {
       ref="scrollEl"
       v-else
       class="relative min-h-0 flex-1 overflow-auto select-none"
+      @wheel="panGraph"
     >
       <div class="relative" :style="{ height: layout.height + 'px' }">
         <!-- lane lines + nodes — kept above the rows so a selected/hovered
-             row's background never hides the lanes -->
-        <svg
-          class="pointer-events-none absolute top-0 left-0 z-10"
-          :width="layout.width"
-          :height="layout.height"
-          :style="{ height: layout.height + 'px' }"
+             row's background never hides the lanes. The gutter is the column
+             the rows indent past; the SVG inside it keeps its full width, so a
+             history wider than the cap is panned, never clipped away. -->
+        <div
+          ref="gutterEl"
+          class="pointer-events-none absolute top-0 left-0 z-10 overflow-x-auto overflow-y-hidden"
+          :style="{
+            width: graphWidthPx,
+            height: layout.height + 'px',
+            scrollbarWidth: 'none'
+          }"
         >
-          <path
-            v-for="(e, idx) in layout.edges"
-            :key="idx"
-            :d="e.d"
-            :stroke="e.color"
-            stroke-width="2"
-            fill="none"
-          />
-          <circle
-            v-for="n in layout.nodes"
-            :key="n.hash"
-            :cx="n.cx"
-            :cy="n.cy"
-            r="5"
-            :fill="n.color"
-            stroke="var(--background)"
-            stroke-width="2.5"
-          />
-        </svg>
+          <svg
+            :width="layout.width"
+            :height="layout.height"
+            :style="{ height: layout.height + 'px' }"
+          >
+            <path
+              v-for="(e, idx) in layout.edges"
+              :key="idx"
+              :d="e.d"
+              :stroke="e.color"
+              stroke-width="2"
+              fill="none"
+            />
+            <circle
+              v-for="n in layout.nodes"
+              :key="n.hash"
+              :cx="n.cx"
+              :cy="n.cy"
+              r="4"
+              :fill="n.color"
+              stroke="var(--background)"
+              stroke-width="2"
+            />
+          </svg>
+        </div>
 
         <!-- commit rows -->
         <ul>
@@ -265,7 +344,7 @@ function refVariant(refName: string) {
               :style="{
                 height: vr.size + 'px',
                 transform: `translateY(${vr.start}px)`,
-                paddingLeft: layout.width + 'px'
+                paddingLeft: graphWidthPx
               }"
               :class="
                 vr.commit.hash === repo.selectedHash ||

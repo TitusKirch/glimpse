@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatCommandLogMarkdown,
+  formatCommandTime,
   formatDiagnosticsMarkdown,
+  formatGitTarget,
   formatPluginOs,
   osFromUserAgent,
   routeFromLocation,
@@ -85,6 +88,26 @@ describe('formatPluginOs', () => {
   });
 });
 
+describe('formatGitTarget', () => {
+  it('names the distro whose git actually runs', () => {
+    expect(formatGitTarget('wsl', 'Ubuntu-22.04')).toBe('WSL · Ubuntu-22.04');
+  });
+
+  it('names the host platform when git is native', () => {
+    expect(formatGitTarget('linux')).toBe('Native (Linux)');
+    expect(formatGitTarget('windows')).toBe('Native (Windows)');
+    expect(formatGitTarget('macos')).toBe('Native (macOS)');
+  });
+
+  it('never claims a distro it was not told', () => {
+    expect(formatGitTarget('wsl')).toBe('WSL');
+  });
+
+  it('says so rather than guessing when no repo has resolved a target', () => {
+    expect(formatGitTarget('')).toBe('unknown');
+  });
+});
+
 describe('routeFromLocation', () => {
   it('joins path, query and hash', () => {
     expect(
@@ -144,5 +167,90 @@ describe('formatDiagnosticsMarkdown', () => {
     expect(formatDiagnosticsMarkdown({ ...base, build: 'dev' })).toContain(
       'dev'
     );
+  });
+
+  it('omits the message line when there is no error to report', () => {
+    const md = formatDiagnosticsMarkdown({
+      version: '0.11.0',
+      build: 'release',
+      os: 'Windows NT 10.0',
+      webview: 'WebView2 131.0.2903.86',
+      route: '/'
+    });
+    expect(md).not.toContain('Message');
+    expect(md).not.toContain('Status');
+    expect(md).not.toContain('Stack trace');
+    expect(md).toContain('- Route: /');
+  });
+
+  it('carries the extras the Diagnostics page can reach', () => {
+    const md = formatDiagnosticsMarkdown({
+      ...base,
+      channel: 'beta',
+      experiment: 'hunk-commit',
+      git: 'git version 2.43.0',
+      gitTarget: 'WSL · Ubuntu-22.04'
+    });
+    expect(md).toContain('- Channel: beta');
+    expect(md).toContain('- Experiment: hunk-commit');
+    expect(md).toContain('- Git: git version 2.43.0');
+    expect(md).toContain('- Git target: WSL · Ubuntu-22.04');
+  });
+
+  it('omits every extra the caller could not answer', () => {
+    const md = formatDiagnosticsMarkdown(base);
+    expect(md).not.toContain('Channel');
+    expect(md).not.toContain('Experiment');
+    expect(md).not.toContain('- Git');
+  });
+
+  it('stamps a recorded call with a sortable wall-clock time', () => {
+    // UTC, not the viewer's locale: the block is pasted into an issue read by
+    // someone else, and "14:09" in an unstated timezone is worse than useless
+    // when it is lined up against a log from another machine.
+    expect(formatCommandTime(Date.UTC(2026, 8, 8, 14, 9, 11, 7))).toBe(
+      '14:09:11.007'
+    );
+  });
+
+  it('pastes the command log as the block a bug report wants', () => {
+    const md = formatCommandLogMarkdown([
+      {
+        seq: 1,
+        at: Date.UTC(2026, 8, 8, 14, 9, 11, 0),
+        command: 'git -C /r -c core.fsmonitor= status',
+        durationMs: 12,
+        ok: true,
+        error: ''
+      },
+      {
+        seq: 2,
+        at: Date.UTC(2026, 8, 8, 14, 9, 12, 500),
+        command: 'git -C /r fetch origin',
+        durationMs: 4321,
+        ok: false,
+        error: "fatal: unable to access 'https://***@github.com/x.git/'"
+      }
+    ]);
+    expect(md).toContain('**glimpse git command log**');
+    // Newest first: the call someone is asking about is the one that just ran.
+    const [first, second] = md
+      .split('\n')
+      .filter((l) => l.startsWith('- '))
+      .map((l) => l.trim());
+    expect(second).toBe(
+      '- 14:09:11.000 · 12 ms · ok · `git -C /r -c core.fsmonitor= status`'
+    );
+    expect(first).toBe(
+      '- 14:09:12.500 · 4321 ms · failed · `git -C /r fetch origin`'
+    );
+    // A failure carries git's own message, indented under its call.
+    expect(md).toContain(
+      "  fatal: unable to access 'https://***@github.com/x.git/'"
+    );
+  });
+
+  it('says so rather than pasting an empty list', () => {
+    expect(formatCommandLogMarkdown([])).toContain('no git calls recorded');
   });
 });

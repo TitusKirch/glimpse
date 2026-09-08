@@ -37,8 +37,22 @@ export default defineNuxtConfig({
 
   icon: {
     componentName: 'NuxtIcon',
-    serverBundle: {
-      collections: ['flag', 'lucide', 'simple-icons']
+    // A server bundle needs a server to serve from. This app is `ssr: false`
+    // and the desktop shell loads the built files off disk, so /api/_nuxt_icon
+    // never exists at runtime and every icon fell through to the public
+    // Iconify API — one batched request, which is why the sidebar painted all
+    // its labels and then all its icons at once, half a second later. A git
+    // client that needs the network to draw its own chrome is the worse half
+    // of that bug.
+    serverBundle: false,
+    clientBundle: {
+      // Compiles the icons referenced in source into the client bundle.
+      scan: true,
+      // flagFor() builds `flag:<region>-4x3` from the locale tag at runtime, so
+      // the scan cannot see these. The locales are enumerated in `i18n` below,
+      // which makes the set finite: add a locale, add its flag here.
+      icons: ['flag:gb-4x3', 'flag:de-4x3', 'flag:fr-4x3', 'flag:es-4x3'],
+      sizeLimitKb: 1024
     }
   },
 

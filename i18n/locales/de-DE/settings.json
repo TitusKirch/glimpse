@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Experiment",
         "withIcon": "Mit Icon"
+      },
+      "alerts": {
+        "label": "Hinweise",
+        "hint": "Alle Hinweis-Varianten — die semantische Farbe sitzt auf dem Icon und der linken Linie, nie auf dem Text.",
+        "body": "Die Fläche bleibt neutral, damit die Farbe nicht als Text lesbar sein muss."
+      },
+      "buttons": {
+        "label": "Buttons",
+        "hint": "Jede Button-Variante — eine semantische Farbe füllt den Button mit der Vordergrundfarbe, mit der sie gepaart ist."
       }
     },
     "triggers": {
@@ -227,6 +236,28 @@
       "dialogs": {
         "label": "Dialoge",
         "hint": "Die Dialoge öffnen, die man sonst nicht direkt sieht."
+      },
+      "crashes": {
+        "label": "Abstürze",
+        "hint": "Die App absichtlich kaputtmachen, damit die Ansichten, die sonst nur nach einem echten Fehler erscheinen, gezielt betrachtet werden können. Jeder dieser Punkte beendet die laufende Sitzung.",
+        "render": {
+          "button": "Render-Fehler",
+          "title": "Oberfläche kaputtmachen?",
+          "description": "Eine Komponente wirft beim Rendern einen Fehler, sodass die App an die Fehlerseite übergibt. Von dort aus neu laden, um zurückzukommen.",
+          "action": "Kaputtmachen"
+        },
+        "rejection": {
+          "button": "Unbehandelte Rejection",
+          "title": "Hintergrundaufgabe fehlschlagen lassen?",
+          "description": "Ein Promise wird abgelehnt, ohne dass jemand darauf wartet. Die App läuft weiter und meldet es als Fehler-Toast.",
+          "action": "Fehlschlagen lassen"
+        },
+        "backend": {
+          "button": "Backend-Panic",
+          "title": "Backend abstürzen lassen?",
+          "description": "Ein Befehl löst im Rust-Backend eine Panic aus. Die App läuft weiter, aber dieser Aufruf wird nie beantwortet — alles, was darauf wartet, wartet für immer. Zum Zurückkommen neu laden.",
+          "action": "Abstürzen lassen"
+        }
       },
       "cancelled": "Abgebrochen",
       "confirm": {
@@ -268,6 +299,71 @@
         "label": "Fehler",
         "title": "Fehler",
         "description": "Etwas ist schiefgelaufen."
+      }
+    },
+    "diagnostics": {
+      "title": "Diagnose",
+      "report": {
+        "label": "Bericht",
+        "hint": "Die Angaben, die ein Fehlerbericht braucht — genau so, wie sie die Fehlerseite zeigt. Als Markdown kopieren und in ein Issue einfügen.",
+        "copy": "Diagnose kopieren"
+      },
+      "rows": {
+        "version": "Version",
+        "channel": "Kanal",
+        "experiment": "Experiment",
+        "os": "Betriebssystem",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Git-Ziel",
+        "route": "Route"
+      },
+      "commandLog": {
+        "label": "Befehlsprotokoll",
+        "hint": "Jeder Git-Aufruf dieser Sitzung — der genaue Befehl, seine Dauer und ob er fehlgeschlagen ist. Nur im Arbeitsspeicher, nie auf die Festplatte geschrieben und begrenzt, sodass die ältesten Aufrufe wegfallen. Zugangsdaten in einer Remote-URL werden entfernt, bevor etwas angezeigt oder kopiert wird.",
+        "refresh": "Aktualisieren",
+        "copy": "Befehlsprotokoll kopieren",
+        "search": "Aufrufe filtern …",
+        "empty": "Noch keine Git-Aufrufe aufgezeichnet.",
+        "noMatches": "Kein Git-Aufruf passt zu diesem Filter."
+      },
+      "inspector": {
+        "label": "Inspektor",
+        "hint": "Öffnet die Entwicklerwerkzeuge der WebView — Konsole, Netzwerkprotokoll und den vollständigen Stacktrace. F12 tut überall in der App dasselbe. Nur in der Desktop-App.",
+        "open": "Inspektor öffnen"
+      }
+    },
+    "simulation": {
+      "title": "Simulation",
+      "active": {
+        "label": "Aktive Simulationen",
+        "hint": "Simulationen verändern bewusst das Verhalten der App. Sie gelten nur für diese Sitzung und werden beim Neustart zurückgesetzt."
+      },
+      "none": "Es wird nichts simuliert.",
+      "disableAll": "Alles ausschalten",
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "Die Schalter, die das Laufzeitverhalten verändern. Sie betreffen nur Git-Aufrufe — der Rest der App, auch diese Seite, funktioniert weiter, sodass ein Schalter immer wieder ausgeschaltet werden kann."
+        },
+        "updater": {
+          "label": "Updater",
+          "hint": "Versetzt den Updater in einen Zustand, für den es sonst ein veröffentlichtes Release bräuchte. Simuliert wird ausschließlich im Frontend — ein echter Download, eine echte Installation oder ein echter Neustart kann daraus nie entstehen."
+        }
+      },
+      "flags": {
+        "gitFailure": "Jeden Git-Aufruf fehlschlagen lassen",
+        "gitSlow": "Jeden Git-Aufruf verlangsamen",
+        "updateAvailable": "Ein Update vortäuschen",
+        "updateCheckFailed": "Update-Prüfung fehlschlagen lassen",
+        "updateDownloadFailed": "Update-Download fehlschlagen lassen"
+      },
+      "hints": {
+        "gitFailure": "Jeder Git-Aufruf schlägt mit einem simulierten Fehler fehl, sodass die Fehlerpfade gezielt durchlaufen werden können, statt ein Repository kaputtzumachen.",
+        "gitSlow": "Jeder Git-Aufruf dauert einige Sekunden länger als in Wirklichkeit, sodass Ladezustände in Ruhe zu sehen sind.",
+        "updateAvailable": "Die nächste Update-Prüfung bietet eine simulierte Version an und durchläuft dann Download-Fortschritt, den installierten Zustand und das Neustart-Angebot — ganz ohne veröffentlichtes Release.",
+        "updateCheckFailed": "Die nächste Update-Prüfung schlägt fehl, sodass ihr Fehler-Toast und dessen Wortlaut zu sehen sind, ohne einen Release-Feed kaputtzumachen.",
+        "updateDownloadFailed": "Ein Update wird angeboten und sein Download bricht auf halbem Weg ab, sodass der Pfad einer abgebrochenen Installation durchlaufen werden kann."
       }
     },
     "appearance": {

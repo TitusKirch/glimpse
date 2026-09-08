@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Experiment",
         "withIcon": "With icon"
+      },
+      "alerts": {
+        "label": "Alerts",
+        "hint": "Every alert variant — the semantic colour sits on the icon and the left rule, never on the text.",
+        "body": "The surface stays neutral so the colour does not have to be legible as text."
+      },
+      "buttons": {
+        "label": "Buttons",
+        "hint": "Every button variant — a semantic colour fills the button with the foreground it is paired with."
       }
     },
     "triggers": {
@@ -227,6 +236,28 @@
       "dialogs": {
         "label": "Dialogs",
         "hint": "Open the dialogs you don't normally see directly."
+      },
+      "crashes": {
+        "label": "Crashes",
+        "hint": "Break the app on purpose, so the screens that only show when something has already gone wrong can be looked at deliberately. Each of these ends the current session.",
+        "render": {
+          "button": "Render error",
+          "title": "Break the interface?",
+          "description": "A component will throw while rendering, so the app hands over to the fatal error page. Reload from there to come back.",
+          "action": "Break it"
+        },
+        "rejection": {
+          "button": "Unhandled rejection",
+          "title": "Fail a background task?",
+          "description": "A promise will be rejected with nothing awaiting it. The app keeps working and reports it as an error toast.",
+          "action": "Fail it"
+        },
+        "backend": {
+          "button": "Backend panic",
+          "title": "Crash the backend?",
+          "description": "A command will panic in the Rust backend. The app keeps running, but that call is never answered — anything waiting on it waits forever. Reload to come back.",
+          "action": "Crash it"
+        }
       },
       "cancelled": "Cancelled",
       "confirm": {
@@ -268,6 +299,71 @@
         "label": "Error",
         "title": "Error",
         "description": "Something went wrong."
+      }
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "report": {
+        "label": "Report",
+        "hint": "The facts a bug report needs, exactly as the fatal error page shows them — copy them as markdown and paste them into an issue.",
+        "copy": "Copy diagnostics"
+      },
+      "rows": {
+        "version": "Version",
+        "channel": "Channel",
+        "experiment": "Experiment",
+        "os": "OS",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Git target",
+        "route": "Route"
+      },
+      "commandLog": {
+        "label": "Command log",
+        "hint": "Every git call this session has made — the exact invocation, how long it took and whether it failed. Kept in memory only, never written to disk, and capped, so the oldest calls drop off. Credentials in a remote URL are redacted before anything is shown or copied.",
+        "refresh": "Refresh",
+        "copy": "Copy command log",
+        "search": "Filter calls…",
+        "empty": "No git calls recorded yet.",
+        "noMatches": "No git call matches this filter."
+      },
+      "inspector": {
+        "label": "Inspector",
+        "hint": "Open the WebView developer tools — the console, the network log and the full stack trace. F12 does the same from anywhere in the app. Desktop app only.",
+        "open": "Open inspector"
+      }
+    },
+    "simulation": {
+      "title": "Simulation",
+      "active": {
+        "label": "Active simulations",
+        "hint": "Simulations deliberately bend how the app behaves. They last for this session only and are cleared on restart."
+      },
+      "none": "Nothing is being simulated.",
+      "disableAll": "Turn everything off",
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "The switches that bend runtime behaviour. They reach git calls only, so the rest of the app — including this page — keeps working and a switch can always be turned back off."
+        },
+        "updater": {
+          "label": "Updater",
+          "hint": "Put the updater into a state that otherwise needs a published release. These are simulated in the frontend alone, so no real download, install or restart can start from one."
+        }
+      },
+      "flags": {
+        "gitFailure": "Fail every git call",
+        "gitSlow": "Slow every git call",
+        "updateAvailable": "Pretend an update is available",
+        "updateCheckFailed": "Fail the update check",
+        "updateDownloadFailed": "Fail the update download"
+      },
+      "hints": {
+        "gitFailure": "Every git call fails with a simulated error, so the error paths can be walked deliberately instead of by breaking a repository.",
+        "gitSlow": "Every git call takes a few seconds longer than it really does, so loading states can be watched at leisure.",
+        "updateAvailable": "The next update check offers a simulated version, then walks the download progress, the installed state and the restart offer — without a published release anywhere.",
+        "updateCheckFailed": "The next update check fails, so its error toast and wording can be read without breaking a release feed.",
+        "updateDownloadFailed": "An update is offered and its download gives up part-way, so the interrupted-install path can be walked."
       }
     },
     "appearance": {

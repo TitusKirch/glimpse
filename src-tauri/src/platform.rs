@@ -500,22 +500,37 @@ fn open_candidates(app: &str, path: &str) -> Vec<Vec<String>> {
     }
 }
 
-/// Strip `user:token@` (or `user@`) userinfo from a URL so a credential
-/// embedded in a remote URL never lands in a user-visible error string.
-/// Non-URL arguments (paths, refs) pass through unchanged.
-fn redact_credentials(s: &str) -> String {
-    let Some(scheme_end) = s.find("://") else {
-        return s.to_string();
-    };
-    let after = &s[scheme_end + 3..];
-    match after.find('@') {
-        // Only treat the part before '@' as userinfo when it is the authority
-        // (no '/' yet) — otherwise a '@' in a path would be mangled.
-        Some(at) if !after[..at].contains('/') => {
-            format!("{}://***@{}", &s[..scheme_end], &after[at + 1..])
+/// Strip `user:token@` (or `user@`) userinfo from every URL in `s`, so a
+/// credential embedded in a remote URL never lands in a user-visible error
+/// string. Non-URL text (paths, refs, prose) passes through unchanged.
+///
+/// Applied per argv element by [`GitTarget::describe`], and to whole multi-line
+/// texts by the command log, which records git's stderr — many lines that can
+/// name the same remote more than once, so redacting only the first URL would
+/// leak the rest. One implementation for both: a second scrubber elsewhere (in
+/// the frontend, say) is a second thing to keep correct.
+pub(crate) fn redact_credentials(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(scheme_end) = rest.find("://") {
+        let after = &rest[scheme_end + 3..];
+        // Userinfo can only live inside the authority, which ends at the first
+        // '/', '?', '#' or whitespace — so a '@' in a path or in prose after the
+        // URL is never mistaken for one.
+        let authority_end = after
+            .find(|c: char| c == '/' || c == '?' || c == '#' || c.is_whitespace())
+            .unwrap_or(after.len());
+        out.push_str(&rest[..scheme_end + 3]);
+        match after[..authority_end].rfind('@') {
+            Some(at) => {
+                out.push_str("***@");
+                rest = &after[at + 1..];
+            }
+            None => rest = after,
         }
-        _ => s.to_string(),
     }
+    out.push_str(rest);
+    out
 }
 
 const fn native_flavor() -> Flavor {
@@ -694,6 +709,34 @@ mod tests {
         );
         assert_eq!(redact_credentials("origin"), "origin");
         assert_eq!(redact_credentials("/home/u/repo"), "/home/u/repo");
+    }
+
+    #[test]
+    fn redacts_every_url_in_a_multi_line_text() {
+        use super::redact_credentials;
+        // git's stderr is many lines and can name the same remote more than
+        // once; the command log records it, so one redacted URL is not enough.
+        let stderr = "fatal: unable to access 'https://u:tok@github.com/x.git/'\n\
+             remote: repository not found\n\
+             hint: try https://other:secret@gitlab.com/y.git instead";
+        assert_eq!(
+            redact_credentials(stderr),
+            "fatal: unable to access 'https://***@github.com/x.git/'\n\
+             remote: repository not found\n\
+             hint: try https://***@gitlab.com/y.git instead"
+        );
+        // A line with no userinfo keeps its URL intact, and text after the last
+        // URL survives.
+        assert_eq!(
+            redact_credentials("see https://github.com/x.git — and stop"),
+            "see https://github.com/x.git — and stop"
+        );
+        // A '@' in a path still must not be mistaken for userinfo when it comes
+        // after the authority ended.
+        assert_eq!(
+            redact_credentials("a https://h/p@q b https://u:t@h2/p c"),
+            "a https://h/p@q b https://***@h2/p c"
+        );
     }
 
     #[test]

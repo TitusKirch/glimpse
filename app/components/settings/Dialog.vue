@@ -13,7 +13,8 @@ watch(open, (isOpen) => {
 });
 
 // Left navigation, grouped into sections separated by dividers. The Developer
-// group (Showcase + Triggers) only appears when dev mode is on.
+// group only appears when dev mode is on; its pages come from DEVELOPER_PAGES so
+// the nav and the "leave a developer page" watcher below can't drift apart.
 const navSections = computed(() => {
   const sections = [
     [
@@ -25,12 +26,7 @@ const navSections = computed(() => {
     ],
     [{ key: 'about', icon: 'lucide:info' }]
   ];
-  if (settings.devMode) {
-    sections.push([
-      { key: 'showcase', icon: 'lucide:layout-grid' },
-      { key: 'triggers', icon: 'lucide:zap' }
-    ]);
-  }
+  if (settings.devMode) sections.push([...DEVELOPER_PAGES]);
   return sections;
 });
 const page = ref('general');
@@ -39,8 +35,7 @@ const page = ref('general');
 watch(
   () => settings.devMode,
   (on) => {
-    if (!on && (page.value === 'showcase' || page.value === 'triggers'))
-      page.value = 'general';
+    if (!on && isDeveloperPage(page.value)) page.value = 'general';
   }
 );
 </script>
@@ -104,6 +99,8 @@ watch(
           <SettingsAboutPage v-else-if="page === 'about'" />
           <SettingsShowcasePage v-else-if="page === 'showcase'" />
           <SettingsTriggersPage v-else-if="page === 'triggers'" />
+          <SettingsDiagnosticsPage v-else-if="page === 'diagnostics'" />
+          <SettingsSimulationPage v-else-if="page === 'simulation'" />
         </div>
       </div>
     </UiDialogContent>

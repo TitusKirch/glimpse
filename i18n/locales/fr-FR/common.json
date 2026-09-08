@@ -7,6 +7,9 @@
   },
   "error": {
     "title": "Erreur",
+    "unhandled": {
+      "title": "Quelque chose a échoué en arrière-plan"
+    },
     "loadFailed": "Impossible de charger ce dépôt",
     "retry": "Réessayer"
   },
@@ -41,17 +44,22 @@
   "updater": {
     "available": "Mise à jour {version} disponible",
     "installing": "Téléchargement et installation…",
-    "installed": "Mise à jour installée — redémarrez pour l'appliquer",
+    "installed": "Mise à jour installée",
     "upToDate": "Vous utilisez la dernière version",
     "failed": "Échec de la vérification des mises à jour",
-    "noExperiment": "Choisissez d'abord une expérimentation"
+    "noExperiment": "Choisissez d'abord une expérimentation",
+    "downloading": "Téléchargement… {percent} %",
+    "restart": "Redémarrer maintenant",
+    "restartHint": "Redémarrez glimpse pour utiliser la nouvelle version.",
+    "restartSimulated": "Rien n'a été redémarré — cette mise à jour est simulée.",
+    "restartFailed": "Échec du redémarrage"
   },
-  "copied": "Copié dans le presse-papiers",
   "help": {
     "title": "Raccourcis clavier",
     "contextHint": "Astuce : faites un clic droit sur un commit pour plus d'actions."
   },
   "common": {
+    "copied": "Copié dans le presse-papiers",
     "cancel": "Annuler",
     "browse": "Parcourir…"
   },

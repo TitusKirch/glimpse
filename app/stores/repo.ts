@@ -179,11 +179,18 @@ function mainlineSchema(parents: number): z.ZodType<string> {
 
 export const useRepoStore = defineStore('repo', {
   state: () => ({
-    repos: { r1: demoRepo() } as Record<string, RepoState>,
-    order: ['r1'] as string[],
-    activeId: 'r1',
-    // Monotonic counter for unique tab ids.
-    seq: 1,
+    // The demo repo is browser-only scaffolding, and seeding it in the desktop
+    // shell is actively harmful: its \\wsl$ path is fictional, but the shell
+    // runs real git. restoreSession() replaces these three fields with the real
+    // tabs — only afterwards, so anything reading `active.path` during boot
+    // (useConventionalCommits) fires git at the fiction first. That call always
+    // failed; since the global error plugin it is fatal, and the start screen
+    // became a crash. Start empty instead and let restoreSession() fill in.
+    repos: (isTauri() ? {} : { r1: demoRepo() }) as Record<string, RepoState>,
+    order: (isTauri() ? [] : ['r1']) as string[],
+    activeId: isTauri() ? '' : 'r1',
+    // Monotonic counter for unique tab ids; starts past whatever state seeded.
+    seq: isTauri() ? 0 : 1,
     commitMessage: '',
     // Rewrite the previous commit instead of creating a new one.
     amend: false,
@@ -395,7 +402,18 @@ export const useRepoStore = defineStore('repo', {
     // Light refresh used by the watcher: reload status + log, keep selection.
     async reloadActive() {
       return this.native(async () => {
-        await Promise.all([this.loadStatus(), this.loadLog()]);
+        try {
+          await Promise.all([this.loadStatus(), this.loadLog()]);
+        } catch (err) {
+          // Nobody awaits this one — the FS watcher fires it — so a failure
+          // escaped as an unhandled rejection and was toasted by the app-wide
+          // net instead, once per event and outside the grouping every other
+          // git failure gets. A watcher burst against a git that fails then
+          // papered the screen. Surfaced like any other git failure instead.
+          const raw = typeof err === 'string' ? err : String(err);
+          this.lastError = cleanGitError(raw);
+          console.error('reload failed:', err);
+        }
       });
     },
 

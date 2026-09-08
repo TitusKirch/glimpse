@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Experimento",
         "withIcon": "Con icono"
+      },
+      "alerts": {
+        "label": "Alertas",
+        "hint": "Todas las variantes de alerta: el color semántico está en el icono y en la línea izquierda, nunca en el texto.",
+        "body": "La superficie permanece neutra para que el color no tenga que ser legible como texto."
+      },
+      "buttons": {
+        "label": "Botones",
+        "hint": "Todas las variantes de botón: un color semántico rellena el botón con el primer plano con el que está emparejado."
       }
     },
     "triggers": {
@@ -227,6 +236,28 @@
       "dialogs": {
         "label": "Diálogos",
         "hint": "Abrir los diálogos que normalmente no ves directamente."
+      },
+      "crashes": {
+        "label": "Fallos",
+        "hint": "Romper la aplicación a propósito, para poder mirar con calma las pantallas que solo aparecen cuando algo ya ha fallado. Cada uno de estos termina la sesión actual.",
+        "render": {
+          "button": "Error de renderizado",
+          "title": "¿Romper la interfaz?",
+          "description": "Un componente lanzará un error al renderizarse, así que la aplicación pasa a la página de error fatal. Recarga desde allí para volver.",
+          "action": "Romperla"
+        },
+        "rejection": {
+          "button": "Rechazo sin gestionar",
+          "title": "¿Hacer fallar una tarea en segundo plano?",
+          "description": "Se rechazará una promesa sin que nadie la esté esperando. La aplicación sigue funcionando y lo informa con un toast de error.",
+          "action": "Hacerla fallar"
+        },
+        "backend": {
+          "button": "Pánico del backend",
+          "title": "¿Hacer caer el backend?",
+          "description": "Un comando provocará un pánico en el backend de Rust. La aplicación sigue funcionando, pero esa llamada no se responde nunca: lo que la espere, esperará para siempre. Recarga para volver.",
+          "action": "Hacerlo caer"
+        }
       },
       "cancelled": "Cancelado",
       "confirm": {
@@ -268,6 +299,71 @@
         "label": "Error",
         "title": "Error",
         "description": "Algo salió mal."
+      }
+    },
+    "diagnostics": {
+      "title": "Diagnóstico",
+      "report": {
+        "label": "Informe",
+        "hint": "Los datos que necesita un informe de error, tal y como los muestra la página de error fatal. Cópialos como markdown y pégalos en una incidencia.",
+        "copy": "Copiar diagnóstico"
+      },
+      "rows": {
+        "version": "Versión",
+        "channel": "Canal",
+        "experiment": "Experimento",
+        "os": "Sistema operativo",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Destino de Git",
+        "route": "Ruta"
+      },
+      "commandLog": {
+        "label": "Registro de comandos",
+        "hint": "Cada llamada a git de esta sesión: la invocación exacta, cuánto tardó y si falló. Se guarda solo en memoria, nunca en disco, y está limitado, así que las llamadas más antiguas se descartan. Las credenciales de una URL remota se ocultan antes de mostrar o copiar nada.",
+        "refresh": "Actualizar",
+        "copy": "Copiar el registro de comandos",
+        "search": "Filtrar llamadas…",
+        "empty": "Todavía no se ha registrado ninguna llamada a git.",
+        "noMatches": "Ninguna llamada de git coincide con este filtro."
+      },
+      "inspector": {
+        "label": "Inspector",
+        "hint": "Abre las herramientas de desarrollo de la WebView: la consola, el registro de red y la traza completa. F12 hace lo mismo desde cualquier parte de la aplicación. Solo en la aplicación de escritorio.",
+        "open": "Abrir el inspector"
+      }
+    },
+    "simulation": {
+      "title": "Simulación",
+      "active": {
+        "label": "Simulaciones activas",
+        "hint": "Las simulaciones alteran deliberadamente el comportamiento de la aplicación. Solo duran esta sesión y se borran al reiniciar."
+      },
+      "none": "No se está simulando nada.",
+      "disableAll": "Desactivar todo",
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "Los interruptores que alteran el comportamiento en ejecución. Solo afectan a las llamadas a git, así que el resto de la aplicación —incluida esta página— sigue funcionando y siempre puedes volver a apagarlos."
+        },
+        "updater": {
+          "label": "Actualizaciones",
+          "hint": "Pone el actualizador en un estado que de otro modo requeriría una versión publicada. Todo se simula solo en la interfaz, así que nunca puede iniciarse una descarga, instalación o reinicio reales."
+        }
+      },
+      "flags": {
+        "gitFailure": "Hacer que falle cada llamada a git",
+        "gitSlow": "Ralentizar cada llamada a git",
+        "updateAvailable": "Fingir que hay una actualización",
+        "updateCheckFailed": "Hacer que falle la comprobación de actualizaciones",
+        "updateDownloadFailed": "Hacer que falle la descarga de la actualización"
+      },
+      "hints": {
+        "gitFailure": "Cada llamada a git falla con un error simulado, para poder recorrer las rutas de error a propósito en lugar de romper un repositorio.",
+        "gitSlow": "Cada llamada a git tarda unos segundos más de lo real, para poder observar los estados de carga con calma.",
+        "updateAvailable": "La próxima comprobación ofrece una versión simulada y recorre el progreso de descarga, el estado instalado y la oferta de reinicio, sin ninguna versión publicada.",
+        "updateCheckFailed": "La próxima comprobación de actualizaciones falla, para poder leer su aviso de error y su redacción sin romper el canal de versiones.",
+        "updateDownloadFailed": "Se ofrece una actualización y su descarga se interrumpe a medio camino, para poder recorrer la ruta de una instalación interrumpida."
       }
     },
     "appearance": {
