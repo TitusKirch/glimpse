@@ -25,6 +25,34 @@ const props = defineProps<{
 const BUG_REPORT_URL =
   'https://github.com/TitusKirch/glimpse/issues/new?template=bug_report.yml';
 
+// The controls have to look like the rest of the app without being the rest of
+// the app: importing UiButton/UiSelect would put this page back in the very
+// component chunk whose failure brings people here. So the classes are mirrored
+// from app/components/ui/button (outline variant) and .../ui/select
+// (SelectTrigger), both at the `sm` size, onto plain elements. Copies drift —
+// that is the accepted cost, and the reason they sit here as named constants
+// rather than being spelt out three times in the template below.
+const BUTTON_CLASS =
+  'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 ' +
+  'whitespace-nowrap rounded-md border bg-background px-3 text-sm font-medium ' +
+  'shadow-xs transition-all outline-none hover:bg-accent ' +
+  'hover:text-accent-foreground focus-visible:border-ring ' +
+  'focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
+  'disabled:pointer-events-none disabled:opacity-50 dark:border-input ' +
+  'dark:bg-input/30 dark:hover:bg-input/50';
+
+// `appearance-none` drops the platform arrow (a GTK widget that ignores the
+// theme); the chevron beside it in the template replaces it, so pr-8 reserves
+// that space. Without it the select is the one control that still announces
+// which toolkit drew it.
+const SELECT_CLASS =
+  'h-8 w-fit cursor-pointer appearance-none rounded-md border border-input ' +
+  'bg-transparent py-0 pl-3 pr-8 text-sm shadow-xs ' +
+  'transition-[color,box-shadow] outline-none focus-visible:border-ring ' +
+  'focus-visible:ring-[3px] focus-visible:ring-ring/50 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 ' +
+  'dark:hover:bg-input/50';
+
 const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
 
 // The facts come from the shared assembly, so the block pasted from a crash and
@@ -300,7 +328,7 @@ async function restart() {
       </div>
 
       <dl
-        class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border p-4 text-xs"
+        class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border p-4 text-xs shadow-xs"
       >
         <template v-for="row in rows" :key="row.label">
           <dt class="text-muted-foreground">{{ row.label }}</dt>
@@ -308,9 +336,9 @@ async function restart() {
         </template>
       </dl>
 
-      <details v-if="stack" class="rounded-md border text-xs">
+      <details v-if="stack" class="rounded-md border shadow-xs">
         <summary
-          class="cursor-pointer select-none px-4 py-2 text-muted-foreground"
+          class="cursor-pointer select-none px-4 py-2 text-sm text-muted-foreground"
         >
           Stack trace
         </summary>
@@ -320,53 +348,58 @@ async function restart() {
       </details>
 
       <div class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-          @click="reload"
-        >
+        <button type="button" :class="BUTTON_CLASS" @click="reload">
           Reload
         </button>
-        <button
-          type="button"
-          class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-          @click="copyDiagnostics"
-        >
+        <button type="button" :class="BUTTON_CLASS" @click="copyDiagnostics">
           Copy diagnostics
         </button>
-        <button
-          type="button"
-          class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-          @click="report"
-        >
+        <button type="button" :class="BUTTON_CLASS" @click="report">
           Report this
         </button>
       </div>
 
-      <div class="space-y-2 rounded-md border p-4">
+      <div class="space-y-2 rounded-md border p-4 shadow-xs">
         <p class="text-xs text-muted-foreground">
           A broken build cannot update itself: the check that normally runs at
           launch never gets that far. Install a newer build from here, or switch
           channel to get off this one.
         </p>
         <div class="flex flex-wrap items-center gap-2">
-          <label class="text-xs text-muted-foreground" for="update-channel">
+          <label class="text-sm text-muted-foreground" for="update-channel">
             Channel
           </label>
-          <select
-            id="update-channel"
-            v-model="channel"
-            :disabled="checking"
-            class="rounded-md border bg-background px-2 py-1.5 text-xs text-foreground"
-          >
-            <option v-for="c in CHANNELS" :key="c.value" :value="c.value">
-              {{ c.label }}
-            </option>
-          </select>
+          <div class="relative inline-flex items-center">
+            <select
+              id="update-channel"
+              v-model="channel"
+              :disabled="checking"
+              :class="SELECT_CLASS"
+            >
+              <option v-for="c in CHANNELS" :key="c.value" :value="c.value">
+                {{ c.label }}
+              </option>
+            </select>
+            <!-- Inline rather than <NuxtIcon>: the icon component is one more
+                 chunk this page refuses to depend on. Drawn on top of the
+                 select, so it must not swallow the click that opens it. -->
+            <svg
+              class="pointer-events-none absolute right-2.5 size-4 opacity-50"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
           <button
             type="button"
             :disabled="checking"
-            class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            :class="BUTTON_CLASS"
             @click="checkForUpdates"
           >
             {{ checking ? 'Checking...' : 'Check for updates' }}
@@ -374,7 +407,7 @@ async function restart() {
           <button
             v-if="installed"
             type="button"
-            class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+            :class="BUTTON_CLASS"
             @click="restart"
           >
             Restart now
