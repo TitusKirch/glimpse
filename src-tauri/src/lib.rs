@@ -176,6 +176,43 @@ fn open_devtools(window: tauri::WebviewWindow) {
 #[tauri::command]
 fn open_devtools() {}
 
+/// Panic on purpose, so the developer Triggers page can show what the frontend
+/// does when a git call never comes back. `src-tauri/Cargo.toml` sets no
+/// `[profile]`, so the release profile unwinds: this kills the command's own
+/// task while the process keeps running, and the IPC call it arrived on is
+/// simply never answered — deliberately the failure class the frontend covers
+/// worst. Aborting the process instead was considered and rejected: with no
+/// crash reporting there would be nothing left to look at afterwards.
+///
+/// Compiled into release builds like `open_devtools` is (no `debug_assertions`
+/// guard), because the build where real failures happen is the shipped one and
+/// someone filing a bug has to be able to reach it there. What keeps it out of
+/// everyday reach is the frontend: it is called from the Developer settings
+/// pages, which only exist while the `devMode` setting is on.
+///
+/// `async` is load-bearing — a synchronous command runs on the main thread,
+/// where a panic would take the whole event loop down with it.
+#[cfg(desktop)]
+#[tauri::command]
+async fn dev_panic() -> Result<(), String> {
+    dev_panic_now()
+}
+
+/// The panic itself, split from the command so a test can assert it never
+/// returns without standing up an async runtime.
+#[cfg(desktop)]
+fn dev_panic_now() -> ! {
+    panic!("glimpse: deliberate panic from Settings -> Developer -> Triggers");
+}
+
+// Mobile has no Developer settings pages to reach this from; a no-op stub keeps
+// the command set identical.
+#[cfg(not(desktop))]
+#[tauri::command]
+async fn dev_panic() -> Result<(), String> {
+    Err("the crash trigger is not available on this platform".into())
+}
+
 /// Install a `glimpse` launcher onto the user's PATH so a repo can be opened
 /// from a terminal (`glimpse .`, like `code .`). Idempotent — re-running just
 /// refreshes it. Returns the installed launcher path. See `install_cli_impl`.
@@ -1585,6 +1622,7 @@ pub fn run() {
             default_repo,
             take_cli_open_path,
             open_devtools,
+            dev_panic,
             install_cli,
             cli_install_status,
             watch_repo,
@@ -1687,9 +1725,18 @@ pub fn run() {
 #[cfg(all(test, desktop))]
 mod tests {
     use super::{
-        bake_wsl_shim, first_path_arg, parse_wsl_distros, resolve_cli_path, version_outranks,
-        wslpath_arg,
+        bake_wsl_shim, dev_panic_now, first_path_arg, parse_wsl_distros, resolve_cli_path,
+        version_outranks, wslpath_arg,
     };
+
+    #[test]
+    #[should_panic(expected = "deliberate panic")]
+    fn dev_panic_never_returns_to_its_caller() {
+        // What the developer Triggers page fires to show the frontend side of a
+        // backend crash: the command's thread dies, so the IPC call it came in
+        // on can never be answered.
+        dev_panic_now();
+    }
 
     fn argv(parts: &[&str]) -> Vec<String> {
         parts.iter().map(|s| s.to_string()).collect()

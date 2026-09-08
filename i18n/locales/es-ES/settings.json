@@ -228,6 +228,28 @@
         "label": "Diálogos",
         "hint": "Abrir los diálogos que normalmente no ves directamente."
       },
+      "crashes": {
+        "label": "Fallos",
+        "hint": "Romper la aplicación a propósito, para poder mirar con calma las pantallas que solo aparecen cuando algo ya ha fallado. Cada uno de estos termina la sesión actual.",
+        "render": {
+          "button": "Error de renderizado",
+          "title": "¿Romper la interfaz?",
+          "description": "Un componente lanzará un error al renderizarse, así que la aplicación pasa a la página de error fatal. Recarga desde allí para volver.",
+          "action": "Romperla"
+        },
+        "rejection": {
+          "button": "Rechazo sin gestionar",
+          "title": "¿Hacer fallar una tarea en segundo plano?",
+          "description": "Se rechazará una promesa sin que nadie la esté esperando. La aplicación sigue funcionando y lo informa con un toast de error.",
+          "action": "Hacerla fallar"
+        },
+        "backend": {
+          "button": "Pánico del backend",
+          "title": "¿Hacer caer el backend?",
+          "description": "Un comando provocará un pánico en el backend de Rust. La aplicación sigue funcionando, pero esa llamada no se responde nunca: lo que la espere, esperará para siempre. Recarga para volver.",
+          "action": "Hacerlo caer"
+        }
+      },
       "cancelled": "Cancelado",
       "confirm": {
         "button": "Diálogo de confirmación",

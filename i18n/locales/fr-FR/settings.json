@@ -228,6 +228,28 @@
         "label": "Dialogues",
         "hint": "Ouvrir les dialogues qu'on ne voit normalement pas directement."
       },
+      "crashes": {
+        "label": "Plantages",
+        "hint": "Casser l'application volontairement, pour pouvoir regarder tranquillement les écrans qui n'apparaissent qu'une fois que quelque chose a déjà cassé. Chacun de ces boutons met fin à la session en cours.",
+        "render": {
+          "button": "Erreur de rendu",
+          "title": "Casser l'interface ?",
+          "description": "Un composant lèvera une erreur pendant son rendu, l'application bascule donc sur la page d'erreur fatale. Rechargez depuis celle-ci pour revenir.",
+          "action": "Casser"
+        },
+        "rejection": {
+          "button": "Rejet non géré",
+          "title": "Faire échouer une tâche en arrière-plan ?",
+          "description": "Une promesse sera rejetée sans que personne ne l'attende. L'application continue de fonctionner et le signale par un toast d'erreur.",
+          "action": "Faire échouer"
+        },
+        "backend": {
+          "button": "Panique du backend",
+          "title": "Faire planter le backend ?",
+          "description": "Une commande déclenchera une panique dans le backend Rust. L'application continue de tourner, mais cet appel ne reçoit jamais de réponse — tout ce qui l'attend attendra indéfiniment. Rechargez pour revenir.",
+          "action": "Faire planter"
+        }
+      },
       "cancelled": "Annulé",
       "confirm": {
         "button": "Dialogue de confirmation",

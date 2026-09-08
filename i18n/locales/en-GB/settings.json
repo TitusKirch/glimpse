@@ -228,6 +228,28 @@
         "label": "Dialogs",
         "hint": "Open the dialogs you don't normally see directly."
       },
+      "crashes": {
+        "label": "Crashes",
+        "hint": "Break the app on purpose, so the screens that only show when something has already gone wrong can be looked at deliberately. Each of these ends the current session.",
+        "render": {
+          "button": "Render error",
+          "title": "Break the interface?",
+          "description": "A component will throw while rendering, so the app hands over to the fatal error page. Reload from there to come back.",
+          "action": "Break it"
+        },
+        "rejection": {
+          "button": "Unhandled rejection",
+          "title": "Fail a background task?",
+          "description": "A promise will be rejected with nothing awaiting it. The app keeps working and reports it as an error toast.",
+          "action": "Fail it"
+        },
+        "backend": {
+          "button": "Backend panic",
+          "title": "Crash the backend?",
+          "description": "A command will panic in the Rust backend. The app keeps running, but that call is never answered — anything waiting on it waits forever. Reload to come back.",
+          "action": "Crash it"
+        }
+      },
       "cancelled": "Cancelled",
       "confirm": {
         "button": "Confirm dialog",

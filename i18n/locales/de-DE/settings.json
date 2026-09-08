@@ -228,6 +228,28 @@
         "label": "Dialoge",
         "hint": "Die Dialoge öffnen, die man sonst nicht direkt sieht."
       },
+      "crashes": {
+        "label": "Abstürze",
+        "hint": "Die App absichtlich kaputtmachen, damit die Ansichten, die sonst nur nach einem echten Fehler erscheinen, gezielt betrachtet werden können. Jeder dieser Punkte beendet die laufende Sitzung.",
+        "render": {
+          "button": "Render-Fehler",
+          "title": "Oberfläche kaputtmachen?",
+          "description": "Eine Komponente wirft beim Rendern einen Fehler, sodass die App an die Fehlerseite übergibt. Von dort aus neu laden, um zurückzukommen.",
+          "action": "Kaputtmachen"
+        },
+        "rejection": {
+          "button": "Unbehandelte Rejection",
+          "title": "Hintergrundaufgabe fehlschlagen lassen?",
+          "description": "Ein Promise wird abgelehnt, ohne dass jemand darauf wartet. Die App läuft weiter und meldet es als Fehler-Toast.",
+          "action": "Fehlschlagen lassen"
+        },
+        "backend": {
+          "button": "Backend-Panic",
+          "title": "Backend abstürzen lassen?",
+          "description": "Ein Befehl löst im Rust-Backend eine Panic aus. Die App läuft weiter, aber dieser Aufruf wird nie beantwortet — alles, was darauf wartet, wartet für immer. Zum Zurückkommen neu laden.",
+          "action": "Abstürzen lassen"
+        }
+      },
       "cancelled": "Abgebrochen",
       "confirm": {
         "button": "Bestätigungs-Dialog",
