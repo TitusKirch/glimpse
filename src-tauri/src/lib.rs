@@ -54,11 +54,16 @@ struct WatcherState(Mutex<Option<RepoWatcher>>);
 /// (e.g. an auto-refresh-triggered op racing a user merge). Keyed by the repo
 /// path the frontend passes. Reads stay lock-free — `GIT_OPTIONAL_LOCKS=0`
 /// already keeps them from taking the index lock at all.
+///
+/// Entries live only as long as a call needs them (see [`locked`]), so the map
+/// holds the repos currently being written to rather than every repo the
+/// process has ever opened.
 #[derive(Default)]
 struct RepoLocks(Mutex<HashMap<String, Arc<Mutex<()>>>>);
 
 /// Run `f` while holding `path`'s write lock, serializing it against other
-/// mutating commands on the same repo.
+/// mutating commands on the same repo. The entry is created on demand and
+/// dropped again by whichever call is the last one out.
 fn locked<T>(
     locks: &RepoLocks,
     path: &str,
@@ -71,8 +76,21 @@ fn locked<T>(
         .entry(path.to_string())
         .or_default()
         .clone();
-    let _guard = lock.lock().unwrap();
-    f()
+    let result = {
+        let _guard = lock.lock().unwrap();
+        f()
+    };
+    // The guard is released before the map is taken again: every other path
+    // takes the map lock and then the repo lock, and reversing that order here
+    // would invert it. Two strong refs are the map's own and this call's, so no
+    // other call holds or is queued on this repo and the entry can go; any
+    // higher count means someone still needs it, and they will clean up when
+    // they are the last one out.
+    let mut map = locks.0.lock().unwrap();
+    if Arc::strong_count(&lock) == 2 {
+        map.remove(path);
+    }
+    result
 }
 
 /// Current working directory — the frontend uses this as the default repo to open.
@@ -1842,9 +1860,12 @@ pub fn run() {
 #[cfg(all(test, desktop))]
 mod tests {
     use super::{
-        bake_wsl_shim, dev_panic_now, first_path_arg, parse_wsl_distros, progress_percent,
-        resolve_cli_path, version_outranks, wslpath_arg,
+        bake_wsl_shim, dev_panic_now, first_path_arg, locked, parse_wsl_distros, progress_percent,
+        resolve_cli_path, version_outranks, wslpath_arg, RepoLocks,
     };
+    use std::sync::mpsc::channel;
+    use std::sync::Arc;
+    use std::thread;
 
     #[test]
     fn progress_reports_each_whole_percent_once() {
@@ -2022,5 +2043,77 @@ mod tests {
         assert!(version_outranks("not-a-version", "0.2.0"));
         assert!(!version_outranks("0.2.0", "not-a-version"));
         assert!(!version_outranks("nonsense", "also-nonsense"));
+    }
+
+    #[test]
+    fn repo_lock_entry_goes_away_once_no_call_holds_it() {
+        // The map used to only ever grow: every repo path the process had touched
+        // kept an entry for the rest of the session, tabs closed hours ago
+        // included. Its size must track the repos in flight instead.
+        let locks = RepoLocks::default();
+        for path in ["/repo/a", "/repo/b", "/repo/a"] {
+            locked(&locks, path, || Ok::<_, String>(())).unwrap();
+        }
+        assert!(locks.0.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn repo_lock_entry_stays_while_another_call_needs_it() {
+        // Evicting unconditionally would pull the entry out from under a call
+        // already queued on it, so the next caller would insert a fresh lock and
+        // two mutating commands could run against the same repo at once.
+        let locks = Arc::new(RepoLocks::default());
+        let (first_in, first_entered) = channel();
+        let (release_first, first_waits) = channel::<()>();
+        let (second_in, second_entered) = channel();
+        let (release_second, second_waits) = channel::<()>();
+
+        let first = thread::spawn({
+            let locks = Arc::clone(&locks);
+            move || {
+                locked(&locks, "/repo", || {
+                    first_in.send(()).unwrap();
+                    first_waits.recv().unwrap();
+                    Ok::<_, String>(())
+                })
+                .unwrap()
+            }
+        });
+        first_entered.recv().unwrap();
+
+        let second = thread::spawn({
+            let locks = Arc::clone(&locks);
+            move || {
+                locked(&locks, "/repo", || {
+                    second_in.send(()).unwrap();
+                    second_waits.recv().unwrap();
+                    Ok::<_, String>(())
+                })
+                .unwrap()
+            }
+        });
+        // Wait until the second call has taken its own reference to the entry, so
+        // the first one returns with a real waiter behind it rather than racing
+        // the spawn.
+        let holders = || {
+            locks
+                .0
+                .lock()
+                .unwrap()
+                .get("/repo")
+                .map_or(0, Arc::strong_count)
+        };
+        while holders() < 3 {
+            thread::yield_now();
+        }
+
+        release_first.send(()).unwrap();
+        first.join().unwrap();
+        second_entered.recv().unwrap();
+        assert!(locks.0.lock().unwrap().contains_key("/repo"));
+
+        release_second.send(()).unwrap();
+        second.join().unwrap();
+        assert!(locks.0.lock().unwrap().is_empty());
     }
 }
