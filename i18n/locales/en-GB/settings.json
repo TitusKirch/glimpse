@@ -314,7 +314,9 @@
         "hint": "Every git call this session has made — the exact invocation, how long it took and whether it failed. Kept in memory only, never written to disk, and capped, so the oldest calls drop off. Credentials in a remote URL are redacted before anything is shown or copied.",
         "refresh": "Refresh",
         "copy": "Copy command log",
-        "empty": "No git calls recorded yet."
+        "search": "Filter calls…",
+        "empty": "No git calls recorded yet.",
+        "noMatches": "No git call matches this filter."
       },
       "inspector": {
         "label": "Inspector",

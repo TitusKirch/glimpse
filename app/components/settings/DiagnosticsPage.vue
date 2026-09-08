@@ -69,6 +69,20 @@ const recentCalls = computed(() =>
       duration: `${call.durationMs} ms`
     }))
 );
+
+// A plain substring filter over the two things a reader searches for: the
+// invocation itself and git's own message on a failure. Nothing fuzzy — the
+// point is to find `fetch` or a path among a few hundred near-identical lines.
+const logQuery = ref('');
+const visibleCalls = computed(() => {
+  const q = logQuery.value.trim().toLowerCase();
+  if (!q) return recentCalls.value;
+  return recentCalls.value.filter(
+    (call) =>
+      call.command.toLowerCase().includes(q) ||
+      call.error.toLowerCase().includes(q)
+  );
+});
 async function refreshLog() {
   loadingLog.value = true;
   try {
@@ -175,29 +189,45 @@ function openInspector() {
           {{ t('settings.diagnostics.commandLog.copy') }}
         </UiButton>
       </div>
+      <UiInput
+        v-if="recentCalls.length"
+        v-model="logQuery"
+        class="mb-3 h-8 font-mono text-xs"
+        type="search"
+        :placeholder="t('settings.diagnostics.commandLog.search')"
+      />
       <p v-if="!recentCalls.length" class="text-xs text-muted-foreground">
         {{ t('settings.diagnostics.commandLog.empty') }}
       </p>
+      <p v-else-if="!visibleCalls.length" class="text-xs text-muted-foreground">
+        {{ t('settings.diagnostics.commandLog.noMatches') }}
+      </p>
+      <!-- Time over duration in one fixed-width column, the command beside it:
+           the timestamps line up down the page, so the eye scans the calls
+           rather than re-finding where each one starts. -->
       <ol
         v-else
         class="max-h-80 divide-y overflow-y-auto rounded-md border text-xs"
       >
-        <li v-for="call in recentCalls" :key="call.seq" class="call p-2">
-          <div class="flex items-baseline gap-2 font-mono">
-            <span class="shrink-0 text-muted-foreground">
-              {{ call.time }}
-            </span>
-            <span
-              class="shrink-0 tabular-nums"
+        <li
+          v-for="call in visibleCalls"
+          :key="call.seq"
+          class="call grid grid-cols-[6.5rem_1fr] gap-x-3 px-3 py-2"
+        >
+          <div class="font-mono text-[11px] leading-snug tabular-nums">
+            <div class="text-muted-foreground">{{ call.time }}</div>
+            <div
               :class="call.ok ? 'text-muted-foreground' : 'text-destructive'"
             >
               {{ call.duration }}
-            </span>
-            <span class="break-all">{{ call.command }}</span>
+            </div>
           </div>
-          <p v-if="call.error" class="mt-1 break-all text-destructive">
-            {{ call.error }}
-          </p>
+          <div class="min-w-0">
+            <p class="break-all font-mono leading-snug">{{ call.command }}</p>
+            <p v-if="call.error" class="mt-1 break-all text-destructive">
+              {{ call.error }}
+            </p>
+          </div>
         </li>
       </ol>
     </div>

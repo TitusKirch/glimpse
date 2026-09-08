@@ -314,7 +314,9 @@
         "hint": "Jeder Git-Aufruf dieser Sitzung — der genaue Befehl, seine Dauer und ob er fehlgeschlagen ist. Nur im Arbeitsspeicher, nie auf die Festplatte geschrieben und begrenzt, sodass die ältesten Aufrufe wegfallen. Zugangsdaten in einer Remote-URL werden entfernt, bevor etwas angezeigt oder kopiert wird.",
         "refresh": "Aktualisieren",
         "copy": "Befehlsprotokoll kopieren",
-        "empty": "Noch keine Git-Aufrufe aufgezeichnet."
+        "search": "Aufrufe filtern …",
+        "empty": "Noch keine Git-Aufrufe aufgezeichnet.",
+        "noMatches": "Kein Git-Aufruf passt zu diesem Filter."
       },
       "inspector": {
         "label": "Inspektor",

@@ -107,6 +107,12 @@ const global = {
     UiButton: {
       props: ['disabled'],
       template: '<button :disabled="disabled"><slot /></button>'
+    },
+    UiInput: {
+      props: ['modelValue'],
+      emits: ['update:modelValue'],
+      template:
+        '<input type="search" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
     }
   }
 };
@@ -229,6 +235,23 @@ describe('DiagnosticsPage', () => {
     expect(copied[0]).toContain('git -C /r fetch origin');
     // Never the report block — the two are copied separately on purpose.
     expect(copied[0]).not.toContain('**glimpse diagnostics**');
+  });
+
+  it("filters the log by command and by git's own error text", async () => {
+    const w = await mountPage();
+    const search = w.get('input[type="search"]');
+    await search.setValue('fetch');
+    expect(w.findAll('.call')).toHaveLength(1);
+    expect(w.findAll('.call')[0]!.text()).toContain('git -C /r fetch origin');
+    // The failure message is searchable too — it is often the only thing a
+    // reader remembers about the call they are hunting for.
+    await search.setValue('unable to access');
+    expect(w.findAll('.call')).toHaveLength(1);
+    await search.setValue('nothing matches this');
+    expect(w.findAll('.call')).toHaveLength(0);
+    expect(w.text()).toContain('settings.diagnostics.commandLog.noMatches');
+    await search.setValue('');
+    expect(w.findAll('.call')).toHaveLength(2);
   });
 
   it('re-reads the log on demand, because it only grows behind the page', async () => {

@@ -314,7 +314,9 @@
         "hint": "Chaque appel git de cette session — la commande exacte, sa durée et s'il a échoué. Conservé uniquement en mémoire, jamais écrit sur le disque, et plafonné : les appels les plus anciens disparaissent. Les identifiants présents dans une URL distante sont masqués avant tout affichage ou toute copie.",
         "refresh": "Actualiser",
         "copy": "Copier le journal des commandes",
-        "empty": "Aucun appel git enregistré pour l'instant."
+        "search": "Filtrer les appels…",
+        "empty": "Aucun appel git enregistré pour l'instant.",
+        "noMatches": "Aucun appel git ne correspond à ce filtre."
       },
       "inspector": {
         "label": "Inspecteur",
