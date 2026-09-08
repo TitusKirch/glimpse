@@ -211,8 +211,17 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
 let openChain: Promise<unknown> = Promise.resolve();
 
 // Tab ids whose platform metadata is being probed in the background, so two
-// loads don't both fetch `info` for the same placeholder.
+// loads don't both fetch `info` for the same placeholder. An id is claimed for
+// the life of its probe and released the moment either end of that comes —
+// the probe settling, or the tab going away under it (see `closeRepo`).
 const resolvingPlatform = new Set<string>();
+
+// Whether a platform probe is claimed for `id`. Exposed only so tests can see
+// the claim released: the set is otherwise invisible bookkeeping, and a stale
+// id in it has no symptom a caller could observe.
+export function isResolvingPlatform(id: string): boolean {
+  return resolvingPlatform.has(id);
+}
 
 // A stash is referenced as `stash@{N}`. It needs stash-specific diff commands —
 // being a merge commit, `git show` would yield an unusable combined diff.
@@ -1579,6 +1588,15 @@ export const useRepoStore = defineStore('repo', {
     closeRepo(id: string) {
       const closing = this.repos[id];
       if (!closing) return;
+      // A platform probe may still be running for this tab — `doOpenRepo`
+      // closes its provisional tab from under one on a failed `info` and on
+      // toplevel dedup, and the user can close a still-spinning tab by hand.
+      // Release the claim with the tab rather than waiting for that probe to
+      // land: until then the set claims a probe for a tab that is gone, and
+      // since tab ids come from a monotonic counter and never repeat, nothing
+      // else would ever clear it. The probe's own `finally` still runs; a
+      // second delete of the same id is a no-op.
+      resolvingPlatform.delete(id);
       const idx = this.order.indexOf(id);
       delete this.repos[id];
       this.order = this.order.filter((x) => x !== id);
