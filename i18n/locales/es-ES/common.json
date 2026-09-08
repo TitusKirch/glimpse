@@ -44,10 +44,15 @@
   "updater": {
     "available": "Actualización {version} disponible",
     "installing": "Descargando e instalando…",
-    "installed": "Actualización instalada: reinicia para aplicarla",
+    "installed": "Actualización instalada",
     "upToDate": "Tienes la última versión",
     "failed": "Error al comprobar actualizaciones",
-    "noExperiment": "Elige primero un experimento"
+    "noExperiment": "Elige primero un experimento",
+    "downloading": "Descargando… {percent} %",
+    "restart": "Reiniciar ahora",
+    "restartHint": "Reinicia glimpse para usar la nueva versión.",
+    "restartSimulated": "No se ha reiniciado nada: esta actualización es simulada.",
+    "restartFailed": "Error al reiniciar"
   },
   "copied": "Copiado al portapapeles",
   "help": {

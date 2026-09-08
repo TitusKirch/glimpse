@@ -44,10 +44,15 @@
   "updater": {
     "available": "Update {version} verfügbar",
     "installing": "Wird heruntergeladen und installiert…",
-    "installed": "Update installiert — zum Anwenden neu starten",
+    "installed": "Update installiert",
     "upToDate": "Du nutzt die neueste Version",
     "failed": "Update-Prüfung fehlgeschlagen",
-    "noExperiment": "Erst ein Experiment wählen"
+    "noExperiment": "Erst ein Experiment wählen",
+    "downloading": "Wird heruntergeladen … {percent} %",
+    "restart": "Jetzt neu starten",
+    "restartHint": "Starte glimpse neu, um die neue Version zu nutzen.",
+    "restartSimulated": "Es wurde nichts neu gestartet — dieses Update ist simuliert.",
+    "restartFailed": "Neustart fehlgeschlagen"
   },
   "copied": "In die Zwischenablage kopiert",
   "help": {

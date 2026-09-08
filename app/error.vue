@@ -198,6 +198,12 @@ const channel = ref<Channel>(
 );
 const checking = ref(false);
 const updateStatus = ref('');
+// An installed update only takes effect on a restart, and this page shows
+// *because* the running build is broken — so leaving the user on it is the one
+// outcome the recovery must not end in. Offered rather than done automatically,
+// for the same reason as everywhere else: unfinished work is worth more than the
+// seconds saved.
+const installed = ref(false);
 
 // Best-effort and never destructive: with no blob there is no settings state to
 // amend, and writing one here would hand the recovered app a single-key object
@@ -254,12 +260,25 @@ async function checkForUpdates() {
     updateStatus.value = `Installing ${available}...`;
     await invoke('install_update', { channel: target, force });
     rememberChannel(channel.value);
-    updateStatus.value = `Installed ${available}. Restart glimpse to finish.`;
+    installed.value = true;
+    updateStatus.value = `Installed ${available}. Restart glimpse to run it.`;
   } catch (err) {
     updateStatus.value = `Update failed: ${String(err)}`;
     console.error('update check failed:', err);
   } finally {
     checking.value = false;
+  }
+}
+
+// Reached the way enrichOs() reaches tauri-plugin-os: a dynamic import, so a
+// broken shared chunk cannot take this page's own render down with it.
+async function restart() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('restart_app');
+  } catch (err) {
+    updateStatus.value = `Restart failed: ${String(err)}. Quit and reopen glimpse to run the installed version.`;
+    console.error('restart failed:', err);
   }
 }
 </script>
@@ -351,6 +370,14 @@ async function checkForUpdates() {
             @click="checkForUpdates"
           >
             {{ checking ? 'Checking...' : 'Check for updates' }}
+          </button>
+          <button
+            v-if="installed"
+            type="button"
+            class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            @click="restart"
+          >
+            Restart now
           </button>
         </div>
         <p v-if="updateStatus" class="break-words text-xs">

@@ -298,6 +298,25 @@ describe('error page — manual update check', () => {
     expect(w.text()).toContain('No experiment is selected');
   });
 
+  it('offers a restart once an update has installed', async () => {
+    // The page shows because this build is broken, so installing a newer one and
+    // then leaving the user on the old binary defeats the whole recovery.
+    invoke.mockImplementation((command: string) =>
+      command === 'check_update'
+        ? Promise.resolve('0.13.0')
+        : Promise.resolve(null)
+    );
+    const w = mountPage();
+    expect(w.findAll('button').map((b) => b.text())).not.toContain(
+      'Restart now'
+    );
+    await button(w, 'Check for updates').trigger('click');
+    await flushPromises();
+    await button(w, 'Restart now').trigger('click');
+    await flushPromises();
+    expect(invoke).toHaveBeenCalledWith('restart_app');
+  });
+
   it('reports a failed check inline and keeps the page readable', async () => {
     invoke.mockRejectedValue(new Error('no signing key'));
     const w = mountPage();
