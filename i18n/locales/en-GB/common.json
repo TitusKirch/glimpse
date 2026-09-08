@@ -7,6 +7,9 @@
   },
   "error": {
     "title": "Error",
+    "unhandled": {
+      "title": "Something went wrong in the background"
+    },
     "loadFailed": "Could not load this repository",
     "retry": "Retry"
   },

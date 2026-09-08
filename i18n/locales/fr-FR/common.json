@@ -7,6 +7,9 @@
   },
   "error": {
     "title": "Erreur",
+    "unhandled": {
+      "title": "Quelque chose a échoué en arrière-plan"
+    },
     "loadFailed": "Impossible de charger ce dépôt",
     "retry": "Réessayer"
   },
