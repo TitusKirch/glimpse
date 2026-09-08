@@ -39,6 +39,7 @@ export default defineConfig({
         'app/composables/parseConflicts.ts',
         'app/composables/parseDiff.ts',
         'app/composables/commitGraphLayout.ts',
+        'app/composables/graphPan.ts',
         'app/composables/useGraphColumnWidth.ts',
         'app/composables/useSearch.ts'
       ],
