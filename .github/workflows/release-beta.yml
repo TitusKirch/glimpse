@@ -43,6 +43,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      release-id: ${{ steps.release.outputs.release-id }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -111,11 +112,13 @@ jobs:
           NODE
 
       - name: Create versioned prerelease
+        id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          set -euo pipefail
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
@@ -123,6 +126,12 @@ jobs:
             --title "$TAG" \
             --notes "Beta build $TAG." \
             --prerelease
+          # Read the id back and hand THAT to the build. Handed the tag, the
+          # build's tauri-action would look the release up itself and overwrite
+          # the notes set two lines above with its own empty `releaseBody` —
+          # which is exactly what emptied v0.13.0-beta.1.
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq .id)
+          echo "release-id=$id" >> "$GITHUB_OUTPUT"
 
   # The build is identical in both release chains, so it lives in one place. See
   # _tauri-build.yml for what the two differed in — four lines out of eighty-eight.
@@ -135,7 +144,7 @@ jobs:
     with:
       matrix: '{"os": ["ubuntu-latest", "windows-latest", "macos-latest"]}'
       version: ${{ needs.prepare.outputs.version }}
-      tag: ${{ needs.prepare.outputs.tag }}
+      release-id: ${{ needs.prepare.outputs.release-id }}
       job-name: Beta build
       matrix-label: os
     secrets:
