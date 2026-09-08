@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Expérimentation",
         "withIcon": "Avec icône"
+      },
+      "alerts": {
+        "label": "Alertes",
+        "hint": "Toutes les variantes d'alerte — la couleur sémantique est sur l'icône et le filet gauche, jamais sur le texte.",
+        "body": "La surface reste neutre pour que la couleur n'ait pas à être lisible en tant que texte."
+      },
+      "buttons": {
+        "label": "Boutons",
+        "hint": "Le jeu de variantes de shadcn — une couleur sémantique remplit le bouton uniquement lorsqu'il est destructeur."
       }
     },
     "triggers": {

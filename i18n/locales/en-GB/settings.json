@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Experiment",
         "withIcon": "With icon"
+      },
+      "alerts": {
+        "label": "Alerts",
+        "hint": "Every alert variant — the semantic colour sits on the icon and the left rule, never on the text.",
+        "body": "The surface stays neutral so the colour does not have to be legible as text."
+      },
+      "buttons": {
+        "label": "Buttons",
+        "hint": "shadcn's own variant set — a semantic colour fills the button only where it is destructive."
       }
     },
     "triggers": {

@@ -216,6 +216,15 @@
         "beta": "Beta",
         "experiment": "Experimento",
         "withIcon": "Con icono"
+      },
+      "alerts": {
+        "label": "Alertas",
+        "hint": "Todas las variantes de alerta: el color semántico está en el icono y en la línea izquierda, nunca en el texto.",
+        "body": "La superficie permanece neutra para que el color no tenga que ser legible como texto."
+      },
+      "buttons": {
+        "label": "Botones",
+        "hint": "El conjunto de variantes de shadcn: un color semántico rellena el botón solo cuando es destructivo."
       }
     },
     "triggers": {
