@@ -330,17 +330,29 @@
       },
       "none": "No se está simulando nada.",
       "disableAll": "Desactivar todo",
-      "switches": {
-        "label": "Interruptores",
-        "hint": "Los interruptores que alteran el comportamiento en ejecución. Solo afectan a las llamadas a git, así que el resto de la aplicación —incluida esta página— sigue funcionando y siempre puedes volver a apagarlos."
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "Los interruptores que alteran el comportamiento en ejecución. Solo afectan a las llamadas a git, así que el resto de la aplicación —incluida esta página— sigue funcionando y siempre puedes volver a apagarlos."
+        },
+        "updater": {
+          "label": "Actualizaciones",
+          "hint": "Pone el actualizador en un estado que de otro modo requeriría una versión publicada. Todo se simula solo en la interfaz, así que nunca puede iniciarse una descarga, instalación o reinicio reales."
+        }
       },
       "flags": {
         "gitFailure": "Hacer que falle cada llamada a git",
-        "gitSlow": "Ralentizar cada llamada a git"
+        "gitSlow": "Ralentizar cada llamada a git",
+        "updateAvailable": "Fingir que hay una actualización",
+        "updateCheckFailed": "Hacer que falle la comprobación de actualizaciones",
+        "updateDownloadFailed": "Hacer que falle la descarga de la actualización"
       },
       "hints": {
         "gitFailure": "Cada llamada a git falla con un error simulado, para poder recorrer las rutas de error a propósito en lugar de romper un repositorio.",
-        "gitSlow": "Cada llamada a git tarda unos segundos más de lo real, para poder observar los estados de carga con calma."
+        "gitSlow": "Cada llamada a git tarda unos segundos más de lo real, para poder observar los estados de carga con calma.",
+        "updateAvailable": "La próxima comprobación ofrece una versión simulada y recorre el progreso de descarga, el estado instalado y la oferta de reinicio, sin ninguna versión publicada.",
+        "updateCheckFailed": "La próxima comprobación de actualizaciones falla, para poder leer su aviso de error y su redacción sin romper el canal de versiones.",
+        "updateDownloadFailed": "Se ofrece una actualización y su descarga se interrumpe a medio camino, para poder recorrer la ruta de una instalación interrumpida."
       }
     },
     "appearance": {

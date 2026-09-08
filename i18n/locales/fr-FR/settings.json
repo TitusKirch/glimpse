@@ -330,17 +330,29 @@
       },
       "none": "Rien n'est simulé.",
       "disableAll": "Tout désactiver",
-      "switches": {
-        "label": "Interrupteurs",
-        "hint": "Les interrupteurs qui modifient le comportement à l'exécution. Ils ne touchent que les appels git — le reste de l'application, cette page comprise, continue de fonctionner et un interrupteur peut toujours être désactivé."
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "Les interrupteurs qui modifient le comportement à l'exécution. Ils ne touchent que les appels git — le reste de l'application, cette page comprise, continue de fonctionner et un interrupteur peut toujours être désactivé."
+        },
+        "updater": {
+          "label": "Mises à jour",
+          "hint": "Place le programme de mise à jour dans un état qui exigerait autrement une version publiée. Tout est simulé côté interface uniquement : aucun téléchargement, aucune installation et aucun redémarrage réels ne peuvent en découler."
+        }
       },
       "flags": {
         "gitFailure": "Faire échouer chaque appel git",
-        "gitSlow": "Ralentir chaque appel git"
+        "gitSlow": "Ralentir chaque appel git",
+        "updateAvailable": "Simuler une mise à jour disponible",
+        "updateCheckFailed": "Faire échouer la vérification des mises à jour",
+        "updateDownloadFailed": "Faire échouer le téléchargement de la mise à jour"
       },
       "hints": {
         "gitFailure": "Chaque appel git échoue avec une erreur simulée, afin de parcourir volontairement les chemins d'erreur plutôt que de casser un dépôt.",
-        "gitSlow": "Chaque appel git prend quelques secondes de plus qu'en réalité, afin d'observer tranquillement les états de chargement."
+        "gitSlow": "Chaque appel git prend quelques secondes de plus qu'en réalité, afin d'observer tranquillement les états de chargement.",
+        "updateAvailable": "La prochaine vérification propose une version simulée, puis parcourt la progression du téléchargement, l’état installé et la proposition de redémarrage — sans aucune version publiée.",
+        "updateCheckFailed": "La prochaine vérification échoue, afin de lire son message d’erreur et sa formulation sans casser le flux de versions.",
+        "updateDownloadFailed": "Une mise à jour est proposée et son téléchargement abandonne à mi-chemin, afin de parcourir le chemin d’une installation interrompue."
       }
     },
     "appearance": {

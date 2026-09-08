@@ -330,17 +330,29 @@
       },
       "none": "Es wird nichts simuliert.",
       "disableAll": "Alles ausschalten",
-      "switches": {
-        "label": "Schalter",
-        "hint": "Die Schalter, die das Laufzeitverhalten verändern. Sie betreffen nur Git-Aufrufe — der Rest der App, auch diese Seite, funktioniert weiter, sodass ein Schalter immer wieder ausgeschaltet werden kann."
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "Die Schalter, die das Laufzeitverhalten verändern. Sie betreffen nur Git-Aufrufe — der Rest der App, auch diese Seite, funktioniert weiter, sodass ein Schalter immer wieder ausgeschaltet werden kann."
+        },
+        "updater": {
+          "label": "Updater",
+          "hint": "Versetzt den Updater in einen Zustand, für den es sonst ein veröffentlichtes Release bräuchte. Simuliert wird ausschließlich im Frontend — ein echter Download, eine echte Installation oder ein echter Neustart kann daraus nie entstehen."
+        }
       },
       "flags": {
         "gitFailure": "Jeden Git-Aufruf fehlschlagen lassen",
-        "gitSlow": "Jeden Git-Aufruf verlangsamen"
+        "gitSlow": "Jeden Git-Aufruf verlangsamen",
+        "updateAvailable": "Ein Update vortäuschen",
+        "updateCheckFailed": "Update-Prüfung fehlschlagen lassen",
+        "updateDownloadFailed": "Update-Download fehlschlagen lassen"
       },
       "hints": {
         "gitFailure": "Jeder Git-Aufruf schlägt mit einem simulierten Fehler fehl, sodass die Fehlerpfade gezielt durchlaufen werden können, statt ein Repository kaputtzumachen.",
-        "gitSlow": "Jeder Git-Aufruf dauert einige Sekunden länger als in Wirklichkeit, sodass Ladezustände in Ruhe zu sehen sind."
+        "gitSlow": "Jeder Git-Aufruf dauert einige Sekunden länger als in Wirklichkeit, sodass Ladezustände in Ruhe zu sehen sind.",
+        "updateAvailable": "Die nächste Update-Prüfung bietet eine simulierte Version an und durchläuft dann Download-Fortschritt, den installierten Zustand und das Neustart-Angebot — ganz ohne veröffentlichtes Release.",
+        "updateCheckFailed": "Die nächste Update-Prüfung schlägt fehl, sodass ihr Fehler-Toast und dessen Wortlaut zu sehen sind, ohne einen Release-Feed kaputtzumachen.",
+        "updateDownloadFailed": "Ein Update wird angeboten und sein Download bricht auf halbem Weg ab, sodass der Pfad einer abgebrochenen Installation durchlaufen werden kann."
       }
     },
     "appearance": {

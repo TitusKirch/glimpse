@@ -2,9 +2,9 @@
 const { t, te } = useI18n();
 const simulation = useSimulationStore();
 
-// The git fault switches, from the one place that names them — bound into setup
-// so the template renders the shared list rather than restating it.
-const faults = GIT_FAULTS;
+// The switch groups, from the one place that names them — bound into setup so
+// the template renders the shared list rather than restating it.
+const groups = SIMULATION_GROUPS;
 
 // A switch's own change owns its label key; for anything registered without a
 // translation show the raw id rather than a key path.
@@ -61,18 +61,22 @@ function label(id: string) {
       </UiButton>
     </div>
 
-    <div>
+    <!-- One section per mechanism the switches bend, because what a switch can
+         and cannot reach is what a reader needs to know before flipping it: the
+         git faults stop at the git subprocess, the updater ones never leave the
+         frontend. -->
+    <div v-for="group in groups" :key="group.key">
       <h3
         class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
       >
-        {{ t('settings.simulation.switches.label') }}
+        {{ t(`settings.simulation.groups.${group.key}.label`) }}
       </h3>
       <p class="mb-3 text-xs text-muted-foreground">
-        {{ t('settings.simulation.switches.hint') }}
+        {{ t(`settings.simulation.groups.${group.key}.hint`) }}
       </p>
       <div class="space-y-4">
         <SettingsRow
-          v-for="id in faults"
+          v-for="id in group.ids"
           :key="id"
           :label="`settings.simulation.flags.${id}`"
           :hint="`settings.simulation.hints.${id}`"

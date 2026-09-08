@@ -330,17 +330,29 @@
       },
       "none": "Nothing is being simulated.",
       "disableAll": "Turn everything off",
-      "switches": {
-        "label": "Switches",
-        "hint": "The switches that bend runtime behaviour. They reach git calls only, so the rest of the app — including this page — keeps working and a switch can always be turned back off."
+      "groups": {
+        "git": {
+          "label": "Git",
+          "hint": "The switches that bend runtime behaviour. They reach git calls only, so the rest of the app — including this page — keeps working and a switch can always be turned back off."
+        },
+        "updater": {
+          "label": "Updater",
+          "hint": "Put the updater into a state that otherwise needs a published release. These are simulated in the frontend alone, so no real download, install or restart can start from one."
+        }
       },
       "flags": {
         "gitFailure": "Fail every git call",
-        "gitSlow": "Slow every git call"
+        "gitSlow": "Slow every git call",
+        "updateAvailable": "Pretend an update is available",
+        "updateCheckFailed": "Fail the update check",
+        "updateDownloadFailed": "Fail the update download"
       },
       "hints": {
         "gitFailure": "Every git call fails with a simulated error, so the error paths can be walked deliberately instead of by breaking a repository.",
-        "gitSlow": "Every git call takes a few seconds longer than it really does, so loading states can be watched at leisure."
+        "gitSlow": "Every git call takes a few seconds longer than it really does, so loading states can be watched at leisure.",
+        "updateAvailable": "The next update check offers a simulated version, then walks the download progress, the installed state and the restart offer — without a published release anywhere.",
+        "updateCheckFailed": "The next update check fails, so its error toast and wording can be read without breaking a release feed.",
+        "updateDownloadFailed": "An update is offered and its download gives up part-way, so the interrupted-install path can be walked."
       }
     },
     "appearance": {
