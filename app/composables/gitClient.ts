@@ -210,6 +210,16 @@ export const gitClient = {
       fallback: ''
     }),
 
+  // `git --version` from the git this repo resolves to (an empty path answers
+  // for the plain native git). Empty in the browser demo — the Diagnostics page
+  // drops the line rather than reporting a git version nothing ran.
+  gitVersion: (path: string) =>
+    tauriInvoke<string>({
+      command: 'git_version',
+      args: { path },
+      fallback: ''
+    }),
+
   // Installed WSL distros (Windows; empty elsewhere) for the git-target picker.
   wslDistros: () =>
     tauriInvoke<string[]>({

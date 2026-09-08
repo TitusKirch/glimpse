@@ -637,6 +637,16 @@ impl Repo {
         self.run(&["show", spec]).unwrap_or_default()
     }
 
+    /// `git --version` from the git this repo resolves to. Routed through the
+    /// same [`GitTarget`] as every other call, so a WSL repo reports the distro's
+    /// git rather than the host's — "it works on my machine" and "it works
+    /// through my distro's git" are the two answers a bug report has to tell
+    /// apart. Needs no repository, so an empty path answers for the plain
+    /// native git when nothing is open.
+    pub fn version(&self) -> Result<String, String> {
+        Ok(self.run(&["--version"])?.trim().to_string())
+    }
+
     pub fn info(&self) -> Result<RepoInfo, String> {
         // git reports the toplevel in its own environment (a Linux path under
         // WSL). Map it back to a host path so re-opening it routes the same way
@@ -2222,5 +2232,22 @@ mod commit_paths_tests {
         );
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::Repo;
+
+    #[test]
+    fn version_reports_the_git_that_would_run() {
+        // `git --version` needs no repository, which is the point: the report has
+        // to name a git even when nothing is open. It goes through the resolved
+        // target like every other call, so on Windows a WSL repo reports the
+        // distro's git rather than the host's.
+        let v = Repo::open("").version().expect("git --version");
+        assert!(v.starts_with("git version "), "unexpected output: {v:?}");
+        // Trimmed, because it goes straight into a pasted markdown list item.
+        assert_eq!(v, v.trim());
     }
 }

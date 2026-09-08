@@ -504,6 +504,14 @@ async fn repo_info(path: String) -> Result<git::RepoInfo, String> {
     git::Repo::open(&path).info()
 }
 
+/// `git --version` from the git `path` resolves to (an empty `path` answers for
+/// the plain native git). Read-only, and shown on Settings → Diagnostics so a
+/// bug report names the git that actually ran.
+#[tauri::command]
+async fn git_version(path: String) -> Result<String, String> {
+    git::Repo::open(&path).version()
+}
+
 /// Read a git config value at `scope` (`global` / `local` / `system`, or empty
 /// for the effective value after precedence); `path` routes the call (native vs.
 /// WSL git).
@@ -1581,6 +1589,7 @@ pub fn run() {
             cli_install_status,
             watch_repo,
             repo_info,
+            git_version,
             get_config,
             set_config,
             unset_config,
