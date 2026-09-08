@@ -86,8 +86,28 @@ fn locked<T>(
     // other call holds or is queued on this repo and the entry can go; any
     // higher count means someone still needs it, and they will clean up when
     // they are the last one out.
+    //
+    // THE `drop(lock)` PLACEMENT IS LOAD-BEARING, and invisible otherwise.
+    // Locals drop in reverse declaration order, so leaving it to fall out of
+    // scope would release `map` — the guard — first and this call's `Arc`
+    // second. A returning call would then still be holding a reference after
+    // the map lock it was counted under had been given up, and two calls whose
+    // epilogues overlap would each read the other and each decline to evict:
+    // A reads 3 and skips, B reads 3 (A has not dropped yet) and skips, both
+    // `Arc`s go, and the entry survives with no holder at all. Dropping while
+    // the map lock is still held means whoever is blocked on it next reads a
+    // count this call has already left.
+    //
+    // Deliberately not covered by a test. A stress test over hundreds of rounds
+    // was tried and passes with the ordering broken — two calls serialize on
+    // the repo lock rather than overlapping their epilogues, so contention
+    // alone never opens the window. Reaching it needs a seam in this function,
+    // which would put a test hook in the path every mutating git command takes.
+    // This comment is the invariant's record instead.
     let mut map = locks.0.lock().unwrap();
-    if Arc::strong_count(&lock) == 2 {
+    let last_out = Arc::strong_count(&lock) == 2;
+    drop(lock);
+    if last_out {
         map.remove(path);
     }
     result
