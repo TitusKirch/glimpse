@@ -38,9 +38,8 @@ const virtualRows = computed(() =>
 // (the viewport plus its overscan), not from the widest point of the whole
 // loaded log — so the long single-lane stretches hand their width back to the
 // commit subjects, and loading another page of older history no longer pushes
-// the rows already on screen to the right. `useGraphColumnWidth` adds the two
-// rules on top: grow at once, shrink once the narrower stretch has held, and
-// never take more than its share of the pane.
+// the rows already on screen to the right. `useGraphColumnWidth` adds the rules
+// on top: never more than its share of the pane, grow at once, ease back down.
 const visibleRows = computed(() => {
   const items = rowVirtualizer.value.getVirtualItems();
   return {
@@ -48,23 +47,73 @@ const visibleRows = computed(() => {
     last: items[items.length - 1]?.index ?? 0
   };
 });
-const { width: graphWidth, overflows: graphOverflows } = useGraphColumnWidth(
+
+// Which way the list is travelling. Remembered across the moments it is still,
+// so the lookahead below does not collapse the instant a scroll stops — and
+// starts downward, which is the way a history list is first read.
+const scrollDirection = ref<-1 | 1>(1);
+watch(
+  () => visibleRows.value.first + visibleRows.value.last,
+  (next, previous) => {
+    if (next === previous) return;
+    scrollDirection.value = next > previous ? 1 : -1;
+  }
+);
+
+// Rows measured beyond the virtualizer's own overscan, in the direction of
+// travel. Growth cannot be eased — a lane drawn outside the gutter is a lane
+// lost — so the width is made continuous by arriving early instead: at the 60px
+// row height this reads a further 600px of history ahead of the fold. Enough to
+// lead a normal scroll, short enough that a wide stretch far below does not
+// keep the column wide over the narrow rows on screen.
+const GRAPH_LOOKAHEAD_ROWS = 10;
+const measuredRows = computed(() =>
+  lookaheadWindow(
+    visibleRows.value,
+    scrollDirection.value,
+    GRAPH_LOOKAHEAD_ROWS,
+    repo.commits.length
+  )
+);
+const { width: graphWidth, overflow: graphOverflow } = useGraphColumnWidth(
   () =>
-    layout.value.widthForRows(visibleRows.value.first, visibleRows.value.last),
+    layout.value.widthForRows(
+      measuredRows.value.first,
+      measuredRows.value.last
+    ),
   paneWidth
 );
+// Rounded once and shared, so the gutter's edge and every row's indent stay
+// exactly aligned while the width is mid-ease and carrying a fraction.
+const graphWidthPx = computed(() => Math.round(graphWidth.value) + 'px');
 
 // Past the cap the graph is wider than its column, so it pans on its own rather
 // than hiding lanes. The gutter stays click-through (rows are selectable across
 // their full width), which is why the pan is forwarded from the list's wheel
-// events instead of relying on the gutter receiving them.
+// events instead of relying on the gutter receiving them — and why the decision
+// of whether a gesture is the graph's at all lives in `graphPan`, where it can
+// be tested. Claiming a mostly-vertical trackpad swipe here would cost the
+// commit list its own scrolling.
 function panGraph(event: WheelEvent) {
-  if (!graphOverflows.value || !gutterEl.value) return;
-  const dx = event.shiftKey ? event.deltaY : event.deltaX;
-  if (!dx) return;
-  gutterEl.value.scrollLeft += dx;
+  const el = gutterEl.value;
+  if (!el) return;
+  const pan = graphPanTarget(event, el.scrollLeft, graphOverflow.value);
+  if (!pan.claim) return;
+  el.scrollLeft = pan.scrollLeft;
   event.preventDefault();
 }
+
+// A stretch that no longer overflows leaves the gutter scrolled where the wide
+// one left it, with lane 0 off the left edge of a column whose rows are already
+// indented correctly — and no way back, since there is nothing left to pan.
+// Driven by the overflow the column actually has on screen, so it holds while
+// the width is still easing down and not only once it has arrived.
+watch(graphOverflow, (maxPan) => {
+  const el = gutterEl.value;
+  if (!el) return;
+  const clamped = clampGraphPan(el.scrollLeft, maxPan);
+  if (clamped !== el.scrollLeft) el.scrollLeft = clamped;
+});
 
 // Scroll the selected commit into view (e.g. when opened from blame), so the
 // highlighted row is actually visible.
@@ -269,7 +318,7 @@ function refVariant(refName: string) {
           ref="gutterEl"
           class="pointer-events-none absolute top-0 left-0 z-10 overflow-x-auto overflow-y-hidden"
           :style="{
-            width: graphWidth + 'px',
+            width: graphWidthPx,
             height: layout.height + 'px',
             scrollbarWidth: 'none'
           }"
@@ -312,7 +361,7 @@ function refVariant(refName: string) {
               :style="{
                 height: vr.size + 'px',
                 transform: `translateY(${vr.start}px)`,
-                paddingLeft: graphWidth + 'px'
+                paddingLeft: graphWidthPx
               }"
               :class="
                 vr.commit.hash === repo.selectedHash ||
