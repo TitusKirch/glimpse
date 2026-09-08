@@ -32,6 +32,8 @@
     "refresh": "Actualiser",
     "openRepo": "Ouvrir un dépôt",
     "closeRepo": "Fermer le dépôt",
+    "scrollTabsLeft": "Faire défiler les onglets vers la gauche",
+    "scrollTabsRight": "Faire défiler les onglets vers la droite",
     "initRepo": "Initialiser un dépôt",
     "cloneRepo": "Cloner un dépôt",
     "swap": "Inverser",

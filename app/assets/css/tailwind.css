@@ -163,6 +163,16 @@
   background-clip: content-box;
 }
 
+/* Repo tab strip: scrolls sideways, but a scrollbar under the tabs would eat
+   into the header's height. `scrollbar-width` covers Firefox and the standard;
+   the webkit rule covers WebKitGTK and WebView2. */
+.tabstrip {
+  scrollbar-width: none;
+}
+.tabstrip::-webkit-scrollbar {
+  display: none;
+}
+
 /* Split diff: left pane scrolls vertically (synced) without its own bar. */
 .diff-no-vscroll::-webkit-scrollbar:vertical {
   display: none;

@@ -32,6 +32,8 @@
     "refresh": "Aktualisieren",
     "openRepo": "Repository öffnen",
     "closeRepo": "Repository schließen",
+    "scrollTabsLeft": "Tabs nach links scrollen",
+    "scrollTabsRight": "Tabs nach rechts scrollen",
     "initRepo": "Repository initialisieren",
     "cloneRepo": "Repository klonen",
     "swap": "Tauschen",
