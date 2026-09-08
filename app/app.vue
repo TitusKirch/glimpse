@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
-import { toast } from 'vue-sonner';
 import { Toaster as UiSonner } from '@/components/ui/sonner';
 
 const repo = useRepoStore();
@@ -27,12 +26,15 @@ useShortcuts();
 useAutoFetch();
 useModalScrollLock();
 
-// Surface git failures as a toast instead of a persistent banner.
+// Surface git failures as a toast instead of a persistent banner — repeats of
+// the same message collapsing into one counted toast, since a single cause
+// (missing git, broken target, simulated failures) fails every call it touches.
+const toastGitError = useGitErrorToast();
 watch(
   () => repo.lastError,
   (err) => {
     if (!err) return;
-    toast.error(t('error.title'), { description: err });
+    toastGitError(err);
     repo.clearError();
   }
 );
