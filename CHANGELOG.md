@@ -1,5 +1,96 @@
 # Changelog
 
+## [0.13.0](https://github.com/TitusKirch/glimpse/compare/v0.12.2...v0.13.0) (2026-09-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* move to pnpm 12
+* this repository now requires pnpm 12.
+
+### Features
+
+* **build:** ship source maps for the app's own code ([705b4cb](https://github.com/TitusKirch/glimpse/commit/705b4cbf4216734467d3a05fbb89091b04eb9f36)), closes [#158](https://github.com/TitusKirch/glimpse/issues/158)
+* **ci:** call the central workflow bodies instead of copying them ([d1da865](https://github.com/TitusKirch/glimpse/commit/d1da865c2ae7b261e547b4ae7b22f36dabbc6c1c))
+* **error:** offer a manual update check on the fatal error page ([750d2e7](https://github.com/TitusKirch/glimpse/commit/750d2e7fe5425a2826120c9b39c438dbb7d9920a)), closes [#167](https://github.com/TitusKirch/glimpse/issues/167)
+* **error:** show version, OS and build info on the fatal error page ([ea0a0c1](https://github.com/TitusKirch/glimpse/commit/ea0a0c1d0431c81b6b7149f1ed474383b5866cc6)), closes [#157](https://github.com/TitusKirch/glimpse/issues/157)
+
+
+### Bug Fixes
+
+* **ci:** let the queue PR body wrap itself ([c54e863](https://github.com/TitusKirch/glimpse/commit/c54e863be6e261a8482e3acee30e6878d7e2c610))
+* **ci:** pin the workflow bodies to v0.2.0 and drop paths-ignore ([173c9ab](https://github.com/TitusKirch/glimpse/commit/173c9ab12b81ac0e56412e6b0e04bddf08689186))
+* **ci:** pin the workflow bodies to v0.5.0 ([1e431b7](https://github.com/TitusKirch/glimpse/commit/1e431b751fe03092d84ae460d3326cd4bd260f39))
+* **ci:** pin the workflow bodies to v0.7.0 ([34d985d](https://github.com/TitusKirch/glimpse/commit/34d985d25ffa76eaccd2f893f406ab45d0d76ac3))
+* **ci:** read the pre-major flags from the whole release-please config ([#170](https://github.com/TitusKirch/glimpse/issues/170)) ([1bf4162](https://github.com/TitusKirch/glimpse/commit/1bf416276147968fd5c911fc8a84ffbb6dc6b06b))
+* **ci:** read the Queue App PEM from this owner's own -ci mirror ([3a1eb1d](https://github.com/TitusKirch/glimpse/commit/3a1eb1d3ff345e717f0c26be5d594448f226279e))
+* **deps:** update the cargo lockfile to the latest compatible versions ([c3f07f4](https://github.com/TitusKirch/glimpse/commit/c3f07f46df6ced61ee5d444f28173a0c327c8647))
+* **deps:** update the npm dependencies to their latest minor versions ([4a4889d](https://github.com/TitusKirch/glimpse/commit/4a4889db276795a9d66ab4c44ce877b3939731cc))
+* **history:** stop the commit graph shadowing Vue's ref auto-import ([48c1b3d](https://github.com/TitusKirch/glimpse/commit/48c1b3d442443a50492b8de4ab9aa00378960f3f)), closes [#156](https://github.com/TitusKirch/glimpse/issues/156)
+
+
+### Reverts
+
+* go back to pnpm 11.25.0 ([e53209c](https://github.com/TitusKirch/glimpse/commit/e53209cc41c2c5ed3dc8d6763606045a369ebff0))
+
+
+### Miscellaneous Chores
+
+* move to pnpm 12 ([9669374](https://github.com/TitusKirch/glimpse/commit/9669374820101354ac2ae7cd125c546e232b1ec7))
+* move to pnpm 12 ([9e0c255](https://github.com/TitusKirch/glimpse/commit/9e0c25540c2ff9ffb92936079a11abf07a004a49))
+
+## [0.12.2](https://github.com/TitusKirch/glimpse/compare/v0.12.1...v0.12.2) (2026-07-30)
+
+
+### Features
+
+* route questions, ideas and possible bugs to the Discord forum ([aa4316f](https://github.com/TitusKirch/glimpse/commit/aa4316f472c25cdeb1d69789ff5c3ed59e08fdfa))
+
+
+### Bug Fixes
+
+* align issue-template labels with the label catalog ([8c2c6ad](https://github.com/TitusKirch/glimpse/commit/8c2c6ad2ce24e0765c05bd72d43b3abc4f5226fe))
+* **repo:** truncate long tab names instead of wrapping ([10bf454](https://github.com/TitusKirch/glimpse/commit/10bf454daabb840a750df6c2e739dc65dc3c7623)), closes [#133](https://github.com/TitusKirch/glimpse/issues/133)
+
+
+### Miscellaneous Chores
+
+* release 0.12.2 instead of 0.13.0 ([92f195c](https://github.com/TitusKirch/glimpse/commit/92f195c2ef6c06755a1e5fc8613d7f1a7e124e70))
+
+## [0.12.1](https://github.com/TitusKirch/glimpse/compare/v0.12.0...v0.12.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* align dependabot labels to the stack: convention ([f54365b](https://github.com/TitusKirch/glimpse/commit/f54365b5cd67fc0aa6bf53afc591f5655a0abb60))
+* **deps:** bump quick-xml to 0.41.0 via plist 1.10.0 ([32da7b2](https://github.com/TitusKirch/glimpse/commit/32da7b20260ff7f8117f91303329e1af1ad114e3))
+* **git:** pass Config to ts-rs decl() for ts-rs 12 ([c34c77b](https://github.com/TitusKirch/glimpse/commit/c34c77b2679e27fcfbaa7224f1b42c96be205de4))
+
+## [0.12.0](https://github.com/TitusKirch/glimpse/compare/v0.11.0...v0.12.0) (2026-06-21)
+
+
+### Features
+
+* changelists (0.12.0) — feature, storage, UX, CLI, hunk-commit ([#97](https://github.com/TitusKirch/glimpse/issues/97)) ([d059475](https://github.com/TitusKirch/glimpse/commit/d059475470c799f6eb38948d229a2fea5bf17e8f))
+* **changes:** clearer changelist panel — active list, collapse, move-all ([aa4c30e](https://github.com/TitusKirch/glimpse/commit/aa4c30e67a3d65dbd1c98b1b1c6247c094ac96de)), closes [#100](https://github.com/TitusKirch/glimpse/issues/100)
+* **changes:** group pending changes into named changelists ([eda4eb8](https://github.com/TitusKirch/glimpse/commit/eda4eb8abc9d307d63d980b83c8fcb3c127f0ca2))
+* **changes:** quick-add and multi-select files in changelists ([63fa51e](https://github.com/TitusKirch/glimpse/commit/63fa51e29487418391952a658786c2ff095154c5)), closes [#105](https://github.com/TitusKirch/glimpse/issues/105)
+* **changes:** review & commit selected hunks from a changelist ([e9257b7](https://github.com/TitusKirch/glimpse/commit/e9257b7da8d56e467e9b346d25fbbdcc150b0b52)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **changes:** self-contained review-&-commit dialog ([230a523](https://github.com/TitusKirch/glimpse/commit/230a5234346701b23c77b5146b0161c88eb4d8e1)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **changes:** store changelist membership in the git dir ([7c95c24](https://github.com/TitusKirch/glimpse/commit/7c95c243b369ca1bbe268bb1c53a9465321a9c77)), closes [#99](https://github.com/TitusKirch/glimpse/issues/99)
+* **cli:** drive changelists from the command line ([98a2373](https://github.com/TitusKirch/glimpse/commit/98a23735e005d9829428a45d63b0c804930f5bda)), closes [#101](https://github.com/TitusKirch/glimpse/issues/101)
+* **cli:** emit structured JSON errors under --json ([1d4c695](https://github.com/TitusKirch/glimpse/commit/1d4c6950f9406879ff283cac52cf6ea63798d4ed))
+* **history:** show the time of day in commit dates ([b4f11a2](https://github.com/TitusKirch/glimpse/commit/b4f11a2b56a4a58475919e7832347e0f7232bc9d))
+* **settings:** gate changelist hunk-commit behind an off-by-default setting ([5fba67a](https://github.com/TitusKirch/glimpse/commit/5fba67af0a093a9eed3bb67fee8f76034a6e7010)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **sidebar:** show a 'none yet' line for empty sections + hide-empty option ([816b135](https://github.com/TitusKirch/glimpse/commit/816b135122c106bcaa72f8d0b8d6d1d3f462dda7))
+
+
+### Bug Fixes
+
+* **diff:** hide index hunk-staging controls in changelist mode ([bcd9d3d](https://github.com/TitusKirch/glimpse/commit/bcd9d3d3638ea7e907bd39b41586965fa3bb9186)), closes [#106](https://github.com/TitusKirch/glimpse/issues/106)
+* **loading:** show skeletons only on first load, not on refresh ([fe84d98](https://github.com/TitusKirch/glimpse/commit/fe84d987df94165674b486beb290982b5f374824)), closes [#107](https://github.com/TitusKirch/glimpse/issues/107)
+* **updater:** treat a not-yet-published manifest as no update ([e137291](https://github.com/TitusKirch/glimpse/commit/e1372916ef6967141cc1043c3f826abf2e876c19))
+
 ## [0.11.0](https://github.com/TitusKirch/glimpse/compare/v0.10.0...v0.11.0) (2026-06-06)
 
 
