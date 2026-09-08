@@ -41,12 +41,6 @@ const virtualRows = computed(() =>
 // the rows already on screen to the right. `useGraphColumnWidth` adds the rules
 // on top: never more than its share of the pane, grow at once, give the width
 // back after a hold.
-//
-// Measured from exactly the rows the virtualizer holds — no lookahead past
-// them. Reading further ahead only ever widens the column, reserving width on
-// screen for lanes that are not, which is the opposite of what this column is
-// for. It existed to make growth *arrive early* while the width was animated;
-// with the animation gone (see `useGraphColumnWidth`) it buys nothing.
 const visibleRows = computed(() => {
   const items = rowVirtualizer.value.getVirtualItems();
   return {
@@ -55,9 +49,21 @@ const visibleRows = computed(() => {
   };
 });
 
+// Measured over a block around those rows rather than over the rows themselves,
+// so the width holds still while you scroll through one — see `measuredBlock`
+// for why the frequency of the change, not its shape, is what reads as broken.
+// At the 60px row height a 50-row block is ~3000px of scrolling between one
+// possible width change and the next.
+const GRAPH_MEASURE_BLOCK = 50;
+const measuredRows = computed(() =>
+  measuredBlock(visibleRows.value, GRAPH_MEASURE_BLOCK, repo.commits.length)
+);
 const { width: graphWidth, overflow: graphOverflow } = useGraphColumnWidth(
   () =>
-    layout.value.widthForRows(visibleRows.value.first, visibleRows.value.last),
+    layout.value.widthForRows(
+      measuredRows.value.first,
+      measuredRows.value.last
+    ),
   paneWidth
 );
 // Rounded once and shared, so the gutter's edge and every row's indent stay

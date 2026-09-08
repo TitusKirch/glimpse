@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { effectScope, nextTick, ref, type EffectScope } from 'vue';
-import { useGraphColumnWidth } from './useGraphColumnWidth';
+import { measuredBlock, useGraphColumnWidth } from './useGraphColumnWidth';
 
 const scopes: EffectScope[] = [];
 
@@ -187,5 +187,44 @@ describe('useGraphColumnWidth', () => {
     vi.advanceTimersByTime(200);
     expect(width.value).toBe(100);
     expect(overflow.value).toBe(0);
+  });
+});
+
+describe('measuredBlock', () => {
+  it('holds one range for every row inside the same block', () => {
+    // The point of the whole helper: scrolling within a block must not move the
+    // measured range, so the width has nothing to react to.
+    const first = measuredBlock({ first: 10, last: 30 }, 50, 500);
+    const later = measuredBlock({ first: 18, last: 38 }, 50, 500);
+    expect(first).toEqual({ first: 0, last: 49 });
+    expect(later).toEqual(first);
+  });
+
+  it('covers both blocks when the viewport straddles a boundary', () => {
+    expect(measuredBlock({ first: 45, last: 55 }, 50, 500)).toEqual({
+      first: 0,
+      last: 99
+    });
+  });
+
+  it('moves on once the viewport has cleared the boundary', () => {
+    expect(measuredBlock({ first: 60, last: 80 }, 50, 500)).toEqual({
+      first: 50,
+      last: 99
+    });
+  });
+
+  it('never reaches past the last commit loaded', () => {
+    expect(measuredBlock({ first: 60, last: 80 }, 50, 90)).toEqual({
+      first: 50,
+      last: 89
+    });
+  });
+
+  it('leaves an empty log alone', () => {
+    expect(measuredBlock({ first: 0, last: 0 }, 50, 0)).toEqual({
+      first: 0,
+      last: 0
+    });
   });
 });

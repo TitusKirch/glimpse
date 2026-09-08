@@ -14,6 +14,41 @@ import {
   type MaybeRefOrGetter
 } from 'vue';
 
+export interface RowWindow {
+  first: number;
+  last: number;
+}
+
+// The row range the width is measured over, snapped out to fixed block
+// boundaries around the rows in view.
+//
+// Measuring the visible rows *exactly* is what made scrolling feel broken: in a
+// history whose lane depth varies, almost every scroll step pulls a deeper or
+// shallower row through the virtualizer's overscan, so the column resizes
+// continuously and the commit subjects' left edge never holds still. Neither
+// transition fixes that — easing it turns a twitch into a slide, snapping it
+// turns it into a stutter — because the fault is the *frequency* of the change,
+// not its shape.
+//
+// Snapping the measured range to blocks makes the width constant while you
+// scroll within a block, and moves it at most once per block boundary crossed.
+// The column is then a little wider than the rows strictly need (it carries the
+// block's deepest lane, not the viewport's) and still far narrower than the
+// whole log, which is the trade this column exists to make.
+export function measuredBlock(
+  window: RowWindow,
+  block: number,
+  count: number
+): RowWindow {
+  if (count <= 0 || block <= 0) return window;
+  const first = Math.max(0, Math.floor(window.first / block) * block);
+  const last = Math.min(
+    count - 1,
+    Math.ceil((window.last + 1) / block) * block - 1
+  );
+  return { first, last: Math.max(first, last) };
+}
+
 interface GraphColumnWidthOptions {
   // Largest share of the pane the graph may take before it starts clipping and
   // scrolls on its own. The remainder is the commit list's guaranteed share.
