@@ -327,7 +327,7 @@ export const gitClient = {
     tauriInvoke<ImageDiff>({
       command: 'image_diff',
       args: { path, file },
-      fallback: { mime: '', old: null, new: null }
+      fallback: { mime: '', old: null, new: null, contentsOmitted: false }
     }),
 
   // Stage (or unstage with reverse) a single hunk.
