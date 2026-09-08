@@ -111,6 +111,24 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
               t('diff.ignoreWhitespace')
             }}</UiTooltipContent>
           </UiTooltip>
+          <!-- The backend withheld this file's full text for being over the
+               size ceiling, so the highlighter only ever sees one hunk at a
+               time. It belongs in the toolbar rather than as a banner over the
+               diff: the diff itself is complete, and a banner would overstate
+               what was lost. A status, not an action, hence no button. -->
+          <UiTooltip v-if="repo.diff?.contentsOmitted">
+            <UiTooltipTrigger as-child>
+              <span
+                class="flex size-7 items-center justify-center text-muted-foreground"
+              >
+                <NuxtIcon name="lucide:file-warning" class="size-4" />
+              </span>
+            </UiTooltipTrigger>
+            <UiTooltipContent class="max-w-xs space-y-1">
+              <p class="font-medium">{{ t('diff.omitted') }}</p>
+              <p class="text-xs">{{ t('diff.omittedNote') }}</p>
+            </UiTooltipContent>
+          </UiTooltip>
           <UiTooltip v-if="effectiveMode === 'unified'">
             <UiTooltipTrigger as-child>
               <UiButton

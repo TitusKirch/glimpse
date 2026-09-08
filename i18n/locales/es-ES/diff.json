@@ -25,7 +25,9 @@
       "new": "Árbol de trabajo",
       "absent": "No presente",
       "onionSkin": "Superposición"
-    }
+    },
+    "omitted": "Contenido completo omitido",
+    "omittedNote": "Este archivo es demasiado grande para cargarlo entero, por lo que el resaltado de sintaxis se limita a cada fragmento. El diff en sí está completo."
   },
   "fileView": {
     "list": "Vista de lista",

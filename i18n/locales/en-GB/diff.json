@@ -25,7 +25,9 @@
       "new": "Working tree",
       "absent": "Not present",
       "onionSkin": "Onion skin"
-    }
+    },
+    "omitted": "Full file withheld",
+    "omittedNote": "This file is too large to load whole, so syntax highlighting is limited to each hunk. The diff itself is complete."
   },
   "fileView": {
     "list": "List view",

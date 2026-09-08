@@ -25,7 +25,9 @@
       "new": "Arbeitskopie",
       "absent": "Nicht vorhanden",
       "onionSkin": "Überblendung"
-    }
+    },
+    "omitted": "Volltext zurückgehalten",
+    "omittedNote": "Diese Datei ist zu groß, um sie ganz zu laden; die Syntaxhervorhebung beschränkt sich daher auf die einzelnen Hunks. Der Diff selbst ist vollständig."
   },
   "fileView": {
     "list": "Listenansicht",

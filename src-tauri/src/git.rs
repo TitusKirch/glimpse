@@ -367,6 +367,22 @@ pub struct RepoInfo {
     pub distro: Option<String>,
 }
 
+/// Ceiling on each side of a diff's full file content, in bytes.
+///
+/// The contents are loaded so the viewer can highlight whole-file, which keeps
+/// the cross-line context per-line highlighting cannot reconstruct. But each
+/// side then exists three times at once: the Rust `String`, the JSON crossing
+/// IPC, and the JavaScript string the repo store holds for as long as that tab
+/// is open. One generated bundle, lockfile or checked-in log therefore costs
+/// several times its own size, and merely selecting the file is what triggers
+/// it. Past this ceiling the hunks travel alone.
+///
+/// Bytes rather than lines, because bytes are what those three copies cost; a
+/// line count bounds nothing. The value sits far above any hand-written source
+/// file, so what it excludes is the file the viewer could not usefully render
+/// line by line anyway.
+const MAX_DIFF_CONTENT_BYTES: usize = 2 * 1024 * 1024;
+
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffData {
@@ -379,6 +395,43 @@ pub struct DiffData {
     /// LFS object instead of rendering it as source, and `old_content` /
     /// `new_content` are left empty so the smudged binary is never shipped.
     pub is_lfs: bool,
+    /// A side of this file is past the per-side content ceiling
+    /// ([`MAX_DIFF_CONTENT_BYTES`], 2 MiB), so `old_content` and `new_content`
+    /// are both empty and only the hunks were shipped. The viewer has to say
+    /// so — the same way it frames an LFS object — because a diff that quietly
+    /// showed less than the file reads as broken, which is worse than one that
+    /// admits it is capped.
+    pub contents_omitted: bool,
+}
+
+impl DiffData {
+    /// Attach both sides' full contents, unless either side is past
+    /// [`MAX_DIFF_CONTENT_BYTES`] — then neither is attached and
+    /// `contents_omitted` is set instead.
+    ///
+    /// The sides arrive as closures because the whole point is to not have the
+    /// file in memory: an oversized first side means the second is never even
+    /// read, so a huge file's two halves are never resident at once, and the
+    /// one string that was read is dropped here rather than travelling on to
+    /// the IPC payload and the store's copy of it.
+    ///
+    /// It is both sides or neither. Shipping the small side alone would render
+    /// the other as an empty file — "everything was deleted" rather than "this
+    /// is too large to show in full".
+    fn attach_contents(&mut self, old: impl FnOnce() -> String, new: impl FnOnce() -> String) {
+        let old = old();
+        if old.len() > MAX_DIFF_CONTENT_BYTES {
+            self.contents_omitted = true;
+            return;
+        }
+        let new = new();
+        if new.len() > MAX_DIFF_CONTENT_BYTES {
+            self.contents_omitted = true;
+            return;
+        }
+        self.old_content = old;
+        self.new_content = new;
+    }
 }
 
 /// The two sides of an image file's change, each a `data:` URL (or null when the
@@ -957,11 +1010,15 @@ impl Repo {
             return Ok(Some(diff));
         }
         if staged {
-            diff.old_content = self.content(&format!("HEAD:{file}"));
-            diff.new_content = self.content(&format!(":{file}"));
+            diff.attach_contents(
+                || self.content(&format!("HEAD:{file}")),
+                || self.content(&format!(":{file}")),
+            );
         } else {
-            diff.old_content = self.content(&format!(":{file}"));
-            diff.new_content = self.target.read_file(file).unwrap_or_default();
+            diff.attach_contents(
+                || self.content(&format!(":{file}")),
+                || self.target.read_file(file).unwrap_or_default(),
+            );
         }
         Ok(Some(diff))
     }
@@ -1029,8 +1086,10 @@ impl Repo {
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
-        diff.old_content = self.content(&format!("{hash}^:{file}"));
-        diff.new_content = self.content(&format!("{hash}:{file}"));
+        diff.attach_contents(
+            || self.content(&format!("{hash}^:{file}")),
+            || self.content(&format!("{hash}:{file}")),
+        );
         Ok(Some(diff))
     }
 
@@ -1082,8 +1141,10 @@ impl Repo {
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
-        diff.old_content = self.content(&format!("{from}:{file}"));
-        diff.new_content = self.content(&format!("{to}:{file}"));
+        diff.attach_contents(
+            || self.content(&format!("{from}:{file}")),
+            || self.content(&format!("{to}:{file}")),
+        );
         Ok(Some(diff))
     }
 
@@ -1756,8 +1817,10 @@ impl Repo {
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
-        diff.old_content = self.content(&format!("{reference}^:{file}"));
-        diff.new_content = self.content(&format!("{reference}:{file}"));
+        diff.attach_contents(
+            || self.content(&format!("{reference}^:{file}")),
+            || self.content(&format!("{reference}:{file}")),
+        );
         Ok(Some(diff))
     }
 
@@ -2379,5 +2442,132 @@ mod command_log_tests {
             .expect("the injected failure was recorded");
         assert!(!mine.ok);
         assert!(mine.command.ends_with("status"), "{}", mine.command);
+    }
+}
+
+#[cfg(test)]
+mod diff_content_cap_tests {
+    use super::{DiffData, Repo, MAX_DIFF_CONTENT_BYTES};
+    use std::cell::Cell;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    /// A parsed diff before its contents are attached — what `parse::diff`
+    /// hands back, hunks and all.
+    fn parsed() -> DiffData {
+        DiffData {
+            file_name: "big.txt".to_string(),
+            old_content: String::new(),
+            new_content: String::new(),
+            hunks: vec!["@@ -1 +1 @@\n-first\n+second".to_string()],
+            is_lfs: false,
+            contents_omitted: false,
+        }
+    }
+
+    fn past_the_ceiling() -> String {
+        "x".repeat(MAX_DIFF_CONTENT_BYTES + 1)
+    }
+
+    #[test]
+    fn contents_within_the_ceiling_are_attached_as_before() {
+        let mut diff = parsed();
+        diff.attach_contents(|| "first\n".to_string(), || "second\n".to_string());
+        assert_eq!(diff.old_content, "first\n");
+        assert_eq!(diff.new_content, "second\n");
+        assert!(!diff.contents_omitted, "a small file is not capped");
+    }
+
+    #[test]
+    fn a_side_past_the_ceiling_ships_no_contents_at_all() {
+        let mut diff = parsed();
+        // The small side must not travel alone: the viewer would render the
+        // missing half as an empty file, i.e. "everything was deleted".
+        diff.attach_contents(|| "first\n".to_string(), past_the_ceiling);
+        assert!(
+            diff.contents_omitted,
+            "the cap has to be visible in the payload"
+        );
+        assert!(diff.old_content.is_empty(), "old content shipped anyway");
+        assert!(diff.new_content.is_empty(), "new content shipped anyway");
+        assert_eq!(
+            diff.hunks.len(),
+            1,
+            "the hunks are still the diff, and still ship"
+        );
+    }
+
+    #[test]
+    fn an_oversized_first_side_is_never_followed_by_a_second_read() {
+        // Loading the second side would put both halves of a huge file in
+        // memory at once — exactly what the ceiling exists to prevent.
+        let second_read = Cell::new(false);
+        let mut diff = parsed();
+        diff.attach_contents(past_the_ceiling, || {
+            second_read.set(true);
+            String::new()
+        });
+        assert!(diff.contents_omitted);
+        assert!(
+            !second_read.get(),
+            "the second side was read despite the first being over"
+        );
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    #[test]
+    fn file_diff_caps_a_large_file_and_leaves_a_small_one_whole() {
+        let dir: PathBuf =
+            std::env::temp_dir().join(format!("glimpse-diff-cap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+
+        // Same bulk on both sides, so the *diff* stays one line while each
+        // side's content is past the ceiling — the case the cap is for.
+        let bulk = ("x".repeat(63) + "\n").repeat(MAX_DIFF_CONTENT_BYTES / 64 + 2);
+        std::fs::write(dir.join("big.txt"), format!("first\n{bulk}")).unwrap();
+        std::fs::write(dir.join("small.txt"), "first\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        std::fs::write(dir.join("big.txt"), format!("second\n{bulk}")).unwrap();
+        std::fs::write(dir.join("small.txt"), "second\n").unwrap();
+
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let big = repo
+            .file_diff("big.txt", false, false, false)
+            .expect("diff big.txt")
+            .expect("big.txt changed");
+        assert!(big.contents_omitted, "the large file was shipped in full");
+        assert!(big.old_content.is_empty() && big.new_content.is_empty());
+        assert!(!big.hunks.is_empty(), "the diff itself must still arrive");
+        assert!(!big.is_lfs, "too large is not the same as LFS");
+
+        let small = repo
+            .file_diff("small.txt", false, false, false)
+            .expect("diff small.txt")
+            .expect("small.txt changed");
+        assert!(
+            !small.contents_omitted,
+            "an ordinary file must not be capped"
+        );
+        assert_eq!(small.old_content, "first\n");
+        assert_eq!(small.new_content, "second\n");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
