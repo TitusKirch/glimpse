@@ -309,6 +309,13 @@
         "gitTarget": "Cible Git",
         "route": "Route"
       },
+      "commandLog": {
+        "label": "Journal des commandes",
+        "hint": "Chaque appel git de cette session — la commande exacte, sa durée et s'il a échoué. Conservé uniquement en mémoire, jamais écrit sur le disque, et plafonné : les appels les plus anciens disparaissent. Les identifiants présents dans une URL distante sont masqués avant tout affichage ou toute copie.",
+        "refresh": "Actualiser",
+        "copy": "Copier le journal des commandes",
+        "empty": "Aucun appel git enregistré pour l'instant."
+      },
       "inspector": {
         "label": "Inspecteur",
         "hint": "Ouvre les outils de développement de la WebView — la console, le journal réseau et la trace complète. F12 fait la même chose depuis n'importe où dans l'application. Application de bureau uniquement.",

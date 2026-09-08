@@ -3,6 +3,8 @@
 // is the page that shows *because* something in the app shell broke, so nothing
 // here may reach for a store, for IPC or for i18n. See app/error.vue.
 
+import type { GitCommandEntry } from '~/types/bindings';
+
 export type BuildKind = 'release' | 'dev';
 
 export type Diagnostics = {
@@ -153,6 +155,50 @@ export function formatDiagnosticsMarkdown(d: Diagnostics): string {
   if (d.message) lines.push(`- Message: ${d.message}`);
   if (d.stack) {
     lines.push('', 'Stack trace:', '', '```', d.stack, '```');
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+// The backend's git command log, rendered for reading and for pasting. Pure and
+// dependency-free like everything above it — the entries arrive over IPC already
+// redacted (the backend is the only place that knows what a credential looks
+// like in an argv), so nothing here scrubs anything: one redaction
+// implementation in the repo, not two.
+
+/**
+ * A recorded call's wall-clock time as `HH:MM:SS.mmm`, in **UTC**. The block is
+ * pasted into an issue somebody else reads, so a timestamp in the reporter's
+ * unstated local timezone is worse than useless when it is lined up against a
+ * log from another machine. Milliseconds are kept: the calls this log is read
+ * for arrive in bursts.
+ */
+export function formatCommandTime(at: number): string {
+  const d = new Date(at);
+  const pad = (n: number, width = 2) => String(n).padStart(width, '0');
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(
+    d.getUTCSeconds()
+  )}.${pad(d.getUTCMilliseconds(), 3)}`;
+}
+
+/**
+ * The command log as the block a bug report pastes — newest first, because the
+ * call someone is asking about is the one that just ran.
+ */
+export function formatCommandLogMarkdown(
+  entries: readonly GitCommandEntry[]
+): string {
+  if (entries.length === 0) {
+    return '**glimpse git command log**\n\nno git calls recorded yet\n';
+  }
+  const lines = ['**glimpse git command log**', ''];
+  for (const e of [...entries].reverse()) {
+    lines.push(
+      `- ${formatCommandTime(e.at)} · ${e.durationMs} ms · ${
+        e.ok ? 'ok' : 'failed'
+      } · \`${e.command}\``
+    );
+    // git's own message, indented under the call it belongs to.
+    if (e.error) for (const l of e.error.split('\n')) lines.push(`  ${l}`);
   }
   return `${lines.join('\n')}\n`;
 }

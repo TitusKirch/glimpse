@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { GitCommandEntry } from '~/types/bindings';
+
 const { t } = useI18n();
 
 // The same facts the fatal error page assembles, from the same place — so the
@@ -46,9 +48,46 @@ const rows = computed(() =>
   ].filter((r) => !!r.value)
 );
 
+// The git calls this session made. Recorded in the backend from process start —
+// the only place that can see a git call at all, since one IPC call is not one
+// git call and a mis-routed git target is invisible from this side — and kept
+// there in memory only, capped, never written to disk. Read on demand: the
+// buffer only grows behind this page, so a snapshot plus a refresh beats a poll
+// that would itself be noise in what it is reporting on.
+const commandLog = ref<GitCommandEntry[]>([]);
+const loadingLog = ref(false);
+// Newest first — the call someone is asking about is the one that just ran —
+// and already formatted, so the rendered row is a straight read.
+const recentCalls = computed(() =>
+  [...commandLog.value]
+    .reverse()
+    // `ms` is the SI symbol, the same in every locale glimpse ships — a
+    // translation key for it would only be a key to keep in step.
+    .map((call) => ({
+      ...call,
+      time: formatCommandTime(call.at),
+      duration: `${call.durationMs} ms`
+    }))
+);
+async function refreshLog() {
+  loadingLog.value = true;
+  try {
+    commandLog.value = await gitClient.gitCommandLog();
+  } finally {
+    loadingLog.value = false;
+  }
+}
+onMounted(refreshLog);
+
 // The pasted block is the same format the fatal error page produces, minus the
 // error lines there is nothing to say about.
 const copy = useCopy();
+// Its own block, copied separately: the report is the handful of facts every
+// issue wants, while the log is bulk someone is asked for once the report has
+// not explained it.
+function copyCommandLog() {
+  void copy(formatCommandLogMarkdown(commandLog.value));
+}
 function copyDiagnostics() {
   void copy(
     formatDiagnosticsMarkdown({
@@ -105,6 +144,62 @@ function openInspector() {
       >
         {{ t('settings.diagnostics.report.copy') }}
       </UiButton>
+    </div>
+
+    <div>
+      <h3
+        class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+      >
+        {{ t('settings.diagnostics.commandLog.label') }}
+      </h3>
+      <p class="mb-3 text-xs text-muted-foreground">
+        {{ t('settings.diagnostics.commandLog.hint') }}
+      </p>
+      <div class="mb-3 flex flex-wrap gap-2">
+        <UiButton
+          variant="outline"
+          size="sm"
+          icon="lucide:refresh-cw"
+          :disabled="loadingLog"
+          @click="refreshLog"
+        >
+          {{ t('settings.diagnostics.commandLog.refresh') }}
+        </UiButton>
+        <UiButton
+          variant="outline"
+          size="sm"
+          icon="lucide:clipboard-copy"
+          :disabled="!commandLog.length"
+          @click="copyCommandLog"
+        >
+          {{ t('settings.diagnostics.commandLog.copy') }}
+        </UiButton>
+      </div>
+      <p v-if="!recentCalls.length" class="text-xs text-muted-foreground">
+        {{ t('settings.diagnostics.commandLog.empty') }}
+      </p>
+      <ol
+        v-else
+        class="max-h-80 divide-y overflow-y-auto rounded-md border text-xs"
+      >
+        <li v-for="call in recentCalls" :key="call.seq" class="call p-2">
+          <div class="flex items-baseline gap-2 font-mono">
+            <span class="shrink-0 text-muted-foreground">
+              {{ call.time }}
+            </span>
+            <span
+              class="shrink-0 tabular-nums"
+              :class="call.ok ? 'text-muted-foreground' : 'text-destructive'"
+            >
+              {{ call.duration }}
+            </span>
+            <span class="break-all">{{ call.command }}</span>
+          </div>
+          <p v-if="call.error" class="mt-1 break-all text-destructive">
+            {{ call.error }}
+          </p>
+        </li>
+      </ol>
     </div>
 
     <div>

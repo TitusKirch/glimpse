@@ -309,6 +309,13 @@
         "gitTarget": "Destino de Git",
         "route": "Ruta"
       },
+      "commandLog": {
+        "label": "Registro de comandos",
+        "hint": "Cada llamada a git de esta sesión: la invocación exacta, cuánto tardó y si falló. Se guarda solo en memoria, nunca en disco, y está limitado, así que las llamadas más antiguas se descartan. Las credenciales de una URL remota se ocultan antes de mostrar o copiar nada.",
+        "refresh": "Actualizar",
+        "copy": "Copiar el registro de comandos",
+        "empty": "Todavía no se ha registrado ninguna llamada a git."
+      },
       "inspector": {
         "label": "Inspector",
         "hint": "Abre las herramientas de desarrollo de la WebView: la consola, el registro de red y la traza completa. F12 hace lo mismo desde cualquier parte de la aplicación. Solo en la aplicación de escritorio.",
