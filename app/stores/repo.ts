@@ -1477,10 +1477,16 @@ export const useRepoStore = defineStore('repo', {
     // Close a repo tab. Activates a neighbour; leaves activeId pointing at a
     // closed id only when nothing remains (the start screen then shows).
     closeRepo(id: string) {
-      if (!this.repos[id]) return;
+      const closing = this.repos[id];
+      if (!closing) return;
       const idx = this.order.indexOf(id);
       delete this.repos[id];
       this.order = this.order.filter((x) => x !== id);
+      // Release the closed repo's changelist bookkeeping, which is otherwise
+      // resident for the rest of the session (and, persisted, beyond it). It is
+      // keyed by path, so keep it while another tab still shows the same repo.
+      if (!this.tabs.some((t) => t.path === closing.path))
+        void useChangelistsStore().release(closing.path);
       if (this.activeId === id) {
         const next = this.order[idx] ?? this.order[idx - 1] ?? '';
         this.activeId = next;
