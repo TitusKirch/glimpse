@@ -225,24 +225,35 @@ pub fn set_active(state: &ChangelistState, id: &str) -> ChangelistState {
     next
 }
 
-/// Move a path into `to_id`, removing it from whatever list currently holds it —
-/// the one-path-one-list invariant is enforced here.
+/// Move a whole path into `to_id`, removing it from whatever list currently
+/// holds it — the one-path-one-list invariant is enforced here.
+///
+/// It takes the path's HUNKS with it: `members` is derived from them, so a hunk
+/// left behind in the old list would let the next normalize recompute `members`
+/// straight back and silently undo this move. The file-level gesture
+/// deliberately asserts itself over any sub-file split of that path.
 pub fn move_file(state: &ChangelistState, path: &str, to_id: &str) -> ChangelistState {
     if !state.lists.iter().any(|l| l.id == to_id) {
         return state.clone();
     }
     let mut next = state.clone();
+    let mut moving: Vec<HunkRef> = Vec::new();
     for list in &mut next.lists {
         list.members.retain(|p| p != path);
+        moving.extend(list.hunks.iter().filter(|h| h.path == path).cloned());
+        list.hunks.retain(|h| h.path != path);
     }
     if let Some(target) = next.lists.iter_mut().find(|l| l.id == to_id) {
         target.members.push(path.to_string());
+        target.hunks.extend(moving);
     }
     next
 }
 
-/// The id of the list holding `path`, if any. Part of the ported model API
-/// (mirrors the TS `listOf`); currently exercised only by the tests.
+/// The id of the list holding `path` at FILE level. For a path split across
+/// lists that is the majority holder (see `sync_members`), so this deliberately
+/// cannot distinguish a split path from a whole-file one — ask `list_of_hunk`
+/// when the difference matters. Mirrors the TS `listOf`.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn list_of<'a>(state: &'a ChangelistState, path: &str) -> Option<&'a str> {
     state
@@ -692,6 +703,27 @@ mod tests {
         .expect("normalizes");
         assert_eq!(list_of_hunk(&dup, "a.ts", "deadbeef"), Some(DEFAULT_ID));
         assert_eq!(dup.lists.iter().flat_map(|l| &l.hunks).count(), 1);
+    }
+
+    #[test]
+    fn move_file_takes_the_paths_hunks_with_it() {
+        let s = initial_state();
+        let (s, feature) = create_list(&s, "Feature");
+        let s = move_hunk(&s, "a.ts", HUNK_A, &feature);
+        let s = move_hunk(&s, "a.ts", HUNK_B, DEFAULT_ID);
+
+        // The file-level gesture asserts itself over the sub-file split...
+        let s = move_file(&s, "a.ts", &feature);
+        assert_eq!(list_of(&s, "a.ts"), Some(feature.as_str()));
+        assert_eq!(
+            list_of_hunk(&s, "a.ts", &hunk_hash(HUNK_B)),
+            Some(feature.as_str())
+        );
+
+        // ...and the result is a fixed point: a round-trip through normalize
+        // must not recompute `members` back out of a hunk left behind.
+        let back = deserialize(&serialize(&s)).expect("round-trips");
+        assert_eq!(list_of(&back, "a.ts"), Some(feature.as_str()));
     }
 
     #[test]

@@ -53,13 +53,22 @@ function freshId(state: ChangelistState, name: string): string {
   return id;
 }
 
+// A state rehydrated straight out of `localStorage` predates hunk membership
+// and arrives WITHOUT `hunks` — the Pinia store persists `byRepo` as raw JSON,
+// so it never passes through `deserialize` and the zod schema never sees it.
+// Every entry point that meets raw state defaults the field rather than
+// dereferencing it; past this boundary `hunks` is always an array.
+function hunksOf(list: Changelist): HunkRef[] {
+  return list.hunks ?? [];
+}
+
 function clone(state: ChangelistState): ChangelistState {
   return {
     activeId: state.activeId,
     lists: state.lists.map((l) => ({
       ...l,
       members: [...l.members],
-      hunks: l.hunks.map((h) => ({ ...h, lines: [...h.lines] }))
+      hunks: hunksOf(l).map((h) => ({ ...h, lines: [...h.lines] }))
     }))
   };
 }
@@ -115,8 +124,13 @@ export function setActive(state: ChangelistState, id: string): ChangelistState {
   return next;
 }
 
-// Move a path into `toId`, removing it from whatever list currently holds it —
-// the one-path-one-list invariant is enforced here.
+// Move a whole path into `toId`, removing it from whatever list currently holds
+// it — the one-path-one-list invariant is enforced here.
+//
+// It takes the path's HUNKS with it: `members` is derived from them, so leaving
+// a hunk behind in the old list would let the next normalize recompute
+// `members` straight back and silently undo this move. The file-level gesture
+// deliberately asserts itself over any sub-file split of that path.
 export function moveFile(
   state: ChangelistState,
   path: string,
@@ -124,12 +138,22 @@ export function moveFile(
 ): ChangelistState {
   if (!state.lists.some((l) => l.id === toId)) return state;
   const next = clone(state);
-  for (const l of next.lists) l.members = l.members.filter((p) => p !== path);
+  const moving: HunkRef[] = [];
+  for (const l of next.lists) {
+    l.members = l.members.filter((p) => p !== path);
+    moving.push(...l.hunks.filter((h) => h.path === path));
+    l.hunks = l.hunks.filter((h) => h.path !== path);
+  }
   const target = next.lists.find((l) => l.id === toId)!;
   target.members.push(path);
+  target.hunks.push(...moving);
   return next;
 }
 
+// The list a path is filed under at FILE level. For a path split across lists
+// that is the majority holder (see `syncMembers`), so this deliberately cannot
+// distinguish a split path from a whole-file one — ask `listOfHunk` when the
+// difference matters.
 export function listOf(state: ChangelistState, path: string): string | null {
   return state.lists.find((l) => l.members.includes(path))?.id ?? null;
 }
@@ -187,12 +211,14 @@ function hunkRef(path: string, hunk: string): HunkRef {
 // the earlier list. Only paths that actually carry hunks are touched — a
 // whole-file assignment keeps whatever `moveFile` gave it.
 function syncMembers(state: ChangelistState): ChangelistState {
-  const paths = new Set(state.lists.flatMap((l) => l.hunks.map((h) => h.path)));
+  const paths = new Set(
+    state.lists.flatMap((l) => hunksOf(l).map((h) => h.path))
+  );
   for (const path of paths) {
     let best: Changelist | null = null;
     let bestCount = 0;
     for (const l of state.lists) {
-      const n = l.hunks.filter((h) => h.path === path).length;
+      const n = hunksOf(l).filter((h) => h.path === path).length;
       if (n > bestCount) {
         bestCount = n;
         best = l;
@@ -233,7 +259,7 @@ export function listOfHunk(
 ): string | null {
   return (
     state.lists.find((l) =>
-      l.hunks.some((h) => h.path === path && h.hash === hash)
+      hunksOf(l).some((h) => h.path === path && h.hash === hash)
     )?.id ?? null
   );
 }
@@ -341,7 +367,7 @@ export function reconcile(
   const lists = state.lists.map((l) => ({
     ...l,
     members: l.members.filter((p) => changed.has(p)),
-    hunks: l.hunks.filter((h) => changed.has(h.path))
+    hunks: hunksOf(l).filter((h) => changed.has(h.path))
   }));
   const assigned = new Set(lists.flatMap((l) => l.members));
   const activeId = lists.some((l) => l.id === state.activeId)
@@ -392,7 +418,7 @@ function normalize(state: ChangelistState): ChangelistState {
     id: l.id,
     name: l.name,
     members: [...l.members],
-    hunks: l.hunks.map((h) => ({ ...h, lines: [...h.lines] }))
+    hunks: hunksOf(l).map((h) => ({ ...h, lines: [...h.lines] }))
   }));
   const defIdx = lists.findIndex((l) => l.id === DEFAULT_ID);
   if (defIdx < 0) {
@@ -426,8 +452,8 @@ export function serialize(state: ChangelistState): string {
       // An empty `hunks` is left out entirely: a repo that never splits a file
       // keeps writing byte-for-byte what it wrote before this feature existed.
       lists: state.lists.map((l) =>
-        l.hunks.length > 0
-          ? { id: l.id, name: l.name, members: l.members, hunks: l.hunks }
+        hunksOf(l).length > 0
+          ? { id: l.id, name: l.name, members: l.members, hunks: hunksOf(l) }
           : { id: l.id, name: l.name, members: l.members }
       )
     },

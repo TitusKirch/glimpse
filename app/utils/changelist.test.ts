@@ -14,7 +14,8 @@ import {
   listOfHunk,
   reconcileHunks,
   CHANGELIST_SCHEMA_VERSION,
-  DEFAULT_ID
+  DEFAULT_ID,
+  type ChangelistState
 } from './changelist';
 
 describe('changelist model', () => {
@@ -328,5 +329,66 @@ describe('hunk persistence (additive, still version 1)', () => {
     expect(s).not.toBeNull();
     expect(listOfHunk(s!, 'a.ts', 'deadbeef')).toBe(DEFAULT_ID); // first wins
     expect(s!.lists.flatMap((l) => l.hunks ?? [])).toHaveLength(1);
+  });
+});
+
+// ── Review round 1 (#112) ─────────────────────────────────────────────────
+
+describe('file-level and hunk-level gestures together', () => {
+  it('moveFile survives a round-trip once the path carries hunks', () => {
+    let s = initialState();
+    ({ state: s } = createList(s, 'Feature'));
+    const featureId = s.lists[1]!.id;
+    s = moveHunk(s, 'a.ts', HUNK_A, featureId);
+
+    // The file-level gesture asserts itself over the sub-file one...
+    s = moveFile(s, 'a.ts', DEFAULT_ID);
+    expect(listOf(s, 'a.ts')).toBe(DEFAULT_ID);
+    expect(listOfHunk(s, 'a.ts', hunkHash(HUNK_A))).toBe(DEFAULT_ID);
+
+    // ...and the result is a fixed point of normalize, so nothing recomputes
+    // `members` back out from a hunk left behind in the old list.
+    expect(listOf(deserialize(serialize(s))!, 'a.ts')).toBe(DEFAULT_ID);
+  });
+
+  it('moveFile takes every hunk of the path, not just one', () => {
+    let s = initialState();
+    ({ state: s } = createList(s, 'Feature'));
+    const featureId = s.lists[1]!.id;
+    s = moveHunk(s, 'a.ts', HUNK_A, featureId);
+    s = moveHunk(s, 'a.ts', HUNK_B, DEFAULT_ID);
+    s = moveFile(s, 'a.ts', featureId);
+    expect(listOfHunk(s, 'a.ts', hunkHash(HUNK_B))).toBe(featureId);
+    expect(listOf(deserialize(serialize(s))!, 'a.ts')).toBe(featureId);
+  });
+});
+
+describe('state rehydrated from a cache written before hunks existed', () => {
+  // The Pinia store is `persist: true`, so `byRepo` comes back out of
+  // localStorage as raw JSON without passing through `deserialize` — the zod
+  // schema guards the FILE, not this path. Such a state has no `hunks` at all.
+  const legacy = () =>
+    JSON.parse(
+      JSON.stringify({
+        activeId: DEFAULT_ID,
+        lists: [{ id: DEFAULT_ID, name: 'Default', members: ['a.ts'] }]
+      })
+    ) as ChangelistState;
+
+  it('does not throw anywhere the store can reach it', () => {
+    expect(() => createList(legacy(), 'X')).not.toThrow();
+    expect(() => serialize(legacy())).not.toThrow();
+    expect(() => reconcile(legacy(), ['a.ts'])).not.toThrow();
+    expect(() => moveFile(legacy(), 'a.ts', DEFAULT_ID)).not.toThrow();
+    expect(() => deleteList(legacy(), DEFAULT_ID)).not.toThrow();
+    expect(() => listOfHunk(legacy(), 'a.ts', 'deadbeef')).not.toThrow();
+  });
+
+  it('keeps the cached file-level membership through a seeding round-trip', () => {
+    // `load()` migrates cached membership into the file when none exists yet:
+    // persistNow -> serialize -> deserialize.
+    const seeded = deserialize(serialize(legacy()));
+    expect(seeded).not.toBeNull();
+    expect(listOf(seeded!, 'a.ts')).toBe(DEFAULT_ID);
   });
 });
