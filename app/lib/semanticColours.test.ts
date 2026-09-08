@@ -11,7 +11,7 @@ import { buttonVariants } from '@/components/ui/button';
  * them reaching past the theme tokens into the Tailwind palette, all three
  * with a different recipe. These are the rules that keep the three in step:
  * the colour always comes from the tokens, and how it appears follows the
- * component's role — an accent on `Alert`, a fill on `Badge`.
+ * component's role — an accent on `Alert`, a fill on `Badge` and `Button`.
  */
 const SEMANTIC = ['info', 'success', 'warning', 'destructive'] as const;
 
@@ -29,8 +29,8 @@ describe('semantic colours come from the tokens', () => {
     expect(badgeVariants({ variant })).not.toMatch(PALETTE);
   });
 
-  it('Button destructive uses no palette colour', () => {
-    expect(buttonVariants({ variant: 'destructive' })).not.toMatch(PALETTE);
+  it.each(SEMANTIC)('Button %s uses no palette colour', (variant) => {
+    expect(buttonVariants({ variant })).not.toMatch(PALETTE);
   });
 });
 
@@ -66,19 +66,34 @@ describe('Badge renders a semantic colour as a fill', () => {
   });
 });
 
-describe('Button keeps shadcn own variant set', () => {
-  // An unknown variant contributes no classes, so it is what a dropped one
-  // now looks like.
+describe('Button renders a semantic colour as a fill', () => {
+  // A button is a fill component like `Badge`, so all four semantic colours
+  // land the same way — solid token, paired foreground. `TriggersPage` binds
+  // every one of them; an unknown variant contributes no classes at all, which
+  // is what a button asking for a variant that is not there looks like.
   const unknown = buttonVariants({ variant: 'not-a-variant' as never });
 
-  it.each(['success', 'warning', 'info'])('%s is not a variant', (variant) => {
-    expect(buttonVariants({ variant: variant as never })).toBe(unknown);
+  it.each(SEMANTIC)('%s is a variant', (variant) => {
+    expect(buttonVariants({ variant })).not.toBe(unknown);
   });
 
-  it('fills destructive with its paired foreground', () => {
-    const classes = buttonVariants({ variant: 'destructive' });
+  it.each(SEMANTIC)('%s fills with its paired foreground', (variant) => {
+    const classes = buttonVariants({ variant });
 
-    expect(classes).toContain('bg-destructive ');
-    expect(classes).toContain('text-destructive-foreground');
+    expect(classes).toContain(`bg-${variant} `);
+    expect(classes).toContain(`text-${variant}-foreground`);
+  });
+
+  it.each(SEMANTIC)('%s answers hover and keyboard focus', (variant) => {
+    const classes = buttonVariants({ variant });
+
+    expect(classes).toContain(`hover:bg-${variant}/90`);
+    expect(classes).toContain(`focus-visible:ring-${variant}/20`);
+    expect(classes).toContain(`dark:focus-visible:ring-${variant}/40`);
+  });
+
+  it.each(SEMANTIC)('%s dims like every other variant when disabled', (v) => {
+    // Carried by the base string, so a semantic fill cannot forget it.
+    expect(buttonVariants({ variant: v })).toContain('disabled:opacity-50');
   });
 });

@@ -9,11 +9,10 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        // Buttons keep shadcn's own set: a confirm button is the loudest thing
-        // on the dialog it sits in, so `destructive` takes the fill half of
-        // the semantic rule (a solid token with its paired foreground) rather
-        // than the wash it used to wear. `success` / `warning` / `info` are
-        // gone — nothing bound them, and upstream has no such variants.
+        // Upstream's own semantic variant, taking the fill half of our rule: a
+        // solid token with its paired foreground rather than the 10 % wash it
+        // used to wear, so a confirm button is the loudest thing on the dialog
+        // it sits in. The three below follow it exactly.
         destructive:
           'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
         outline:
@@ -22,7 +21,21 @@ export const buttonVariants = cva(
           'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline'
+        link: 'text-primary underline-offset-4 hover:underline',
+        // Ours, not upstream's — appended after shadcn's own set so the two
+        // stay diffable. A button is a *fill* component like `Badge`, so each
+        // semantic colour is a solid theme token with the foreground it is
+        // paired with; the token never has to be legible as text on its own
+        // wash. Hover, focus ring and the base `disabled:` dim come from the
+        // same shape as `destructive`, so the four read as one family at one
+        // weight and differ only in hue. `Alert` takes the accent half of
+        // the rule instead; the pairs are measured in
+        // `app/assets/css/contrast.test.ts`.
+        info: 'bg-info text-info-foreground shadow-xs hover:bg-info/90 focus-visible:ring-info/20 dark:focus-visible:ring-info/40',
+        success:
+          'bg-success text-success-foreground shadow-xs hover:bg-success/90 focus-visible:ring-success/20 dark:focus-visible:ring-success/40',
+        warning:
+          'bg-warning text-warning-foreground shadow-xs hover:bg-warning/90 focus-visible:ring-warning/20 dark:focus-visible:ring-warning/40'
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',
