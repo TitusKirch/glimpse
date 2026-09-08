@@ -119,3 +119,19 @@ be reported as a real bug. While any is active it is announced app-wide in the
 sidebar badge slot, alongside (never instead of) the EXPERIMENT / BETA build
 identity — build identity and runtime state say different things. The detailed
 list and the single "turn everything off" live on the Simulation page.
+
+**trigger**
+A developer control that fires a one-off action so a surface can be looked at on
+purpose — a toast, one of the promise dialogs, or a deliberate crash. The
+opposite of a _simulation_, which stays on and bends the app until it is switched
+off; that split is the axis the Developer settings group is ordered along. The
+**crash** triggers are the one group that ends the current session, so each says
+what it is about to do and waits for a confirmation; they exist because the fatal
+error page and the diagnostics block it renders otherwise only show once
+something has already gone wrong. What they provoke is routed app-wide by
+`app/plugins/errors.client.ts`, by how much of the app is left standing: an error
+out of render, a watcher or an event handler hands over to `app/error.vue`, while
+an unhandled promise rejection is only an error toast, because the rendered app
+still works. The backend trigger is the Rust `dev_panic` command — compiled into
+release builds the way `open_devtools` is, and reachable only from the Developer
+pages `devMode` unlocks.
