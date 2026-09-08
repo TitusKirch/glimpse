@@ -322,21 +322,21 @@ async function restart() {
       <div class="flex flex-wrap gap-2">
         <button
           type="button"
-          class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
           @click="reload"
         >
           Reload
         </button>
         <button
           type="button"
-          class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
           @click="copyDiagnostics"
         >
           Copy diagnostics
         </button>
         <button
           type="button"
-          class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
           @click="report"
         >
           Report this
@@ -357,7 +357,7 @@ async function restart() {
             id="update-channel"
             v-model="channel"
             :disabled="checking"
-            class="rounded-md border bg-background px-2 py-1.5 text-xs"
+            class="rounded-md border bg-background px-2 py-1.5 text-xs text-foreground"
           >
             <option v-for="c in CHANNELS" :key="c.value" :value="c.value">
               {{ c.label }}
@@ -366,7 +366,7 @@ async function restart() {
           <button
             type="button"
             :disabled="checking"
-            class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+            class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
             @click="checkForUpdates"
           >
             {{ checking ? 'Checking...' : 'Check for updates' }}
@@ -374,7 +374,7 @@ async function restart() {
           <button
             v-if="installed"
             type="button"
-            class="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+            class="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
             @click="restart"
           >
             Restart now

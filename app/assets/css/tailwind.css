@@ -4,6 +4,12 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Native controls (select, option, the scrollbars a WebView draws itself)
+     take their colours from the UA palette, not from our tokens — they do not
+     inherit `color`. Without this they render light-mode on a dark page: the
+     WebKitGTK select on the fatal error page came out dark-on-dark. Declared
+     beside the tokens so the two can never drift apart. */
+  color-scheme: light;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -40,6 +46,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
