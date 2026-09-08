@@ -92,3 +92,16 @@ opened repositories and recently used command-palette actions. The mechanics
 (move/insert to front, dedup by a stable key, trim to `max`) live once in the
 pure `moveToFront` core (`app/utils/recency.ts`); each store supplies the key and
 the cap (owned by the layout store, under Settings → General → Recent).
+
+**simulation**
+A developer switch that deliberately bends how the running app behaves — make
+IPC fail, pretend an update is available. The opposite of a _diagnostic_, which
+only observes; that split is the axis the Developer settings group is ordered
+along (Showcase → Triggers → Diagnostics → Simulation,
+`app/utils/developerPages.ts`). Simulations are **session-only**: the store
+(`app/stores/simulation.ts`) is the one that is deliberately not persisted, so a
+switch can never greet someone after a restart and a forgotten switch can never
+be reported as a real bug. While any is active it is announced app-wide in the
+sidebar badge slot, alongside (never instead of) the EXPERIMENT / BETA build
+identity — build identity and runtime state say different things. The detailed
+list and the single "turn everything off" live on the Simulation page.

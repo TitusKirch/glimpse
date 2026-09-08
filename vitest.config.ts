@@ -30,6 +30,7 @@ export default defineConfig({
         'app/utils/**/*.ts',
         'app/lib/**/*.ts',
         'app/stores/settings.ts',
+        'app/stores/simulation.ts',
         'app/composables/gitClient.ts',
         'app/composables/gitMock.ts',
         'app/composables/tauriInvoke.ts',
