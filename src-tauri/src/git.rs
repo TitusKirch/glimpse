@@ -193,11 +193,19 @@ fn build_rebase_todo(steps: &[RebaseStep], msg_prefix: &str) -> (String, Vec<(St
     (todo, msgs)
 }
 
-/// Standard base64 (with `=` padding) — to embed image bytes in a `data:` URL.
+/// How many base64 characters `len` bytes encode to: four per three bytes, the
+/// last group padded out with `=`. The ~33% by which an encoded image exceeds
+/// the raw one, in other words.
+const fn base64_len(len: usize) -> usize {
+    len.div_ceil(3) * 4
+}
+
+/// Standard base64 (with `=` padding), appended to `out` rather than returned in
+/// a buffer of its own — see [`data_url`], which is why the shape matters.
 /// Dependency-free so the careful dep policy stays intact.
-fn base64_encode(input: &[u8]) -> String {
+fn base64_encode_into(input: &[u8], out: &mut String) {
     const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
+    out.reserve(base64_len(input.len()));
     for chunk in input.chunks(3) {
         let b1 = chunk.get(1).copied().unwrap_or(0);
         let b2 = chunk.get(2).copied().unwrap_or(0);
@@ -215,7 +223,25 @@ fn base64_encode(input: &[u8]) -> String {
             '='
         });
     }
-    out
+}
+
+/// An image's `data:` URL, built in a single buffer sized up front.
+///
+/// The encoding is written straight into the URL's own string on purpose.
+/// Encoding into a base64 `String` and then formatting that into the URL would
+/// hold a third copy of the image at the peak — the raw bytes, the encoding, and
+/// the URL it is copied into — and two of those three are the larger, encoded
+/// size.
+fn data_url(mime: &str, bytes: &[u8]) -> String {
+    const PREFIX: &str = "data:";
+    const INFIX: &str = ";base64,";
+    let mut url =
+        String::with_capacity(PREFIX.len() + mime.len() + INFIX.len() + base64_len(bytes.len()));
+    url.push_str(PREFIX);
+    url.push_str(mime);
+    url.push_str(INFIX);
+    base64_encode_into(bytes, &mut url);
+    url
 }
 
 /// Map a file extension to an image MIME type, or `None` for non-images.
@@ -383,6 +409,17 @@ pub struct RepoInfo {
 /// line by line anyway.
 const MAX_DIFF_CONTENT_BYTES: usize = 2 * 1024 * 1024;
 
+/// Ceiling on each side of an image diff, in raw bytes.
+///
+/// Derived from [`MAX_DIFF_CONTENT_BYTES`] rather than picked separately, so
+/// there is one ceiling in this file and not two: an image travels as a base64
+/// `data:` URL, four characters per three bytes, so this is the raw size whose
+/// encoded form lands exactly on the per-side payload ceiling the text diff
+/// already lives under. Capping the raw bytes at 2 MiB instead would quietly
+/// grant images a ~2.7 MiB string — in the one path that is also holding the
+/// raw bytes while it builds it.
+const MAX_IMAGE_BYTES: usize = MAX_DIFF_CONTENT_BYTES / 4 * 3;
+
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DiffData {
@@ -444,6 +481,61 @@ pub struct ImageDiff {
     pub old: Option<String>,
     /// The working-tree image; null when the file was deleted.
     pub new: Option<String>,
+    /// A side of this image is past [`MAX_IMAGE_BYTES`], so neither side was
+    /// embedded and `old` / `new` are both null. The viewer has to say so:
+    /// null otherwise means "not present on this side", so a silent decline
+    /// would read as an image that was added or deleted.
+    pub contents_omitted: bool,
+}
+
+/// One side of an image diff, as fetching it turned out.
+enum ImageSide {
+    /// The file is not on this side — newly added, or deleted.
+    Absent,
+    /// The side's bytes, within [`MAX_IMAGE_BYTES`].
+    Bytes(Vec<u8>),
+    /// The side exists but is past [`MAX_IMAGE_BYTES`]. It carries no bytes
+    /// because the committed side's size is read before its contents are, so
+    /// an oversized blob is never loaded merely to be dropped again.
+    TooLarge,
+}
+
+impl ImageDiff {
+    /// Attach both sides as `data:` URLs, unless either is past
+    /// [`MAX_IMAGE_BYTES`] — then neither is attached and `contents_omitted`
+    /// is set instead.
+    ///
+    /// The sides arrive as closures for the reason
+    /// [`DiffData::attach_contents`] takes them, and one more. An oversized
+    /// first side means the second is never fetched. And each side is encoded
+    /// before the next is fetched, so the two images' raw bytes are never
+    /// resident together: the peak is one raw image plus the URLs, not both raw
+    /// images plus both URLs.
+    ///
+    /// It is both sides or neither, as with the text diff. Shipping the small
+    /// side alone would leave the other null, which the viewer renders as "not
+    /// present" — reporting an add or a delete instead of the change the user
+    /// asked to see.
+    fn attach_sides(&mut self, old: impl FnOnce() -> ImageSide, new: impl FnOnce() -> ImageSide) {
+        let old_url = match old() {
+            ImageSide::TooLarge => {
+                self.contents_omitted = true;
+                return;
+            }
+            ImageSide::Absent => None,
+            ImageSide::Bytes(bytes) => Some(data_url(&self.mime, &bytes)),
+        };
+        let new_url = match new() {
+            ImageSide::TooLarge => {
+                self.contents_omitted = true;
+                return;
+            }
+            ImageSide::Absent => None,
+            ImageSide::Bytes(bytes) => Some(data_url(&self.mime, &bytes)),
+        };
+        self.old = old_url;
+        self.new = new_url;
+    }
 }
 
 #[derive(Serialize, TS)]
@@ -1028,18 +1120,53 @@ impl Repo {
     /// deleted), so the viewer can show them visually instead of "no text diff".
     pub fn image_diff(&self, file: &str) -> Result<ImageDiff, String> {
         reject_unsafe_path(file)?;
-        let mime = image_mime(file).unwrap_or("application/octet-stream");
-        let url = |bytes: &[u8]| format!("data:{mime};base64,{}", base64_encode(bytes));
-        let old = self
-            .run_bytes(&["show", &format!("HEAD:{file}")])
-            .ok()
-            .filter(|b| !b.is_empty());
-        let new = self.target.read_file_bytes(file);
-        Ok(ImageDiff {
-            mime: mime.to_string(),
-            old: old.as_deref().map(url),
-            new: new.as_deref().map(url),
-        })
+        let mut diff = ImageDiff {
+            mime: image_mime(file)
+                .unwrap_or("application/octet-stream")
+                .to_string(),
+            old: None,
+            new: None,
+            contents_omitted: false,
+        };
+        diff.attach_sides(
+            || self.committed_image(file),
+            // The working tree has no counterpart to `cat-file -s`: reading the
+            // file is the only way to learn its size, native or over `wsl.exe
+            // cat`. So an oversized working-tree image is read once and dropped
+            // here — one transient buffer, rather than one that goes on to be
+            // encoded, crosses IPC and is parked in the webview.
+            || match self.target.read_file_bytes(file) {
+                None => ImageSide::Absent,
+                Some(bytes) if bytes.len() > MAX_IMAGE_BYTES => ImageSide::TooLarge,
+                Some(bytes) => ImageSide::Bytes(bytes),
+            },
+        );
+        Ok(diff)
+    }
+
+    /// The committed (HEAD) image, sized before it is read: `cat-file -s`
+    /// reports the blob's size without materialising it, so an image past
+    /// [`MAX_IMAGE_BYTES`] costs a number rather than a buffer — the one side
+    /// where the size is knowable in advance, and the side whose history can
+    /// hold something far larger than anything in the working tree.
+    ///
+    /// Anything unexpected — no HEAD, the path not committed, output that does
+    /// not parse — is [`ImageSide::Absent`]: the side genuinely has no image to
+    /// show, and guessing at a size would be the one mistake that matters here.
+    fn committed_image(&self, file: &str) -> ImageSide {
+        let spec = format!("HEAD:{file}");
+        let Ok(size) = self.run(&["cat-file", "-s", &spec]) else {
+            return ImageSide::Absent;
+        };
+        match size.trim().parse::<usize>() {
+            Ok(n) if n > MAX_IMAGE_BYTES => ImageSide::TooLarge,
+            Ok(n) if n > 0 => self
+                .run_bytes(&["show", &spec])
+                .ok()
+                .filter(|b| !b.is_empty())
+                .map_or(ImageSide::Absent, ImageSide::Bytes),
+            _ => ImageSide::Absent,
+        }
     }
 
     /// Full commit message (subject + body) for the detail panel.
@@ -2118,13 +2245,18 @@ mod validate_tests {
 
     #[test]
     fn base64_encode_matches_known_vectors() {
-        use super::base64_encode;
-        assert_eq!(base64_encode(b""), "");
-        assert_eq!(base64_encode(b"f"), "Zg==");
-        assert_eq!(base64_encode(b"fo"), "Zm8=");
-        assert_eq!(base64_encode(b"foo"), "Zm9v");
-        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
-        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+        use super::base64_encode_into;
+        let encode = |bytes: &[u8]| {
+            let mut out = String::new();
+            base64_encode_into(bytes, &mut out);
+            out
+        };
+        assert_eq!(encode(b""), "");
+        assert_eq!(encode(b"f"), "Zg==");
+        assert_eq!(encode(b"fo"), "Zm8=");
+        assert_eq!(encode(b"foo"), "Zm9v");
+        assert_eq!(encode(b"foob"), "Zm9vYg==");
+        assert_eq!(encode(b"foobar"), "Zm9vYmFy");
     }
 
     #[test]
@@ -2567,6 +2699,162 @@ mod diff_content_cap_tests {
         );
         assert_eq!(small.old_content, "first\n");
         assert_eq!(small.new_content, "second\n");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod image_cap_tests {
+    use super::{base64_encode_into, data_url, ImageDiff, ImageSide, Repo, MAX_IMAGE_BYTES};
+    use std::cell::Cell;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    /// What `image_diff` starts from: the MIME type is known from the name,
+    /// neither side has been fetched yet.
+    fn empty() -> ImageDiff {
+        ImageDiff {
+            mime: "image/png".to_string(),
+            old: None,
+            new: None,
+            contents_omitted: false,
+        }
+    }
+
+    #[test]
+    fn both_sides_within_the_ceiling_are_embedded() {
+        let mut diff = empty();
+        diff.attach_sides(
+            || ImageSide::Bytes(b"foo".to_vec()),
+            || ImageSide::Bytes(b"foobar".to_vec()),
+        );
+        assert_eq!(diff.old.as_deref(), Some("data:image/png;base64,Zm9v"));
+        assert_eq!(diff.new.as_deref(), Some("data:image/png;base64,Zm9vYmFy"));
+        assert!(!diff.contents_omitted, "a small image is not capped");
+    }
+
+    #[test]
+    fn an_absent_side_is_not_a_capped_one() {
+        let mut diff = empty();
+        diff.attach_sides(|| ImageSide::Absent, || ImageSide::Bytes(b"foo".to_vec()));
+        assert!(diff.old.is_none(), "an added image has no committed side");
+        assert_eq!(diff.new.as_deref(), Some("data:image/png;base64,Zm9v"));
+        assert!(!diff.contents_omitted, "absent is not too large");
+    }
+
+    #[test]
+    fn a_side_past_the_ceiling_embeds_neither_image() {
+        let mut diff = empty();
+        // The small side must not travel alone: a null side is how the viewer
+        // is told the file was added or deleted, so shipping one would report a
+        // change that never happened.
+        diff.attach_sides(|| ImageSide::Bytes(b"foo".to_vec()), || ImageSide::TooLarge);
+        assert!(
+            diff.contents_omitted,
+            "the cap has to be visible in the payload"
+        );
+        assert!(diff.old.is_none(), "old image shipped anyway");
+        assert!(diff.new.is_none(), "new image shipped anyway");
+    }
+
+    #[test]
+    fn an_oversized_first_side_is_never_followed_by_a_second_fetch() {
+        // Fetching the second image would put it in memory beside a first one
+        // already known to be too big to ship — the peak the ceiling is for.
+        let second_fetch = Cell::new(false);
+        let mut diff = empty();
+        diff.attach_sides(
+            || ImageSide::TooLarge,
+            || {
+                second_fetch.set(true);
+                ImageSide::Absent
+            },
+        );
+        assert!(diff.contents_omitted);
+        assert!(
+            !second_fetch.get(),
+            "the second side was fetched despite the first being over"
+        );
+    }
+
+    #[test]
+    fn a_data_url_is_built_in_a_single_buffer() {
+        // While a side is encoded the image exists twice — raw bytes and URL.
+        // It must not exist three times, which is what encoding into its own
+        // base64 string and then copying that into the URL would cost.
+        let url = data_url("image/png", b"foobar");
+        assert_eq!(url, "data:image/png;base64,Zm9vYmFy");
+        assert_eq!(
+            url.capacity(),
+            url.len(),
+            "the URL was sized once up front, so it never grew into a second buffer"
+        );
+    }
+
+    #[test]
+    fn base64_encodes_onto_the_end_of_the_callers_buffer() {
+        let mut out = String::from("data:image/png;base64,");
+        base64_encode_into(b"foo", &mut out);
+        assert_eq!(out, "data:image/png;base64,Zm9v");
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    #[test]
+    fn image_diff_caps_an_oversized_side_and_embeds_a_small_one() {
+        let dir: PathBuf =
+            std::env::temp_dir().join(format!("glimpse-image-cap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+
+        // PNGs by name only — image_diff ships the bytes, it never decodes them.
+        let over = vec![0u8; MAX_IMAGE_BYTES + 1];
+        std::fs::write(dir.join("small.png"), b"first").unwrap();
+        std::fs::write(dir.join("big.png"), &over).unwrap();
+        std::fs::write(dir.join("shrunk.png"), &over).unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        std::fs::write(dir.join("small.png"), b"second").unwrap();
+        std::fs::write(dir.join("big.png"), vec![1u8; MAX_IMAGE_BYTES + 1]).unwrap();
+        std::fs::write(dir.join("shrunk.png"), b"tiny now").unwrap();
+
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let big = repo.image_diff("big.png").expect("diff big.png");
+        assert!(big.contents_omitted, "the large image was embedded anyway");
+        assert!(big.old.is_none() && big.new.is_none());
+        assert_eq!(big.mime, "image/png", "the viewer still learns the type");
+
+        // Only the committed side is over: its size is read before its bytes
+        // are, so the blob is declined without ever being loaded.
+        let shrunk = repo.image_diff("shrunk.png").expect("diff shrunk.png");
+        assert!(
+            shrunk.contents_omitted,
+            "an oversized committed side was embedded anyway"
+        );
+        assert!(shrunk.old.is_none() && shrunk.new.is_none());
+
+        let small = repo.image_diff("small.png").expect("diff small.png");
+        assert!(
+            !small.contents_omitted,
+            "an ordinary image must not be capped"
+        );
+        assert_eq!(small.old.as_deref(), Some("data:image/png;base64,Zmlyc3Q="));
+        assert_eq!(small.new.as_deref(), Some("data:image/png;base64,c2Vjb25k"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }

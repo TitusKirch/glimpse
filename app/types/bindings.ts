@@ -204,6 +204,13 @@ export type ImageDiff = {
    * The working-tree image; null when the file was deleted.
    */
   new: string | null;
+  /**
+   * A side of this image is past [`MAX_IMAGE_BYTES`], so neither side was
+   * embedded and `old` / `new` are both null. The viewer has to say so:
+   * null otherwise means "not present on this side", so a silent decline
+   * would read as an image that was added or deleted.
+   */
+  contentsOmitted: boolean;
 };
 
 export type Contributor = { name: string; email: string; commits: number };

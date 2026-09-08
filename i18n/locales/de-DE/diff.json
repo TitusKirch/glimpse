@@ -24,7 +24,9 @@
       "old": "Committet",
       "new": "Arbeitskopie",
       "absent": "Nicht vorhanden",
-      "onionSkin": "Überblendung"
+      "onionSkin": "Überblendung",
+      "omitted": "Bild zu groß für die Vorschau",
+      "omittedNote": "Eine Seite dieses Bildes ist zu groß, um sie in die Ansicht zu laden, deshalb wird keine der beiden gezeigt — eine einzelne Seite sähe so aus, als wäre die Datei gerade hinzugefügt oder gelöscht worden."
     },
     "omitted": "Volltext zurückgehalten",
     "omittedNote": "Diese Datei ist zu groß, um sie ganz zu laden; die Syntaxhervorhebung beschränkt sich daher auf die einzelnen Hunks. Der Diff selbst ist vollständig."
