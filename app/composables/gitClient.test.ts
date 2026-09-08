@@ -62,6 +62,28 @@ describe('gitClient', () => {
     });
   });
 
+  it('reads the command log back and answers empty without a backend', async () => {
+    // The log lives in the Rust process, so the browser demo has no calls to
+    // report — an empty list, not a rejection, keeps the Diagnostics page
+    // rendering there.
+    await gitClient.gitCommandLog();
+    expect(invoke.mock.calls[0][0]).toMatchObject({
+      command: 'git_command_log',
+      args: {},
+      fallback: []
+    });
+  });
+
+  it('sends both git fault switches on every simulation change', async () => {
+    // Both flags travel together: the backend holds one pair of switches, so a
+    // partial update would silently carry the other flag's stale value.
+    await gitClient.setGitSimulation({ fail: true, slow: false });
+    expect(invoke.mock.calls[0][0]).toMatchObject({
+      command: 'set_git_simulation',
+      args: { fail: true, slow: false }
+    });
+  });
+
   it('defaults getConfig scope to global and unsetConfig scope to local', async () => {
     await gitClient.getConfig({ path: '/r', key: 'k' });
     expect(
