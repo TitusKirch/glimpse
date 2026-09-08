@@ -1525,17 +1525,100 @@ async fn check_update(
         .map(|u| u.version))
 }
 
-/// Re-resolve the channel and, if an update exists, download and install it.
+/// The whole percent a download that has reached `downloaded` of `total` should
+/// report, or `None` when this chunk is not worth an event. `last` is the percent
+/// already reported.
+///
+/// The updater calls back on every chunk — tens of thousands of times on a real
+/// installer — while the UI only renders whole percents, so a chunk that doesn't
+/// move the number produces nothing. A download with no announced length has no
+/// percentage at all and stays silent; the toast keeps its indeterminate wording
+/// rather than inventing a number.
+#[cfg(desktop)]
+fn progress_percent(downloaded: u64, total: Option<u64>, last: Option<u8>) -> Option<u8> {
+    let total = total.filter(|t| *t > 0)?;
+    // Saturating, because a server may send more bytes than it announced.
+    let percent = (downloaded.saturating_mul(100) / total).min(100) as u8;
+    (Some(percent) != last).then_some(percent)
+}
+
+/// Event carrying one step of an update download to the frontend.
+#[cfg(desktop)]
+const UPDATE_PROGRESS_EVENT: &str = "update-progress";
+
+/// One step of an update download, as the frontend renders it.
+#[cfg(desktop)]
+#[derive(Clone, serde::Serialize)]
+struct UpdateProgress {
+    /// Whole percent downloaded, or `None` when the server announced no length
+    /// and there is no percentage to show.
+    percent: Option<u8>,
+    /// The bytes are in and the installer itself is running — on Windows a
+    /// separate process, which is why this is worth saying rather than leaving
+    /// the toast at 100%.
+    done: bool,
+}
+
+/// Re-resolve the channel and, if an update exists, download and install it,
+/// reporting progress on [`UPDATE_PROGRESS_EVENT`] as it goes. Before this the
+/// callbacks were both empty, so a multi-megabyte download showed nothing at all
+/// between "installing…" and either an error or silence.
 #[cfg(desktop)]
 #[tauri::command]
 async fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
     let Some(update) = resolve_update(&app, &channel, force).await? else {
         return Ok(());
     };
+    let chunk_app = app.clone();
+    let mut downloaded: u64 = 0;
+    let mut reported: Option<u8> = None;
     update
-        .download_and_install(|_, _| {}, || {})
+        .download_and_install(
+            move |chunk, total| {
+                downloaded = downloaded.saturating_add(chunk as u64);
+                let Some(percent) = progress_percent(downloaded, total, reported) else {
+                    return;
+                };
+                reported = Some(percent);
+                // A dropped progress event only costs a stale percentage, so it
+                // must never fail the install it is reporting on.
+                let _ = chunk_app.emit(
+                    UPDATE_PROGRESS_EVENT,
+                    UpdateProgress {
+                        percent: Some(percent),
+                        done: false,
+                    },
+                );
+            },
+            move || {
+                let _ = app.emit(
+                    UPDATE_PROGRESS_EVENT,
+                    UpdateProgress {
+                        percent: Some(100),
+                        done: true,
+                    },
+                );
+            },
+        )
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Restart the app so a freshly installed update actually runs.
+///
+/// Offered to the user after an install, never performed automatically: glimpse
+/// holds unfinished commit messages and conflict resolutions, and an app that
+/// vanishes mid-merge destroys work. Until this existed nothing called restart at
+/// all, so an installed update only took effect whenever the user happened to
+/// quit — which on the fatal error page means staying on the broken build.
+///
+/// `request_restart` rather than `restart`: it goes through `ExitRequested` /
+/// `Exit`, so the window-state plugin still saves, and it returns instead of
+/// parking this command's thread forever.
+#[cfg(desktop)]
+#[tauri::command]
+fn restart_app(app: AppHandle) {
+    app.request_restart();
 }
 
 // Mobile has no updater; no-op stubs keep the command set identical per target.
@@ -1550,6 +1633,10 @@ async fn check_update(_channel: String, _force: bool) -> Result<Option<String>, 
 async fn install_update(_channel: String, _force: bool) -> Result<(), String> {
     Ok(())
 }
+
+#[cfg(not(desktop))]
+#[tauri::command]
+fn restart_app() {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -1745,7 +1832,8 @@ pub fn run() {
             open_in,
             experiment_name,
             check_update,
-            install_update
+            install_update,
+            restart_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1754,9 +1842,34 @@ pub fn run() {
 #[cfg(all(test, desktop))]
 mod tests {
     use super::{
-        bake_wsl_shim, dev_panic_now, first_path_arg, parse_wsl_distros, resolve_cli_path,
-        version_outranks, wslpath_arg,
+        bake_wsl_shim, dev_panic_now, first_path_arg, parse_wsl_distros, progress_percent,
+        resolve_cli_path, version_outranks, wslpath_arg,
     };
+
+    #[test]
+    fn progress_reports_each_whole_percent_once() {
+        // The updater hands us every chunk, which on a 100 MB download is tens of
+        // thousands of calls. The frontend only renders whole percents, so a
+        // chunk that doesn't move the number is not worth an event.
+        assert_eq!(progress_percent(0, Some(200), None), Some(0));
+        assert_eq!(progress_percent(1, Some(200), Some(0)), None);
+        assert_eq!(progress_percent(2, Some(200), Some(0)), Some(1));
+        assert_eq!(progress_percent(200, Some(200), Some(99)), Some(100));
+    }
+
+    #[test]
+    fn progress_is_indeterminate_without_a_content_length() {
+        // No Content-Length (or a zero one) means no percentage exists; the
+        // toast stays on its indeterminate wording rather than inventing one.
+        assert_eq!(progress_percent(1024, None, None), None);
+        assert_eq!(progress_percent(1024, Some(0), None), None);
+    }
+
+    #[test]
+    fn progress_never_exceeds_one_hundred() {
+        // A server that sends more than it announced must not produce 137%.
+        assert_eq!(progress_percent(300, Some(200), Some(50)), Some(100));
+    }
 
     #[test]
     #[should_panic(expected = "deliberate panic")]
