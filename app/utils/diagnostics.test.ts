@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDiagnosticsMarkdown,
+  formatGitTarget,
   formatPluginOs,
   osFromUserAgent,
   routeFromLocation,
@@ -85,6 +86,26 @@ describe('formatPluginOs', () => {
   });
 });
 
+describe('formatGitTarget', () => {
+  it('names the distro whose git actually runs', () => {
+    expect(formatGitTarget('wsl', 'Ubuntu-22.04')).toBe('WSL · Ubuntu-22.04');
+  });
+
+  it('names the host platform when git is native', () => {
+    expect(formatGitTarget('linux')).toBe('Native (Linux)');
+    expect(formatGitTarget('windows')).toBe('Native (Windows)');
+    expect(formatGitTarget('macos')).toBe('Native (macOS)');
+  });
+
+  it('never claims a distro it was not told', () => {
+    expect(formatGitTarget('wsl')).toBe('WSL');
+  });
+
+  it('says so rather than guessing when no repo has resolved a target', () => {
+    expect(formatGitTarget('')).toBe('unknown');
+  });
+});
+
 describe('routeFromLocation', () => {
   it('joins path, query and hash', () => {
     expect(
@@ -144,5 +165,40 @@ describe('formatDiagnosticsMarkdown', () => {
     expect(formatDiagnosticsMarkdown({ ...base, build: 'dev' })).toContain(
       'dev'
     );
+  });
+
+  it('omits the message line when there is no error to report', () => {
+    const md = formatDiagnosticsMarkdown({
+      version: '0.11.0',
+      build: 'release',
+      os: 'Windows NT 10.0',
+      webview: 'WebView2 131.0.2903.86',
+      route: '/'
+    });
+    expect(md).not.toContain('Message');
+    expect(md).not.toContain('Status');
+    expect(md).not.toContain('Stack trace');
+    expect(md).toContain('- Route: /');
+  });
+
+  it('carries the extras the Diagnostics page can reach', () => {
+    const md = formatDiagnosticsMarkdown({
+      ...base,
+      channel: 'beta',
+      experiment: 'hunk-commit',
+      git: 'git version 2.43.0',
+      gitTarget: 'WSL · Ubuntu-22.04'
+    });
+    expect(md).toContain('- Channel: beta');
+    expect(md).toContain('- Experiment: hunk-commit');
+    expect(md).toContain('- Git: git version 2.43.0');
+    expect(md).toContain('- Git target: WSL · Ubuntu-22.04');
+  });
+
+  it('omits every extra the caller could not answer', () => {
+    const md = formatDiagnosticsMarkdown(base);
+    expect(md).not.toContain('Channel');
+    expect(md).not.toContain('Experiment');
+    expect(md).not.toContain('- Git');
   });
 });

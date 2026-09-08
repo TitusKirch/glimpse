@@ -16,9 +16,26 @@ export type Diagnostics = {
   route: string;
   /** e.g. "500 Internal Server Error"; absent for a plain thrown error. */
   status?: string;
-  message: string;
+  /**
+   * What went wrong. Absent when nothing did — the Diagnostics page reports the
+   * same facts about a perfectly healthy app.
+   */
+  message?: string;
   /** Raw, as the browser reported it. Absent when the error carried none. */
   stack?: string;
+  // The rest are enrichment only the Settings → Diagnostics page can reach: they
+  // need the app shell (useAppVersion) or a round-trip over IPC, which is exactly
+  // what the fatal error page cannot rely on. Optional fields on the one format
+  // rather than a second format, so both surfaces paste the same block and a
+  // reader never has to work out which one they were handed.
+  /** Release channel of the running build: `stable`, `beta` or `experiment`. */
+  channel?: string;
+  /** Slug of the running experiment build; absent on stable/beta/dev. */
+  experiment?: string;
+  /** `git --version` as the resolved git reported it. */
+  git?: string;
+  /** Which git that was — native, or the WSL distro driving it. */
+  gitTarget?: string;
 };
 
 /**
@@ -80,6 +97,28 @@ export function formatPluginOs(
   return arch ? `${head} (${arch})` : head;
 }
 
+/** Human-readable names for the `platform::resolve()` flavors. */
+const FLAVOR_NAMES: Record<string, string> = {
+  windows: 'Windows',
+  macos: 'macOS',
+  linux: 'Linux'
+};
+
+/**
+ * Which git actually runs, as one line — the WSL distro driving it, or the host
+ * platform when git is native. Named the way `platform::resolve()` decides it,
+ * because "it works on my machine" and "it works through my distro's git" are
+ * the two answers a bug report has to tell apart.
+ */
+export function formatGitTarget(
+  flavor: string,
+  distro?: string | null
+): string {
+  if (flavor === 'wsl') return distro ? `WSL · ${distro}` : 'WSL';
+  const name = FLAVOR_NAMES[flavor];
+  return name ? `Native (${name})` : 'unknown';
+}
+
 /**
  * The route that was on screen. glimpse is a single-page app with no router, so
  * the location *is* the route — and reading it needs nothing that could have
@@ -103,11 +142,15 @@ export function formatDiagnosticsMarkdown(d: Diagnostics): string {
     '',
     `- Version: ${d.version} (${d.build})`,
     `- OS: ${d.os}`,
-    `- WebView: ${d.webview}`,
-    `- Route: ${d.route}`
+    `- WebView: ${d.webview}`
   ];
+  if (d.channel) lines.push(`- Channel: ${d.channel}`);
+  if (d.experiment) lines.push(`- Experiment: ${d.experiment}`);
+  if (d.git) lines.push(`- Git: ${d.git}`);
+  if (d.gitTarget) lines.push(`- Git target: ${d.gitTarget}`);
+  lines.push(`- Route: ${d.route}`);
   if (d.status) lines.push(`- Status: ${d.status}`);
-  lines.push(`- Message: ${d.message}`);
+  if (d.message) lines.push(`- Message: ${d.message}`);
   if (d.stack) {
     lines.push('', 'Stack trace:', '', '```', d.stack, '```');
   }
