@@ -13,6 +13,14 @@ const { t } = useI18n();
 // build*, not the updater channel setting.
 const { isBeta, isExperiment, experiment } = useAppVersion();
 
+// The same slot also carries *runtime* state: an active developer simulation
+// bends how the app behaves, so it has to be visible without opening the
+// settings dialog. It is shown *in addition* to the build-identity badge above —
+// build identity and runtime state say different things and neither may swallow
+// the other. Not clickable: the way to switch things off stays Settings →
+// Developer → Simulation, which is also where the detailed list lives.
+const simulation = useSimulationStore();
+
 // Collapsed (icon-only) sidebar: items open a dropdown instead of acting
 // directly, so their actions stay reachable.
 const { state, isMobile } = useSidebar();
@@ -116,6 +124,15 @@ const links = [
       >
         <img src="/logo_128x128.png" alt="" class="size-8 shrink-0" />
         <span class="truncate">{{ t('app.name') }}</span>
+        <UiBadge
+          v-if="simulation.anyActive"
+          variant="destructive"
+          icon="lucide:triangle-alert"
+          :title="simulation.active.join(', ')"
+          class="group-data-[collapsible=icon]:hidden"
+        >
+          {{ t('sidebar.simulationBadge') }}
+        </UiBadge>
         <UiBadge
           v-if="isExperiment"
           variant="destructive"

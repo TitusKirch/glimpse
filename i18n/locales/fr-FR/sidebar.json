@@ -29,6 +29,7 @@
     "localOnly": "locale",
     "localOnlyHint": "Locale uniquement — pas encore sur un remote",
     "experimentBadge": "Expérimental",
+    "simulationBadge": "Simulation",
     "reorderHint": "Glisser pour réordonner",
     "collapseSection": "Réduire la section",
     "expandSection": "Développer la section",
