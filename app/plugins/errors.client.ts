@@ -15,7 +15,7 @@
 //
 // A plugin rather than app.vue, for the reason `devtools.client.ts` is one: the
 // app shell is exactly what may be broken.
-import { toast } from 'vue-sonner';
+import { toastCollapsedError } from '~/utils/collapsingToast';
 
 export default defineNuxtPlugin((nuxtApp) => {
   // Resolved per event rather than captured: plugin order does not guarantee
@@ -35,9 +35,12 @@ export default defineNuxtPlugin((nuxtApp) => {
     // toast has now said it better.
     e.preventDefault();
     console.error('unhandled promise rejection:', e.reason);
-    toast.error(translate('error.unhandled.title', 'Something went wrong'), {
-      description: describeReason(e.reason)
-    });
+    // Collapsed like the store's own git errors: a rejection with one cause
+    // repeats as fast as whatever raised it, and one toast per repeat is noise.
+    toastCollapsedError(
+      translate('error.unhandled.title', 'Something went wrong'),
+      describeReason(e.reason)
+    );
   });
 
   // Assigned straight onto the Vue app rather than hooked as `vue:error`,

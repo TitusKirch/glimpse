@@ -402,7 +402,18 @@ export const useRepoStore = defineStore('repo', {
     // Light refresh used by the watcher: reload status + log, keep selection.
     async reloadActive() {
       return this.native(async () => {
-        await Promise.all([this.loadStatus(), this.loadLog()]);
+        try {
+          await Promise.all([this.loadStatus(), this.loadLog()]);
+        } catch (err) {
+          // Nobody awaits this one — the FS watcher fires it — so a failure
+          // escaped as an unhandled rejection and was toasted by the app-wide
+          // net instead, once per event and outside the grouping every other
+          // git failure gets. A watcher burst against a git that fails then
+          // papered the screen. Surfaced like any other git failure instead.
+          const raw = typeof err === 'string' ? err : String(err);
+          this.lastError = cleanGitError(raw);
+          console.error('reload failed:', err);
+        }
       });
     },
 

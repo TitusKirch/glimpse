@@ -29,12 +29,11 @@ useModalScrollLock();
 // Surface git failures as a toast instead of a persistent banner — repeats of
 // the same message collapsing into one counted toast, since a single cause
 // (missing git, broken target, simulated failures) fails every call it touches.
-const toastGitError = useGitErrorToast();
 watch(
   () => repo.lastError,
   (err) => {
     if (!err) return;
-    toastGitError(err);
+    toastCollapsedError(t('error.title'), err);
     repo.clearError();
   }
 );
