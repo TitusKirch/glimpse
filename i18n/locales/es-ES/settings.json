@@ -270,6 +270,26 @@
         "description": "Algo salió mal."
       }
     },
+    "diagnostics": {
+      "title": "Diagnóstico",
+      "empty": {
+        "title": "Aún no hay diagnóstico",
+        "hint": "Aquí llegarán las vistas de solo lectura de la aplicación en ejecución: el informe de diagnóstico, el registro de comandos y los eventos del observador."
+      }
+    },
+    "simulation": {
+      "title": "Simulación",
+      "active": {
+        "label": "Simulaciones activas",
+        "hint": "Las simulaciones alteran deliberadamente el comportamiento de la aplicación. Solo duran esta sesión y se borran al reiniciar."
+      },
+      "none": "No se está simulando nada.",
+      "disableAll": "Desactivar todo",
+      "switches": {
+        "label": "Interruptores",
+        "hint": "Aquí llegarán los interruptores que alteran el comportamiento en ejecución: fallos de IPC, una actualización simulada y un modo de claves i18n."
+      }
+    },
     "appearance": {
       "title": "Apariencia",
       "themeSection": "Tema",

@@ -270,6 +270,26 @@
         "description": "Something went wrong."
       }
     },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "empty": {
+        "title": "No diagnostics yet",
+        "hint": "Read-only views of the running app — the diagnostics report, the command log, watcher events — land here."
+      }
+    },
+    "simulation": {
+      "title": "Simulation",
+      "active": {
+        "label": "Active simulations",
+        "hint": "Simulations deliberately bend how the app behaves. They last for this session only and are cleared on restart."
+      },
+      "none": "Nothing is being simulated.",
+      "disableAll": "Turn everything off",
+      "switches": {
+        "label": "Switches",
+        "hint": "The switches that bend runtime behaviour — IPC fault injection, a simulated update, an i18n key mode — land here."
+      }
+    },
     "appearance": {
       "title": "Appearance",
       "themeSection": "Theme",

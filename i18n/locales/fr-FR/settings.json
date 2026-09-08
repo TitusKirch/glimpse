@@ -270,6 +270,26 @@
         "description": "Une erreur s'est produite."
       }
     },
+    "diagnostics": {
+      "title": "Diagnostic",
+      "empty": {
+        "title": "Pas encore de diagnostic",
+        "hint": "Les vues en lecture seule de l'application en cours d'exécution — le rapport de diagnostic, le journal des commandes, les événements du watcher — arriveront ici."
+      }
+    },
+    "simulation": {
+      "title": "Simulation",
+      "active": {
+        "label": "Simulations actives",
+        "hint": "Les simulations modifient délibérément le comportement de l'application. Elles ne durent que cette session et sont effacées au redémarrage."
+      },
+      "none": "Rien n'est simulé.",
+      "disableAll": "Tout désactiver",
+      "switches": {
+        "label": "Interrupteurs",
+        "hint": "Les interrupteurs qui modifient le comportement à l'exécution — injection d'erreurs IPC, une mise à jour simulée, un mode clés i18n — arriveront ici."
+      }
+    },
     "appearance": {
       "title": "Apparence",
       "themeSection": "Thème",

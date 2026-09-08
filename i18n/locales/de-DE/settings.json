@@ -270,6 +270,26 @@
         "description": "Etwas ist schiefgelaufen."
       }
     },
+    "diagnostics": {
+      "title": "Diagnose",
+      "empty": {
+        "title": "Noch keine Diagnose",
+        "hint": "Nur lesende Einblicke in die laufende App — der Diagnosebericht, das Befehlsprotokoll, Watcher-Ereignisse — landen hier."
+      }
+    },
+    "simulation": {
+      "title": "Simulation",
+      "active": {
+        "label": "Aktive Simulationen",
+        "hint": "Simulationen verändern bewusst das Verhalten der App. Sie gelten nur für diese Sitzung und werden beim Neustart zurückgesetzt."
+      },
+      "none": "Es wird nichts simuliert.",
+      "disableAll": "Alles ausschalten",
+      "switches": {
+        "label": "Schalter",
+        "hint": "Die Schalter, die das Laufzeitverhalten verändern — erzwungene IPC-Fehler, ein simuliertes Update, ein i18n-Schlüsselmodus — landen hier."
+      }
+    },
     "appearance": {
       "title": "Darstellung",
       "themeSection": "Theme",
