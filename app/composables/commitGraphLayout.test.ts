@@ -92,6 +92,46 @@ describe('commitGraphLayout', () => {
     expect(layout.widthForRows(3, 3)).toBe(36);
   });
 
+  it('curves a merge edge harder the further it jumps', () => {
+    // One lane across: the corner is a laneWidth (18) radius, so the straight
+    // run out of the child has zero length.
+    const oneLane = commitGraphLayout({
+      commits: [commit('a', 0, ['b']), commit('b', 1)]
+    });
+    expect(oneLane.edges[0]!.d).toBe('M 18 30 L 18 30 Q 36 30, 36 48 L 36 90');
+
+    // Two lanes across: a wider corner (2 * laneWidth = 36, held to 30 by the
+    // half-row cap) leaves a short straight run instead of a square bracket.
+    const twoLanes = commitGraphLayout({
+      commits: [commit('a', 0, ['b']), commit('b', 2)]
+    });
+    expect(twoLanes.edges[0]!.d).toBe('M 18 30 L 24 30 Q 54 30, 54 60 L 54 90');
+  });
+
+  it('caps the corner at half a row so no edge outgrows the row height', () => {
+    // Six lanes across, and the parent five rows down so the vertical distance
+    // is not what bounds the corner: the radius still stops at rowHeight / 2.
+    const { edges } = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['f']),
+        commit('b', 0),
+        commit('c', 0),
+        commit('d', 0),
+        commit('e', 0),
+        commit('f', 6)
+      ]
+    });
+    expect(edges[0]!.d).toBe('M 18 30 L 96 30 Q 126 30, 126 60 L 126 330');
+  });
+
+  it('scales the corner the same way where a branch leaves its lane', () => {
+    // The mirrored path: child on the higher lane, parent two lanes left.
+    const { edges } = commitGraphLayout({
+      commits: [commit('a', 2, ['b']), commit('b', 0)]
+    });
+    expect(edges[0]!.d).toBe('M 54 30 L 54 60 Q 54 90, 24 90 L 18 90');
+  });
+
   it('draws no edge for a real root commit (no parents)', () => {
     const { edges } = commitGraphLayout({ commits: [commit('a', 0, [])] });
     expect(edges).toHaveLength(0);

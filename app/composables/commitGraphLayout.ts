@@ -51,12 +51,19 @@ export function commitGraphLayout({
     color: laneColor(c.lane)
   }));
 
-  // A lane change is a straight run plus ONE fixed-radius rounded corner at the
-  // divergence/merge node — never a full-height diagonal. The corner radius is
-  // constant regardless of how many lanes the edge spans, so a 2→3 jump curves
-  // with the same "schwung" as a 2→7 one; the extra horizontal distance is just
-  // a straight segment, not a flatter curve.
-  const r = laneWidth;
+  // A lane change is a straight run plus ONE rounded corner at the
+  // divergence/merge node — never a full-height diagonal. The corner radius
+  // *scales with the lane span*: a 2→3 jump keeps a tight laneWidth corner, a
+  // 2→7 one curves through a visibly wider arc, so a far merge reads as a join
+  // rather than as a square bracket around empty canvas.
+  //
+  // Two caps bound it. Half a row (`rowHeight / 2`) is the hard one — past it no
+  // edge could stay inside the row it belongs to — and half the vertical
+  // distance keeps a corner from overshooting a parent that sits further down
+  // than one row. Beyond the cap the extra horizontal distance is a straight
+  // segment, exactly as before.
+  const cornerRadius = (dx: number, dy: number) =>
+    Math.min(Math.abs(dx), rowHeight / 2, Math.abs(dy) / 2);
   const edgePath = ({
     x1,
     y1,
@@ -69,7 +76,7 @@ export function commitGraphLayout({
     y2: number;
   }) => {
     if (x1 === x2) return `M ${x1} ${y1} L ${x2} ${y2}`;
-    const rr = Math.min(r, Math.abs(y2 - y1) / 2);
+    const rr = cornerRadius(x2 - x1, y2 - y1);
     if (x2 > x1) {
       // Merge: sideways out of the child, one rounded corner into the parent's
       // lane, then straight down.
