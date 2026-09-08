@@ -332,7 +332,15 @@
       "disableAll": "Turn everything off",
       "switches": {
         "label": "Switches",
-        "hint": "The switches that bend runtime behaviour — IPC fault injection, a simulated update, an i18n key mode — land here."
+        "hint": "The switches that bend runtime behaviour. They reach git calls only, so the rest of the app — including this page — keeps working and a switch can always be turned back off."
+      },
+      "flags": {
+        "gitFailure": "Fail every git call",
+        "gitSlow": "Slow every git call"
+      },
+      "hints": {
+        "gitFailure": "Every git call fails with a simulated error, so the error paths can be walked deliberately instead of by breaking a repository.",
+        "gitSlow": "Every git call takes a few seconds longer than it really does, so loading states can be watched at leisure."
       }
     },
     "appearance": {

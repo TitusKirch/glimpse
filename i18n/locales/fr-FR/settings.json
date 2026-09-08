@@ -332,7 +332,15 @@
       "disableAll": "Tout désactiver",
       "switches": {
         "label": "Interrupteurs",
-        "hint": "Les interrupteurs qui modifient le comportement à l'exécution — injection d'erreurs IPC, une mise à jour simulée, un mode clés i18n — arriveront ici."
+        "hint": "Les interrupteurs qui modifient le comportement à l'exécution. Ils ne touchent que les appels git — le reste de l'application, cette page comprise, continue de fonctionner et un interrupteur peut toujours être désactivé."
+      },
+      "flags": {
+        "gitFailure": "Faire échouer chaque appel git",
+        "gitSlow": "Ralentir chaque appel git"
+      },
+      "hints": {
+        "gitFailure": "Chaque appel git échoue avec une erreur simulée, afin de parcourir volontairement les chemins d'erreur plutôt que de casser un dépôt.",
+        "gitSlow": "Chaque appel git prend quelques secondes de plus qu'en réalité, afin d'observer tranquillement les états de chargement."
       }
     },
     "appearance": {

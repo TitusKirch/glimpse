@@ -332,7 +332,15 @@
       "disableAll": "Desactivar todo",
       "switches": {
         "label": "Interruptores",
-        "hint": "Aquí llegarán los interruptores que alteran el comportamiento en ejecución: fallos de IPC, una actualización simulada y un modo de claves i18n."
+        "hint": "Los interruptores que alteran el comportamiento en ejecución. Solo afectan a las llamadas a git, así que el resto de la aplicación —incluida esta página— sigue funcionando y siempre puedes volver a apagarlos."
+      },
+      "flags": {
+        "gitFailure": "Hacer que falle cada llamada a git",
+        "gitSlow": "Ralentizar cada llamada a git"
+      },
+      "hints": {
+        "gitFailure": "Cada llamada a git falla con un error simulado, para poder recorrer las rutas de error a propósito en lugar de romper un repositorio.",
+        "gitSlow": "Cada llamada a git tarda unos segundos más de lo real, para poder observar los estados de carga con calma."
       }
     },
     "appearance": {

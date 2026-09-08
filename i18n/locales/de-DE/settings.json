@@ -332,7 +332,15 @@
       "disableAll": "Alles ausschalten",
       "switches": {
         "label": "Schalter",
-        "hint": "Die Schalter, die das Laufzeitverhalten verändern — erzwungene IPC-Fehler, ein simuliertes Update, ein i18n-Schlüsselmodus — landen hier."
+        "hint": "Die Schalter, die das Laufzeitverhalten verändern. Sie betreffen nur Git-Aufrufe — der Rest der App, auch diese Seite, funktioniert weiter, sodass ein Schalter immer wieder ausgeschaltet werden kann."
+      },
+      "flags": {
+        "gitFailure": "Jeden Git-Aufruf fehlschlagen lassen",
+        "gitSlow": "Jeden Git-Aufruf verlangsamen"
+      },
+      "hints": {
+        "gitFailure": "Jeder Git-Aufruf schlägt mit einem simulierten Fehler fehl, sodass die Fehlerpfade gezielt durchlaufen werden können, statt ein Repository kaputtzumachen.",
+        "gitSlow": "Jeder Git-Aufruf dauert einige Sekunden länger als in Wirklichkeit, sodass Ladezustände in Ruhe zu sehen sind."
       }
     },
     "appearance": {

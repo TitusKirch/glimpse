@@ -2,8 +2,12 @@
 const { t, te } = useI18n();
 const simulation = useSimulationStore();
 
-// A switch's own change owns its label key; until one exists (and for anything
-// registered without a translation) show the raw id rather than a key path.
+// The git fault switches, from the one place that names them — bound into setup
+// so the template renders the shared list rather than restating it.
+const faults = GIT_FAULTS;
+
+// A switch's own change owns its label key; for anything registered without a
+// translation show the raw id rather than a key path.
 function label(id: string) {
   const key = `settings.simulation.flags.${id}`;
   return te(key) ? t(key) : id;
@@ -14,7 +18,12 @@ function label(id: string) {
   <!-- Simulation: the switches that deliberately bend the running app. They
        persist for the session, so what is currently on is stated at the top of
        the page and can be cleared in one click — a forgotten switch must never
-       be mistaken for a real bug. -->
+       be mistaken for a real bug.
+
+       The switches only write to the store; a plugin
+       (app/plugins/gitSimulation.client.ts) is what carries the git faults
+       through to the backend, so "turn everything off" works from here without
+       this page having to know where each switch lands. -->
   <section class="w-full space-y-8">
     <div>
       <h3
@@ -58,9 +67,23 @@ function label(id: string) {
       >
         {{ t('settings.simulation.switches.label') }}
       </h3>
-      <p class="text-xs text-muted-foreground">
+      <p class="mb-3 text-xs text-muted-foreground">
         {{ t('settings.simulation.switches.hint') }}
       </p>
+      <div class="space-y-4">
+        <SettingsRow
+          v-for="id in faults"
+          :key="id"
+          :label="`settings.simulation.flags.${id}`"
+          :hint="`settings.simulation.hints.${id}`"
+        >
+          <UiSwitch
+            class="shrink-0"
+            :model-value="simulation.isOn(id)"
+            @update:model-value="(on) => simulation.set(id, on === true)"
+          />
+        </SettingsRow>
+      </div>
     </div>
   </section>
 </template>
