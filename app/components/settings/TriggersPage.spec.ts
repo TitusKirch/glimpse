@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { computed, defineComponent, ref } from 'vue';
+import { buttonVariants } from '@/components/ui/button';
 
 // The page reads Nuxt auto-imports as free globals. The confirm dialog is the
 // *real* promise dialog — the crash triggers are defined by the fact that they
@@ -55,8 +56,9 @@ const global = {
   stubs: {
     NuxtIcon: { template: '<i />' },
     UiButton: {
-      props: ['disabled'],
-      template: '<button :disabled="disabled"><slot /></button>'
+      props: ['disabled', 'variant'],
+      template:
+        '<button :disabled="disabled" :data-variant="variant"><slot /></button>'
     }
   }
 };
@@ -74,6 +76,37 @@ beforeEach(() => {
   invoked.length = 0;
   vueErrors.length = 0;
   confirmDialog.request.value = null;
+});
+
+describe('TriggersPage toast triggers', () => {
+  // The four kinds are told apart by their button colour, so each has to name a
+  // variant `Button` actually has: an unknown one contributes no `cva` classes
+  // and renders as bare text. Nothing else on the page's way to CI catches that
+  // — `pnpm check` is oxlint/oxfmt, and `nuxt build` does not type-check SFC
+  // templates — which is how a dropped variant reached this page unnoticed.
+  const unknown = buttonVariants({ variant: 'not-a-variant' as never });
+
+  it('asks Button only for variants it has', () => {
+    const w = mount(TriggersPage, { global });
+    const variants = w
+      .findAll('button')
+      .map((b) => b.attributes('data-variant'));
+
+    expect(variants.length).toBeGreaterThan(0);
+    for (const variant of variants) {
+      expect(buttonVariants({ variant: variant as never })).not.toBe(unknown);
+    }
+  });
+
+  it('gives each toast kind its own semantic colour', () => {
+    const w = mount(TriggersPage, { global });
+    const variants = w
+      .findAll('button')
+      .slice(0, 4)
+      .map((b) => b.attributes('data-variant'));
+
+    expect(variants).toEqual(['info', 'success', 'warning', 'destructive']);
+  });
 });
 
 describe('TriggersPage crash triggers', () => {
