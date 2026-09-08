@@ -38,6 +38,7 @@ export default defineConfig({
         'app/composables/cleanGitError.ts',
         'app/composables/parseConflicts.ts',
         'app/composables/parseDiff.ts',
+        'app/composables/commitGraphLanes.ts',
         'app/composables/commitGraphLayout.ts',
         'app/composables/graphPan.ts',
         'app/composables/useGraphColumnWidth.ts',

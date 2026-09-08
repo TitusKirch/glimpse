@@ -1,9 +1,11 @@
 // Pure commit-graph geometry: commits (with backend-assigned lanes) → the node
 // coordinates and bézier edge paths the SVG renders. No Vue, no DOM — the
 // interface is the test surface. Lane *assignment* is the backend's job
-// (git::parse); this is only the visual projection of those lanes.
+// (git::parse); this is only the visual projection of those lanes, plus the one
+// revision `commitGraphLanes` makes to them before they are projected.
 
 import type { Commit } from '~/stores/repo';
+import { commitGraphLanes } from './commitGraphLanes';
 import type {
   GraphEdge,
   GraphLayout,
@@ -44,11 +46,17 @@ export function commitGraphLayout({
   const indexByHash = new Map<string, number>();
   commits.forEach((c, i) => indexByHash.set(c.hash, i));
 
+  // A branch's lane can change once, at one of its own commits, where the lane
+  // it was given has gone stale and a shallower one has fallen free for the
+  // rest of its run. Everything below reads lanes from here rather than from
+  // the commit, so the move is drawn by the geometry that is already here.
+  const laneOf = commitGraphLanes(commits);
+
   const nodes: GraphNode[] = commits.map((c, i) => ({
     hash: c.hash,
-    cx: laneX(c.lane),
+    cx: laneX(laneOf[i]!),
     cy: nodeY(i),
-    color: laneColor(c.lane)
+    color: laneColor(laneOf[i]!)
   }));
 
   // A lane change is a straight run plus ONE rounded corner at the
@@ -112,25 +120,25 @@ export function commitGraphLayout({
         // Only the first parent owns this lane; a merge's extra parent that left
         // the window gets no phantom line (and the backend reserves it no lane).
         if (pi === 0) {
-          const x = laneX(c.lane);
+          const x = laneX(laneOf[i]!);
           edges.push({
             d: `M ${x} ${nodeY(i)} L ${x} ${height}`,
-            color: laneColor(c.lane)
+            color: laneColor(laneOf[i]!)
           });
-          reserveLane(i, commits.length - 1, c.lane);
+          reserveLane(i, commits.length - 1, laneOf[i]!);
         }
         return;
       }
       edges.push({
         d: edgePath({
-          x1: laneX(c.lane),
+          x1: laneX(laneOf[i]!),
           y1: nodeY(i),
-          x2: laneX(commits[j]!.lane),
+          x2: laneX(laneOf[j]!),
           y2: nodeY(j)
         }),
-        color: laneColor(Math.max(c.lane, commits[j]!.lane))
+        color: laneColor(Math.max(laneOf[i]!, laneOf[j]!))
       });
-      reserveLane(i, j, Math.max(c.lane, commits[j]!.lane));
+      reserveLane(i, j, Math.max(laneOf[i]!, laneOf[j]!));
     });
   });
 
@@ -144,14 +152,14 @@ export function commitGraphLayout({
   // backend freed and handed to a later branch is only counted while that
   // branch's own edge is live.
   const laneEndRow: number[] = [];
-  const maxLaneByRow = commits.map((c, i) => {
+  const maxLaneByRow = commits.map((_, i) => {
     for (const span of spansByStartRow.get(i) ?? []) {
       laneEndRow[span.lane] = Math.max(
         laneEndRow[span.lane] ?? -1,
         span.endRow
       );
     }
-    let maxLane = c.lane;
+    let maxLane = laneOf[i]!;
     for (let lane = laneEndRow.length - 1; lane > maxLane; lane--) {
       if ((laneEndRow[lane] ?? -1) >= i) {
         maxLane = lane;
@@ -170,7 +178,7 @@ export function commitGraphLayout({
     return laneX(maxLane) + originX;
   };
 
-  const maxLane = commits.reduce((m, c) => Math.max(m, c.lane), 0);
+  const maxLane = laneOf.reduce((m, lane) => Math.max(m, lane), 0);
   return {
     nodes,
     edges,

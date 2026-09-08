@@ -112,17 +112,74 @@ describe('commitGraphLayout', () => {
   it('caps the corner at one lane so no edge sweeps across its neighbours', () => {
     // Six lanes across, and the parent five rows down so the vertical distance
     // is not what bounds the corner: the radius still stops at laneWidth.
+    //
+    // Lanes 1-3 carry branches of their own for the whole span, which is what
+    // makes lane 6 a lane the branch has to stay on: with the canvas between
+    // empty, `commitGraphLanes` would compact it and there would be no wide
+    // jump left to cap.
     const { edges } = commitGraphLayout({
       commits: [
-        commit('a', 0, ['f']),
+        commit('a', 0, ['b', 'p', 'q', 'r', 'f']),
         commit('b', 0),
-        commit('c', 0),
-        commit('d', 0),
-        commit('e', 0),
+        commit('p', 1),
+        commit('q', 2),
+        commit('r', 3),
         commit('f', 6)
       ]
     });
     expect(edges[0]!.d).toBe('M 10 30 L 80 30 Q 94 30, 94 44 L 94 330');
+  });
+
+  it('draws a compacted branch with the ordinary lane-change corner', () => {
+    // A branch handed lane 4 by a burst of merges, moving down to lane 1 at one
+    // of its own commits once the burst's lanes have been given back. The move
+    // is drawn with the geometry a branch leaving its lane already gets — a
+    // straight run down lane 4 and one rounded corner into lane 1 — and not
+    // with a shape of its own.
+    const { nodes, edges } = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['b', 'p']),
+        commit('b', 0, ['c', 'q']),
+        commit('c', 0, ['d', 'r']),
+        commit('d', 0, ['e', 'z']),
+        commit('p', 1),
+        commit('q', 2),
+        commit('r', 3),
+        commit('e', 0, ['older']),
+        commit('z', 4, ['z2']),
+        commit('z2', 4, ['z3']),
+        commit('z3', 4)
+      ]
+    });
+    // Row 8 still on lane 4 (x 66), rows 9-10 on lane 1 (x 24).
+    expect(nodes[8]).toMatchObject({ hash: 'z', cx: 66 });
+    expect(nodes[9]).toMatchObject({ hash: 'z2', cx: 24 });
+    expect(nodes[10]).toMatchObject({ hash: 'z3', cx: 24 });
+    expect(edges.map((e) => e.d)).toContain(
+      'M 66 510 L 66 556 Q 66 570, 52 570 L 24 570'
+    );
+  });
+
+  it('gives the column back once a straggler has moved down', () => {
+    const layout = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['b', 'p']),
+        commit('b', 0, ['c', 'q']),
+        commit('c', 0, ['d', 'r']),
+        commit('d', 0, ['e', 'z']),
+        commit('p', 1),
+        commit('q', 2),
+        commit('r', 3),
+        commit('e', 0, ['older']),
+        commit('z', 4, ['z2']),
+        commit('z2', 4, ['z3']),
+        commit('z3', 4)
+      ]
+    });
+    // The rows the branch spent on lane 4 still pay for it...
+    expect(layout.widthForRows(8, 8)).toBe(76);
+    // ...and the rows below the move are back to two lanes instead of five.
+    expect(layout.widthForRows(10, 10)).toBe(34);
   });
 
   it('uses the same corner where a branch leaves its lane', () => {
