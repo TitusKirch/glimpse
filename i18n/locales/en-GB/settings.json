@@ -224,7 +224,7 @@
       },
       "buttons": {
         "label": "Buttons",
-        "hint": "shadcn's own variant set — a semantic colour fills the button only where it is destructive."
+        "hint": "Every button variant — a semantic colour fills the button with the foreground it is paired with."
       }
     },
     "triggers": {

@@ -23,14 +23,17 @@ const alertKinds = [
   'destructive'
 ] as const;
 
-// shadcn's own set — the semantic colours other than `destructive` are
-// deliberately not button variants.
+// shadcn's own set first, then the semantic fills — the same four colours the
+// badges above carry, so the fill treatment reads as one family across both.
 const buttonKinds = [
   'default',
   'secondary',
   'outline',
   'ghost',
   'link',
+  'info',
+  'success',
+  'warning',
   'destructive'
 ] as const;
 </script>

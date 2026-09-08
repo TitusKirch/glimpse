@@ -224,7 +224,7 @@
       },
       "buttons": {
         "label": "Boutons",
-        "hint": "Le jeu de variantes de shadcn — une couleur sémantique remplit le bouton uniquement lorsqu'il est destructeur."
+        "hint": "Toutes les variantes de bouton — une couleur sémantique remplit le bouton avec le premier plan auquel elle est associée."
       }
     },
     "triggers": {

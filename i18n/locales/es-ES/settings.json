@@ -224,7 +224,7 @@
       },
       "buttons": {
         "label": "Botones",
-        "hint": "El conjunto de variantes de shadcn: un color semántico rellena el botón solo cuando es destructivo."
+        "hint": "Todas las variantes de botón: un color semántico rellena el botón con el primer plano con el que está emparejado."
       }
     },
     "triggers": {

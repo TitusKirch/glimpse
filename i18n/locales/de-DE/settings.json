@@ -224,7 +224,7 @@
       },
       "buttons": {
         "label": "Buttons",
-        "hint": "Der Varianten-Satz von shadcn — eine semantische Farbe füllt den Button nur, wenn er destruktiv ist."
+        "hint": "Jede Button-Variante — eine semantische Farbe füllt den Button mit der Vordergrundfarbe, mit der sie gepaart ist."
       }
     },
     "triggers": {
