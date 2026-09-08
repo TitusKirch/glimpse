@@ -42,6 +42,56 @@ describe('commitGraphLayout', () => {
     expect(edges[0]!.d).toBe(`M 18 30 L 18 ${height}`);
   });
 
+  it('sizes the column from the rows in view, not from the whole log', () => {
+    // A side branch that only exists in the older half of the window: lane 1 is
+    // reached from the merge at row 2 downwards, rows 0-1 are single-lane.
+    const layout = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['b']),
+        commit('b', 0, ['c']),
+        commit('c', 0, ['d', 'e']),
+        commit('d', 0, []),
+        commit('e', 1, [])
+      ]
+    });
+    // 1 lane in view -> originX + 0 * laneWidth + originX
+    expect(layout.widthForRows(0, 1)).toBe(36);
+    // 2 lanes in view -> the full width of this log
+    expect(layout.widthForRows(0, 4)).toBe(54);
+    expect(layout.width).toBe(54);
+  });
+
+  it('reserves the width of a lane an edge only passes through', () => {
+    // A long-lived branch merged five commits later: lane 1 carries the merge
+    // edge across rows 0-4 but has a node only on the last of them. Rows 2-3
+    // still have to leave room for that edge.
+    const layout = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['b', 'e']),
+        commit('b', 0, ['c']),
+        commit('c', 0, ['d']),
+        commit('d', 0, []),
+        commit('e', 1, [])
+      ]
+    });
+    expect(layout.widthForRows(2, 3)).toBe(54);
+  });
+
+  it('continues to reserve a lane only while its edge is running', () => {
+    // Lane 1's edge ends at row 1; the rows below it are single-lane again and
+    // give the width back.
+    const layout = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['b', 'x']),
+        commit('x', 1, ['b']),
+        commit('b', 0, ['c']),
+        commit('c', 0, [])
+      ]
+    });
+    expect(layout.widthForRows(0, 1)).toBe(54);
+    expect(layout.widthForRows(3, 3)).toBe(36);
+  });
+
   it('draws no edge for a real root commit (no parents)', () => {
     const { edges } = commitGraphLayout({ commits: [commit('a', 0, [])] });
     expect(edges).toHaveLength(0);

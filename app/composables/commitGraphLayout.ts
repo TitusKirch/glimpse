@@ -82,6 +82,17 @@ export function commitGraphLayout({
 
   const height = commits.length * rowHeight;
 
+  // An edge occupies its lanes on every row it crosses, not only on the rows
+  // that carry its endpoints — a branch merged twenty commits later has no node
+  // in between, yet its lane has to stay clear there. Each edge is recorded
+  // against its deepest lane and the row span it runs over.
+  const spansByStartRow = new Map<number, { lane: number; endRow: number }[]>();
+  const reserveLane = (startRow: number, endRow: number, lane: number) => {
+    const spans = spansByStartRow.get(startRow);
+    if (spans) spans.push({ lane, endRow });
+    else spansByStartRow.set(startRow, [{ lane, endRow }]);
+  };
+
   const edges: GraphEdge[] = [];
   commits.forEach((c, i) => {
     c.parents.forEach((parent, pi) => {
@@ -98,6 +109,7 @@ export function commitGraphLayout({
             d: `M ${x} ${nodeY(i)} L ${x} ${height}`,
             color: laneColor(c.lane)
           });
+          reserveLane(i, commits.length - 1, c.lane);
         }
         return;
       }
@@ -110,6 +122,7 @@ export function commitGraphLayout({
         }),
         color: laneColor(Math.max(c.lane, commits[j]!.lane))
       });
+      reserveLane(i, j, Math.max(c.lane, commits[j]!.lane));
     });
   });
 
@@ -118,12 +131,44 @@ export function commitGraphLayout({
   // later (lower) row's where they overlap, instead of the other way round.
   edges.reverse();
 
+  // Deepest lane in use at each row: the row's own commit plus every lane an
+  // edge is still running through. Rows are swept top-down, so a lane the
+  // backend freed and handed to a later branch is only counted while that
+  // branch's own edge is live.
+  const laneEndRow: number[] = [];
+  const maxLaneByRow = commits.map((c, i) => {
+    for (const span of spansByStartRow.get(i) ?? []) {
+      laneEndRow[span.lane] = Math.max(
+        laneEndRow[span.lane] ?? -1,
+        span.endRow
+      );
+    }
+    let maxLane = c.lane;
+    for (let lane = laneEndRow.length - 1; lane > maxLane; lane--) {
+      if ((laneEndRow[lane] ?? -1) >= i) {
+        maxLane = lane;
+        break;
+      }
+    }
+    return maxLane;
+  });
+
+  const widthForRows = (startRow: number, endRow: number) => {
+    const from = Math.max(0, Math.min(startRow, endRow));
+    const to = Math.min(commits.length - 1, Math.max(startRow, endRow));
+    let maxLane = 0;
+    for (let i = from; i <= to; i++)
+      maxLane = Math.max(maxLane, maxLaneByRow[i]!);
+    return laneX(maxLane) + originX;
+  };
+
   const maxLane = commits.reduce((m, c) => Math.max(m, c.lane), 0);
   return {
     nodes,
     edges,
     width: laneX(maxLane) + originX,
     height,
-    rowHeight
+    rowHeight,
+    widthForRows
   };
 }
