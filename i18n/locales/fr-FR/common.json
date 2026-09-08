@@ -54,12 +54,12 @@
     "restartSimulated": "Rien n'a été redémarré — cette mise à jour est simulée.",
     "restartFailed": "Échec du redémarrage"
   },
-  "copied": "Copié dans le presse-papiers",
   "help": {
     "title": "Raccourcis clavier",
     "contextHint": "Astuce : faites un clic droit sur un commit pour plus d'actions."
   },
   "common": {
+    "copied": "Copié dans le presse-papiers",
     "cancel": "Annuler",
     "browse": "Parcourir…"
   },

@@ -54,12 +54,12 @@
     "restartSimulated": "Es wurde nichts neu gestartet — dieses Update ist simuliert.",
     "restartFailed": "Neustart fehlgeschlagen"
   },
-  "copied": "In die Zwischenablage kopiert",
   "help": {
     "title": "Tastenkürzel",
     "contextHint": "Tipp: Rechtsklick auf einen Commit für weitere Aktionen."
   },
   "common": {
+    "copied": "In die Zwischenablage kopiert",
     "cancel": "Abbrechen",
     "browse": "Durchsuchen…"
   },

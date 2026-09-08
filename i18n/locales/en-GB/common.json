@@ -54,12 +54,12 @@
     "restartSimulated": "Nothing restarted — this update is simulated.",
     "restartFailed": "Restart failed"
   },
-  "copied": "Copied to clipboard",
   "help": {
     "title": "Keyboard shortcuts",
     "contextHint": "Tip: right-click a commit for more actions."
   },
   "common": {
+    "copied": "Copied to clipboard",
     "cancel": "Cancel",
     "browse": "Browse…"
   },

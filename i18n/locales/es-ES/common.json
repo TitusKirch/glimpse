@@ -54,12 +54,12 @@
     "restartSimulated": "No se ha reiniciado nada: esta actualización es simulada.",
     "restartFailed": "Error al reiniciar"
   },
-  "copied": "Copiado al portapapeles",
   "help": {
     "title": "Atajos de teclado",
     "contextHint": "Consejo: haz clic derecho en un commit para más acciones."
   },
   "common": {
+    "copied": "Copiado al portapapeles",
     "cancel": "Cancelar",
     "browse": "Examinar…"
   },
