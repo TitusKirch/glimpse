@@ -272,9 +272,25 @@
     },
     "diagnostics": {
       "title": "Diagnostic",
-      "empty": {
-        "title": "Pas encore de diagnostic",
-        "hint": "Les vues en lecture seule de l'application en cours d'exécution — le rapport de diagnostic, le journal des commandes, les événements du watcher — arriveront ici."
+      "report": {
+        "label": "Rapport",
+        "hint": "Les informations dont un rapport de bug a besoin, telles que la page d'erreur fatale les affiche. Copiez-les en markdown et collez-les dans un ticket.",
+        "copy": "Copier le diagnostic"
+      },
+      "rows": {
+        "version": "Version",
+        "channel": "Canal",
+        "experiment": "Expérimentation",
+        "os": "Système",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Cible Git",
+        "route": "Route"
+      },
+      "inspector": {
+        "label": "Inspecteur",
+        "hint": "Ouvre les outils de développement de la WebView — la console, le journal réseau et la trace complète. F12 fait la même chose depuis n'importe où dans l'application. Application de bureau uniquement.",
+        "open": "Ouvrir l'inspecteur"
       }
     },
     "simulation": {

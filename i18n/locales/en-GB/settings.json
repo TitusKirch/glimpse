@@ -272,9 +272,25 @@
     },
     "diagnostics": {
       "title": "Diagnostics",
-      "empty": {
-        "title": "No diagnostics yet",
-        "hint": "Read-only views of the running app — the diagnostics report, the command log, watcher events — land here."
+      "report": {
+        "label": "Report",
+        "hint": "The facts a bug report needs, exactly as the fatal error page shows them — copy them as markdown and paste them into an issue.",
+        "copy": "Copy diagnostics"
+      },
+      "rows": {
+        "version": "Version",
+        "channel": "Channel",
+        "experiment": "Experiment",
+        "os": "OS",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Git target",
+        "route": "Route"
+      },
+      "inspector": {
+        "label": "Inspector",
+        "hint": "Open the WebView developer tools — the console, the network log and the full stack trace. F12 does the same from anywhere in the app. Desktop app only.",
+        "open": "Open inspector"
       }
     },
     "simulation": {

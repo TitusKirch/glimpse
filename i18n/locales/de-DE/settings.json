@@ -272,9 +272,25 @@
     },
     "diagnostics": {
       "title": "Diagnose",
-      "empty": {
-        "title": "Noch keine Diagnose",
-        "hint": "Nur lesende Einblicke in die laufende App — der Diagnosebericht, das Befehlsprotokoll, Watcher-Ereignisse — landen hier."
+      "report": {
+        "label": "Bericht",
+        "hint": "Die Angaben, die ein Fehlerbericht braucht — genau so, wie sie die Fehlerseite zeigt. Als Markdown kopieren und in ein Issue einfügen.",
+        "copy": "Diagnose kopieren"
+      },
+      "rows": {
+        "version": "Version",
+        "channel": "Kanal",
+        "experiment": "Experiment",
+        "os": "Betriebssystem",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Git-Ziel",
+        "route": "Route"
+      },
+      "inspector": {
+        "label": "Inspektor",
+        "hint": "Öffnet die Entwicklerwerkzeuge der WebView — Konsole, Netzwerkprotokoll und den vollständigen Stacktrace. F12 tut überall in der App dasselbe. Nur in der Desktop-App.",
+        "open": "Inspektor öffnen"
       }
     },
     "simulation": {

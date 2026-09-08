@@ -272,9 +272,25 @@
     },
     "diagnostics": {
       "title": "Diagnóstico",
-      "empty": {
-        "title": "Aún no hay diagnóstico",
-        "hint": "Aquí llegarán las vistas de solo lectura de la aplicación en ejecución: el informe de diagnóstico, el registro de comandos y los eventos del observador."
+      "report": {
+        "label": "Informe",
+        "hint": "Los datos que necesita un informe de error, tal y como los muestra la página de error fatal. Cópialos como markdown y pégalos en una incidencia.",
+        "copy": "Copiar diagnóstico"
+      },
+      "rows": {
+        "version": "Versión",
+        "channel": "Canal",
+        "experiment": "Experimento",
+        "os": "Sistema operativo",
+        "webview": "WebView",
+        "git": "Git",
+        "gitTarget": "Destino de Git",
+        "route": "Ruta"
+      },
+      "inspector": {
+        "label": "Inspector",
+        "hint": "Abre las herramientas de desarrollo de la WebView: la consola, el registro de red y la traza completa. F12 hace lo mismo desde cualquier parte de la aplicación. Solo en la aplicación de escritorio.",
+        "open": "Abrir el inspector"
       }
     },
     "simulation": {

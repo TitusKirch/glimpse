@@ -93,6 +93,20 @@ opened repositories and recently used command-palette actions. The mechanics
 pure `moveToFront` core (`app/utils/recency.ts`); each store supplies the key and
 the cap (owned by the layout store, under Settings → General → Recent).
 
+**diagnostics**
+The facts a bug report needs about the running app — version and build kind,
+release channel and experiment slug, OS, WebView, the git that actually runs,
+and the route — plus the markdown they paste as. One format
+(`app/utils/diagnostics.ts`), one assembly (`useDiagnostics()`), two surfaces:
+the fatal error page (`app/error.vue`) adds the error's status/message/stack,
+Settings → Diagnostics adds what only a working app shell can reach (channel,
+experiment, `git --version`, the resolved target). Every field either surface
+cannot answer is optional and simply omitted, so the two produce the same block
+rather than two dialects of one. The assembly inherits the error page's rules —
+no store, no i18n, no shadcn component, IPC only as enrichment — because it runs
+on the page that shows _because_ the app shell broke; `error.vue` calls it in a
+try/catch and falls back to computing the facts inline.
+
 **simulation**
 A developer switch that deliberately bends how the running app behaves — make
 IPC fail, pretend an update is available. The opposite of a _diagnostic_, which
