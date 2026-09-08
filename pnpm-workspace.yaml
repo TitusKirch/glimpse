@@ -23,5 +23,13 @@ nodeLinker: isolated
 # (pnpm 11 reads this here, not from the package.json "pnpm" field).
 allowBuilds:
   '@parcel/watcher': true
+  # Denied on purpose. WebdriverIO pulls these in for browser automation, and
+  # their install scripts download a Gecko/Edge driver binary over the network.
+  # The e2e suite drives the Tauri app through `tauri-driver` + the platform
+  # WebDriver (WebKitWebDriver on Linux), so neither is ever launched — letting
+  # them run would add a network fetch to every install for nothing. They must
+  # stay listed: pnpm fails the install on a build script it has no verdict for.
+  edgedriver: false
   esbuild: true
+  geckodriver: false
   vue-demi: true
