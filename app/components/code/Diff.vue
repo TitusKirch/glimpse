@@ -46,13 +46,18 @@ interface ExpanderRow {
 }
 type DisplayRow = UnifiedRow | ExpanderRow;
 
-// Pure projection of the raw hunks into the unified + split row models.
+// Pure projection of the raw hunks into the row model of the mode on screen.
+// Only one of the two ever renders and each row holds a highlighted HTML string,
+// so the hidden model would double the heap of a large file for nothing; the
+// price is that toggling the mode re-parses, which is one pass over hunks the
+// user just asked to see differently.
 const parsed = computed(() =>
   parseDiff({
     hunks: props.hunks,
     fileName: props.fileName,
     oldContent: props.oldContent,
-    newContent: props.newContent
+    newContent: props.newContent,
+    mode: props.mode
   })
 );
 
@@ -183,14 +188,14 @@ const gutter =
 // and making the row backgrounds flicker — a fixed height keeps it rock steady.
 const ROW_H = 20;
 
-// Only the active mode feeds rows to its virtualizer (the hidden one stays at
-// count 0 and does no work). Whole-file view drops the single `@@` header row.
-const unifiedRows = computed(() => {
-  if (props.mode !== 'unified') return [];
-  return props.hideHunkHeader
+// The parse already yields rows for the active mode only, so the inactive
+// virtualizer sits at count 0 and does no work. Whole-file view drops the single
+// `@@` header row.
+const unifiedRows = computed(() =>
+  props.hideHunkHeader
     ? parsed.value.unified.filter((r) => r.type !== 'hunk')
-    : parsed.value.unified;
-});
+    : parsed.value.unified
+);
 
 // --- Collapse long unchanged runs (whole-file view) -------------------------
 const COLLAPSE_MIN = 8; // only fold a context run longer than this …
@@ -233,9 +238,7 @@ const unifiedDisplay = computed<DisplayRow[]>(() => {
   return out;
 });
 
-const splitRows = computed(() =>
-  props.mode === 'split' ? parsed.value.split : []
-);
+const splitRows = computed(() => parsed.value.split);
 
 const unifiedScroll = ref<HTMLElement | null>(null);
 
@@ -283,10 +286,10 @@ const uVisible = computed(() =>
   uv.items.map((vi) => ({ vi, row: unifiedDisplay.value[vi.index]! }))
 );
 const lVisible = computed(() =>
-  lv.items.map((vi) => ({ vi, row: parsed.value.split[vi.index]! }))
+  lv.items.map((vi) => ({ vi, row: splitRows.value[vi.index]! }))
 );
 const rVisible = computed(() =>
-  rv.items.map((vi) => ({ vi, row: parsed.value.split[vi.index]! }))
+  rv.items.map((vi) => ({ vi, row: splitRows.value[vi.index]! }))
 );
 </script>
 
