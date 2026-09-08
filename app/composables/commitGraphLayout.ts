@@ -13,8 +13,8 @@ import type {
 
 const DEFAULTS = {
   rowHeight: 60,
-  laneWidth: 18,
-  originX: 18,
+  laneWidth: 14,
+  originX: 10,
   // A wide hue spread so many parallel lanes stay visually distinct.
   colors: [
     '#22c55e', // green
@@ -52,18 +52,19 @@ export function commitGraphLayout({
   }));
 
   // A lane change is a straight run plus ONE rounded corner at the
-  // divergence/merge node — never a full-height diagonal. The corner radius
-  // *scales with the lane span*: a 2→3 jump keeps a tight laneWidth corner, a
-  // 2→7 one curves through a visibly wider arc, so a far merge reads as a join
-  // rather than as a square bracket around empty canvas.
+  // divergence/merge node — never a full-height diagonal, and never an arc that
+  // grows with the distance jumped. The radius is one lane wide whatever the
+  // span, so a far merge is a long straight run ending in the same tight corner
+  // a neighbouring one gets.
   //
-  // Two caps bound it. Half a row (`rowHeight / 2`) is the hard one — past it no
-  // edge could stay inside the row it belongs to — and half the vertical
-  // distance keeps a corner from overshooting a parent that sits further down
-  // than one row. Beyond the cap the extra horizontal distance is a straight
-  // segment, exactly as before.
+  // This deliberately replaces a radius that *scaled* with the lane span. That
+  // read as a sweeping bracket around empty canvas on wide jumps — the very
+  // shape the scaling was meant to avoid — because a corner wider than the lane
+  // spacing it lives in curves across its neighbours. Half the vertical
+  // distance is the second cap, and keeps a corner from overshooting a parent
+  // further down than one row. Past either cap the rest is a straight segment.
   const cornerRadius = (dx: number, dy: number) =>
-    Math.min(Math.abs(dx), rowHeight / 2, Math.abs(dy) / 2);
+    Math.min(Math.abs(dx), laneWidth, Math.abs(dy) / 2);
   const edgePath = ({
     x1,
     y1,

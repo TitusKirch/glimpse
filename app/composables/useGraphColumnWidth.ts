@@ -14,31 +14,6 @@ import {
   type MaybeRefOrGetter
 } from 'vue';
 
-export interface RowWindow {
-  first: number;
-  last: number;
-}
-
-// Extend the measured row range in the direction of travel, past the rows the
-// virtualizer is holding. A wider stretch then raises the column's width while
-// its rows are still below the fold, so the width *leads* the scroll instead of
-// stepping up the moment a wide row appears. Growth cannot be eased — a lane
-// drawn outside the gutter is a lane lost — so arriving early is what makes it
-// read as continuous.
-export function lookaheadWindow(
-  window: RowWindow,
-  direction: -1 | 1,
-  rows: number,
-  count: number
-): RowWindow {
-  if (count <= 0) return window;
-  const last = Math.min(count - 1, window.last);
-  if (direction > 0) {
-    return { first: window.first, last: Math.min(count - 1, last + rows) };
-  }
-  return { first: Math.max(0, window.first - rows), last };
-}
-
 interface GraphColumnWidthOptions {
   // Largest share of the pane the graph may take before it starts clipping and
   // scrolls on its own. The remainder is the commit list's guaranteed share.
@@ -46,12 +21,9 @@ interface GraphColumnWidthOptions {
   // The cap never falls below this, so even a very narrow pane still draws a
   // lane or two rather than a sliver.
   minWidth?: number;
-  // How long the column takes to give width back. Growing is never delayed —
-  // only shrinking, and it eases across this span rather than waiting it out.
+  // How long a narrower stretch must hold before the column gives the width
+  // back. Growing is never delayed; only shrinking waits.
   settleDelay?: number;
-  // How often the ease steps while it is running. Nothing is scheduled once the
-  // column has settled.
-  frameInterval?: number;
 }
 
 export function useGraphColumnWidth(
@@ -59,12 +31,7 @@ export function useGraphColumnWidth(
   paneWidth: MaybeRefOrGetter<number>,
   options: GraphColumnWidthOptions = {}
 ) {
-  const {
-    maxPaneFraction = 0.4,
-    minWidth = 54,
-    settleDelay = 400,
-    frameInterval = 16
-  } = options;
+  const { maxPaneFraction = 0.4, minWidth = 54, settleDelay = 400 } = options;
 
   const cap = computed(() => {
     const pane = toValue(paneWidth);
@@ -76,36 +43,19 @@ export function useGraphColumnWidth(
 
   const target = computed(() => Math.min(toValue(needed), cap.value));
 
-  // Grow now, ease down later. A wider stretch scrolling into view must widen
-  // the column at once or its lanes would be clipped; a narrower one gives the
-  // width back over `settleDelay`, so the commit column's left edge slides
-  // rather than snapping every time a row enters or leaves the viewport.
+  // Grow now, shrink after a hold — and then in one step, not across a
+  // transition. An interpolated width was tried and reverted: sliding the
+  // column while the rows it indents keep re-rendering read as a glitch rather
+  // than as motion, and it kept the column wider than the rows needed for the
+  // whole span of every shrink. The hold is what stops the edge twitching as
+  // single rows enter and leave; once it expires the width is simply correct.
   const settled = ref(target.value);
 
-  let ease: ReturnType<typeof setInterval> | undefined;
-  // The value and the moment the run in flight interpolates from, plus the
-  // deadline it interpolates to. Retargeting moves the first two; the deadline
-  // is what "settle once, don't restart the wait" preserves.
-  let easeFrom = 0;
-  let easeSince = 0;
-  let easeUntil = 0;
-
-  const stopEase = () => {
-    if (ease === undefined) return;
-    clearInterval(ease);
-    ease = undefined;
-  };
-
-  const stepEase = () => {
-    const now = Date.now();
-    if (now >= easeUntil) {
-      stopEase();
-      settled.value = target.value;
-      return;
-    }
-    const span = easeUntil - easeSince;
-    const progress = span > 0 ? (now - easeSince) / span : 1;
-    settled.value = easeFrom + (target.value - easeFrom) * progress;
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  const stopSettle = () => {
+    if (settleTimer === undefined) return;
+    clearTimeout(settleTimer);
+    settleTimer = undefined;
   };
 
   // Until the pane has been measured there is no cap, so `settled` is seeded at
@@ -115,36 +65,31 @@ export function useGraphColumnWidth(
   watch(cap, (next, previous) => {
     if (previous !== Number.POSITIVE_INFINITY) return;
     if (next === Number.POSITIVE_INFINITY) return;
-    stopEase();
+    stopSettle();
     settled.value = target.value;
   });
 
   watch(target, (next) => {
     if (next >= settled.value) {
-      stopEase();
+      stopSettle();
       settled.value = next;
       return;
     }
-    if (ease !== undefined) {
-      // Retarget the run in flight from where it has got to, keeping its
-      // deadline, so a stretch that keeps narrowing arrives after one delay
-      // rather than never — and without the value jumping as it retargets.
-      easeFrom = settled.value;
-      easeSince = Date.now();
-      return;
-    }
-    easeFrom = settled.value;
-    easeSince = Date.now();
-    easeUntil = easeSince + settleDelay;
-    ease = setInterval(stepEase, frameInterval);
+    // Settle once: a stretch that keeps narrowing arrives one hold after it
+    // started narrowing, rather than pushing the deadline back on every row.
+    if (settleTimer !== undefined) return;
+    settleTimer = setTimeout(() => {
+      settleTimer = undefined;
+      settled.value = target.value;
+    }, settleDelay);
   });
 
-  onScopeDispose(stopEase);
+  onScopeDispose(stopSettle);
 
   // How far the graph reaches past the column it is actually drawn in — the pan
   // range the component's own horizontal scroll has to cover. Measured against
-  // the width on screen, not the target, so a column still easing down from a
-  // wider stretch correctly reports nothing to pan while it is on the way.
+  // the width on screen, not the target, so a column still holding a wider
+  // stretch correctly reports nothing to pan until it has given the width back.
   // Past the cap the column shows less than the graph draws, and says by how
   // much: the component turns that into its own horizontal scroll rather than
   // hiding it.

@@ -39,7 +39,14 @@ const virtualRows = computed(() =>
 // loaded log — so the long single-lane stretches hand their width back to the
 // commit subjects, and loading another page of older history no longer pushes
 // the rows already on screen to the right. `useGraphColumnWidth` adds the rules
-// on top: never more than its share of the pane, grow at once, ease back down.
+// on top: never more than its share of the pane, grow at once, give the width
+// back after a hold.
+//
+// Measured from exactly the rows the virtualizer holds — no lookahead past
+// them. Reading further ahead only ever widens the column, reserving width on
+// screen for lanes that are not, which is the opposite of what this column is
+// for. It existed to make growth *arrive early* while the width was animated;
+// with the animation gone (see `useGraphColumnWidth`) it buys nothing.
 const visibleRows = computed(() => {
   const items = rowVirtualizer.value.getVirtualItems();
   return {
@@ -48,43 +55,13 @@ const visibleRows = computed(() => {
   };
 });
 
-// Which way the list is travelling. Remembered across the moments it is still,
-// so the lookahead below does not collapse the instant a scroll stops — and
-// starts downward, which is the way a history list is first read.
-const scrollDirection = ref<-1 | 1>(1);
-watch(
-  () => visibleRows.value.first + visibleRows.value.last,
-  (next, previous) => {
-    if (next === previous) return;
-    scrollDirection.value = next > previous ? 1 : -1;
-  }
-);
-
-// Rows measured beyond the virtualizer's own overscan, in the direction of
-// travel. Growth cannot be eased — a lane drawn outside the gutter is a lane
-// lost — so the width is made continuous by arriving early instead: at the 60px
-// row height this reads a further 600px of history ahead of the fold. Enough to
-// lead a normal scroll, short enough that a wide stretch far below does not
-// keep the column wide over the narrow rows on screen.
-const GRAPH_LOOKAHEAD_ROWS = 10;
-const measuredRows = computed(() =>
-  lookaheadWindow(
-    visibleRows.value,
-    scrollDirection.value,
-    GRAPH_LOOKAHEAD_ROWS,
-    repo.commits.length
-  )
-);
 const { width: graphWidth, overflow: graphOverflow } = useGraphColumnWidth(
   () =>
-    layout.value.widthForRows(
-      measuredRows.value.first,
-      measuredRows.value.last
-    ),
+    layout.value.widthForRows(visibleRows.value.first, visibleRows.value.last),
   paneWidth
 );
 // Rounded once and shared, so the gutter's edge and every row's indent stay
-// exactly aligned while the width is mid-ease and carrying a fraction.
+// exactly aligned when the cap lands the width on a fraction of a pixel.
 const graphWidthPx = computed(() => Math.round(graphWidth.value) + 'px');
 
 // Past the cap the graph is wider than its column, so it pans on its own rather
@@ -106,8 +83,8 @@ function panGraph(event: WheelEvent) {
 // A stretch that no longer overflows leaves the gutter scrolled where the wide
 // one left it, with lane 0 off the left edge of a column whose rows are already
 // indented correctly — and no way back, since there is nothing left to pan.
-// Driven by the overflow the column actually has on screen, so it holds while
-// the width is still easing down and not only once it has arrived.
+// Driven by the overflow the column actually has on screen, so it is still
+// correct while a narrower stretch is being held out.
 watch(graphOverflow, (maxPan) => {
   const el = gutterEl.value;
   if (!el) return;
@@ -341,10 +318,10 @@ function refVariant(refName: string) {
               :key="n.hash"
               :cx="n.cx"
               :cy="n.cy"
-              r="5"
+              r="4"
               :fill="n.color"
               stroke="var(--background)"
-              stroke-width="2.5"
+              stroke-width="2"
             />
           </svg>
         </div>
