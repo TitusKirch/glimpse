@@ -214,7 +214,13 @@ jobs:
           $out.Add('')
           $out.Add('</details>')
 
-          $out -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          $text = $out -join "`n"
+          $text | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          # And to the log as well. The job summary is a separate tab, and a
+          # number nobody finds in the run they already have open is only half
+          # published — this is also what makes the summary path verifiable
+          # from the log rather than taken on trust.
+          Write-Host $text
 
       - name: Upload the measurement
         if: always()
