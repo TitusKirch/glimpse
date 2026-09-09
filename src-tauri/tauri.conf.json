@@ -5,7 +5,7 @@
   "identifier": "dev.kirch.glimpse",
   "build": {
     "frontendDist": "../.output/public",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://localhost:3210",
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm generate"
   },

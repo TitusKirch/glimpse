@@ -106,7 +106,7 @@ pnpm tauri dev    # desktop dev shell
 ```
 
 > [!TIP]
-> For fast UI iteration you can run `pnpm dev` (the Nuxt dev server) and open `http://localhost:3000` in a browser — backend IPC is mocked when not running under Tauri.
+> For fast UI iteration you can run `pnpm dev` (the Nuxt dev server) and open `http://localhost:3210` in a browser — backend IPC is mocked when not running under Tauri.
 
 ## 🧬 Git-native & WSL
 

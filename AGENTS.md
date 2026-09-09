@@ -38,7 +38,7 @@ It is **not** an AI-agent-specific tool. The earlier "AI companion / Revert-AI /
 
 This repo is often developed inside WSL2. Practical loop:
 
-- **Frontend demo:** `pnpm dev` (Nuxt) runs in WSL; open `http://localhost:3000` from the Windows browser. Fastest UI iteration. Backend IPC is mocked when not running under Tauri.
+- **Frontend demo:** `pnpm dev` (Nuxt) runs in WSL; open `http://localhost:3210` from the Windows browser. Fastest UI iteration. Backend IPC is mocked when not running under Tauri.
 - **Full Tauri shell in WSL:** needs `rustup` + `webkit2gtk-4.1` + build deps; produces a **Linux** build shown via WSLg. Not the Windows target.
 - **WSL-git feature + Windows behaviour:** can only be exercised in a **Windows** build (that's where `wsl.exe` is invoked). Build/run on Windows for those.
 

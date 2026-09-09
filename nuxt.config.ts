@@ -10,6 +10,15 @@ export default defineNuxtConfig({
   // Desktop app: single-page, no server rendering.
   ssr: false,
 
+  // Pinned, and deliberately not Nuxt's default 3000. Tauri looks for the dev
+  // server at a fixed `devUrl` (src-tauri/tauri.conf.json) — the two have to
+  // agree or the shell opens on a blank window — and 3000 is the port every
+  // other Node dev server on the machine also wants. Moving off it means a
+  // stray project elsewhere cannot take the port this one needs. Combined with
+  // `strictPort` below, a clash fails loudly instead of hopping to 3001, where
+  // Tauri would never find it.
+  devServer: { port: 3210 },
+
   runtimeConfig: {
     public: {
       // Baked in here so the fatal error page (app/error.vue) can report the
