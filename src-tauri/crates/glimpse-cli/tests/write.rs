@@ -193,6 +193,47 @@ fn a_commit_message_that_collides_with_a_global_still_commits() {
 }
 
 #[test]
+fn commit_refuses_while_a_merge_is_still_conflicted_and_says_which() {
+    // The refusal used to read "nothing staged to commit / Stage something
+    // first" — advice that, followed, stages the conflict markers.
+    let dir = merged_with_conflict("commit-conflicted");
+    let path = dir.to_str().unwrap();
+
+    let before = git_out(&dir, &["rev-parse", "HEAD"]);
+
+    let (code, _out, err) = run(&["commit", "-C", path, "-m", "merge"]);
+    assert_eq!(code, 1);
+    assert!(
+        err.contains("conflict"),
+        "the real state is named, not 'nothing staged': {err:?}"
+    );
+    assert!(err.contains("a.txt"), "the file is named: {err:?}");
+    assert!(
+        !err.contains("nothing staged"),
+        "the misdiagnosis is gone: {err:?}"
+    );
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "HEAD"]),
+        before,
+        "the refusal moved nothing"
+    );
+
+    // Resolving it lifts the refusal — the merge still concludes normally.
+    std::fs::write(dir.join("a.txt"), "resolved\n").unwrap();
+    git(&dir, &["add", "a.txt"]);
+    let (code, _out, err) = run(&["commit", "-C", path, "-m", "merge: resolved"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let parents = git_out(&dir, &["rev-list", "--parents", "-n", "1", "HEAD"]);
+    assert_eq!(
+        parents.split_whitespace().count(),
+        3,
+        "a real merge commit, two parents: {parents:?}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn amend_rewrites_head_keeping_its_message_by_default() {
     let dir = scratch_repo("amend");
     let path = dir.to_str().unwrap();

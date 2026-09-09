@@ -217,7 +217,35 @@ fn commit(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
 
     // Refuse before calling git, so the reason names *this* CLI's contract
     // rather than surfacing git's own wording for a case we can see coming.
-    if !repo.status()?.iter().any(|e| e.staged) {
+    let status = repo.status()?;
+
+    // Conflicts first, because they are the state that *looks* like "nothing
+    // staged": an unmerged entry counts as neither staged nor unstaged. Sending
+    // a mid-merge caller to `glimpse stage <path>` is worse than unhelpful —
+    // followed literally, it stages the conflict markers.
+    let conflicted: Vec<String> = status
+        .iter()
+        .filter(|e| e.conflicted)
+        .map(|e| e.path.clone())
+        .collect();
+    if let [only] = conflicted.as_slice() {
+        return Err(format!(
+            "{only} still has an unresolved merge conflict\n\n\
+             Resolve it, then stage it: glimpse stage {only}"
+        )
+        .into());
+    }
+    if !conflicted.is_empty() {
+        return Err(format!(
+            "{} still have unresolved merge conflicts:\n{}\n\n\
+             Resolve each one, then stage it: glimpse stage <path>...",
+            listed(&conflicted),
+            bulleted(&conflicted),
+        )
+        .into());
+    }
+
+    if !status.iter().any(|e| e.staged) {
         return Err(
             "nothing staged to commit\n\nStage something first: glimpse stage <path>...".into(),
         );
@@ -465,6 +493,19 @@ fn unstage(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
     }
     let detail = format!("unstaged {}", listed(&paths));
     Ok(Report::new("unstage", paths, detail))
+}
+
+/// The same paths, one per line, for a message that has to be *acted* on rather
+/// than merely read — [`listed`] collapses to "3 files", which is no help to
+/// someone who has to resolve each of them. Capped, so a 200-file conflict does
+/// not bury the sentence that explains it.
+fn bulleted(paths: &[String]) -> String {
+    const SHOWN: usize = 10;
+    let mut lines: Vec<String> = paths.iter().take(SHOWN).map(|p| format!("  {p}")).collect();
+    if paths.len() > SHOWN {
+        lines.push(format!("  …and {} more", paths.len() - SHOWN));
+    }
+    lines.join("\n")
 }
 
 /// "a.txt", "a.txt and b.txt", "3 files" — a human summary that stays short
