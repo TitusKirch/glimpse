@@ -87,44 +87,26 @@ let profileDir: string | undefined;
 let tauriDriver: ChildProcess | undefined;
 
 /**
- * Environment for the app under test: a private profile, and no route out to
- * the network.
+ * Environment for the app under test: a private profile, and nothing else.
  *
- * The offline part is not hygiene, it is load-bearing. glimpse checks for
- * updates on launch and installs what it finds, and the manifest URLs are
- * compiled into `updater_endpoint()` in Rust — no config override can redirect
- * them. On Linux an install rewrites the running AppImage in place, so a real
- * run downloads the latest published release straight over
- * `target/debug/glimpse`: the binary under test is replaced by a different
- * version mid-suite. Any branch whose version trails the newest release — which
- * on `dev` is the normal state — hits this every time.
+ * Nothing here holds the updater off any more, and nothing here needs to.
+ * `updater_allowed()` in `src-tauri/src/lib.rs` shuts it for every debug build,
+ * this one included — so `pnpm tauri dev` is covered by the same gate, instead
+ * of only this suite being covered by a mechanism living in a file nobody would
+ * think to look in. The suite sets no `GLIMPSE_ALLOW_UPDATER`, so the gate stays
+ * shut here.
  *
- * Pointing the proxy variables at a closed port is what stops it: reqwest (what
- * the updater plugin uses) honours them, so the check fails at connect and the
- * silent launch check stays silent. Nothing the smoke test asserts on needs the
- * network — the commit graph comes from a local `git log`.
- *
- * Loopback has to be exempt. WebKitWebDriver automates the webview by attaching
- * to WebKit's RemoteInspector over a local socket, and WebKit honours these same
- * variables — proxy loopback as well and the driver never reaches the app, which
- * fails as a session timeout rather than anything mentioning a proxy.
+ * What that stops: glimpse updates in place, and on Linux an install rewrites
+ * the running AppImage — so a build whose version trails the newest release
+ * downloads that release straight over `target/debug/glimpse` on launch, and the
+ * binary under test is replaced by a different version mid-suite.
  */
 function appEnv(profile: string): NodeJS.ProcessEnv {
-  const deadProxy = 'http://127.0.0.1:9';
-  const loopback = '127.0.0.1,localhost,::1';
   return {
     ...process.env,
     XDG_DATA_HOME: join(profile, 'data'),
     XDG_CONFIG_HOME: join(profile, 'config'),
-    XDG_CACHE_HOME: join(profile, 'cache'),
-    HTTP_PROXY: deadProxy,
-    HTTPS_PROXY: deadProxy,
-    ALL_PROXY: deadProxy,
-    http_proxy: deadProxy,
-    https_proxy: deadProxy,
-    all_proxy: deadProxy,
-    NO_PROXY: loopback,
-    no_proxy: loopback
+    XDG_CACHE_HOME: join(profile, 'cache')
   };
 }
 

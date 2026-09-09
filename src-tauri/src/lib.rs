@@ -1550,6 +1550,43 @@ async fn resolve_update(
     Ok(best)
 }
 
+/// Set to `1` to let a debug build reach the real updater anyway.
+#[cfg(desktop)]
+const ALLOW_UPDATER_ENV: &str = "GLIMPSE_ALLOW_UPDATER";
+
+/// Whether this build may reach the real updater.
+///
+/// A debug build must not, by default. glimpse updates in place — on Linux an
+/// install rewrites the running AppImage — so a build whose version trails the
+/// newest release downloads that release straight over itself on launch. That is
+/// the normal state of `dev`, which makes it the normal state of `pnpm tauri dev`
+/// and of the `--debug` binary the e2e suite drives: what runs is no longer what
+/// was built.
+///
+/// `GLIMPSE_ALLOW_UPDATER=1` opens the gate deliberately, because otherwise the
+/// download, signature check and install could only ever be exercised by a
+/// release build — the one place a fault in them surfaces too late to be cheap.
+/// Exactly `1`, nothing looser: the value has to be typed on purpose, never
+/// inherited from an environment that happens to carry the name.
+#[cfg(desktop)]
+fn updater_allowed(debug_build: bool, allow_override: Option<&str>) -> bool {
+    !debug_build || allow_override == Some("1")
+}
+
+/// [`updater_allowed`] for this process: the build kind is compiled in, the
+/// override is read from the environment.
+#[cfg(desktop)]
+fn updater_enabled() -> bool {
+    let allow = env::var(ALLOW_UPDATER_ENV).ok();
+    let allowed = updater_allowed(cfg!(debug_assertions), allow.as_deref());
+    if !allowed {
+        // Said out loud rather than failing silently: a developer wondering why
+        // "check for updates" does nothing gets the reason and the way through.
+        log::info!("updater disabled in this debug build; set {ALLOW_UPDATER_ENV}=1 to allow it");
+    }
+    allowed
+}
+
 /// Check the given channel for an available update; returns its version string.
 #[cfg(desktop)]
 #[tauri::command]
@@ -1558,6 +1595,9 @@ async fn check_update(
     channel: String,
     force: bool,
 ) -> Result<Option<String>, String> {
+    if !updater_enabled() {
+        return Ok(None);
+    }
     Ok(resolve_update(&app, &channel, force)
         .await?
         .map(|u| u.version))
@@ -1604,6 +1644,9 @@ struct UpdateProgress {
 #[cfg(desktop)]
 #[tauri::command]
 async fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
+    if !updater_enabled() {
+        return Ok(());
+    }
     let Some(update) = resolve_update(&app, &channel, force).await? else {
         return Ok(());
     };
@@ -1890,11 +1933,38 @@ pub fn run() {
 mod tests {
     use super::{
         bake_wsl_shim, dev_panic_now, first_path_arg, locked, parse_wsl_distros, progress_percent,
-        resolve_cli_path, version_outranks, wslpath_arg, RepoLocks,
+        resolve_cli_path, updater_allowed, version_outranks, wslpath_arg, RepoLocks,
     };
     use std::sync::mpsc::channel;
     use std::sync::Arc;
     use std::thread;
+
+    #[test]
+    fn a_debug_build_never_reaches_the_updater() {
+        // The bug: a debug build trailing the newest release pulled that release
+        // down over itself on launch — `pnpm tauri dev` and the `--debug` binary
+        // the e2e suite drives alike — so what ran was not what was built.
+        assert!(!updater_allowed(true, None));
+        // A release build is the one that is supposed to update itself.
+        assert!(updater_allowed(false, None));
+    }
+
+    #[test]
+    fn the_escape_hatch_opens_the_gate_for_a_debug_build() {
+        // Without a way through, the real download, signature check and install
+        // could only ever be exercised by a release build — the one place a
+        // fault in them surfaces too late to be cheap.
+        assert!(updater_allowed(true, Some("1")));
+    }
+
+    #[test]
+    fn only_an_explicit_one_opens_the_gate() {
+        // Off by default, and only the documented value turns it on: the e2e
+        // suite sets nothing, so CI stays guarded whatever else is in its env.
+        assert!(!updater_allowed(true, Some("")));
+        assert!(!updater_allowed(true, Some("0")));
+        assert!(!updater_allowed(true, Some("true")));
+    }
 
     #[test]
     fn progress_reports_each_whole_percent_once() {

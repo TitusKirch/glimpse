@@ -44,17 +44,19 @@ there — `oxlint` covers it like any other file, and `pnpm typecheck` runs
 - **A throwaway XDG profile per run.** glimpse persists its open tabs and the
   selected tab; without this, whatever you last did by hand would decide whether
   the suite passes.
-- **Cutting off the network.** This one is load-bearing rather than hygiene:
-  glimpse checks for updates on launch and installs what it finds, and the
-  manifest URLs are compiled into `updater_endpoint()` in Rust, so no config
-  override redirects them. On Linux an install rewrites the running AppImage in
-  place — so a real run downloads the newest published release straight over
-  `target/debug/glimpse`, and the binary under test is silently replaced by a
-  different version mid-suite. Any branch whose version trails the latest
-  release (the normal state of `dev`) hits this every time. Pointing the proxy
-  variables at a closed port stops it; loopback stays exempt, because
-  WebKitWebDriver reaches the app over a local socket and honours those same
-  variables.
+Not on that list any more: keeping the app off the network. It used to point the
+proxy variables at a closed port, because glimpse checks for updates on launch
+and installs what it finds — and on Linux an install rewrites the running
+AppImage in place, so a run downloaded the newest published release straight
+over `target/debug/glimpse` and the binary under test was silently replaced
+mid-suite. Any branch whose version trails the latest release (the normal state
+of `dev`) hit this every time.
+
+`updater_allowed()` in `src-tauri/src/lib.rs` now shuts the updater for **every**
+debug build, so `pnpm tauri dev` is covered too rather than just this suite —
+and by a gate in the file the updater lives in, instead of an environment trick
+in a config nobody would think to read. Set `GLIMPSE_ALLOW_UPDATER=1` to exercise
+the real download and install deliberately; the suite never sets it.
 
 ## In CI
 
