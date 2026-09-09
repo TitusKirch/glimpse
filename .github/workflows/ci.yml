@@ -124,16 +124,21 @@ jobs:
       # point: the unit test in the crate reads its own manifest, which catches
       # a direct dependency and nothing else. A helper crate that innocently
       # depends on tauri would slip straight past it and be caught here.
+      #
+      # THE DECISION IS NOT IN THIS FILE, deliberately. It was, as three lines
+      # of `grep -q 'tauri'` over whole `cargo tree` lines, and it matched the
+      # crate's own manifest path — this workspace's root directory is named
+      # `src-tauri` — so the step failed unconditionally and nobody saw it,
+      # because a workflow that runs on `pull_request` never executed against
+      # work landing on a shared branch. It now lives in a script whose test
+      # pins both sides of the guard, and `pnpm test` runs that test on every
+      # local `pnpm check`. See `scripts/check-core-tauri-free.ts`.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
       - name: Core crate is Tauri-free
-        working-directory: src-tauri
-        run: |
-          tree=$(cargo tree --package glimpse-core --edges normal,build)
-          if printf '%s\n' "$tree" | grep -q 'tauri'; then
-            echo "::error::glimpse-core has Tauri in its dependency tree:"
-            printf '%s\n' "$tree" | grep 'tauri'
-            exit 1
-          fi
-          echo "glimpse-core is Tauri-free."
+        run: node scripts/check-core-tauri-free.ts
 
   # BUILT ONCE, NOT THREE TIMES (#196). `tauri build` runs `beforeBuildCommand`
   # — `pnpm generate` — inside every leg of the matrix below, and the result is
