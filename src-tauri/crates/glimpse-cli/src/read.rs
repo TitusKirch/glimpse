@@ -95,7 +95,7 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
         // `branches` renders from the whole `RepoInfo` (it needs to know which
         // branch is checked out) but emits only the branch array under --json,
         // so the machine shape is the list the command's name promises.
-        "branches" | "branch" => {
+        "branches" => {
             let repo = open_repo(globals.dir);
             repo.info().and_then(|info| {
                 emit(&info.branches, json, || {
@@ -103,12 +103,25 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
                 })
             })
         }
+        // The listing half of `glimpse tag` / `glimpse remote`. Both were only
+        // ever readable through `info` before those groups existed, which meant
+        // reading nine other things to see them.
+        "tags" => {
+            let repo = open_repo(globals.dir);
+            repo.tag_names()
+                .and_then(|names| emit(&names, json, || render_names(&names, "no tags")))
+        }
+        "remotes" => {
+            let repo = open_repo(globals.dir);
+            repo.remote_names()
+                .and_then(|names| emit(&names, json, || render_names(&names, "no remotes")))
+        }
         "info" => {
             let repo = open_repo(globals.dir);
             repo.info()
                 .and_then(|info| emit(&info, json, || render_info(&info)))
         }
-        "stashes" | "stash" => {
+        "stashes" => {
             let repo = open_repo(globals.dir);
             repo.stash_list()
                 .and_then(|entries| emit(&entries, json, || render_stashes(&entries)))
@@ -465,6 +478,21 @@ fn render_reflog(entries: &[ReflogEntry]) -> String {
 
 /// Stash entries, ref first — the ref is what every stash write action takes,
 /// so it is the field a reader is here to copy.
+/// A bare list of names, one per line — the whole shape `tags` and `remotes`
+/// have. `empty` is the sentence for none, because a blank answer reads as a
+/// command that failed quietly.
+fn render_names(names: &[String], empty: &str) -> String {
+    if names.is_empty() {
+        return format!("{empty}\n");
+    }
+    let mut out = String::new();
+    for n in names {
+        out.push_str(n);
+        out.push('\n');
+    }
+    out
+}
+
 fn render_stashes(entries: &[StashEntry]) -> String {
     if entries.is_empty() {
         return "no stashes\n".to_string();

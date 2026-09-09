@@ -13,16 +13,58 @@
 //! * **A running GUI is told afterwards** ([`crate::signal`]), best-effort: the
 //!   notification cannot fail the command that succeeded.
 
-use crate::{fail, open_repo, parse_globals, signal, wants_json};
+use crate::{fail, open_repo, parse_globals, refs, signal, wants_json};
 use glimpse_core::git::Repo;
 use std::io::Write;
 
 /// The write commands this module answers to. Kept beside the implementation so
 /// [`crate::run`] routes on one list rather than on a match arm that can drift.
-pub const WRITE_SUBCOMMANDS: &[&str] = &["stage", "unstage", "discard", "commit", "amend"];
+///
+/// The last seven are **grouped**: their own verb follows the name (`branch
+/// create`, `stash pop`), the way `cl` already spells its own. They are listed
+/// here as the one word `claims` and the two documentation guards see, and
+/// [`crate::GROUPED`] carries the verbs.
+pub const WRITE_SUBCOMMANDS: &[&str] = &[
+    "stage",
+    "unstage",
+    "discard",
+    "commit",
+    "amend",
+    "branch",
+    "tag",
+    "remote",
+    "stash",
+    "cherry-pick",
+    "revert",
+    "reset",
+];
 
 pub(crate) fn claims(cmd: &str) -> bool {
     WRITE_SUBCOMMANDS.contains(&cmd)
+}
+
+/// A grouped command written with no verb, or with `ls`, is the **read** view of
+/// the same subject — `glimpse branch` lists branches, exactly as it did before
+/// the group gained its verbs, and `glimpse stash` still lists stashes.
+///
+/// Returning the read command's own name rather than rendering a listing here
+/// keeps one renderer per subject: the read module already owns the human shape
+/// and the `--json` contract for all four of these.
+fn listing_instead(cmd: &str, rest: &[String]) -> Option<&'static str> {
+    let listing = match rest.first().map(String::as_str) {
+        None | Some("ls") | Some("list") => true,
+        Some(_) => false,
+    };
+    if !listing {
+        return None;
+    }
+    match cmd {
+        "branch" => Some("branches"),
+        "stash" => Some("stashes"),
+        "tag" => Some("tags"),
+        "remote" => Some("remotes"),
+        _ => None,
+    }
 }
 
 pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
@@ -33,6 +75,11 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
     if globals.help {
         let _ = write!(out, "{}", crate::help());
         return 0;
+    }
+    // Answered before a repository is opened, like `--help` above: this is a
+    // routing decision about argv, and the read module opens its own.
+    if let Some(read_cmd) = listing_instead(cmd, &globals.rest) {
+        return crate::read::run(read_cmd, args, out, err);
     }
     let json = globals.json;
 
@@ -53,8 +100,10 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
         "discard" => discard(&repo, &globals.rest),
         "commit" => commit(&repo, &globals.rest),
         "amend" => amend(&repo, &globals.rest),
-        // Unreachable: `claims` above gates this match on the same list.
-        other => Err(format!("unknown subcommand: {other}").into()),
+        // The refs and metadata group. Same contract, own module: their subject
+        // is a ref rather than a path, so what they read back afterwards — and
+        // what they refuse — is a different question from the working tree's.
+        _ => refs::run(cmd, &repo, &globals.rest),
     };
 
     match result {
@@ -91,8 +140,8 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
 /// and any running window (as a receipt) — a failure is not a reason to leave
 /// either of them believing the repository is as it was.
 pub(crate) struct Failure {
-    message: String,
-    partial: Option<Report>,
+    pub(crate) message: String,
+    pub(crate) partial: Option<Report>,
 }
 
 impl From<String> for Failure {
@@ -133,7 +182,7 @@ pub(crate) struct Report {
 }
 
 impl Report {
-    fn new(action: &'static str, paths: Vec<String>, detail: String) -> Self {
+    pub(crate) fn new(action: &'static str, paths: Vec<String>, detail: String) -> Self {
         Self {
             action,
             paths,
@@ -142,7 +191,7 @@ impl Report {
         }
     }
 
-    fn with_commit(mut self, hash: String) -> Self {
+    pub(crate) fn with_commit(mut self, hash: String) -> Self {
         self.commit = Some(hash);
         self
     }
@@ -559,7 +608,7 @@ fn unstage(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
 /// than merely read — [`listed`] collapses to "3 files", which is no help to
 /// someone who has to resolve each of them. Capped, so a 200-file conflict does
 /// not bury the sentence that explains it.
-fn bulleted(paths: &[String]) -> String {
+pub(crate) fn bulleted(paths: &[String]) -> String {
     const SHOWN: usize = 10;
     let mut lines: Vec<String> = paths.iter().take(SHOWN).map(|p| format!("  {p}")).collect();
     if paths.len() > SHOWN {
@@ -570,7 +619,7 @@ fn bulleted(paths: &[String]) -> String {
 
 /// "a.txt", "a.txt and b.txt", "3 files" — a human summary that stays short
 /// when a caller stages a whole directory's worth of paths.
-fn listed(paths: &[String]) -> String {
+pub(crate) fn listed(paths: &[String]) -> String {
     match paths {
         [one] => one.clone(),
         [a, b] => format!("{a} and {b}"),

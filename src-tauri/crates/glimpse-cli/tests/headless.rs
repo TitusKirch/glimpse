@@ -210,7 +210,10 @@ fn help_lists_every_subcommand_the_cli_claims() {
     // from `glimpse --help`. This is the check that keeps the two in step.
     let (code, out, err) = run(&["--help"]);
     assert_eq!(code, 0, "stderr: {err}");
-    for name in glimpse_cli::SUBCOMMANDS {
+    // The verbs of a grouped command are checked too: `branch` appearing in the
+    // help says nothing about whether `branch delete` does, and it is the action
+    // that criterion (b) is about.
+    for name in glimpse_cli::SUBCOMMANDS.iter().chain(glimpse_cli::GROUPED) {
         assert!(out.contains(name), "`{name}` missing from --help:\n{out}");
     }
     assert!(
@@ -231,7 +234,7 @@ fn the_readme_documents_every_subcommand_the_cli_claims() {
         .expect("the repository README");
     let text = std::fs::read_to_string(&readme).expect("read the README");
 
-    for name in glimpse_cli::SUBCOMMANDS {
+    for name in glimpse_cli::SUBCOMMANDS.iter().chain(glimpse_cli::GROUPED) {
         assert!(
             documents(&text, name),
             "`glimpse {name}` is missing from {}",

@@ -24,6 +24,7 @@ use std::io::Write;
 
 mod changelist;
 mod read;
+mod refs;
 mod signal;
 mod write;
 
@@ -41,6 +42,8 @@ pub const SUBCOMMANDS: &[&str] = &[
     "history",
     "blame",
     "branches",
+    "tags",
+    "remotes",
     "stashes",
     "reflog",
     "worktrees",
@@ -53,15 +56,60 @@ pub const SUBCOMMANDS: &[&str] = &[
     "discard",
     "commit",
     "amend",
+    "branch",
+    "tag",
+    "remote",
+    "stash",
+    "cherry-pick",
+    "revert",
+    "reset",
     "cl",
+];
+
+/// Every **verb** of a grouped command, spelled as a user writes it.
+///
+/// [`SUBCOMMANDS`] carries one word per command, which is what `claims` needs
+/// and all the two documentation guards could check while every command was one
+/// word. A group hides its real surface behind that word: `branch` alone says
+/// nothing about `branch delete`, so a verb could ship undocumented and pass
+/// both guards. #103's criterion (b) is about the *action*, not the noun, so the
+/// guards read this list too.
+///
+/// The `ls` verb of each group is deliberately absent: it is not an action of
+/// its own, it is the bare group command (`glimpse branch` lists branches), and
+/// that spelling is already covered as a [`SUBCOMMANDS`] entry.
+pub const GROUPED: &[&str] = &[
+    "branch create",
+    "branch switch",
+    "branch rename",
+    "branch delete",
+    "branch merge",
+    "tag create",
+    "tag delete",
+    "tag push",
+    "remote add",
+    "remote rename",
+    "remote remove",
+    "stash save",
+    "stash pop",
+    "stash apply",
+    "stash drop",
+    "cl add",
+    "cl mv",
+    "cl rm",
+    "cl active",
+    "cl commit",
 ];
 
 /// Long-form spellings and aliases accepted in addition to [`SUBCOMMANDS`].
 /// Kept apart so `--help` lists one name per command instead of every synonym.
+///
+/// `branch` and `stash` used to live here as read-only synonyms for `branches`
+/// and `stashes`. They are commands in their own right now — grouped ones, whose
+/// verbs write — and the bare spelling still lists, so nothing a user typed
+/// before means anything different today.
 const ALIASES: &[&str] = &[
     "changelist",
-    "branch",
-    "stash",
     "worktree",
     "submodule",
     "sparse-checkout",
@@ -341,6 +389,8 @@ Reading a repository:
   history <file>                       Commits touching one file, across renames
   blame <file>                         Per-line authorship for one file
   branches                             Local branches, with ahead/behind and upstream
+  tags                                 Tag names (same as `glimpse tag`)
+  remotes                              Remote names (same as `glimpse remote`)
   stashes                              Saved stash entries, newest first
   reflog [-n <count>]                  Where HEAD has been (default: 50)
   worktrees                            Linked worktrees, their branch and HEAD
@@ -355,6 +405,35 @@ Changing a repository:
   discard <file>... | --all --force    Throw away uncommitted changes
   commit -m <message>                  Commit what is staged
   amend [-m <message>]                 Rewrite the previous commit
+
+Branches, tags, remotes and stashes:
+  branch [ls]                          List local branches
+  branch create <name> [<commit>]      Create a branch and switch to it
+  branch switch <name>                 Check out an existing branch
+  branch rename <old> <new>            Rename a branch
+  branch delete <name> [--force]       Delete a branch (--force: unmerged too)
+  branch merge <branch>                Merge a branch into the current one
+  tag [ls]                             List tags
+  tag create <name> [<commit>] [-m <message>] [--sign]
+                                       Create a tag (-m makes it annotated)
+  tag delete <name>                    Delete a tag
+  tag push                             Push every local tag to the remote
+  remote [ls]                          List remotes
+  remote add <name> <url>              Add a remote
+  remote rename <old> <new>            Rename a remote
+  remote remove <name>                 Remove a remote
+  stash [ls]                           List stash entries
+  stash save [-m <message>] [-u] [<file>...]
+                                       Put the working tree away (-u: untracked too)
+  stash pop [<stash>]                  Restore an entry and remove it (default: stash@{{0}})
+  stash apply [<stash>]                Restore an entry and keep it
+  stash drop <stash>                   Throw an entry away (the name is required)
+
+Moving commits:
+  cherry-pick <commit>...              Replay commits onto the current branch
+  revert [-m <parent>] <commit>...     Commit the inverse of commits
+  reset [--soft|--mixed|--hard] <commit> [--force]
+                                       Move the current branch (default: --mixed)
 
 Changelists:
   cl [ls]                              List changelists and their files
@@ -377,6 +456,11 @@ Options:
 Every command above works with no glimpse window running, against the same
 repository state the app sees. A window that IS open on the repository refreshes
 as soon as a write command succeeds.
+
+Anything that destroys work says so and asks for it: naming the subject is the
+confirmation (`branch delete <name>`, `stash drop <stash>`), and an action that
+names no subject carries --force instead (`discard --all --force`, and
+`reset --hard` when there are uncommitted changes).
 
 Every <file> is relative to the repository root — the spelling `glimpse status`
 prints and `--json` reports back — whichever directory you run the command from.

@@ -108,6 +108,37 @@ pub fn run(parts: &[&str]) -> (i32, String, String) {
     )
 }
 
+/// A per-test scratch repository with a **clean** working tree and two commits,
+/// so a ref-level command has history to point at and nothing uncommitted to
+/// get in its way. [`scratch_repo`] deliberately leaves the tree dirty, which
+/// several of the refs and metadata commands would (rightly) refuse to run in.
+pub fn clean_repo(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "first"]);
+    std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "second"]);
+    dir
+}
+
+/// The receipt a successful write leaves for a running window, or `None` when
+/// the command wrote none. Read straight off disk, because "was a receipt
+/// written?" is a question about the repository, not about the CLI's own view.
+pub fn receipt(dir: &Path) -> Option<serde_json::Value> {
+    let git_dir = git_out(dir, &["rev-parse", "--git-dir"]);
+    let text = std::fs::read_to_string(dir.join(git_dir.trim()).join("glimpse/last-write.json"));
+    Some(json_of(&text.ok()?))
+}
+
 pub fn json_of(text: &str) -> serde_json::Value {
     serde_json::from_str(text.trim()).unwrap_or_else(|e| panic!("not JSON ({e}): {text:?}"))
 }

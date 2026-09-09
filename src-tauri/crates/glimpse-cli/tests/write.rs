@@ -8,7 +8,7 @@
 
 mod common;
 
-use common::{git, git_out, json_of, merged_with_conflict, run, scratch_repo};
+use common::{git, git_out, json_of, merged_with_conflict, receipt, run, scratch_repo};
 
 #[test]
 fn stage_moves_named_files_into_the_index() {
@@ -755,13 +755,6 @@ fn discard_all_from_a_subdirectory_clears_the_whole_working_tree() {
     assert!(!dir.join("b.txt").exists(), "untracked files too");
 
     let _ = std::fs::remove_dir_all(&dir);
-}
-
-/// The receipt a successful write leaves for a running GUI, if any.
-fn receipt(dir: &std::path::Path) -> Option<serde_json::Value> {
-    let path = dir.join(".git").join("glimpse").join("last-write.json");
-    let text = std::fs::read_to_string(path).ok()?;
-    Some(json_of(&text))
 }
 
 #[test]
