@@ -41,6 +41,7 @@ export default defineConfig({
         'app/composables/commitGraphLanes.ts',
         'app/composables/commitGraphLayout.ts',
         'app/composables/graphPan.ts',
+        'app/composables/graphWindow.ts',
         'app/composables/useGraphColumnWidth.ts',
         'app/composables/useSearch.ts'
       ],

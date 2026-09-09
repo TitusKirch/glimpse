@@ -13,8 +13,10 @@ const { t } = useI18n();
 // All geometry comes from the pure layout module; this component only binds it.
 const layout = computed(() => commitGraphLayout({ commits: repo.commits }));
 
-// Virtualize the commit rows so large repos stay smooth; the SVG lane overlay
-// is cheap and stays full-height, the heavy per-row DOM is windowed.
+// Virtualize the commit rows so large repos stay smooth. The SVG overlay keeps
+// its full height — the paths are in document coordinates, and moving them
+// would mean re-projecting the whole graph on every scroll — but only the
+// graphics inside the row window are mounted (see `windowedGraph`).
 const scrollEl = ref<HTMLElement | null>(null);
 const gutterEl = ref<HTMLElement | null>(null);
 const { width: paneWidth } = useElementSize(scrollEl);
@@ -48,6 +50,20 @@ const visibleRows = computed(() => {
     last: items[items.length - 1]?.index ?? 0
   };
 });
+
+// Only the part of the graph that intersects those same rows is mounted. The
+// gutter used to emit one `<path>` per parent link and one `<circle>` per
+// commit for the *entire* loaded log, so a history a few "load more" pages
+// deep left thousands of SVG elements in the tree with a screenful of them
+// visible — the row list's own problem, never applied to the graph beside it.
+//
+// Driven by the virtualizer's range rather than a range of its own, so the
+// lanes cannot drift out of step with the rows they belong to. The windowing
+// rule itself lives in `graphWindow`: an edge spans rows, and one that merely
+// crosses the viewport has to survive the cut.
+const windowedGraph = computed(() =>
+  graphWindow(layout.value, visibleRows.value)
+);
 
 // Measured over a block around those rows rather than over the rows themselves,
 // so the width holds still while you scroll through one — see `measuredBlock`
@@ -311,8 +327,11 @@ function refVariant(refName: string) {
             :height="layout.height"
             :style="{ height: layout.height + 'px' }"
           >
+            <!-- Edges keep their index key: the windowed slice shifts by a
+                 row at a time, so reusing the same `<path>` elements and
+                 patching `d` beats mounting and unmounting them. -->
             <path
-              v-for="(e, idx) in layout.edges"
+              v-for="(e, idx) in windowedGraph.edges"
               :key="idx"
               :d="e.d"
               :stroke="e.color"
@@ -320,7 +339,7 @@ function refVariant(refName: string) {
               fill="none"
             />
             <circle
-              v-for="n in layout.nodes"
+              v-for="n in windowedGraph.nodes"
               :key="n.hash"
               :cx="n.cx"
               :cy="n.cy"

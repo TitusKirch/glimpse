@@ -134,6 +134,15 @@ export type DiffData = {
    * `new_content` are left empty so the smudged binary is never shipped.
    */
   isLfs: boolean;
+  /**
+   * A side of this file is past the per-side content ceiling
+   * ([`MAX_DIFF_CONTENT_BYTES`], 2 MiB), so `old_content` and `new_content`
+   * are both empty and only the hunks were shipped. The viewer has to say
+   * so — the same way it frames an LFS object — because a diff that quietly
+   * showed less than the file reads as broken, which is worse than one that
+   * admits it is capped.
+   */
+  contentsOmitted: boolean;
 };
 
 export type CommitFile = {
@@ -195,6 +204,13 @@ export type ImageDiff = {
    * The working-tree image; null when the file was deleted.
    */
   new: string | null;
+  /**
+   * A side of this image is past [`MAX_IMAGE_BYTES`], so neither side was
+   * embedded and `old` / `new` are both null. The viewer has to say so:
+   * null otherwise means "not present on this side", so a silent decline
+   * would read as an image that was added or deleted.
+   */
+  contentsOmitted: boolean;
 };
 
 export type Contributor = { name: string; email: string; commits: number };

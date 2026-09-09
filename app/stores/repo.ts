@@ -10,6 +10,7 @@
 // The IPC payload shapes are the single source of truth in src-tauri/src/git.rs;
 // app/types/bindings.ts is generated from them (ts-rs). Re-exported here so the
 // rest of the app keeps importing these names from the store.
+import { markRaw } from 'vue';
 import { promiseTimeout } from '@vueuse/core';
 import { acceptHMRUpdate } from 'pinia';
 import { z } from 'zod';
@@ -30,6 +31,27 @@ import type { PullStrategy } from '~/stores/layout';
 // Keep loading spinners visible for at least this long so fast actions don't
 // flicker.
 const MIN_SPINNER_MS = 300;
+
+// One page of history. A tab opens at one page and "load more history" adds
+// another.
+const LOG_PAGE = 200;
+// How many tabs keep their loaded data — the active tab plus the three most
+// recently used. Without a cap, memory tracks the tabs left open rather than the
+// tabs in use: ten open tabs hold ten full commit lists and ten full diffs
+// whether or not the user has looked at nine of them since launch. The cap sits
+// deliberately above the pair or trio a user actually alternates between,
+// because the price of releasing a tab is a reload the user can feel.
+export const MAX_LOADED_TABS = 4;
+
+// Monotonic activation stamps, used to pick the least recently used tabs. A
+// counter rather than a clock: two tab switches inside the same millisecond
+// would tie on Date.now(), and a tie is settled by whichever tab the sort
+// happens to look at first — so the wrong tab would lose its data.
+let activations = 0;
+function nextActivation(): number {
+  activations += 1;
+  return activations;
+}
 
 export type {
   BlameLine,
@@ -60,6 +82,17 @@ export interface RepoState {
   remotes: string[];
   tags: string[];
   stashes: StashEntry[];
+  // The bulk payloads. Each is a snapshot: the store replaces it wholesale
+  // (`r.status = ...`) and never edits an entry in place, so `status`,
+  // `commitFiles` and `diff` are stored through markRaw. Deeply reactive, Vue
+  // gives every status entry, file row and diff object its own proxy and
+  // dependency map — per-object overhead that grows with the working tree and
+  // the size of a diff, and that nothing reads back, since every reader tracks
+  // replacement. Replacing the property still notifies (the property lives on
+  // the reactive repo; only its value is opaque), so the one rule is that a
+  // change must assign a fresh value — mutating an entry in place would leave
+  // the view showing the old one. `commits` is the same kind of snapshot and
+  // wants the same treatment; its one assignment sits in `loadLog`.
   commits: Commit[];
   status: StatusEntry[];
   selectedHash: string | null;
@@ -68,6 +101,19 @@ export interface RepoState {
   selectedFileStaged: boolean;
   commitFiles: CommitFile[];
   diff: DiffData | null;
+  // How many commits this tab loads, raised a page at a time by "load more
+  // history". It belongs to the tab because it drives a per-tab fetch: as
+  // app-wide state, asking for depth in one repository raised what every other
+  // open tab fetched on its next load, so the retained commits — and the graph
+  // nodes drawn from them — cost the raised limit times the number of open
+  // tabs. Living here it also expires with the tab: closing one takes its depth
+  // with it, so a reopened tab walks back through history from one page rather
+  // than resurrecting a depth the user has shut away.
+  logLimit: number;
+  // Activation stamp: a monotonic counter, higher meaning more recently
+  // activated. It decides which tabs keep their data when more are open than
+  // MAX_LOADED_TABS covers.
+  lastActive: number;
   // False until this tab's git data has been fetched. Restored tabs start as
   // unloaded placeholders and lazy-load on first activation.
   loaded: boolean;
@@ -109,6 +155,9 @@ function demoRepo(): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: gitMock.diff,
+    logLimit: LOG_PAGE,
+    // A tab is created active, so creating one counts as activating it.
+    lastActive: nextActivation(),
     loaded: true,
     resolving: false,
     rebaseInProgress: false,
@@ -144,6 +193,11 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: null,
+    logLimit: LOG_PAGE,
+    // A newly opened tab is the most recently used one, so it is never the tab
+    // the next release picks — a tab that dropped the data it was opened for
+    // would reload it on the spot.
+    lastActive: nextActivation(),
     loaded: false,
     rebaseInProgress: false,
     bisectInProgress: false
@@ -157,8 +211,17 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
 let openChain: Promise<unknown> = Promise.resolve();
 
 // Tab ids whose platform metadata is being probed in the background, so two
-// loads don't both fetch `info` for the same placeholder.
+// loads don't both fetch `info` for the same placeholder. An id is claimed for
+// the life of its probe and released the moment either end of that comes —
+// the probe settling, or the tab going away under it (see `closeRepo`).
 const resolvingPlatform = new Set<string>();
+
+// Whether a platform probe is claimed for `id`. Exposed only so tests can see
+// the claim released: the set is otherwise invisible bookkeeping, and a stale
+// id in it has no symptom a caller could observe.
+export function isResolvingPlatform(id: string): boolean {
+  return resolvingPlatform.has(id);
+}
 
 // A stash is referenced as `stash@{N}`. It needs stash-specific diff commands —
 // being a merge commit, `git show` would yield an unusable combined diff.
@@ -204,8 +267,6 @@ export const useRepoStore = defineStore('repo', {
     // Which remote sync (if any) is in flight — drives the button spinner.
     syncing: null as 'fetch' | 'pull' | 'push' | null,
     refreshing: false,
-    // How many commits to load; raised by "load more history".
-    logLimit: 200,
     loadingMore: false,
     // Whether the last log fetch hit the limit (i.e. more history exists). Stored
     // rather than derived so it doesn't flip false mid-load and hide the button.
@@ -318,13 +379,56 @@ export const useRepoStore = defineStore('repo', {
       if (!this.repos[id]) return;
       this.activeId = id;
       this.multiSel = [];
+      // Stamp before releasing, so the tab just activated is the most recent one
+      // and can never be the tab that gets dropped.
+      this.repos[id]!.lastActive = nextActivation();
+      this.releaseIdleTabs();
       this.watchActive();
       this.syncSession();
       // Lazy-load a restored placeholder on first activation; cached afterwards,
-      // so re-selecting an already-loaded tab is instant.
+      // so re-selecting an already-loaded tab is instant. A released tab comes
+      // back through this same path.
       if (!this.repos[id]!.loaded) {
         await this.loadFromBackend(this.repos[id]!.path);
       }
+    },
+
+    // Hand back the data of every tab that has fallen outside MAX_LOADED_TABS.
+    // Activation is the only moment the ordering can change, so this runs from
+    // selectTab and from opening a repo, rather than on a timer.
+    releaseIdleTabs() {
+      // Sort a copy: `tabs` is a cached getter, and sorting it in place would
+      // reorder the tab strip itself.
+      const idle = [...this.tabs]
+        .sort((a, b) => b.lastActive - a.lastActive)
+        .slice(MAX_LOADED_TABS);
+      for (const r of idle) this.releaseTab(r.id);
+    },
+
+    // Drop an idle tab's bulk data and put it back into the placeholder state a
+    // restored tab starts in, so its next activation reloads it exactly the way
+    // restoreSession's placeholders do.
+    //
+    // Everything dropped here is re-readable from git. What is deliberately kept
+    // is what a reload could not rediscover: the tab's identity (name, path,
+    // flavor, distro — the tab strip renders it), and the selection, which
+    // loadFromBackend feeds to restoreSelection. Dropping the selection would
+    // silently move the user back to the newest commit on re-activation, which
+    // is the kind of invisible loss that would make this trade a regression
+    // rather than a saving. The ref metadata (branches, remotes, tags, stashes)
+    // is kept too: it is O(refs), not O(history), and keeping it lets the
+    // reloading tab paint its last known branch instead of going blank.
+    releaseTab(id: string) {
+      const r = this.repos[id];
+      // Never the active tab: it is on screen, and releasing it would blank the
+      // view and immediately reload it.
+      if (!r || !r.loaded || id === this.activeId) return;
+      r.commits = [];
+      r.status = [];
+      r.commitFiles = [];
+      r.selectedBody = '';
+      r.diff = null;
+      r.loaded = false;
     },
 
     // Persist the open repo paths + active path so the tabs reopen next launch.
@@ -425,9 +529,11 @@ export const useRepoStore = defineStore('repo', {
       r.selectedBody = await gitClient.commitBody({ path: r.path, hash });
       // A stash lists its files via the stash machinery (a merge commit's
       // name-status from `git show` is unreliable).
-      r.commitFiles = isStashRef(hash)
-        ? await gitClient.stashFiles({ path: r.path, reference: hash })
-        : await gitClient.commitFiles({ path: r.path, hash });
+      r.commitFiles = markRaw(
+        isStashRef(hash)
+          ? await gitClient.stashFiles({ path: r.path, reference: hash })
+          : await gitClient.commitFiles({ path: r.path, hash })
+      );
       const first = r.commitFiles[0];
       if (first) {
         await this.selectCommitFile(first.path);
@@ -443,7 +549,7 @@ export const useRepoStore = defineStore('repo', {
       r.selectedFile = file;
       const ws = useLayoutStore().ignoreWhitespace;
       const whole = useSettingsStore().diffMode === 'whole';
-      r.diff = isStashRef(r.selectedHash)
+      const diff = isStashRef(r.selectedHash)
         ? await gitClient.stashFileDiff({
             path: r.path,
             reference: r.selectedHash,
@@ -458,6 +564,8 @@ export const useRepoStore = defineStore('repo', {
             ignoreWhitespace: ws,
             whole
           });
+      // markRaw rejects a null, and "no diff to show" is a real answer here.
+      r.diff = diff ? markRaw(diff) : null;
     },
 
     async selectFile({ file, staged }: { file: string; staged: boolean }) {
@@ -470,13 +578,14 @@ export const useRepoStore = defineStore('repo', {
       r.commitFiles = [];
       const ws = useLayoutStore().ignoreWhitespace;
       const whole = useSettingsStore().diffMode === 'whole';
-      r.diff = await gitClient.fileDiff({
+      const diff = await gitClient.fileDiff({
         path: r.path,
         file,
         staged,
         ignoreWhitespace: ws,
         whole
       });
+      r.diff = diff ? markRaw(diff) : null;
     },
 
     // Re-run the diff for the current selection (commit file or working file),
@@ -1477,14 +1586,45 @@ export const useRepoStore = defineStore('repo', {
     // Close a repo tab. Activates a neighbour; leaves activeId pointing at a
     // closed id only when nothing remains (the start screen then shows).
     closeRepo(id: string) {
-      if (!this.repos[id]) return;
+      const closing = this.repos[id];
+      if (!closing) return;
+      // A platform probe may still be running for this tab — `doOpenRepo`
+      // closes its provisional tab from under one on a failed `info` and on
+      // toplevel dedup, and the user can close a still-spinning tab by hand.
+      // Release the claim with the tab rather than waiting for that probe to
+      // land: until then the set claims a probe for a tab that is gone, and
+      // since tab ids come from a monotonic counter and never repeat, nothing
+      // else would ever clear it. The probe's own `finally` still runs; a
+      // second delete of the same id is a no-op.
+      resolvingPlatform.delete(id);
       const idx = this.order.indexOf(id);
       delete this.repos[id];
       this.order = this.order.filter((x) => x !== id);
+      // Release the closed repo's changelist bookkeeping, which is otherwise
+      // resident for the rest of the session (and, persisted, beyond it). It is
+      // keyed by path, so keep it while another tab still shows the same repo.
+      if (!this.tabs.some((t) => t.path === closing.path))
+        // `release` flushes a pending edit, so it can reject on a real write.
+        // Nobody awaits it — closing a tab must not block on git — so route the
+        // failure the way `reloadActive` does rather than letting it escape as
+        // an unhandled rejection: it would be the user's last changelist edit
+        // going missing with nothing said.
+        useChangelistsStore()
+          .release(closing.path)
+          .catch((err: unknown) => {
+            const raw = typeof err === 'string' ? err : String(err);
+            this.lastError = cleanGitError(raw);
+            console.error('changelist release failed:', err);
+          });
       if (this.activeId === id) {
         const next = this.order[idx] ?? this.order[idx - 1] ?? '';
-        this.activeId = next;
-        if (next) this.watchActive();
+        // Route the neighbour through selectTab rather than just pointing
+        // activeId at it: a close is an activation, and the neighbour may be a
+        // placeholder — restored, or released while it sat idle — which nothing
+        // else would ever load, leaving empty panels on the repo the user is now
+        // looking at. Not awaited: closing a tab must not block on git.
+        if (next) void this.selectTab(next);
+        else this.activeId = next;
       }
       this.syncSession();
     },
@@ -1556,7 +1696,7 @@ export const useRepoStore = defineStore('repo', {
       return this.native(async () => {
         const r = target ?? this.active;
         if (!r) return;
-        r.status = await gitClient.status(r.path);
+        r.status = markRaw(await gitClient.status(r.path));
       });
     },
 
@@ -1566,26 +1706,35 @@ export const useRepoStore = defineStore('repo', {
         if (!r) return;
         const commits = await gitClient.log({
           path: r.path,
-          limit: this.logLimit
+          limit: r.logLimit
         });
-        if (commits.length) r.commits = commits;
+        // markRaw for the same reason `status` and `diff` carry it: this is the
+        // largest payload in the store and the one that scales with `logLimit`,
+        // and every reader replaces the list wholesale rather than mutating it.
+        if (commits.length) r.commits = markRaw(commits);
         // Hitting the limit means git had more to give → another page exists.
-        this.hasMore = commits.length >= this.logLimit;
+        this.hasMore = commits.length >= r.logLimit;
       });
     },
 
-    // Load another page of history (raise the log limit and reload). The button
-    // stays put and shows a spinner; `hasMore` only flips after the reload, so it
-    // hides only when there is genuinely nothing left. A 300ms floor keeps the
-    // spinner from flashing on fast local loads.
+    // Load another page of history (raise this tab's log limit and reload). The
+    // button stays put and shows a spinner; `hasMore` only flips after the
+    // reload, so it hides only when there is genuinely nothing left. A 300ms
+    // floor keeps the spinner from flashing on fast local loads.
     async loadMoreHistory() {
       if (this.loadingMore) return;
+      // Capture the repo that asked before any await. The user can switch tabs
+      // while the deeper page is in flight, and both the raise and the reload it
+      // pays for must land on the repository whose button was clicked, not on
+      // whichever tab happens to be active when it resolves.
+      const r = this.active;
+      if (!r) return;
       return this.native(async () => {
         this.loadingMore = true;
-        this.logLimit += 200;
+        r.logLimit += LOG_PAGE;
         try {
           await Promise.all([
-            this.loadLog(),
+            this.loadLog(r),
             new Promise((resolve) => setTimeout(resolve, 300))
           ]);
         } finally {
@@ -1643,6 +1792,10 @@ export const useRepoStore = defineStore('repo', {
           this.repos[id] = blankRepo({ id, path });
           this.order.push(id);
           this.activeId = id;
+          // Opening activates a tab without going through selectTab, so the
+          // release has to run here too — otherwise opening repo after repo
+          // holds every one of their histories at once.
+          this.releaseIdleTabs();
 
           let info: RepoInfo;
           try {

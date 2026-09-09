@@ -32,6 +32,8 @@
     "refresh": "Actualizar",
     "openRepo": "Abrir repositorio",
     "closeRepo": "Cerrar repositorio",
+    "scrollTabsLeft": "Desplazar pestañas a la izquierda",
+    "scrollTabsRight": "Desplazar pestañas a la derecha",
     "initRepo": "Inicializar repositorio",
     "cloneRepo": "Clonar repositorio",
     "swap": "Intercambiar",

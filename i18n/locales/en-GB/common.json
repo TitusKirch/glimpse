@@ -32,6 +32,8 @@
     "refresh": "Refresh",
     "openRepo": "Open repository",
     "closeRepo": "Close repository",
+    "scrollTabsLeft": "Scroll tabs left",
+    "scrollTabsRight": "Scroll tabs right",
     "initRepo": "Initialise repository",
     "cloneRepo": "Clone repository",
     "swap": "Swap",

@@ -105,6 +105,7 @@ export const gitMock = {
 +  // now talks to the real git backend
  })`
     ],
-    isLfs: false
+    isLfs: false,
+    contentsOmitted: false
   } satisfies DiffData
 };

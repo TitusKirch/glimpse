@@ -313,6 +313,8 @@ pub fn diff(raw: &str) -> Option<DiffData> {
             hunks,
             // Set by `Repo::file_diff` once the path is known to be LFS-tracked.
             is_lfs: false,
+            // Set by `DiffData::attach_contents` if a side is too big to ship.
+            contents_omitted: false,
         })
 }
 

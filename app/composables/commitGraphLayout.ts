@@ -54,6 +54,7 @@ export function commitGraphLayout({
 
   const nodes: GraphNode[] = commits.map((c, i) => ({
     hash: c.hash,
+    row: i,
     cx: laneX(laneOf[i]!),
     cy: nodeY(i),
     color: laneColor(laneOf[i]!)
@@ -123,7 +124,12 @@ export function commitGraphLayout({
           const x = laneX(laneOf[i]!);
           edges.push({
             d: `M ${x} ${nodeY(i)} L ${x} ${height}`,
-            color: laneColor(laneOf[i]!)
+            color: laneColor(laneOf[i]!),
+            // Drawn to the bottom edge, so it occupies every row below its
+            // own — otherwise windowing would drop it the moment you scrolled
+            // past the commit it leaves from, and the lane would just stop.
+            topRow: i,
+            bottomRow: commits.length - 1
           });
           reserveLane(i, commits.length - 1, laneOf[i]!);
         }
@@ -136,7 +142,13 @@ export function commitGraphLayout({
           x2: laneX(laneOf[j]!),
           y2: nodeY(j)
         }),
-        color: laneColor(Math.max(laneOf[i]!, laneOf[j]!))
+        color: laneColor(Math.max(laneOf[i]!, laneOf[j]!)),
+        // The same span `reserveLane` reserves the lane over, kept on the edge
+        // itself so the renderer can window by it. Ordered rather than
+        // assumed: the log is newest-first, but a parent is only *usually*
+        // the lower row, and a span read backwards would window to nothing.
+        topRow: Math.min(i, j),
+        bottomRow: Math.max(i, j)
       });
       reserveLane(i, j, Math.max(laneOf[i]!, laneOf[j]!));
     });

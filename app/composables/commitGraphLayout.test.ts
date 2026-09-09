@@ -190,6 +190,47 @@ describe('commitGraphLayout', () => {
     expect(edges[0]!.d).toBe('M 38 30 L 38 76 Q 38 90, 24 90 L 10 90');
   });
 
+  it('tags each node with the row it sits in', () => {
+    // The row index is what lets the SVG be windowed against the same range
+    // the commit rows are virtualized over; derived from `cy` it would drift
+    // the moment the row height changed.
+    const { nodes } = commitGraphLayout({
+      commits: [commit('a', 0, ['b']), commit('b', 0, ['c']), commit('c', 0)]
+    });
+    expect(nodes.map((n) => n.row)).toEqual([0, 1, 2]);
+  });
+
+  it('records the rows each edge runs over', () => {
+    // A branch merged three rows below where it diverged crosses rows 1 and 2
+    // without owning a node there, so the span — not the endpoints — is what
+    // keeps it drawn while those rows are on screen.
+    const { edges } = commitGraphLayout({
+      commits: [
+        commit('a', 0, ['b', 'd']),
+        commit('b', 0, ['c']),
+        commit('c', 0, []),
+        commit('d', 1, [])
+      ]
+    });
+    const long = edges.find((e) => e.bottomRow - e.topRow === 3);
+    expect(long).toMatchObject({ topRow: 0, bottomRow: 3 });
+  });
+
+  it('spans a truncated lane over every row below its commit', () => {
+    // The "history continues below" line is drawn to the bottom edge, so its
+    // span has to reach the last row or windowing would drop it as soon as
+    // the commit it leaves from scrolled off the top.
+    const { edges } = commitGraphLayout({
+      commits: [commit('a', 0, ['b']), commit('b', 0, ['gone'])]
+    });
+    const truncated = edges.find((e) => e.topRow === 1);
+    expect(truncated).toMatchObject({ topRow: 1, bottomRow: 1 });
+    const longer = commitGraphLayout({
+      commits: [commit('a', 0, ['missing']), commit('b', 0, []), commit('c', 0)]
+    });
+    expect(longer.edges[0]).toMatchObject({ topRow: 0, bottomRow: 2 });
+  });
+
   it('draws no edge for a real root commit (no parents)', () => {
     const { edges } = commitGraphLayout({ commits: [commit('a', 0, [])] });
     expect(edges).toHaveLength(0);

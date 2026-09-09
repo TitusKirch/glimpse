@@ -24,8 +24,12 @@
       "old": "Validé",
       "new": "Copie de travail",
       "absent": "Absent",
-      "onionSkin": "Surimpression"
-    }
+      "onionSkin": "Surimpression",
+      "omitted": "Image trop volumineuse pour l'aperçu",
+      "omittedNote": "Un côté de cette image est trop volumineux pour être chargé dans la vue ; aucun des deux n'est donc affiché — un seul côté donnerait l'impression que le fichier vient d'être ajouté ou supprimé."
+    },
+    "omitted": "Contenu complet non chargé",
+    "omittedNote": "Ce fichier est trop volumineux pour être chargé en entier ; la coloration syntaxique se limite donc à chaque section. Le diff lui-même est complet."
   },
   "fileView": {
     "list": "Vue en liste",

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // Visual diff for image files: the committed (HEAD) image beside the working-tree
 // one, plus an onion-skin overlay with an opacity slider. Data URLs come from the
-// backend (image_diff); refetched whenever the file changes.
+// backend (image_diff); refetched whenever the file changes. Past the backend's
+// size ceiling neither side is embedded (contentsOmitted) and we say so, because
+// a null side otherwise means "not present" — silence would read as an add or a
+// delete that never happened.
 import type { ImageDiff } from '~/types/bindings';
 
 const props = defineProps<{ file: string }>();
@@ -35,6 +38,21 @@ const img = 'max-h-64 max-w-full object-contain';
   <div class="h-full overflow-auto p-6">
     <div v-if="loading" class="flex h-full items-center justify-center">
       <UiSkeleton class="h-48 w-72" />
+    </div>
+    <div
+      v-else-if="data?.contentsOmitted"
+      class="flex h-full flex-col items-center justify-center gap-4 p-8 text-center"
+    >
+      <NuxtIcon
+        name="lucide:file-warning"
+        class="size-10 text-muted-foreground"
+      />
+      <div class="space-y-1">
+        <p class="text-sm font-medium">{{ t('diff.image.omitted') }}</p>
+        <p class="mx-auto max-w-sm text-xs text-muted-foreground">
+          {{ t('diff.image.omittedNote') }}
+        </p>
+      </div>
     </div>
     <div v-else-if="data" class="mx-auto max-w-3xl space-y-6">
       <!-- side by side -->

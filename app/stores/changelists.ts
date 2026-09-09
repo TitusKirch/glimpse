@@ -31,11 +31,23 @@ const SAVE_DEBOUNCE_MS = 300;
 // loads), pending debounce timers, the set of repos with unsaved local edits
 // (so an external re-read never clobbers them), and the last JSON we read/wrote
 // per repo (so a reconcile that changes nothing writes nothing — which also
-// stops our own write from looping back through the FS watcher).
+// stops our own write from looping back through the FS watcher), and the write
+// currently in flight. All are keyed by repo toplevel and emptied by `release`
+// when a tab closes; nothing else removes an entry, so a repo that skips that
+// call is resident for the rest of the session.
 const loading = new Map<string, Promise<void>>();
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const dirty = new Set<string>();
 const lastWritten = new Map<string, string>();
+// The write currently in flight per repo. It does two jobs, both of which the
+// close-during-read guards on `load`/`reload`/`sync` do not reach. First, it is
+// the liveness marker `persistNow` compares against after its await: a write
+// that resolves for a repo already released must not re-create `lastWritten`,
+// which is the costliest entry and would then never be removed again. Compared
+// by IDENTITY, so a close-then-reopen lets the newer write win. Second, holding
+// it lets a release's flush queue behind a write already in flight, instead of
+// racing it and letting the older payload land last.
+const writing = new Map<string, Promise<void>>();
 
 const real = (toplevel: string) => !!toplevel && toplevel !== '.';
 
@@ -62,22 +74,26 @@ export const useChangelistsStore = defineStore('changelists', {
     // migrated into the file so the first desktop run seeds it.
     load(toplevel: string): Promise<void> {
       if (!real(toplevel)) return Promise.resolve();
-      let p = loading.get(toplevel);
-      if (!p) {
-        p = (async () => {
-          const fromDisk = deserialize(
-            await gitClient.readChangelists(toplevel)
-          );
-          if (fromDisk) {
-            lastWritten.set(toplevel, serialize(fromDisk));
-            this.byRepo[toplevel] = fromDisk;
-          } else if (this.byRepo[toplevel]) {
-            await this.persistNow(toplevel);
-          }
-        })();
-        loading.set(toplevel, p);
-      }
-      return p;
+      const inFlight = loading.get(toplevel);
+      if (inFlight) return inFlight;
+      // Declared up front so the body can compare against its own registration
+      // (a `const` may not reference itself from inside its initializer).
+      let run: Promise<void> | undefined;
+      run = (async () => {
+        const fromDisk = deserialize(await gitClient.readChangelists(toplevel));
+        // Our own registration is gone, so `release` ran while the read was in
+        // flight (the tab closed). Landing the result now would put back the
+        // entries release just dropped, and nothing would ever drop them again.
+        if (loading.get(toplevel) !== run) return;
+        if (fromDisk) {
+          lastWritten.set(toplevel, serialize(fromDisk));
+          this.byRepo[toplevel] = fromDisk;
+        } else if (this.byRepo[toplevel]) {
+          await this.persistNow(toplevel);
+        }
+      })();
+      loading.set(toplevel, run);
+      return run;
     },
 
     // Re-read the file from disk (e.g. on switching to / re-opening a repo), to
@@ -87,15 +103,18 @@ export const useChangelistsStore = defineStore('changelists', {
     // rather than starting a second one.
     reload(toplevel: string): Promise<void> {
       if (!real(toplevel) || dirty.has(toplevel)) return Promise.resolve();
-      const p = (async () => {
+      let run: Promise<void> | undefined;
+      run = (async () => {
         const fromDisk = deserialize(await gitClient.readChangelists(toplevel));
+        // Same close-during-read guard as `load` above.
+        if (loading.get(toplevel) !== run) return;
         if (fromDisk) {
           lastWritten.set(toplevel, serialize(fromDisk));
           this.byRepo[toplevel] = fromDisk;
         }
       })();
-      loading.set(toplevel, p);
-      return p;
+      loading.set(toplevel, run);
+      return run;
     },
 
     // Reconcile membership with the real working tree (new changes → active
@@ -105,6 +124,10 @@ export const useChangelistsStore = defineStore('changelists', {
     async sync(toplevel: string, changedPaths: string[]) {
       if (!real(toplevel)) return;
       await this.load(toplevel);
+      // The tab closed while the load was in flight. `loading` doubles as the
+      // liveness marker — `load` registers it and only `release` removes it —
+      // so bail rather than let `ensure` below re-create the released state.
+      if (!loading.has(toplevel)) return;
       this.byRepo[toplevel] = reconcileState(
         this.ensure(toplevel),
         changedPaths
@@ -117,7 +140,17 @@ export const useChangelistsStore = defineStore('changelists', {
     async persistNow(toplevel: string) {
       if (!real(toplevel)) return;
       const json = serialize(this.forRepo(toplevel));
-      await gitClient.writeChangelists({ path: toplevel, json });
+      const write = gitClient
+        .writeChangelists({ path: toplevel, json })
+        .then(() => {});
+      writing.set(toplevel, write);
+      await write;
+      // The tab may have closed while that write was in flight. `release` drops
+      // the entry, so a write that is no longer the registered one belongs to a
+      // repo that has been let go (or superseded by a newer one) and must not
+      // write its bookkeeping back.
+      if (writing.get(toplevel) !== write) return;
+      writing.delete(toplevel);
       lastWritten.set(toplevel, json);
       dirty.delete(toplevel);
     },
@@ -138,6 +171,51 @@ export const useChangelistsStore = defineStore('changelists', {
           void this.persistNow(toplevel);
         }, SAVE_DEBOUNCE_MS)
       );
+    },
+
+    // Drop every trace of a repo, called when its tab closes. Without this each
+    // of the four session maps kept an entry for every repo the session had
+    // ever touched — `lastWritten` worst of all, since it holds the full
+    // serialized JSON per repo — and `byRepo` kept its entry in localStorage
+    // across restarts as well.
+    //
+    // `byRepo` is pruned deliberately, not merely allowed to go: the file in
+    // the git dir is the source of truth and is re-read on the next open, and
+    // the flush below means even the last unsaved edit is in it by then, so the
+    // cache has nothing left to say. Keeping it would leave the persisted half
+    // of the leak in place, which is the half that survives a restart.
+    //
+    // A pending debounced write is FLUSHED, not cancelled: membership is the
+    // user's intent, not a derived cache, so dropping the timer would silently
+    // lose the last edit whenever a tab is closed inside the debounce window.
+    // The write is issued here rather than through `persistNow` because
+    // `persistNow` re-populates `lastWritten` after its await, which would
+    // resurrect the entry this action exists to remove.
+    async release(toplevel: string) {
+      const timer = saveTimers.get(toplevel);
+      if (timer) clearTimeout(timer);
+      saveTimers.delete(toplevel);
+      // Serialize before the state goes; `dirty` is exactly "edits the file has
+      // not seen yet".
+      const pending =
+        real(toplevel) && dirty.has(toplevel)
+          ? serialize(this.forRepo(toplevel))
+          : null;
+      loading.delete(toplevel);
+      dirty.delete(toplevel);
+      lastWritten.delete(toplevel);
+      // Taking the entry invalidates any write still in flight, so it cannot
+      // write its bookkeeping back once it lands.
+      const inFlight = writing.get(toplevel);
+      writing.delete(toplevel);
+      delete this.byRepo[toplevel];
+      if (!pending) return;
+      // Queue behind that write rather than racing it: an edit made after the
+      // debounce fired is newer than the payload already on its way, and
+      // nothing orders two IPC calls, so the older one could otherwise land
+      // last and lose the newest edit.
+      if (inFlight) await inFlight.catch(() => {});
+      await gitClient.writeChangelists({ path: toplevel, json: pending });
     },
 
     createList(toplevel: string, name: string): string {
