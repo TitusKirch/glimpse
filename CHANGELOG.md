@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.1](https://github.com/TitusKirch/glimpse/compare/v0.15.0...v0.15.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **history:** put hasMore and loadError on the tab that produced them ([f736dff](https://github.com/TitusKirch/glimpse/commit/f736dffa1eab7e0698955b39c3d9d7794dcf8bfb)), closes [#198](https://github.com/TitusKirch/glimpse/issues/198)
+* **i18n:** drop a fallbackLocale block that decided nothing ([e3f1eb8](https://github.com/TitusKirch/glimpse/commit/e3f1eb81efd53742ddcd21c328614b84c367d231)), closes [#197](https://github.com/TitusKirch/glimpse/issues/197)
+* **types:** clear the typecheck backlog before the gate enforces it ([c7370d8](https://github.com/TitusKirch/glimpse/commit/c7370d8a7feef443c4d42eebf0154cf7e5c9b1b1)), closes [#197](https://github.com/TitusKirch/glimpse/issues/197)
+
+
+### Performance Improvements
+
+* **git:** refuse whole-file mode past the ceiling instead of shipping the file ([37e83fc](https://github.com/TitusKirch/glimpse/commit/37e83fc2b69e08aaf1d25a8d2f2aac122e170197)), closes [#199](https://github.com/TitusKirch/glimpse/issues/199)
+
 ## [0.15.0](https://github.com/TitusKirch/glimpse/compare/v0.14.0...v0.15.0) (2026-09-09)
 
 
