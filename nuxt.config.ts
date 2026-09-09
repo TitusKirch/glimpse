@@ -134,17 +134,10 @@ export default defineNuxtConfig({
 
   i18n: {
     defaultLocale: 'en-GB',
-    // NOTE: this only decides which message files get *preloaded* so a fallback
-    // locale's catalogue is in memory. The lookup-time fallback that actually
-    // substitutes a missing key lives in i18n/i18n.config.ts (vue-i18n runtime
-    // options) — keep the two chains identical. fr-FR / es-ES are partial today,
-    // so this is what makes them usable; `default` covers locales we don't ship.
-    fallbackLocale: {
-      'de-DE': ['en-GB'],
-      'fr-FR': ['en-GB'],
-      'es-ES': ['en-GB'],
-      default: ['en-GB']
-    },
+    // The fallback chain lives in i18n/i18n.config.ts (vue-i18n runtime
+    // options) and only there. @nuxtjs/i18n v10 has no top-level
+    // `fallbackLocale` module option — one used to sit here and was silently
+    // dropped from the generated runtime config, so it decided nothing.
     strategy: 'no_prefix',
     // One directory per locale with namespaced files; i18n deep-merges them.
     locales: [
