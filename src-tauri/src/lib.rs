@@ -1585,7 +1585,8 @@ async fn resolve_update(
     Ok(best)
 }
 
-/// Set to `1` to let a debug build reach the real updater anyway.
+/// Set to `1` to let a debug build reach the real updater anyway, or to `0` to
+/// keep a release build away from it.
 #[cfg(desktop)]
 const ALLOW_UPDATER_ENV: &str = "GLIMPSE_ALLOW_UPDATER";
 
@@ -1603,9 +1604,20 @@ const ALLOW_UPDATER_ENV: &str = "GLIMPSE_ALLOW_UPDATER";
 /// release build — the one place a fault in them surfaces too late to be cheap.
 /// Exactly `1`, nothing looser: the value has to be typed on purpose, never
 /// inherited from an environment that happens to carry the name.
+///
+/// `GLIMPSE_ALLOW_UPDATER=0` closes it, release build included, and the reason
+/// is the paragraph above read the other way round: a RELEASE build off `dev`
+/// also trails the newest release, so it too rewrites itself on launch. That is
+/// right for a user and wrong for anything measuring the build in front of it —
+/// `pnpm perf:baseline` sets this, because otherwise its numbers include an
+/// 80 MB download and its next run measures a binary nobody here built.
 #[cfg(desktop)]
 fn updater_allowed(debug_build: bool, allow_override: Option<&str>) -> bool {
-    !debug_build || allow_override == Some("1")
+    match allow_override {
+        Some("0") => false,
+        Some("1") => true,
+        _ => !debug_build,
+    }
 }
 
 /// [`updater_allowed`] for this process: the build kind is compiled in, the
@@ -1617,7 +1629,7 @@ fn updater_enabled() -> bool {
     if !allowed {
         // Said out loud rather than failing silently: a developer wondering why
         // "check for updates" does nothing gets the reason and the way through.
-        log::info!("updater disabled in this debug build; set {ALLOW_UPDATER_ENV}=1 to allow it");
+        log::info!("updater disabled ({ALLOW_UPDATER_ENV}=1 allows it, =0 forbids it)");
     }
     allowed
 }
@@ -2002,6 +2014,18 @@ mod tests {
         // could only ever be exercised by a release build — the one place a
         // fault in them surfaces too late to be cheap.
         assert!(updater_allowed(true, Some("1")));
+    }
+
+    #[test]
+    fn an_explicit_zero_closes_the_gate_on_a_release_build() {
+        // A release build off `dev` trails the newest release too, so it
+        // rewrites itself on launch exactly the way a debug build would. That
+        // is right for a user and ruinous for `pnpm perf:baseline`, which would
+        // otherwise measure a download and then measure a binary it never
+        // built.
+        assert!(!updater_allowed(false, Some("0")));
+        assert!(updater_allowed(false, None));
+        assert!(updater_allowed(false, Some("anything else")));
     }
 
     #[test]
