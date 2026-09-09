@@ -24,6 +24,10 @@ use std::io::Write;
 
 mod changelist;
 mod read;
+mod signal;
+mod write;
+
+pub use write::WRITE_SUBCOMMANDS;
 
 /// The words this CLI answers to, in the order `help` and the README list them.
 /// `claims` gates the GUI binary on exactly this list — and a subcommand that is
@@ -44,6 +48,11 @@ pub const SUBCOMMANDS: &[&str] = &[
     "sparse",
     "stats",
     "info",
+    "stage",
+    "unstage",
+    "discard",
+    "commit",
+    "amend",
     "cl",
 ];
 
@@ -125,6 +134,7 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             0
         }
         Some("cl") | Some("changelist") => changelist::run(&args[1..], out, err),
+        Some(cmd) if write::claims(cmd) => write::run(cmd, &args[1..], out, err),
         Some(cmd) => read::run(cmd, &args[1..], out, err),
     }
 }
@@ -236,6 +246,13 @@ Reading a repository:
   stats                                Commits, contributors, activity, churn
   info                                 Branch, remotes, tags, stashes, git flavour
 
+Changing a repository:
+  stage <file>...                      Add files to the index
+  unstage <file>...                    Take files back out of the index
+  discard <file>... | --all --force    Throw away uncommitted changes
+  commit -m <message>                  Commit what is staged
+  amend [-m <message>]                 Rewrite the previous commit
+
 Changelists:
   cl [ls]                              List changelists and their files
   cl add <name>                        Create a changelist and make it active
@@ -252,7 +269,8 @@ Options:
   -V, --version                        Show the version
 
 Every command above works with no glimpse window running, against the same
-repository state the app sees.
+repository state the app sees. A window that IS open on the repository refreshes
+as soon as a write command succeeds.
 "
     )
 }

@@ -34,7 +34,7 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 - **🌳 Graph & history** — the full multi-branch commit graph, history search by message **or content** (pickaxe `-S`/`-G`), per-commit detail, GPG/SSH signature verification, and a repository-statistics panel (contributors, activity, file churn).
 - **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, collapsible unchanged regions, soft word-wrap, **image diffs** (side-by-side / onion-skin), ignore-whitespace, blame, and file history.
 - **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend (optionally signed, with an opt-in conventional-commit composer), and resolve conflicts whole-file or with a **region-by-region three-way merge editor**.
-- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — every read view the GUI has (`status`, `diff`, `log`, `show`, `history`, `blame`, `branches`, `stashes`, `reflog`, `worktrees`, `submodules`, `sparse`, `stats`, `info`) plus `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents read the repository exactly as the app does.
+- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — every read view the GUI has (`status`, `diff`, `log`, `show`, `history`, `blame`, `branches`, `stashes`, `reflog`, `worktrees`, `submodules`, `sparse`, `stats`, `info`), the working-tree writes (`stage`, `unstage`, `discard`, `commit`, `amend`) and `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents drive the repository exactly as the app does.
 - **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), **annotated/signed tags**, and stash save/pop/apply/drop.
 - **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs **or two selected commits**, reflog recovery with one-click undo, **export/apply patches**, plus worktrees, submodules, and sparse-checkout.
 - **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
@@ -143,13 +143,30 @@ glimpse info                   # branch, remotes, tags, stashes, git flavour
 glimpse --help                 # every command, with its options
 ```
 
-Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory.
+Changing the repository works the same way:
+
+```bash
+glimpse stage src/a.ts         # add files to the index
+glimpse unstage src/a.ts       # take them back out (the change itself survives)
+glimpse commit -m "feat: …"    # commit what is staged, and print the new hash
+glimpse amend                  # fold the index into the previous commit
+glimpse amend -m "docs: …"     # …or just reword it
+glimpse discard src/a.ts       # throw away one file's uncommitted changes
+glimpse discard --all --force  # …or every uncommitted change in the tree
+```
+
+Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory. A write answers with what it did (`{"action": "commit", "detail": …, "commit": "<hash>"}`), so a script never needs a second command to find out whether the first one landed.
 
 > [!TIP]
-> `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout and read its status, diffs, history, blame and layout in the app's own shapes, never parsing porcelain by hand.
+> `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout and read its status, diffs, history, blame and layout — then stage, commit or amend — in the app's own shapes, never parsing porcelain by hand.
+
+> [!IMPORTANT]
+> `glimpse discard` is the one command here that destroys uncommitted work, so it refuses rather than guesses. It always needs an explicit subject: naming a path **is** the confirmation. `--all` names nothing, so it carries `--force` instead — there is no prompt, because the command exists to run unattended, where a prompt would either hang CI or be skipped in silence. A path with nothing to discard is an error that stops the whole batch **before** anything is deleted, so a typo costs nothing.
+
+When a glimpse window is open on the same repository, it refreshes as soon as a write command succeeds — the CLI leaves a small receipt in the repository's git dir (`<git-dir>/glimpse/last-write.json`) that the window watches directly, instead of waiting on its debounced filesystem watcher. That notification is **best-effort**: if it cannot be written, the command that already succeeded still succeeds.
 
 > [!NOTE]
-> These are the **read** views — every viewing surface the GUI has, answerable from a terminal. Write actions (stage, commit, branch, push, …) are still GUI-only apart from `glimpse cl commit`; they are tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
+> Every read view ships, and so do the working-tree and commit writes above. The remaining write actions (branch, tags, remotes, stash, fetch/pull/push, rebase, bisect, conflict resolution, …) are still GUI-only; they are tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
 
 ### Changelists
 

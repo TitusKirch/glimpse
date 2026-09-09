@@ -1,66 +1,14 @@
-//! End-to-end cover for the headless command line, against a real repository.
+//! End-to-end cover for the headless command line's **read** commands, against
+//! a real repository.
 //!
 //! Every case here goes through the same entry point the binary and the GUI
 //! both call — [`glimpse_cli::run`] — so what is asserted is the command as a
 //! user runs it: argument parsing, `-C`, `--json`, exit code and the text on
-//! each stream. The scratch repo is built with the real `git` binary, because
-//! the engine under test shells out to it and a fake would only prove the fake.
+//! each stream. The fixtures live in `common/`, shared with the write suite.
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+mod common;
 
-/// Run `git -C <dir> <args>` with a hermetic, signing-free identity so the test
-/// never depends on (or mutates) the developer's global config.
-fn git(dir: &Path, args: &[&str]) {
-    let status = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(args)
-        .status()
-        .expect("run git");
-    assert!(status.success(), "git {args:?} failed");
-}
-
-/// A per-test scratch repository: one commit, one modified file, one untracked
-/// file. Removed before and after so reruns start clean.
-fn scratch_repo(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).expect("create temp repo");
-
-    git(&dir, &["init", "-q", "-b", "main"]);
-    git(&dir, &["config", "user.email", "test@example.com"]);
-    git(&dir, &["config", "user.name", "Test"]);
-    git(&dir, &["config", "commit.gpgsign", "false"]);
-
-    std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
-    git(&dir, &["add", "-A"]);
-    git(&dir, &["commit", "-q", "-m", "initial commit"]);
-
-    std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
-    std::fs::write(dir.join("b.txt"), "b1\n").unwrap();
-    dir
-}
-
-fn argv(parts: &[&str]) -> Vec<String> {
-    parts.iter().map(|s| s.to_string()).collect()
-}
-
-/// Run the CLI with both streams captured: `(exit code, stdout, stderr)`.
-fn run(parts: &[&str]) -> (i32, String, String) {
-    let mut out: Vec<u8> = Vec::new();
-    let mut err: Vec<u8> = Vec::new();
-    let code = glimpse_cli::run(&argv(parts), &mut out, &mut err);
-    (
-        code,
-        String::from_utf8(out).expect("stdout is utf-8"),
-        String::from_utf8(err).expect("stderr is utf-8"),
-    )
-}
-
-fn json_of(text: &str) -> serde_json::Value {
-    serde_json::from_str(text.trim()).unwrap_or_else(|e| panic!("not JSON ({e}): {text:?}"))
-}
+use common::{git, json_of, run, scratch_repo};
 
 #[test]
 fn status_lists_the_working_tree_in_both_shapes() {
