@@ -25,14 +25,39 @@ use std::io::Write;
 mod changelist;
 mod read;
 
-/// The words this CLI answers to. `claims` gates the GUI binary on exactly this
-/// list, and `help` prints exactly this list — a subcommand that is not
-/// discoverable from `glimpse --help` does not count as shipped (#103).
-pub const SUBCOMMANDS: &[&str] = &["status", "log", "branches", "info", "cl"];
+/// The words this CLI answers to, in the order `help` and the README list them.
+/// `claims` gates the GUI binary on exactly this list — and a subcommand that is
+/// not discoverable from `glimpse --help` **and** the README does not count as
+/// shipped (#103), which two tests in `tests/headless.rs` enforce.
+pub const SUBCOMMANDS: &[&str] = &[
+    "status",
+    "diff",
+    "log",
+    "show",
+    "history",
+    "blame",
+    "branches",
+    "stashes",
+    "reflog",
+    "worktrees",
+    "submodules",
+    "sparse",
+    "stats",
+    "info",
+    "cl",
+];
 
 /// Long-form spellings and aliases accepted in addition to [`SUBCOMMANDS`].
 /// Kept apart so `--help` lists one name per command instead of every synonym.
-const ALIASES: &[&str] = &["changelist", "branch"];
+const ALIASES: &[&str] = &[
+    "changelist",
+    "branch",
+    "stash",
+    "worktree",
+    "submodule",
+    "sparse-checkout",
+    "file-history",
+];
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -197,8 +222,18 @@ Usage:
 
 Reading a repository:
   status                               Changed files in the working tree
+  diff [<file>...] [--staged] [-w]     Working-tree changes as a unified diff
   log [-n <count>]                     Commit history (default: 50)
+  show [<commit>]                      One commit: message and files (default: HEAD)
+  history <file>                       Commits touching one file, across renames
+  blame <file>                         Per-line authorship for one file
   branches                             Local branches, with ahead/behind and upstream
+  stashes                              Saved stash entries, newest first
+  reflog [-n <count>]                  Where HEAD has been (default: 50)
+  worktrees                            Linked worktrees, their branch and HEAD
+  submodules                           Submodules, their commit and sync state
+  sparse                               Sparse-checkout state and its patterns
+  stats                                Commits, contributors, activity, churn
   info                                 Branch, remotes, tags, stashes, git flavour
 
 Changelists:

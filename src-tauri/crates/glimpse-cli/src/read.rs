@@ -9,13 +9,16 @@
 //! about what a field is called.
 
 use crate::{fail, open_repo, parse_globals, wants_json};
-use glimpse_core::git::{Branch, Commit, RepoInfo, StatusEntry};
+use glimpse_core::git::{
+    BlameLine, Branch, Commit, CommitFile, DiffData, ReflogEntry, Repo, RepoInfo, RepoStats,
+    SparseStatus, StashEntry, StatusEntry, Submodule, Worktree,
+};
 use std::io::Write;
 
-/// How many commits `log` shows when no `-n` is given. Matches the GUI's first
-/// page of history rather than git's unbounded default: the terminal is not a
-/// scrollback the app can lazily extend.
-const DEFAULT_LOG_LIMIT: u32 = 50;
+/// How many entries `log` and `reflog` show when no `-n` is given. Matches the
+/// GUI's first page of history rather than git's unbounded default: the terminal
+/// is not a scrollback the app can lazily extend.
+const DEFAULT_LIMIT: u32 = 50;
 
 pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let globals = match parse_globals(args) {
@@ -39,10 +42,52 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
             repo.status()
                 .and_then(|entries| emit(&entries, json, || render_status(&entries)))
         }
-        "log" => match log_limit(&globals.rest) {
+        "log" => match count_limit(&globals.rest) {
             Ok(limit) => {
                 let repo = open_repo(globals.dir);
                 repo.log(limit)
+                    .and_then(|commits| emit(&commits, json, || render_log(&commits)))
+            }
+            Err(e) => Err(e),
+        },
+        "diff" => match diff_args(&globals.rest) {
+            Ok(opts) => {
+                let repo = open_repo(globals.dir);
+                collect_diffs(&repo, &opts)
+                    .and_then(|diffs| emit(&diffs, json, || render_diffs(&diffs)))
+            }
+            Err(e) => Err(e),
+        },
+        "blame" => match one_file(&globals.rest, "blame") {
+            Ok(file) => {
+                let repo = open_repo(globals.dir);
+                repo.blame(&file)
+                    .and_then(|lines| emit(&lines, json, || render_blame(&lines)))
+            }
+            Err(e) => Err(e),
+        },
+        "show" => match one_rev(&globals.rest) {
+            Ok(rev) => {
+                let repo = open_repo(globals.dir);
+                commit_detail(&repo, &rev)
+                    .and_then(|detail| emit(&detail, json, || render_commit(&detail)))
+            }
+            Err(e) => Err(e),
+        },
+        "reflog" => match count_limit(&globals.rest) {
+            Ok(limit) => {
+                let repo = open_repo(globals.dir);
+                repo.reflog(limit)
+                    .and_then(|entries| emit(&entries, json, || render_reflog(&entries)))
+            }
+            Err(e) => Err(e),
+        },
+        // `--follow`s one file through renames, which is why it takes exactly
+        // one path: `git log --follow` refuses more, and so should this.
+        "history" | "file-history" => match one_file(&globals.rest, "history") {
+            Ok(file) => {
+                let repo = open_repo(globals.dir);
+                repo.file_history(&file)
                     .and_then(|commits| emit(&commits, json, || render_log(&commits)))
             }
             Err(e) => Err(e),
@@ -62,6 +107,31 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
             let repo = open_repo(globals.dir);
             repo.info()
                 .and_then(|info| emit(&info, json, || render_info(&info)))
+        }
+        "stashes" | "stash" => {
+            let repo = open_repo(globals.dir);
+            repo.stash_list()
+                .and_then(|entries| emit(&entries, json, || render_stashes(&entries)))
+        }
+        "worktrees" | "worktree" => {
+            let repo = open_repo(globals.dir);
+            repo.worktrees()
+                .and_then(|trees| emit(&trees, json, || render_worktrees(&trees)))
+        }
+        "submodules" | "submodule" => {
+            let repo = open_repo(globals.dir);
+            repo.submodules()
+                .and_then(|subs| emit(&subs, json, || render_submodules(&subs)))
+        }
+        "sparse" | "sparse-checkout" => {
+            let repo = open_repo(globals.dir);
+            repo.sparse_status()
+                .and_then(|state| emit(&state, json, || render_sparse(&state)))
+        }
+        "stats" => {
+            let repo = open_repo(globals.dir);
+            repo.repo_stats()
+                .and_then(|stats| emit(&stats, json, || render_stats(&stats)))
         }
         other => Err(format!(
             "unknown subcommand: {other}\n\nRun `glimpse --help` for the list."
@@ -93,10 +163,11 @@ fn emit<T: serde::Serialize>(
     }
 }
 
-/// `log`'s own argument: `-n <count>`. Anything else is a mistake worth naming
-/// rather than ignoring — a silently dropped flag reads as a wrong answer.
-fn log_limit(rest: &[String]) -> Result<u32, String> {
-    let mut limit = DEFAULT_LOG_LIMIT;
+/// The `-n <count>` argument `log` and `reflog` share. Anything else is a
+/// mistake worth naming rather than ignoring — a silently dropped flag reads as
+/// a wrong answer.
+fn count_limit(rest: &[String]) -> Result<u32, String> {
+    let mut limit = DEFAULT_LIMIT;
     let mut it = rest.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -110,6 +181,124 @@ fn log_limit(rest: &[String]) -> Result<u32, String> {
         }
     }
     Ok(limit)
+}
+
+/// `diff`'s own arguments: which side to read, whether to ignore whitespace,
+/// and the files to look at.
+struct DiffArgs {
+    staged: bool,
+    ignore_whitespace: bool,
+    /// Empty means "whatever the working tree changed", resolved from `status`.
+    files: Vec<String>,
+}
+
+/// Anything that is not a known flag is a path — but a word that *looks* like a
+/// flag is a mistake, not a filename. `--cached` (git's spelling of `--staged`)
+/// would otherwise be looked up as a file and reported as an empty diff.
+fn diff_args(rest: &[String]) -> Result<DiffArgs, String> {
+    let mut opts = DiffArgs {
+        staged: false,
+        ignore_whitespace: false,
+        files: Vec::new(),
+    };
+    for a in rest {
+        match a.as_str() {
+            "--staged" => opts.staged = true,
+            "-w" | "--ignore-whitespace" => opts.ignore_whitespace = true,
+            other if other.starts_with('-') => return Err(format!("unexpected argument: {other}")),
+            other => opts.files.push(other.to_string()),
+        }
+    }
+    Ok(opts)
+}
+
+/// One [`DiffData`] per file that actually differs.
+///
+/// With no files named, the set comes from `status` — the same list `glimpse
+/// status` prints, filtered to the side being read, so `diff` and `status` can
+/// never disagree about what changed. A file whose diff is empty is dropped
+/// rather than reported as a file with no hunks.
+fn collect_diffs(repo: &Repo, opts: &DiffArgs) -> Result<Vec<DiffData>, String> {
+    let files = if opts.files.is_empty() {
+        repo.status()?
+            .into_iter()
+            .filter(|e| {
+                if opts.staged {
+                    e.staged
+                } else {
+                    // An untracked or conflicted entry carries NEITHER flag —
+                    // `parse::status` clears both — yet both have working-tree
+                    // content to show and both appear in `glimpse status`.
+                    // Testing `unstaged` alone silently dropped every new file.
+                    e.unstaged || e.untracked || e.conflicted
+                }
+            })
+            .map(|e| e.path)
+            .collect()
+    } else {
+        opts.files.clone()
+    };
+
+    let mut diffs = Vec::new();
+    for file in files {
+        if let Some(d) = repo.file_diff(&file, opts.staged, opts.ignore_whitespace, false)? {
+            diffs.push(d);
+        }
+    }
+    Ok(diffs)
+}
+
+/// The optional revision argument `show` takes, defaulting to `HEAD` — the
+/// commit a user asking "what just landed?" means.
+fn one_rev(rest: &[String]) -> Result<String, String> {
+    match rest {
+        [] => Ok("HEAD".to_string()),
+        [rev] => Ok(rev.clone()),
+        _ => Err(format!(
+            "show takes one commit, got {}: {}",
+            rest.len(),
+            rest.join(", ")
+        )),
+    }
+}
+
+/// One commit's detail panel: the resolved hash, its full message and the files
+/// it touched. Assembled here rather than in the engine because it is three
+/// engine calls the GUI makes separately as the user opens the panel — the CLI
+/// answers in one shot, so it asks for all three at once.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitDetail {
+    /// The revision resolved to a full hash, so a caller can quote it back.
+    commit: String,
+    message: String,
+    files: Vec<CommitFile>,
+}
+
+fn commit_detail(repo: &Repo, rev: &str) -> Result<CommitDetail, String> {
+    // Resolved first: one clear failure for a bad revision, rather than the
+    // same one reported twice by the two calls that follow.
+    let commit = repo.resolve_commit(rev)?;
+    Ok(CommitDetail {
+        message: repo.commit_body(&commit)?,
+        files: repo.commit_files(&commit)?,
+        commit,
+    })
+}
+
+/// The single path argument the per-file commands take. Both failure modes are
+/// named rather than guessed at: none given would otherwise read as "the whole
+/// repository", and two given would silently ignore the second.
+fn one_file(rest: &[String], cmd: &str) -> Result<String, String> {
+    match rest {
+        [file] => Ok(file.clone()),
+        [] => Err(format!("{cmd} needs a file: glimpse {cmd} <file>")),
+        _ => Err(format!(
+            "{cmd} takes exactly one file, got {}: {}",
+            rest.len(),
+            rest.join(", ")
+        )),
+    }
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────────
@@ -199,6 +388,200 @@ fn render_branches(branches: &[Branch], current: &str) -> String {
     out
 }
 
+/// The hunks, under a heading per file — a unified diff, which is what a
+/// terminal reader and every downstream tool already know how to read. The two
+/// facts the hunks cannot carry (an LFS pointer, a withheld side) are stated,
+/// because a diff that quietly showed less than the file holds reads as broken.
+fn render_diffs(diffs: &[DiffData]) -> String {
+    if diffs.is_empty() {
+        return "no changes\n".to_string();
+    }
+    let mut out = String::new();
+    for d in diffs {
+        out.push_str(&format!("--- {}\n", d.file_name));
+        if d.is_lfs {
+            out.push_str("    (Git LFS pointer — the hunks show the pointer, not the file)\n");
+        }
+        if d.whole_refused {
+            out.push_str("    (too large for the whole-file view; showing the unified diff)\n");
+        }
+        for hunk in &d.hunks {
+            out.push_str(hunk);
+            if !hunk.ends_with('\n') {
+                out.push('\n');
+            }
+        }
+    }
+    out
+}
+
+/// Blame in `git blame`'s own shape — hash, then who and when in parentheses,
+/// then the line. Keeping git's layout means an eye (and an existing script)
+/// trained on `git blame` reads this without relearning it.
+fn render_blame(lines: &[BlameLine]) -> String {
+    if lines.is_empty() {
+        return "no lines to blame\n".to_string();
+    }
+    let mut out = String::new();
+    for l in lines {
+        out.push_str(&format!(
+            "{}  ({} {} {:>4}) {}\n",
+            l.hash, l.author, l.date, l.line, l.content
+        ));
+    }
+    out
+}
+
+/// One commit: hash, message, then the files it touched with their status
+/// letter — the detail panel's three sections, in its order.
+fn render_commit(detail: &CommitDetail) -> String {
+    let mut out = format!("commit {}\n\n", detail.commit);
+    for line in detail.message.lines() {
+        out.push_str(&format!("    {line}\n"));
+    }
+    if detail.files.is_empty() {
+        out.push_str("\nNo files changed (an empty or merge commit).\n");
+        return out;
+    }
+    out.push_str(&format!("\nFiles ({}):\n", detail.files.len()));
+    for f in &detail.files {
+        out.push_str(&format!("  {}  {}\n", f.status, f.path));
+    }
+    out
+}
+
+/// Reflog entries: selector, the commit it points at, and what moved HEAD.
+/// The selector leads because it is what `git reset`/`checkout` takes back.
+fn render_reflog(entries: &[ReflogEntry]) -> String {
+    if entries.is_empty() {
+        return "no reflog entries\n".to_string();
+    }
+    let mut out = String::new();
+    for e in entries {
+        out.push_str(&format!("{}  {}  {}\n", e.selector, e.hash, e.subject));
+    }
+    out
+}
+
+/// Stash entries, ref first — the ref is what every stash write action takes,
+/// so it is the field a reader is here to copy.
+fn render_stashes(entries: &[StashEntry]) -> String {
+    if entries.is_empty() {
+        return "no stashes\n".to_string();
+    }
+    let mut out = String::new();
+    for e in entries {
+        out.push_str(&format!("{}  {}\n", e.reference, e.message));
+    }
+    out
+}
+
+/// Worktrees, path first, then what is checked out there. A worktree with no
+/// branch is the interesting one, so `detached`, `bare` and `locked` are spelled
+/// out rather than left to an empty column.
+fn render_worktrees(trees: &[Worktree]) -> String {
+    if trees.is_empty() {
+        return "no worktrees\n".to_string();
+    }
+    let mut out = String::new();
+    for w in trees {
+        let mut notes: Vec<String> = Vec::new();
+        if w.bare {
+            notes.push("bare".to_string());
+        } else if w.detached {
+            notes.push(format!("detached at {}", w.head));
+        } else {
+            notes.push(w.branch.clone());
+        }
+        if w.locked {
+            notes.push("locked".to_string());
+        }
+        out.push_str(&format!("{}  ({})\n", w.path, notes.join(", ")));
+    }
+    out
+}
+
+/// Submodules with `git submodule status`'s leading state character spelled
+/// out — the difference between "in sync" and "needs update" is the whole
+/// reason to look, and a single punctuation mark is not a readable answer.
+fn render_submodules(subs: &[Submodule]) -> String {
+    if subs.is_empty() {
+        return "no submodules\n".to_string();
+    }
+    let mut out = String::new();
+    for s in subs {
+        let state = match s.state.as_str() {
+            "+" => "needs update",
+            "-" => "uninitialised",
+            "U" => "conflicts",
+            _ => "in sync",
+        };
+        let short: String = s.sha.chars().take(7).collect();
+        out.push_str(&format!("{}  {short}  ({state})\n", s.path));
+    }
+    out
+}
+
+/// Sparse-checkout is one of two states, and the off state is the one a reader
+/// most needs said out loud: an empty pattern list and a disabled checkout look
+/// identical otherwise.
+fn render_sparse(state: &SparseStatus) -> String {
+    if !state.enabled {
+        return "sparse-checkout: disabled (the whole tree is checked out)\n".to_string();
+    }
+    let mut out = String::from("sparse-checkout: enabled\n");
+    if state.patterns.is_empty() {
+        out.push_str("  (no patterns — nothing outside the repository root)\n");
+    }
+    for p in &state.patterns {
+        out.push_str(&format!("  {p}\n"));
+    }
+    out
+}
+
+/// How many contributors and churn entries the human rendering shows. `--json`
+/// carries the whole list; a terminal summary that scrolls is not a summary.
+const STATS_ROWS: usize = 10;
+
+/// The insights panel as a page of text: the totals first, then the two lists
+/// worth ranking, then the activity window as a range rather than a per-day
+/// dump — a repository with years of history has more days than a screen.
+fn render_stats(stats: &RepoStats) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("Commits:      {}\n", stats.total_commits));
+    out.push_str(&format!("Contributors: {}\n", stats.contributors.len()));
+
+    if let (Some(first), Some(last)) = (stats.activity.first(), stats.activity.last()) {
+        out.push_str(&format!(
+            "Activity:     {} day(s), {} → {}\n",
+            stats.activity.len(),
+            first.date,
+            last.date
+        ));
+    }
+
+    if !stats.contributors.is_empty() {
+        out.push_str(&format!(
+            "\nTop contributors (of {}):\n",
+            stats.contributors.len()
+        ));
+        for c in stats.contributors.iter().take(STATS_ROWS) {
+            out.push_str(&format!("  {:>6}  {} <{}>\n", c.commits, c.name, c.email));
+        }
+    }
+
+    if !stats.churn.is_empty() {
+        out.push_str(&format!(
+            "\nMost changed files (of {}):\n",
+            stats.churn.len()
+        ));
+        for f in stats.churn.iter().take(STATS_ROWS) {
+            out.push_str(&format!("  {:>6}  {}\n", f.changes, f.path));
+        }
+    }
+    out
+}
+
 /// The header bar's worth of state, one fact per line.
 fn render_info(info: &RepoInfo) -> String {
     let target = match &info.distro {
@@ -236,7 +619,7 @@ fn list_or_none(items: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{log_limit, render_branches, render_status, DEFAULT_LOG_LIMIT};
+    use super::{count_limit, one_file, render_branches, render_status, DEFAULT_LIMIT};
     use glimpse_core::git::{Branch, StatusEntry};
 
     fn entry(path: &str, x: &str, y: &str) -> StatusEntry {
@@ -292,9 +675,9 @@ mod tests {
 
     #[test]
     fn log_defaults_to_a_page_and_accepts_a_count() {
-        assert_eq!(log_limit(&[]).unwrap(), DEFAULT_LOG_LIMIT);
+        assert_eq!(count_limit(&[]).unwrap(), DEFAULT_LIMIT);
         let args = ["-n".to_string(), "3".to_string()];
-        assert_eq!(log_limit(&args).unwrap(), 3);
+        assert_eq!(count_limit(&args).unwrap(), 3);
     }
 
     #[test]
@@ -302,10 +685,22 @@ mod tests {
         // Each of these was a plausible silent no-op; a wrong-looking log is
         // harder to notice than a refusal.
         let bad = ["-n".to_string(), "many".to_string()];
-        assert!(log_limit(&bad).unwrap_err().contains("many"));
+        assert!(count_limit(&bad).unwrap_err().contains("many"));
         let dangling = ["-n".to_string()];
-        assert!(log_limit(&dangling).unwrap_err().contains("count"));
+        assert!(count_limit(&dangling).unwrap_err().contains("count"));
         let stray = ["--graph".to_string()];
-        assert!(log_limit(&stray).unwrap_err().contains("--graph"));
+        assert!(count_limit(&stray).unwrap_err().contains("--graph"));
+    }
+
+    #[test]
+    fn a_per_file_command_names_both_ways_its_path_can_be_wrong() {
+        assert_eq!(one_file(&["a.txt".to_string()], "blame").unwrap(), "a.txt");
+        // No path would otherwise read as "the whole repository"…
+        let none = one_file(&[], "blame").unwrap_err();
+        assert!(none.contains("blame") && none.contains("file"), "{none:?}");
+        // …and a second path would be silently dropped.
+        let two = ["a.txt".to_string(), "b.txt".to_string()];
+        let many = one_file(&two, "blame").unwrap_err();
+        assert!(many.contains("b.txt"), "{many:?}");
     }
 }

@@ -1218,6 +1218,27 @@ impl Repo {
         }
     }
 
+    /// Resolve a revision — `HEAD`, a branch, a tag, a short hash — to the full
+    /// commit hash it names.
+    ///
+    /// `^{commit}` makes an annotated tag resolve to the commit it points at
+    /// rather than to the tag object, and makes a ref that names a tree or blob
+    /// an error instead of a hash that later commands would choke on. A caller
+    /// that resolves first gets one clear failure here rather than the same
+    /// bad revision reported separately by every command it is passed to.
+    pub fn resolve_commit(&self, rev: &str) -> Result<String, String> {
+        reject_option(rev)?;
+        let spec = format!("{rev}^{{commit}}");
+        let hash = self
+            .run(&["rev-parse", "--verify", &spec])?
+            .trim()
+            .to_string();
+        if hash.is_empty() {
+            return Err(format!("not a commit: {rev}"));
+        }
+        Ok(hash)
+    }
+
     /// Full commit message (subject + body) for the detail panel.
     pub fn commit_body(&self, hash: &str) -> Result<String, String> {
         reject_option(hash)?;
