@@ -1075,3 +1075,82 @@ fn a_conflicted_restore_says_what_stopped_before_it_says_anything_else() {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+#[test]
+fn tag_push_names_what_reached_the_remote_even_when_git_gave_up() {
+    // A push is a batch and its exit code covers the whole batch: one tag the
+    // remote already holds makes git exit 1 *after* the new ones have landed.
+    // Reporting an unqualified failure that names nothing leaves a caller
+    // believing the remote is as it was, and it is not.
+    let dir = clean_repo("tag-push-partial");
+    let path = dir.to_str().unwrap();
+    let remote = dir.parent().unwrap().join(format!(
+        "glimpse-cli-tag-push-partial-remote-{}.git",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&remote);
+    let status = std::process::Command::new("git")
+        .args(["init", "-q", "--bare"])
+        .arg(&remote)
+        .status()
+        .expect("run git");
+    assert!(status.success());
+    git(&dir, &["remote", "add", "origin", remote.to_str().unwrap()]);
+
+    git(&dir, &["tag", "v1"]);
+    let (code, _out, err) = run(&["tag", "-C", path, "push"]);
+    assert_eq!(code, 0, "stderr: {err}");
+
+    // v1 now points somewhere else locally, which the remote will reject, while
+    // v2 is new and will not.
+    git(&dir, &["tag", "-f", "v1", "HEAD~1"]);
+    git(&dir, &["tag", "v2"]);
+    let (code, _out, err) = run(&["tag", "-C", path, "push"]);
+    assert_eq!(code, 1, "a rejected ref is still a failure: {err:?}");
+    assert!(
+        err.contains("v2"),
+        "and the tag that did land is named: {err:?}"
+    );
+
+    // Asserted on the remote, which is the only place that can confirm it.
+    let there = git_out(&remote, &["tag", "--list"]);
+    assert!(there.contains("v2"), "v2 really is there: {there:?}");
+    let written = receipt(&dir).expect("the remote moved, so a window is told");
+    assert_eq!(written["action"], "tag push");
+    assert_eq!(written["paths"][0], "v2", "{written}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&remote);
+}
+
+#[test]
+fn tag_push_says_so_when_there_are_no_tags_to_push() {
+    // With no tags at all, "the remote already had every local tag; nothing was
+    // pushed" is vacuously true and reads as though tags exist and are safely
+    // on the remote. The two cases produce identical porcelain, so the question
+    // has to be asked before the push rather than read out of it.
+    let dir = clean_repo("tag-push-none");
+    let path = dir.to_str().unwrap();
+    let remote = dir.parent().unwrap().join(format!(
+        "glimpse-cli-tag-push-none-remote-{}.git",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&remote);
+    let status = std::process::Command::new("git")
+        .args(["init", "-q", "--bare"])
+        .arg(&remote)
+        .status()
+        .expect("run git");
+    assert!(status.success());
+    git(&dir, &["remote", "add", "origin", remote.to_str().unwrap()]);
+
+    let (code, out, err) = run(&["tag", "-C", path, "push"]);
+    assert_eq!(code, 1, "stdout: {out:?}");
+    assert!(
+        err.contains("no tags"),
+        "an empty tag list is said plainly: {err:?}"
+    );
+    assert!(receipt(&dir).is_none(), "no receipt for a refusal");
+
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&remote);
+}

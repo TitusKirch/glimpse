@@ -186,6 +186,14 @@ fn tag_delete(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
 
 /// Push every local tag to the default remote, and report the ones git says it
 /// actually moved rather than the ones it was handed.
+///
+/// A push is a **batch**, so its exit code is not a verdict on any single ref:
+/// one tag the remote already holds at a different commit makes git exit 1 with
+/// every other tag already pushed. The porcelain is the only record of which,
+/// and it is on stdout — which is why [`Repo::push_tags`] hands back both
+/// halves instead of a `Result` a `?` would collapse. A failure that named
+/// nothing while the remote had in fact moved is this module's own contract
+/// ("report what git actually moved") broken where it matters most.
 fn tag_push(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
     operands(args, "tag push", 0)?;
     // git's own answer here is "fatal: No configured push destination", which is
@@ -197,8 +205,37 @@ fn tag_push(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
                 .into(),
         );
     }
-    let raw = repo.push_tags()?;
-    let moved = pushed_refs(&raw);
+    // Asked before pushing, because afterwards "nothing moved" and "there was
+    // nothing to move" produce the same porcelain — and answering the second
+    // with the first tells a caller their tags are safely on the remote.
+    if repo.tag_names()?.is_empty() {
+        return Err(
+            "there are no tags to push\n\nCreate one first: glimpse tag create <name>".into(),
+        );
+    }
+
+    let done = repo.push_tags();
+    let moved = pushed_refs(&done.porcelain);
+    if let Some(reason) = done.failure {
+        let landed = match moved.as_slice() {
+            [] => String::new(),
+            [one] => {
+                format!("\n\n{one} did reach the remote before git stopped; the rest did not.")
+            }
+            many => format!(
+                "\n\nThese reached the remote before git stopped:\n{}\n\nThe rest did not.",
+                bulleted(many)
+            ),
+        };
+        return Err(Failure {
+            message: format!("{reason}{landed}"),
+            // The remote moved even though the command failed, so a window open
+            // on the repository hears about the half that landed — the same
+            // reason a stopped merge leaves one.
+            partial: (!moved.is_empty())
+                .then(|| Report::new("tag push", moved.clone(), String::new())),
+        });
+    }
     let detail = match moved.as_slice() {
         [] => "the remote already had every local tag; nothing was pushed".to_string(),
         [one] => format!("pushed {one}"),

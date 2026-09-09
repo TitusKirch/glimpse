@@ -1251,9 +1251,19 @@ async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), St
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
 }
 
+/// The IPC contract stays `Result<String, String>` — the UI shows a summary or
+/// an error — so a partial push surfaces here as the failure it also is. The
+/// porcelain of the refs that did get through is kept for the CLI, which has a
+/// message to put it in.
 #[tauri::command]
 async fn push_tags(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
-    locked(&locks, &path, || git::Repo::open(&path).push_tags())
+    locked(&locks, &path, || {
+        let done = git::Repo::open(&path).push_tags();
+        match done.failure {
+            Some(message) => Err(message),
+            None => Ok(done.porcelain),
+        }
+    })
 }
 
 #[tauri::command]

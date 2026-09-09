@@ -757,6 +757,34 @@ pub struct Repo {
     target: GitTarget,
 }
 
+/// Everything one git call produced, before anything is thrown away.
+///
+/// The two are independent: git writes useful stdout on plenty of the calls it
+/// exits non-zero on. [`Repo::run`] collapses this into a `Result` because most
+/// callers want exactly that; the ones that cannot afford to lose stdout take
+/// this instead.
+struct GitOutput {
+    stdout: String,
+    /// Why git exited non-zero, already carrying the command line, or `None`
+    /// when it did not.
+    failure: Option<String>,
+}
+
+/// What a `git push --tags` did, whichever way it exited.
+///
+/// A push is a **batch**, and its exit code covers the whole batch: one
+/// rejected ref makes git exit 1 having already pushed the others. "It failed"
+/// and "nothing moved" are therefore different questions, and only the
+/// `--porcelain` summary on stdout answers the second — so this keeps both
+/// rather than making the caller choose in advance.
+pub struct TagPush {
+    /// git's `--porcelain` summary: one `<flag>\t<from>:<to>\t<summary>` line
+    /// per ref, wrapped in `To <url>` and `Done`.
+    pub porcelain: String,
+    /// Why git exited non-zero, or `None` when every ref got through.
+    pub failure: Option<String>,
+}
+
 impl Repo {
     /// Resolve how to reach `git` for `repo_path` (native, or WSL on Windows).
     pub fn open(repo_path: &str) -> Self {
@@ -788,6 +816,23 @@ impl Repo {
     /// the process-wide state — the seam a test can drive without flipping a
     /// global the rest of the suite is running git against.
     fn run_with(&self, args: &[&str], faults: trace::Faults) -> Result<String, String> {
+        let done = self.run_capturing(args, faults);
+        match done.failure {
+            Some(message) => Err(message),
+            None => Ok(done.stdout),
+        }
+    }
+
+    /// The whole of what a git call produced — **stdout whichever way it
+    /// exited**, and the failure if it failed.
+    ///
+    /// [`run`](Self::run) drops stdout on failure, which is right for the
+    /// commands whose stdout *is* their answer: a `rev-parse` that failed has
+    /// no hash to report. It is wrong wherever git's exit code covers a batch
+    /// and stdout is the per-item record — a `push` that moved three refs and
+    /// had a fourth rejected exits 1, and a caller handed only stderr can say
+    /// nothing about the three.
+    fn run_capturing(&self, args: &[&str], faults: trace::Faults) -> GitOutput {
         // Started before the injected delay on purpose: the logged duration is
         // what the app waited, not what git took. While a fault switch is on the
         // app is bent and says so; a log that under-reported the wait would be
@@ -801,21 +846,28 @@ impl Repo {
         // Rendered once per call rather than only on failure now that the log
         // wants it — a string build against a subprocess spawn.
         let described = self.target.describe(args);
-        let fail = |message: &str| {
+        let fail = |stdout: String, message: &str| {
             trace::record(described.clone(), started.elapsed(), false, message);
-            format!("{message}\n\n$ {described}")
+            GitOutput {
+                stdout,
+                failure: Some(format!("{message}\n\n$ {described}")),
+            }
         };
         if let Some(injected) = faults.injected_failure() {
-            return Err(fail(injected));
+            return fail(String::new(), injected);
         }
         match self.target.command(args).output() {
-            Err(e) => Err(fail(&format!("failed to run git: {e}"))),
-            Ok(output) if !output.status.success() => {
-                Err(fail(String::from_utf8_lossy(&output.stderr).trim()))
-            }
+            Err(e) => fail(String::new(), &format!("failed to run git: {e}")),
+            Ok(output) if !output.status.success() => fail(
+                String::from_utf8_lossy(&output.stdout).to_string(),
+                String::from_utf8_lossy(&output.stderr).trim(),
+            ),
             Ok(output) => {
                 trace::record(described, started.elapsed(), true, "");
-                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                GitOutput {
+                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                    failure: None,
+                }
             }
         }
     }
@@ -2192,13 +2244,20 @@ impl Repo {
     /// Push all local tags to the default remote, answering in git's
     /// machine-readable push format.
     ///
-    /// `--porcelain` because the human format goes to **stderr**, which this
-    /// returns only on failure — so a successful `git push --tags` used to hand
-    /// its caller an empty string and no way to say what moved. The porcelain
-    /// summary is on stdout: one `<flag>\t<from>:<to>\t<summary>` line per ref,
-    /// plus `To <url>` and `Done`.
-    pub fn push_tags(&self) -> Result<String, String> {
-        self.run(&["push", "--porcelain", "--tags"])
+    /// `--porcelain` because the human format goes to **stderr**, which the
+    /// engine returns only on failure — so a successful `git push --tags` used
+    /// to hand its caller an empty string and no way to say what moved.
+    ///
+    /// It returns a [`TagPush`] rather than a `Result` because a push is a
+    /// batch and its exit code is not a verdict on any single ref: one tag the
+    /// remote already has makes git exit 1 with the *other* tags pushed, and a
+    /// `?` at the call site would throw away the only record of them.
+    pub fn push_tags(&self) -> TagPush {
+        let done = self.run_capturing(&["push", "--porcelain", "--tags"], trace::faults());
+        TagPush {
+            porcelain: done.stdout,
+            failure: done.failure,
+        }
     }
 
     /// A remote's fetch URL — read before a rename or a removal, because after
