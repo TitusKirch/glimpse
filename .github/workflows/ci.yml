@@ -102,7 +102,7 @@ jobs:
       # below is the one that body runs, so the dependency graph they cache is
       # the same one and sharing the entry is exact rather than approximate.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
           shared-key: rust-dev
@@ -218,7 +218,7 @@ jobs:
       # this job and all three release chains — on one entry, and leaves the
       # dev-profile checks on `rust-dev`.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
           shared-key: tauri-release
@@ -279,21 +279,28 @@ jobs:
   # rather than passing it (the same reasoning as the missing `paths-ignore`
   # above). Reporting on every pull request, draft included, is what lets this
   # be required without stranding the drafts the AI work loop opens.
-  # `frontend` is in `needs` for a reason of the same shape: it now builds what
-  # the matrix links, and a job the matrix merely `needs` reports nowhere. A
-  # broken `pnpm generate` would fail `frontend`, skip `tauri`, and — before it
-  # was listed here — leave this gate looking at a single `skipped` and calling
-  # it a pass.
+  # EVERY JOB THE MATRIX NEEDS IS LISTED HERE, and that is the rule rather than
+  # a detail: a job the matrix merely `needs` reports nowhere itself, so when it
+  # fails the matrix is SKIPPED — and skipped is a pass above. `frontend` and
+  # `precheck` would each have taken the whole 3-OS build out of the gate while
+  # leaving it green.
+  #
+  # `precheck` is the less obvious of the two. Its fmt and clippy are duplicated
+  # by `_ci-rust.yml`'s ubuntu leg, so a CODE failure does surface under
+  # `Rust / Gate` — but its apt step, its toolchain setup, its cache step and
+  # its timeout have no such twin, and any of those failing removes the matrix
+  # from the merge gate silently. That is the #165 shape, and listing the job is
+  # the whole fix.
   tauri-gate:
     name: Tauri Gate
-    needs: [frontend, tauri]
+    needs: [precheck, frontend, tauri]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - name: Check the frontend build and the Tauri build matrix
+      - name: Check every job the Tauri build matrix depends on
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
