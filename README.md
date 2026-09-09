@@ -192,7 +192,7 @@ The Rust side is a **cargo workspace** rooted at `src-tauri/`:
 | `pnpm test`        | Frontend unit tests (Vitest)                  |
 | `pnpm lint`        | `oxlint . --deny-warnings`                    |
 | `pnpm format`      | `oxfmt --check .`                             |
-| `pnpm typecheck`   | `nuxt typecheck` (vue-tsc over app + SFCs)    |
+| `pnpm typecheck`   | `vue-tsc` over app, e2e suite, Node tooling   |
 | `pnpm cargofmt`    | `cargo fmt --check` for the Rust backend      |
 | `pnpm cargo:update`   | Refresh Rust deps within semver            |
 | `pnpm cargo:outdated` | Show major Rust-dep upgrades (needs `cargo-edit`) |
