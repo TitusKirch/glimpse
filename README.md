@@ -34,7 +34,7 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 - **🌳 Graph & history** — the full multi-branch commit graph, history search by message **or content** (pickaxe `-S`/`-G`), per-commit detail, GPG/SSH signature verification, and a repository-statistics panel (contributors, activity, file churn).
 - **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, collapsible unchanged regions, soft word-wrap, **image diffs** (side-by-side / onion-skin), ignore-whitespace, blame, and file history.
 - **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend (optionally signed, with an opt-in conventional-commit composer), and resolve conflicts whole-file or with a **region-by-region three-way merge editor**.
-- **🗂️ Changelists & a CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time. Membership is stored as a **git-native, human-readable JSON file**, and a bundled headless **`glimpse cl`** command lets scripts and AI agents read and drive the same changelists from the terminal.
+- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — `glimpse status`, `log`, `branches`, `info` and `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents read the repository exactly as the app does.
 - **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), **annotated/signed tags**, and stash save/pop/apply/drop.
 - **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs **or two selected commits**, reflog recovery with one-click undo, **export/apply patches**, plus worktrees, submodules, and sparse-checkout.
 - **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
@@ -121,7 +121,24 @@ The git target is a **global default** (auto by default) that **Settings → Rep
 
 On Linux and macOS git is simply native — there is no WSL concept. Live refresh over the `\\wsl$` 9P share is best-effort; the manual + on-focus refresh covers the rest.
 
-## 🗂️ Changelists & automation
+## 🗂️ Command line & automation
+
+Every command below runs **headlessly**: it opens the repository through the same git engine the app uses and answers on stdout, with no window, no WebView and no running glimpse instance. That is what makes it usable from CI, an SSH session, a script or an agent.
+
+```bash
+glimpse status                 # changed files in the working tree
+glimpse log -n 20              # commit history (default: 50)
+glimpse branches               # local branches, with ahead/behind and upstream
+glimpse info                   # branch, remotes, tags, stashes, git flavour
+glimpse --help                 # every command, with its options
+```
+
+Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with failures reported as `{"error": …}` on stderr — and `-C <dir>` targets a repository other than the current directory.
+
+> [!TIP]
+> `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout, read its status, history and branches in the app's own shapes, and never parse porcelain by hand.
+
+### Changelists
 
 **Changelists** group your pending changes into named sets over a single working tree — like JetBrains changelists, but git-native. Each changed file belongs to exactly one list (a permanent **Default** list always exists; brand-new changes land in the _active_ list), and you commit one list at a time without staging the rest. It's enabled by default in the Changes panel; turn it off in **Settings → Git** to get the classic staged/unstaged view back.
 
@@ -131,7 +148,7 @@ Membership is **not** locked inside glimpse — it lives in your repository, in 
 <git-dir>/glimpse/changelists.json
 ```
 
-A headless CLI ships in the **same binary**, so the very same changelists are drivable from a terminal:
+The very same changelists are drivable from a terminal:
 
 ```bash
 glimpse cl                                    # list changelists and their files
@@ -142,17 +159,27 @@ glimpse cl commit Refactor -m "refactor: …"   # commit exactly that list's fil
 glimpse cl ls --json                          # machine-readable state (the file contract)
 ```
 
-`<list>` matches by id or by name (case-insensitive); `--json` makes a command emit the JSON contract (and report errors as `{"error": …}`); `-C <dir>` targets another repository. A list-commit is **index-less** — it resets, stages exactly that list's files, then commits, leaving everything else dirty.
+`<list>` matches by id or by name (case-insensitive), and the global `--json` / `-C <dir>` apply here too. A list-commit is **index-less** — it resets, stages exactly that list's files, then commits, leaving everything else dirty.
 
 > [!TIP]
 > Because the state is a plain JSON file in the git directory (reachable across the `\\wsl$` share on Windows) and a list-commit never touches the staging index, **scripts and AI coding agents can read and drive changelists too** — carving a sprawling diff into reviewable, separately-committable sets, deterministically, without the GUI.
 
 > [!NOTE]
-> Committing only **part** of a file (hunk-level) is a GUI-only, opt-in extra (**Settings → Git**); the CLI works at file granularity. The CLI runs reliably on Linux and macOS today — on Windows its console output is still best-effort.
+> Committing only **part** of a file (hunk-level) is a GUI-only, opt-in extra (**Settings → Git**); the CLI works at file granularity. The commands above are answered by the installed `glimpse` binary, which on Windows is a GUI program attaching to its parent console — output there is still best-effort. A dedicated console binary (`glimpse-cli`) already builds from the same crate; shipping it in the installers, and into each WSL distro, is still to come ([#103](https://github.com/TitusKirch/glimpse/issues/103)).
 
 ## 🧪 Development
 
 `pnpm tauri dev` for the desktop shell, `pnpm dev` for fast browser iteration, `pnpm check` for the CI gate. Rust unit tests cover the risky backend logic — git output parsing and WSL path translation — and CI builds across a Linux + Windows + macOS matrix (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `tauri build`).
+
+The Rust side is a **cargo workspace** rooted at `src-tauri/`:
+
+| Crate                          | What it is                                                      |
+| :----------------------------- | :-------------------------------------------------------------- |
+| `crates/glimpse-core`          | The git engine, platform resolution and the changelist model     |
+| `crates/glimpse-cli`           | The headless command line — a library plus a console binary      |
+| `src-tauri` (package `glimpse`) | The Tauri GUI: windows, IPC commands and the filesystem watcher |
+
+`glimpse-core` carries **no Tauri dependency** — that is what lets the CLI run where no desktop exists, and CI proves it on every pull request with `cargo tree --package glimpse-core`.
 
 <details>
 <summary>All commands</summary>

@@ -7,7 +7,8 @@
 // switching tabs swaps the entire graph + diff. Transient UI bits
 // (commitMessage, busy, lastError) stay at the top level.
 
-// The IPC payload shapes are the single source of truth in src-tauri/src/git.rs;
+// The IPC payload shapes are the single source of truth in
+// src-tauri/crates/glimpse-core/src/git.rs;
 // app/types/bindings.ts is generated from them (ts-rs). Re-exported here so the
 // rest of the app keeps importing these names from the store.
 import { markRaw } from 'vue';
