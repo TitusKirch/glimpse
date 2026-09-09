@@ -2082,11 +2082,22 @@ impl Repo {
     /// commands to build the whole picture, and a command that has just moved
     /// one ref and wants to read back *where HEAD ended up* should not pay for
     /// the branch list, the tag list and the stash list to find out.
+    /// On an **unborn** HEAD — a repository with no commits, or one just
+    /// switched to a branch that has none — `rev-parse` cannot resolve `HEAD`
+    /// at all, because there is no commit to resolve it to. The branch is real
+    /// nonetheless: it is written in `.git/HEAD` and its ref appears with the
+    /// first commit. `symbolic-ref` reads that, and is asked only as the
+    /// fallback so a detached HEAD keeps answering `HEAD` as it always has
+    /// (`symbolic-ref` fails there, which is the wrong answer to give).
     pub fn current_branch(&self) -> Result<String, String> {
-        Ok(self
-            .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
-            .trim()
-            .to_string())
+        match self.run(&["rev-parse", "--abbrev-ref", "HEAD"]) {
+            Ok(name) => Ok(name.trim().to_string()),
+            Err(unresolvable) => Ok(self
+                .run(&["symbolic-ref", "--short", "HEAD"])
+                .map_err(|_| unresolvable)?
+                .trim()
+                .to_string()),
+        }
     }
 
     /// Local branch names, nothing else — the read-back after a create, rename

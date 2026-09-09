@@ -1184,3 +1184,33 @@ fn merging_a_branch_that_is_already_in_is_an_outcome_not_a_malfunction() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+#[test]
+fn branch_create_in_an_empty_repository_reports_the_work_it_did() {
+    // `git switch -c` succeeds on an unborn HEAD: `.git/HEAD` points at the new
+    // branch and the ref appears with the first commit. The read-backs are what
+    // fail — there is no commit for `rev-parse` to resolve — and failing a
+    // command for work that happened sends a caller looking for a problem that
+    // is not there.
+    let dir =
+        std::env::temp_dir().join(format!("glimpse-cli-branch-unborn-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    let path = dir.to_str().unwrap();
+
+    let (code, out, err) = run(&["branch", "-C", path, "create", "feature"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(out.contains("feature"), "the branch is named: {out:?}");
+
+    // Asserted with git: HEAD is what records a branch that has no commits yet.
+    let head = git_out(&dir, &["symbolic-ref", "HEAD"]);
+    assert_eq!(
+        head.trim(),
+        "refs/heads/feature",
+        "HEAD really does point at it"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

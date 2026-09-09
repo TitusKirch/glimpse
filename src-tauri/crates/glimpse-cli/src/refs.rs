@@ -842,12 +842,15 @@ fn branch_create(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
         )
         .into());
     }
-    let at = repo.resolve_commit("HEAD")?;
-    Ok(Report::new(
-        "branch create",
-        vec![name.clone()],
-        format!("created {name} at {} and switched to it", short(&at)),
-    ))
+    // An empty repository has no commit for the new branch to point at, and
+    // that is not a failure: `git switch -c` wrote `.git/HEAD`, the ref appears
+    // with the first commit, and the work the caller asked for happened. There
+    // is simply no hash to name, so the report does not pretend there is.
+    let detail = match repo.resolve_commit("HEAD") {
+        Ok(at) => format!("created {name} at {} and switched to it", short(&at)),
+        Err(_) => format!("created {name} and switched to it; it has no commits yet"),
+    };
+    Ok(Report::new("branch create", vec![name.clone()], detail))
 }
 
 /// Check out an existing branch. The read-back is the whole safety here: `git
