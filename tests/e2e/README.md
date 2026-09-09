@@ -69,3 +69,4 @@ the merge button by leaving the gate green.
 - launch → a repo opens and the commit graph renders (`smoke.spec.ts`)
 - open the command palette (Ctrl+K) and switch branch
 - stage a file and commit; assert it appears at the top of the graph
+
