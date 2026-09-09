@@ -264,8 +264,15 @@ jobs:
       # bundle and throws only once that component renders — invisible to `pnpm
       # dev`, invisible to the unit tests, and fatal in the packaged app.
       # `.output/public` is on disk from the download above, so the scan is free.
+      #
+      # PLAIN `node` ON A `.ts` FILE, no loader and no devDependency: Node has
+      # stripped types natively since 23.6, this repo pins `engines.node >= 24`,
+      # and the setup-node above installs 24 on all three platforms. The price
+      # is that the script must stay inside the erasable subset — no `enum`, no
+      # `namespace`, no parameter properties — which is what the unit test in
+      # `scripts/check-bundle-globals.test.ts` pins by running it exactly so.
       - name: Check the bundle for free Vue-API identifiers
-        run: node scripts/check-bundle-globals.mjs
+        run: node scripts/check-bundle-globals.ts
 
   # THE ONE END-TO-END TEST, ON ONE PLATFORM (#159). It launches the built
   # binary through `tauri-driver` + `WebKitWebDriver` and drives the real UI, so

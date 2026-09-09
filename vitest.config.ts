@@ -16,8 +16,13 @@ export default defineConfig({
   test: {
     environment: 'node',
     // `build/` holds the build-time tooling that shapes what ships (source-map
-    // pruning today); it is pure Node logic, so it runs in the same suite.
-    include: ['app/**/*.{test,spec}.ts', 'build/**/*.{test,spec}.ts'],
+    // pruning today); it is pure Node logic, so it runs in the same suite. So
+    // is `scripts/`, which holds the CI guards.
+    include: [
+      'app/**/*.{test,spec}.ts',
+      'build/**/*.{test,spec}.ts',
+      'scripts/**/*.{test,spec}.ts'
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'text'],
