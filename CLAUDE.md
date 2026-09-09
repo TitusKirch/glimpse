@@ -46,20 +46,21 @@ This repo is often developed inside WSL2. Practical loop:
 
 ## Commands
 
-| Command           | What it does                                                             |
-| :---------------- | :----------------------------------------------------------------------- |
-| `pnpm install`    | Install deps and wire husky hooks via the `prepare` script               |
-| `pnpm lint`       | `oxlint . --deny-warnings`                                               |
-| `pnpm format`     | `oxfmt --check .` (note: `format` is the check, not fix)                 |
-| `pnpm typecheck`  | `vue-tsc` over three configs: the app, the e2e suite, the Node tooling   |
-| `pnpm cargofmt`   | `cargo fmt --check` for the Rust backend                                 |
-| `pnpm check`      | Runs `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate |
-| `pnpm lint:fix`   | Auto-fix lint                                                            |
-| `pnpm format:fix` | Auto-fix format                                                          |
-| `pnpm check:fix`  | Auto-fix lint + format + Rust formatting                                 |
-| `pnpm test`       | Frontend unit tests (Vitest)                                             |
-| `pnpm taze`       | Interactive dependency upgrade check                                     |
-| `pnpm taze:w`     | Write upgrade results                                                    |
+| Command              | What it does                                                                                                        |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| `pnpm install`       | Install deps and wire husky hooks via the `prepare` script                                                          |
+| `pnpm lint`          | `oxlint . --deny-warnings`                                                                                          |
+| `pnpm format`        | `oxfmt --check .` (note: `format` is the check, not fix)                                                            |
+| `pnpm typecheck`     | `vue-tsc` over three configs: the app, the e2e suite, the Node tooling                                              |
+| `pnpm cargofmt`      | `cargo fmt --check` for the Rust backend                                                                            |
+| `pnpm check`         | Runs `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate                                            |
+| `pnpm lint:fix`      | Auto-fix lint                                                                                                       |
+| `pnpm format:fix`    | Auto-fix format                                                                                                     |
+| `pnpm check:fix`     | Auto-fix lint + format + Rust formatting                                                                            |
+| `pnpm test`          | Frontend unit tests (Vitest)                                                                                        |
+| `pnpm taze`          | Interactive dependency upgrade check                                                                                |
+| `pnpm taze:w`        | Write upgrade results                                                                                               |
+| `pnpm perf:baseline` | Re-measure the README's performance baseline (see the header of `scripts/perf-baseline.ts` for what to build first) |
 
 App commands: `pnpm dev` (Nuxt dev server, browser-testable with mocked IPC), `pnpm tauri dev` (desktop dev shell), `pnpm tauri build` (packaged binary). Tests: Rust unit tests cover the risky backend (git output parsing, WSL path translation) plus a few Vitest component specs. CI already runs `oxlint` + `oxfmt` + `vue-tsc`, and on the ubuntu/windows/macos matrix `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, and `pnpm tauri build`.
 

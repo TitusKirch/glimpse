@@ -199,8 +199,29 @@ The Rust side is a **cargo workspace** rooted at `src-tauri/`:
 | `pnpm cargo:upgrade`  | Apply major Rust-dep upgrades (needs `cargo-edit`) |
 | `pnpm check`       | `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate |
 | `pnpm check:fix`   | Auto-fix lint, format, and Rust formatting    |
+| `pnpm perf:baseline` | Re-measure the performance baseline below     |
 
 </details>
+
+## ⚡ Performance baseline
+
+The feature list above claims a **small disk and RAM footprint**. These are the numbers behind that claim — measured, not estimated, and reproducible: `pnpm perf:baseline` produces every one of them, so a later run is comparable with this table because it was taken the same way. See the header of [`scripts/perf-baseline.ts`](scripts/perf-baseline.ts) for what to build first.
+
+| Platform                                                                       | Startup     | RSS, repository open | Installed package  |
+| :----------------------------------------------------------------------------- | ----------: | -------------------: | -----------------: |
+| **Linux** — x86-64, Ubuntu 22.04 on WSL2/WSLg, WebKitGTK 2.50.4 (no GPU)        | **1488 ms** |          **697 MiB** | **8.5 MiB** (`.deb`) |
+| **Windows** — x86-64, WebView2                                                  | not measured | not measured        | not measured       |
+| **macOS** — Apple Silicon, WKWebView                                            | not measured | not measured        | not measured       |
+
+The **Nuxt client bundle** is **2.9 MiB** (excluding the source maps that ship beside it) — platform-independent, and the number that tracks frontend growth rather than packaging.
+
+Measured on `dev` @ `e7cc9c9`, as the median of five launches, each opening this repository. Startup is the time from process start to the main window's first completed page load. RSS is the resident memory of the app process plus the WebKit web and network processes, sampled once it stops moving — summed across those processes, so pages they share are counted more than once.
+
+> [!NOTE]
+> **These are a starting point, not a target.** Nothing here has been optimised yet; the point of writing the numbers down is to have something a later change can be argued against. Most of the Linux memory figure is the WebKit web process, in a software-rendered WSLg session — a GPU-accelerated desktop session should differ, possibly a lot.
+
+> [!IMPORTANT]
+> **Windows and macOS say "not measured" because they were not measured, not because they are unmeasurable.** The script carries a code path for all three platforms — process-tree memory and profile isolation are the two things that cannot be written once — but it has only been run on Linux. Anyone on Windows or macOS can fill a row in by running `pnpm perf:baseline` there.
 
 ## 🎨 Assets & branding
 
