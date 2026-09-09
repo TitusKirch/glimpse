@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -130,5 +130,61 @@ describe('check-core-tauri-free', () => {
     );
 
     expect(result.status).toBe(1);
+  });
+});
+
+// Every case above hands the script fixture text, which pins what it DECIDES
+// but never what it RUNS. These pin the invocation instead, against the real
+// workspace on disk — no cargo, no toolchain, so they stay unit-test cheap.
+// The three ways it could silently measure the wrong graph are a wrong package,
+// a wrong `--edges` and a wrong cwd; one case each.
+describe('check-core-tauri-free: the cargo tree invocation', () => {
+  const invocation = (() => {
+    const result = spawnSync(process.execPath, [SCRIPT, '--print-command'], {
+      encoding: 'utf8'
+    });
+    expect(result.status).toBe(0);
+    return JSON.parse(result.stdout) as {
+      command: string;
+      args: string[];
+      cwd: string;
+    };
+  })();
+
+  it('runs cargo tree from a directory that really is the workspace root', () => {
+    expect(invocation.command).toBe('cargo');
+    expect(invocation.args[0]).toBe('tree');
+
+    const manifest = readFileSync(join(invocation.cwd, 'Cargo.toml'), 'utf8');
+    expect(manifest).toContain('[workspace]');
+  });
+
+  it('names a package the workspace actually contains', () => {
+    const pkg = invocation.args[invocation.args.indexOf('--package') + 1];
+    expect(pkg).toBeTruthy();
+
+    // The crate has to exist AND own that name — a renamed directory or a
+    // renamed package would otherwise leave the guard scanning nothing.
+    const crate = readFileSync(
+      join(invocation.cwd, 'crates', pkg!, 'Cargo.toml'),
+      'utf8'
+    );
+    expect(crate).toContain(`name = "${pkg}"`);
+
+    // And it must be a member, or `cargo tree` resolves a different graph.
+    const workspace = readFileSync(join(invocation.cwd, 'Cargo.toml'), 'utf8');
+    expect(workspace).toContain(`crates/${pkg}`);
+  });
+
+  it('asks for build edges too, where a tauri-build would hide', () => {
+    const edges = invocation.args[invocation.args.indexOf('--edges') + 1];
+    const kinds = (edges ?? '').split(',');
+
+    // `normal` alone would miss `tauri-build` in `[build-dependencies]` — the
+    // exact dependency the GUI package declares — and report a false pass.
+    expect(kinds).toContain('normal');
+    expect(kinds).toContain('build');
+    // `dev` would fail the guard on a dev-dependency the crate never links.
+    expect(kinds).not.toContain('dev');
   });
 });

@@ -29,9 +29,17 @@
 // in it fails — and `pnpm test` runs that on every local `pnpm check`, not just
 // on a pull request.
 //
-// Usage: node scripts/check-core-tauri-free.ts [treeFile]
-//   no argument  — run `cargo tree` against the workspace and check its output
-//   treeFile     — check the tree text in that file instead (what the test does)
+// One gap remained after that, and `--print-command` below closes it: the spec
+// drives this file with fixture text, so it pinned the DECISION but never the
+// INVOCATION. A wrong package, a narrowed `--edges` or the wrong cwd would have
+// left every fixture case green while the guard measured the wrong graph — the
+// same class of bug as the original, one layer out.
+//
+// Usage: node scripts/check-core-tauri-free.ts [treeFile | --print-command]
+//   no argument     — run `cargo tree` against the workspace and check its output
+//   treeFile        — check the tree text in that file instead (what the test does)
+//   --print-command — print the `cargo tree` invocation as JSON and exit, so the
+//                     test can check it against the real workspace without cargo
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -53,6 +61,22 @@ function packageOf(line: string) {
   return { name, version, label: version ? `${name} ${version}` : name };
 }
 
+// The invocation, in one place so `--print-command` can report exactly what
+// would run. `--edges normal,build` is load-bearing in both halves: `normal`
+// alone would miss a `tauri-build` in `[build-dependencies]`, and anything
+// wider (`dev`) would fail the guard on a dev-dependency the shipped crate
+// never links.
+const CARGO_TREE = {
+  command: 'cargo',
+  args: ['tree', '--package', PACKAGE, '--edges', 'normal,build'],
+  cwd: WORKSPACE
+};
+
+if (process.argv[2] === '--print-command') {
+  console.log(JSON.stringify(CARGO_TREE));
+  process.exit(0);
+}
+
 function treeText() {
   const file = process.argv[2];
   if (file !== undefined) {
@@ -63,11 +87,10 @@ function treeText() {
       process.exit(1);
     }
   }
-  const result = spawnSync(
-    'cargo',
-    ['tree', '--package', PACKAGE, '--edges', 'normal,build'],
-    { cwd: WORKSPACE, encoding: 'utf8' }
-  );
+  const result = spawnSync(CARGO_TREE.command, CARGO_TREE.args, {
+    cwd: CARGO_TREE.cwd,
+    encoding: 'utf8'
+  });
   if (result.status !== 0) {
     console.error(
       `check-core-tauri-free: \`cargo tree\` failed (status ${result.status}).\n` +
