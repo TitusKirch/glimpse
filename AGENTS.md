@@ -49,7 +49,7 @@ This repo is often developed inside WSL2. Practical loop:
 | `pnpm install`    | Install deps and wire husky hooks via the `prepare` script               |
 | `pnpm lint`       | `oxlint . --deny-warnings`                                               |
 | `pnpm format`     | `oxfmt --check .` (note: `format` is the check, not fix)                 |
-| `pnpm typecheck`  | `nuxt typecheck` — vue-tsc over the app, SFCs included                   |
+| `pnpm typecheck`  | `vue-tsc` over three configs: the app, the e2e suite, the Node tooling   |
 | `pnpm cargofmt`   | `cargo fmt --check` for the Rust backend                                 |
 | `pnpm check`      | Runs `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate |
 | `pnpm lint:fix`   | Auto-fix lint                                                            |
@@ -64,7 +64,7 @@ App commands: `pnpm dev` (Nuxt dev server, browser-testable with mocked IPC), `p
 ## Meta-layer conventions
 
 - **Node 24, pnpm 11.** Pinned via `.nvmrc`, `engines`, and `packageManager`. `pnpm-workspace.yaml` enforces `minimumReleaseAge=4320` (3-day cooldown), isolated node-linker. Don't loosen these without reason.
-- **Types are checked, and the gate is where.** `pnpm typecheck` is `nuxt typecheck` (vue-tsc, `.vue` files included) and sits inside `pnpm check`, so a `ts-rs` binding that gains a required field fails locally instead of shipping. `vue-tsc` rides TypeScript 6 through volar's shim fallback in `runTsc` — TS 6 moved the compiler to `lib/_tsc.js` and left `lib/tsc.js` as a loader shim — so keep an eye on that path when either is upgraded.
+- **Types are checked, and the gate is where.** `pnpm typecheck` sits inside `pnpm check` and runs `vue-tsc` **three** times, because no single tsconfig covers the repo: `nuxt typecheck` for the app (`.vue` files included), `-p tests/e2e/tsconfig.json` for the WebdriverIO suite, and `-p tsconfig.tooling.json` for the Node-side tooling (`vitest.config.ts`, `build/**`, `scripts/**`). They stay separate because their `types` sets are mutually exclusive — Vitest against `mocha` + `@wdio/globals` — and merging them would let each suite type-check the other's globals. A `ts-rs` binding that gains a required field therefore fails locally instead of shipping. `vue-tsc` rides TypeScript 6 through volar's shim fallback in `runTsc` — TS 6 moved the compiler to `lib/_tsc.js` and left `lib/tsc.js` as a loader shim — so keep an eye on that path when either is upgraded.
 - **oxc, not eslint/prettier.** Linting via `oxlint`, formatting via `oxfmt`. Configs live in `.oxlintrc.json` / `.oxfmtrc.json`. `oxlint` uses `unicorn` + `oxc` plugins; rules deliberately minimal.
 - **Husky hooks** (`.husky/pre-commit`, `.husky/commit-msg`) run `lint-staged` and `commitlint`. `lint-staged.config.js`: `oxlint --fix --deny-warnings` then `oxfmt` on JS/TS; `oxfmt` on JSON/JSONC/YAML/TOML/MD (excluding `README.md` and `pnpm-lock.yaml`); `rustfmt --edition 2021` on `*.rs`.
 - **Conventional Commits enforced** via `@commitlint/config-conventional`. Don't `--no-verify` unless explicitly asked.
