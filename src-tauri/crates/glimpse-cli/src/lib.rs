@@ -153,6 +153,19 @@ pub(crate) struct Globals {
     pub rest: Vec<String>,
 }
 
+/// Options a *command* owns that take a value — so the word after them is that
+/// value and is never scanned as a global.
+///
+/// Without this, `glimpse commit -m help` read the message as a request for
+/// `--help`: the help text printed, **nothing was committed, and the command
+/// exited 0**, which a script reads as "the commit landed". A silent no-op is
+/// the worst shape a write command can take. git takes whatever follows `-m`
+/// literally — `-m --json` commits a commit whose message is `--json` — and so
+/// does this; the value is the caller's, not the parser's to reinterpret.
+///
+/// `-C`'s own value is consumed by the arm below, for the same reason.
+const VALUE_OPTIONS: &[&str] = &["-m", "--message", "-n", "--max-count"];
+
 pub(crate) fn parse_globals(args: &[String]) -> Result<Globals, String> {
     let mut json = false;
     let mut dir: Option<String> = None;
@@ -167,6 +180,15 @@ pub(crate) fn parse_globals(args: &[String]) -> Result<Globals, String> {
                 None => return Err("missing path after -C".to_string()),
             },
             "-h" | "--help" | "help" => help = true,
+            opt if VALUE_OPTIONS.contains(&opt) => {
+                rest.push(a.clone());
+                // A dangling one is passed through as it stands: the command's
+                // own parser owns "missing message after -m", and answering it
+                // here would say it twice, in two voices.
+                if let Some(value) = it.next() {
+                    rest.push(value.clone());
+                }
+            }
             _ => rest.push(a.clone()),
         }
     }
@@ -356,6 +378,34 @@ mod tests {
         assert!(!g.help);
         // Order is preserved, and only the non-global words survive.
         assert_eq!(g.rest, argv(&["add", "Name"]));
+    }
+
+    #[test]
+    fn an_options_value_is_never_read_as_a_global() {
+        // `glimpse commit -m help` used to print the help and exit 0 without
+        // committing — the global scan swallowed the message. The value after a
+        // value-taking option belongs to the command, whatever it spells.
+        for word in ["help", "-h", "--help", "--json"] {
+            let g = parse_globals(&argv(&["-m", word])).unwrap();
+            assert!(!g.help, "`-m {word}` is a message, not --help");
+            assert!(!g.json, "`-m {word}` is a message, not --json");
+            assert_eq!(g.rest, argv(&["-m", word]));
+        }
+        // The same for `-n`, whose value is likewise the command's.
+        let g = parse_globals(&argv(&["log", "-n", "help"])).unwrap();
+        assert!(!g.help);
+        assert_eq!(g.rest, argv(&["log", "-n", "help"]));
+
+        // A real global still lands, on either side of the option's value.
+        let g = parse_globals(&argv(&["--json", "-m", "help", "-C", "/r"])).unwrap();
+        assert!(g.json);
+        assert_eq!(g.dir.as_deref(), Some("/r"));
+        assert_eq!(g.rest, argv(&["-m", "help"]));
+
+        // A dangling value option is passed through so the command that owns it
+        // can say what is missing, rather than being silently dropped.
+        let g = parse_globals(&argv(&["-m"])).unwrap();
+        assert_eq!(g.rest, argv(&["-m"]));
     }
 
     #[test]

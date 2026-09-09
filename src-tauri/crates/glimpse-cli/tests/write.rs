@@ -150,6 +150,49 @@ fn commit_refuses_an_empty_commit_and_a_missing_message() {
 }
 
 #[test]
+fn a_commit_message_that_collides_with_a_global_still_commits() {
+    // `parse_globals` scanned every word in argv, so `-m help` was read as a
+    // request for `--help`: the help text printed, nothing was committed, and
+    // the command exited **0** — which a script reads as "the commit landed".
+    // A silent no-op is the worst shape a write command can take.
+    let dir = scratch_repo("commit-global-word");
+    let path = dir.to_str().unwrap();
+
+    git(&dir, &["add", "a.txt"]);
+
+    let (code, out, err) = run(&["commit", "-C", path, "-m", "help"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(
+        !out.contains("Usage:"),
+        "the message was a message, not a request for help: {out:?}"
+    );
+
+    let subject = git_out(&dir, &["log", "-1", "--format=%s"]);
+    assert_eq!(subject.trim(), "help", "the commit really landed");
+    let count = git_out(&dir, &["rev-list", "--count", "HEAD"]);
+    assert_eq!(count.trim(), "2");
+
+    // The same for every other word the global scan owns, including one that
+    // begins with a dash — git itself takes whatever follows `-m` literally.
+    for word in ["-h", "--help", "--json"] {
+        std::fs::write(dir.join("a.txt"), format!("{word}\n")).unwrap();
+        git(&dir, &["add", "a.txt"]);
+        let (code, out, err) = run(&["commit", "-C", path, "-m", word]);
+        assert_eq!(code, 0, "`-m {word}`: {err}");
+        assert!(!out.contains("Usage:"), "`-m {word}`: {out:?}");
+        let subject = git_out(&dir, &["log", "-1", "--format=%s"]);
+        assert_eq!(subject.trim(), word, "`-m {word}` committed with it");
+    }
+
+    // A dangling `-m` is still a mistake, not an empty message.
+    let (code, _out, err) = run(&["commit", "-C", path, "-m"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("-m"), "{err:?}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn amend_rewrites_head_keeping_its_message_by_default() {
     let dir = scratch_repo("amend");
     let path = dir.to_str().unwrap();
