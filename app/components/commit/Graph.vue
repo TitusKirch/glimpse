@@ -192,7 +192,7 @@ watch([content, query], () => {
 // The parameter is `refName`, not `ref`: binding a Vue auto-import name anywhere
 // in an SFC — a `v-for` alias, a parameter — can stop Nuxt injecting the real
 // `import { ref } from 'vue'`, which fails only in the production bundle. The
-// bundle scan in `scripts/check-bundle-globals.mjs` is the guard against that.
+// bundle scan in `scripts/check-bundle-globals.ts` is the guard against that.
 function refVariant(refName: string) {
   if (refName.startsWith('HEAD')) return 'success' as const;
   if (refName.startsWith('tag:')) return 'warning' as const;
