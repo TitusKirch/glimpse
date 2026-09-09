@@ -1703,26 +1703,44 @@ impl Repo {
         self.run(&["submodule", "sync", "--recursive"]).map(|_| ())
     }
 
-    /// Sparse-checkout state: `git sparse-checkout list` succeeds only when it's
-    /// active, listing the included patterns.
+    /// Sparse-checkout state: whether the worktree is narrowed, and to what.
+    ///
+    /// `git sparse-checkout list` is NOT a probe for whether the feature is on.
+    /// On a worktree that is not sparse it warns on stderr and still exits **0**
+    /// (git 2.34), so a successful call proves nothing and every ordinary
+    /// repository read as narrowed-to-nothing. The switch git itself reads is
+    /// `core.sparseCheckout`, so that is what decides `enabled`; `list` is asked
+    /// only afterwards, for the patterns.
     pub fn sparse_status(&self) -> Result<SparseStatus, String> {
+        // `config --get` exits 1 when the key is unset, which is the common
+        // case and not an error — hence the raw command rather than `run`.
+        let cfg = self
+            .target
+            .command(&["config", "--get", "core.sparseCheckout"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let enabled = cfg.status.success()
+            && String::from_utf8_lossy(&cfg.stdout)
+                .trim()
+                .eq_ignore_ascii_case("true");
+        if !enabled {
+            return Ok(SparseStatus {
+                enabled: false,
+                patterns: Vec::new(),
+            });
+        }
         let out = self
             .target
             .command(&["sparse-checkout", "list"])
             .output()
             .map_err(|e| e.to_string())?;
-        if out.status.success() {
+        let patterns = if out.status.success() {
             let raw = String::from_utf8_lossy(&out.stdout);
-            Ok(SparseStatus {
-                enabled: true,
-                patterns: lines(&raw).map(str::to_string).collect(),
-            })
+            lines(&raw).map(str::to_string).collect()
         } else {
-            Ok(SparseStatus {
-                enabled: false,
-                patterns: Vec::new(),
-            })
-        }
+            Vec::new()
+        };
+        Ok(SparseStatus { enabled, patterns })
     }
 
     /// Enable (cone-mode) sparse-checkout limited to `patterns` (directories).
@@ -3042,6 +3060,77 @@ mod whole_mode_refusal_tests {
             .expect("big.txt is in the stash");
         assert!(stash.whole_refused, "stash view shipped the whole file");
         assert!(hunk_bytes(&stash.hunks) <= MAX_DIFF_CONTENT_BYTES);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// Sparse-checkout detection, against a real `git`.
+///
+/// The regression this pins: `git sparse-checkout list` was used as the probe
+/// for whether the feature is *on*, and it is not one — a worktree that is not
+/// sparse gets a warning on stderr and exit code **0** (git 2.34), so every
+/// ordinary repository reported `enabled: true` with an empty pattern list.
+#[cfg(test)]
+mod sparse_status_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("glimpse-sparse-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::create_dir_all(dir.join("keep")).unwrap();
+        std::fs::write(dir.join("keep/k.txt"), "k\n").unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        dir
+    }
+
+    #[test]
+    fn an_ordinary_repository_is_not_reported_as_sparse() {
+        let dir = scratch("off");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let state = repo.sparse_status().expect("sparse status");
+        assert!(
+            !state.enabled,
+            "a repository that was never narrowed must read as disabled"
+        );
+        assert!(state.patterns.is_empty(), "{:?}", state.patterns);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_narrowed_repository_reports_its_patterns() {
+        let dir = scratch("on");
+        let repo = Repo::open(dir.to_str().unwrap());
+        git(&dir, &["sparse-checkout", "set", "keep"]);
+
+        let state = repo.sparse_status().expect("sparse status");
+        assert!(state.enabled, "a narrowed checkout must read as enabled");
+        assert!(
+            state.patterns.iter().any(|p| p.contains("keep")),
+            "the included directory is listed: {:?}",
+            state.patterns
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }
