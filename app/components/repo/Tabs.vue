@@ -153,6 +153,14 @@ onBeforeUnmount(() => {
         @wheel="onWheel"
         @scroll="syncEdges"
       >
+        <!-- `shrink-0` on each tab is the whole change in layout terms: a tab
+             is as wide as its contents and never narrower, so the strip
+             overflows instead of compressing every name into a stub.
+
+             This sits outside <draggable> deliberately. Vue renders a comment
+             as a real node, and vuedraggable requires exactly one node from
+             its slots — a comment in either the default or the item slot makes
+             it two and throws on mount. -->
         <draggable
           :model-value="repo.tabs"
           item-key="id"
@@ -172,9 +180,6 @@ onBeforeUnmount(() => {
           @update:model-value="onReorder"
         >
           <template #item="{ element: tab }">
-            <!-- `shrink-0` is the whole change in layout terms: a tab is as wide
-                 as its contents and never narrower, so the strip overflows
-                 instead of compressing every name into a stub. -->
             <div
               :data-tab-id="tab.id"
               class="group flex shrink-0 cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 pl-3 text-sm transition-colors select-none"
