@@ -157,6 +157,8 @@ glimpse discard --all --force  # …or every uncommitted change in the tree
 
 Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory. A write answers with what it did (`{"action": "commit", "detail": …, "commit": "<hash>"}`), so a script never needs a second command to find out whether the first one landed.
 
+Every path argument means the same thing on every command: **relative to the repository root**, the spelling `glimpse status` prints and `--json` reports back — whichever directory you run from. So the obvious pipeline (read paths out of one command, hand them to the next) holds from a subdirectory too, which is where a script, a CI job or an agent usually finds itself.
+
 > [!TIP]
 > `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout and read its status, diffs, history, blame and layout — then stage, commit or amend — in the app's own shapes, never parsing porcelain by hand.
 

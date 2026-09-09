@@ -195,7 +195,26 @@ pub(crate) fn wants_json(args: &[String]) -> bool {
 }
 
 /// Open the repository a command should act on: `-C <dir>`, else the current
-/// directory, else `.` (a cwd that no longer exists is still worth trying).
+/// directory, else `.` (a cwd that no longer exists is still worth trying) —
+/// then **re-anchor it at the repository root**.
+///
+/// That second step is what gives the whole command line one path convention.
+/// Every path argument — `stage`, `unstage`, `discard`, `diff`, `blame`,
+/// `history`, `cl mv` — is **repo-root-relative**: the spelling `glimpse
+/// status` prints, `--json` reports back and the changelist store records. So
+/// the obvious pipeline (read paths out of one command, feed them to the next)
+/// holds from any directory in the tree, which is where a script, CI job or
+/// agent actually runs.
+///
+/// The alternative — cwd-relative, as bare `git` pathspecs are — was the
+/// accident rather than the design, and it made the two halves disagree:
+/// `status` reported `sub/a.txt` while `discard` from `sub/` accepted neither
+/// that nor `a.txt`. One convention, and this is the single seam that applies
+/// it, so a command cannot opt out of it by forgetting to.
+///
+/// Costs one `git rev-parse --show-toplevel` per invocation. A directory that
+/// is not in a repository keeps the path it was given, so the command that
+/// needs a repository still fails with git's own reason for it.
 pub(crate) fn open_repo(dir: Option<String>) -> git::Repo {
     let dir = dir
         .or_else(|| {
@@ -204,7 +223,11 @@ pub(crate) fn open_repo(dir: Option<String>) -> git::Repo {
                 .map(|p| p.to_string_lossy().into_owned())
         })
         .unwrap_or_else(|| ".".to_string());
-    git::Repo::open(&dir)
+    let repo = git::Repo::open(&dir);
+    match repo.toplevel() {
+        Ok(root) => git::Repo::open(&root),
+        Err(_) => repo,
+    }
 }
 
 /// Report a failure and return the exit code. Under `--json` the failure is
@@ -271,6 +294,9 @@ Options:
 Every command above works with no glimpse window running, against the same
 repository state the app sees. A window that IS open on the repository refreshes
 as soon as a write command succeeds.
+
+Every <file> is relative to the repository root — the spelling `glimpse status`
+prints and `--json` reports back — whichever directory you run the command from.
 "
     )
 }

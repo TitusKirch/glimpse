@@ -504,6 +504,80 @@ fn discard_needs_an_explicit_subject_and_a_flag_to_take_the_whole_tree() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+// --- one path convention, from anywhere in the tree -----------------------
+//
+// `-C <dir>/sub` is exactly what running the command *in* `sub/` does: both
+// reach `open_repo` with a directory below the repository root. Paths are
+// repo-root-relative — the spelling `glimpse status` prints and `--json`
+// reports back — so a pipeline built from one command's output feeds the next
+// whatever directory it is run from.
+
+/// A repository with a subdirectory, one changed file in it and one at the top.
+fn repo_with_subdir(tag: &str) -> std::path::PathBuf {
+    let dir = scratch_repo(tag);
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    std::fs::write(dir.join("sub").join("s.txt"), "s1\n").unwrap();
+    // Only the new file: `a.txt`'s edit and `b.txt` must stay uncommitted, so
+    // there is still something above `sub/` for `--all` to reach.
+    git(&dir, &["add", "sub/s.txt"]);
+    git(&dir, &["commit", "-q", "-m", "add sub"]);
+    std::fs::write(dir.join("sub").join("s.txt"), "s2\n").unwrap();
+    dir
+}
+
+#[test]
+fn a_path_means_the_same_thing_from_a_subdirectory() {
+    let dir = repo_with_subdir("subdir-paths");
+    let sub = dir.join("sub");
+    let sub_path = sub.to_str().unwrap();
+
+    // `stage` and `discard` are the two halves of this slice, and they must
+    // agree about what a path argument means.
+    let (code, _out, err) = run(&["stage", "-C", sub_path, "sub/s.txt"]);
+    assert_eq!(code, 0, "stage from a subdirectory: {err}");
+    let staged = git_out(&dir, &["diff", "--cached", "--name-only"]);
+    assert!(staged.contains("sub/s.txt"), "{staged:?}");
+
+    let (code, out, err) = run(&["discard", "-C", sub_path, "sub/s.txt"]);
+    assert_eq!(code, 0, "discard from a subdirectory: {err}");
+    assert!(out.contains("sub/s.txt"), "{out:?}");
+    assert_eq!(
+        std::fs::read_to_string(sub.join("s.txt")).unwrap(),
+        "s1\n",
+        "the file really went back to the committed content"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_all_from_a_subdirectory_clears_the_whole_working_tree() {
+    // It used to run `git restore -- .` in the cwd, so from `sub/` it cleared
+    // only `sub/` — while reporting that it had discarded every uncommitted
+    // change in the working tree. Less destruction than claimed is still a
+    // false sentence, and a caller trusting it believes work is gone.
+    let dir = repo_with_subdir("subdir-all");
+    let sub = dir.join("sub");
+
+    let (code, out, err) = run(&["discard", "-C", sub.to_str().unwrap(), "--all", "--force"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(out.contains("every"), "{out:?}");
+
+    assert_eq!(
+        std::fs::read_to_string(sub.join("s.txt")).unwrap(),
+        "s1\n",
+        "the subdirectory was cleared"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "a1\n",
+        "and so was the change above it, which the report claimed"
+    );
+    assert!(!dir.join("b.txt").exists(), "untracked files too");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The receipt a successful write leaves for a running GUI, if any.
 fn receipt(dir: &std::path::Path) -> Option<serde_json::Value> {
     let path = dir.join(".git").join("glimpse").join("last-write.json");

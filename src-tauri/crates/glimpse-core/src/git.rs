@@ -922,12 +922,23 @@ impl Repo {
         Ok(self.run(&["--version"])?.trim().to_string())
     }
 
+    /// This repository's root directory, as a **host** path.
+    ///
+    /// git reports its toplevel from inside its own environment (a Linux path
+    /// under WSL), so it is mapped back through [`GitTarget::host_path`]: the
+    /// result is a spelling [`Repo::open`] routes identically. Without that a
+    /// WSL repo's root would resolve to native git on Windows ("cannot change
+    /// to '/root/…'").
+    ///
+    /// Fails when the directory is not inside a repository at all, which is
+    /// what makes it usable as a probe.
+    pub fn toplevel(&self) -> Result<String, String> {
+        let raw = self.run(&["rev-parse", "--show-toplevel"])?;
+        Ok(self.target.host_path(raw.trim()))
+    }
+
     pub fn info(&self) -> Result<RepoInfo, String> {
-        // git reports the toplevel in its own environment (a Linux path under
-        // WSL). Map it back to a host path so re-opening it routes the same way
-        // — otherwise the WSL distro is lost and the next call hits native git.
-        let raw_top = self.run(&["rev-parse", "--show-toplevel"])?;
-        let toplevel = self.target.host_path(raw_top.trim());
+        let toplevel = self.toplevel()?;
         // `rev-parse --abbrev-ref HEAD` resolves a branch name (or "HEAD" when
         // detached), but fails on a freshly-initialised repo whose branch is
         // still unborn — fall back to the symbolic ref so empty repos open.
