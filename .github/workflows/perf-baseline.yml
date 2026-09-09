@@ -1,0 +1,238 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Performance baseline
+
+# Produces the Windows row of the README's "Performance baseline" table, by
+# building the real installer on `windows-latest` and running the committed
+# `scripts/perf-baseline.ts` against it.
+#
+# WHY CI RATHER THAN A LOCAL WINDOWS HOST. Measuring locally would mean
+# installing Rust MSVC, Node 24 and the VS 2022 C++ build tools on a developer
+# machine for one row of a table. CI already builds Windows in `ci.yml`'s
+# `tauri` matrix, so the runner is the cheaper place to measure — and this job
+# is deliberately shaped like that matrix leg rather than like something new.
+#
+# WHAT THE NUMBERS ARE WORTH, and it is not the same for all four. Package size
+# and the Nuxt client bundle are EXACT: they fall out of the build and do not
+# depend on the machine that ran it. Startup time and RSS come from a shared,
+# virtualised, GPU-less runner — reproducible, but not what a desktop sees. The
+# README says so beside the row; do not let the two kinds of number be read as
+# one.
+on:
+  # BOTH TRIGGERS, AND THE `push` ONE IS THE LOAD-BEARING HALF. GitHub only
+  # offers `workflow_dispatch` for workflows that exist on the DEFAULT branch,
+  # which here is `main` — while this repo's work lands on `dev` and is promoted
+  # to `main` on a release. A dispatch-only job would therefore sit
+  # untriggerable until the next promotion, which is exactly the trap of a
+  # workflow that has never run. Pushing a `perf/**` branch works from any
+  # branch, today.
+  push:
+    branches:
+      - 'perf/**'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Launches to time; the median is reported.
+        required: false
+        type: string
+        default: '5'
+
+permissions:
+  contents: read
+
+# One measurement at a time. Two builds competing for the same runner class
+# would each be timing the other's compile.
+concurrency:
+  group: perf-baseline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows baseline (windows-latest)
+    runs-on: windows-latest
+    # A cold Tauri release build on Windows is the bulk of this; the measurement
+    # itself is five launches plus settling.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      # FULL HISTORY ON PURPOSE, the same reason `ci.yml`'s `e2e` job takes it:
+      # the script opens this checkout as the repository under test, so the
+      # commit graph the app renders while its memory is being sampled has to
+      # look like a real one rather than a single grafted commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # HELD at v6.0.10 for the reason spelled out on `ci.yml`'s matrix job:
+      # v6.1.0 leaves `pnpm` unrunnable on windows-latest, so every `pnpm` step
+      # returns 0 in about a second having done nothing (#164, #166). This job
+      # is Windows-only, so it is the one that would notice last.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      # `tauri-release` — the RELEASE-profile family, shared with `ci.yml`'s
+      # `tauri` matrix and the three release chains. This job compiles the same
+      # workspace with the same profile, so it belongs in that entry rather than
+      # in a fourth one of its own; see the note in `ci.yml` for why the key is
+      # named at all.
+      #
+      # READ-ONLY (`save-if: false`), and that is the difference from the jobs
+      # it borrows the key from. This one runs rarely and by hand, while the
+      # account is already at its 10 GB cache limit (#196) — so it should take
+      # the entry the Tauri matrix maintains and not spend a slot rewriting it.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          shared-key: tauri-release
+          save-if: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `pnpm generate`, not `pnpm build`, and it is the same choice `ci.yml`
+      # makes: the app is `ssr: false` and `frontendDist` points at
+      # `.output/public`, so the prerendered shell has to exist or the packaged
+      # app has no entry point. It is also the bundle the script then measures,
+      # which is the one actually linked into the installer.
+      - name: Build the frontend
+        run: pnpm generate
+
+      - name: Verify the frontend bundle exists
+        shell: bash
+        run: test -f .output/public/index.html
+
+      # TWO CONFIG PATCHES, both for a reason the build fails without.
+      #
+      # `beforeBuildCommand: null` — the frontend is already built by the step
+      # above, and letting the hook rebuild it would only overwrite the
+      # directory the script is about to measure. Same patch, same reasoning as
+      # `ci.yml`'s matrix leg.
+      #
+      # `createUpdaterArtifacts: false` — `tauri.conf.json` turns them on, and
+      # producing them needs `TAURI_SIGNING_PRIVATE_KEY`, which lives in
+      # Bitwarden and is fetched only by the release chains. Without it
+      # `tauri build` writes every installer and THEN exits 1 on the signing
+      # step, which would fail this job after doing all the work. The updater
+      # artifacts are a separate `.nsis.zip` + `.sig`; the `-setup.exe` this job
+      # measures is byte-identical either way.
+      - name: Build the Windows installer
+        shell: bash
+        run: |
+          pnpm tauri build --config \
+            '{"build":{"beforeBuildCommand":null},"bundle":{"createUpdaterArtifacts":false}}'
+
+      # DOES NOT FAIL THE STEP, on purpose. The two size numbers and the two
+      # timing numbers have different failure modes: a hosted runner may not
+      # give the app the session it needs to open a window, and if that happens
+      # the honest outcome is to say which figures the runner could and could
+      # not produce — not to lose the run. The job still goes red at the end.
+      - name: Measure the baseline
+        id: measure
+        shell: bash
+        run: |
+          set +e
+          node scripts/perf-baseline.ts \
+            --runs "${{ github.event.inputs.runs || '5' }}" --json \
+            > perf-baseline.json 2> perf-baseline.log
+          status=$?
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "--- script stderr ---"
+          cat perf-baseline.log
+          exit 0
+
+      # The runner is part of the measurement, so it is recorded beside it
+      # rather than left in the log for someone to go and find. `ImageOS` and
+      # `ImageVersion` are set by the runner image itself.
+      - name: Record the runner image
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "{"
+            echo "  \"runnerLabel\": \"windows-latest\","
+            echo "  \"image\": \"${ImageOS:-unknown}\","
+            echo "  \"imageVersion\": \"${ImageVersion:-unknown}\""
+            echo "}"
+          } > perf-runner.json
+          cat perf-runner.json
+
+      - name: Publish the numbers
+        if: always()
+        shell: pwsh
+        run: |
+          $status = '${{ steps.measure.outputs.status }}'
+          $runner = Get-Content perf-runner.json -Raw | ConvertFrom-Json
+          $out = [System.Collections.Generic.List[string]]::new()
+          $out.Add('## Performance baseline — Windows')
+          $out.Add('')
+          $out.Add("Runner: ``windows-latest`` — $($runner.image), image ``$($runner.imageVersion)``.")
+          $out.Add('')
+
+          if ($status -eq '0') {
+            $r = Get-Content perf-baseline.json -Raw | ConvertFrom-Json
+            $mib = { param($b) '{0:N1} MiB' -f ($b / 1MB) }
+            $out.Add('| Figure | Value | Kind |')
+            $out.Add('| :--- | ---: | :--- |')
+            $out.Add("| Startup (median of $($r.runs)) | $($r.startupMsMedian) ms | shared CI VM |")
+            $out.Add("| RSS, repository open | $(& $mib $r.rssBytesMedian) | shared CI VM |")
+            $out.Add("| Nuxt client bundle | $(& $mib $r.clientBundleBytes) | exact |")
+            foreach ($p in $r.packages) {
+              $out.Add("| Package — $($p.name) | $(& $mib $p.bytes) | exact |")
+            }
+            $out.Add('')
+            $out.Add('Startup and RSS come from a shared, virtualised, GPU-less runner: reproducible, but not a desktop number. Package and bundle sizes are exact.')
+          } else {
+            $out.Add("**The measurement did not complete** (``perf-baseline.ts`` exited $status).")
+            $out.Add('')
+            $out.Add('No startup or RSS figure is published from this run, and none is estimated. The script stderr:')
+            $out.Add('')
+            $out.Add('```')
+            if (Test-Path perf-baseline.log) {
+              $out.AddRange([string[]](Get-Content perf-baseline.log -Tail 40))
+            }
+            $out.Add('```')
+          }
+
+          $out.Add('')
+          $out.Add('<details><summary>Raw JSON</summary>')
+          $out.Add('')
+          $out.Add('```json')
+          if (Test-Path perf-baseline.json) {
+            $out.AddRange([string[]](Get-Content perf-baseline.json))
+          }
+          $out.Add('```')
+          $out.Add('')
+          $out.Add('</details>')
+
+          $out -join "`n" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Upload the measurement
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-baseline-windows
+          path: |
+            perf-baseline.json
+            perf-baseline.log
+            perf-runner.json
+          retention-days: 30
+          if-no-files-found: error
+
+      # LAST, so the summary and the artifact are published before the job goes
+      # red. A failed measurement is a result worth keeping.
+      - name: Fail if the measurement did not complete
+        if: steps.measure.outputs.status != '0'
+        shell: bash
+        run: |
+          echo "perf-baseline.ts exited ${{ steps.measure.outputs.status }}" >&2
+          exit 1
