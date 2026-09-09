@@ -1,12 +1,50 @@
-[package]
-name = "glimpse"
-version = "0.13.0"
-description = "A lightweight, git-native desktop Git client — the full branch graph, diffs, and everyday git, with first-class WSL support."
+# The workspace root AND the GUI package. `src-tauri/` stays where Tauri expects
+# it (tauri.conf.json, icons, capabilities all resolve relative to this
+# directory), and the Tauri-free crates hang off `crates/` beside it:
+#
+#   glimpse-core  the git engine — git.rs, platform.rs, changelist.rs. NO Tauri.
+#   glimpse-cli   the headless command line, on top of core. NO Tauri.
+#   glimpse       this package: the Tauri GUI, on top of both.
+#
+# The split is what lets the CLI ship as a console-subsystem binary on Windows
+# instead of a GUI binary borrowing its parent's console (see #103).
+[workspace]
+members = ["crates/glimpse-cli", "crates/glimpse-core"]
+# LOAD-BEARING, and the failure it prevents is silence. A workspace whose root
+# is itself a package defaults `cargo test` / `cargo clippy` to *that package
+# alone* — so without this line the engine's and the CLI's tests would simply
+# stop being run, locally and in CI, while every command still reported green.
+# Naming all three restores what a bare `cargo test` in this directory meant
+# before the split: everything.
+default-members = [".", "crates/glimpse-cli", "crates/glimpse-core"]
+
+# NO `version` HERE, deliberately. release-please owns every version in this
+# repo and reaches each one by jsonpath (`release-please-config.json`), so the
+# three crates carry a literal `version` in their own `[package]` tables — the
+# `$.package.version` shape the config already proves — rather than inheriting
+# one from a key the release bot would have to learn about. Everything else is
+# shared, because nothing else is machine-written.
+[workspace.package]
 authors = ["Titus Kirch <titus.kirch@kirch.dev>"]
 license = "MIT"
 repository = "https://github.com/TitusKirch/glimpse"
 edition = "2021"
 rust-version = "1.77.2"
+
+[workspace.dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ts-rs = "12"
+
+[package]
+name = "glimpse"
+version = "0.13.0"
+description = "A lightweight, git-native desktop Git client — the full branch graph, diffs, and everyday git, with first-class WSL support."
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 name = "glimpse_lib"
@@ -16,8 +54,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+glimpse-cli = { path = "crates/glimpse-cli" }
+glimpse-core = { path = "crates/glimpse-core" }
+serde_json = { workspace = true }
+serde = { workspace = true }
 log = "0.4"
 # `devtools` keeps the webview inspector compiled into release builds too, so
 # a user filing a bug can reach the real stack trace with F12 (see #157).
@@ -38,5 +78,4 @@ tauri-plugin-updater = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-cli = "2"
 notify-debouncer-mini = "0.7"
-ts-rs = "12"
 semver = "1"

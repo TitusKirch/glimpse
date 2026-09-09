@@ -16,6 +16,16 @@
           "jsonpath": "$.package.version"
         },
         {
+          "type": "toml",
+          "path": "src-tauri/crates/glimpse-core/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "src-tauri/crates/glimpse-cli/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
           "type": "json",
           "path": "src-tauri/tauri.conf.json",
           "jsonpath": "$.version"
@@ -24,6 +34,16 @@
           "type": "toml",
           "path": "src-tauri/Cargo.lock",
           "jsonpath": "$.package[?(@.name=='glimpse')].version"
+        },
+        {
+          "type": "toml",
+          "path": "src-tauri/Cargo.lock",
+          "jsonpath": "$.package[?(@.name=='glimpse-core')].version"
+        },
+        {
+          "type": "toml",
+          "path": "src-tauri/Cargo.lock",
+          "jsonpath": "$.package[?(@.name=='glimpse-cli')].version"
         }
       ]
     }

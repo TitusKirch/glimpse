@@ -2198,11 +2198,11 @@ fn export_bindings() {
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
-        "// GENERATED from src-tauri/src/git.rs by `cargo test` (ts-rs).\n\
+        "// GENERATED from src-tauri/crates/glimpse-core/src/git.rs by `cargo test` (ts-rs).\n\
          // Do not edit — change the Rust structs and re-run.\n\n{body}"
     );
-    std::fs::create_dir_all("../app/types").expect("create app/types");
-    std::fs::write("../app/types/bindings.ts", file).expect("write bindings.ts");
+    std::fs::create_dir_all("../../../app/types").expect("create app/types");
+    std::fs::write("../../../app/types/bindings.ts", file).expect("write bindings.ts");
 }
 
 #[cfg(test)]

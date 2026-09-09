@@ -1,7 +1,8 @@
-mod changelist;
-mod cli;
-mod git;
-mod platform;
+// The git engine and the command line are their own, Tauri-free crates (see
+// `src-tauri/Cargo.toml`). Imported under their bare module names so every
+// `git::` / `platform::` path below reads exactly as it did when they were
+// modules of this crate.
+use glimpse_core::{git, platform};
 
 use std::collections::HashMap;
 use std::env;
@@ -1721,10 +1722,10 @@ fn restart_app() {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // A `glimpse cl …` invocation is handled headlessly here and the process
-    // exits before any window/Tauri setup; anything else falls through to the
-    // normal app launch.
-    if let Some(code) = cli::try_run_cli() {
+    // A headless invocation (`glimpse status`, `glimpse cl …`, `glimpse --help`)
+    // is handled here and the process exits before any window/Tauri setup;
+    // anything else — a repo path, no arguments — falls through to the app.
+    if let Some(code) = glimpse_cli::try_run_cli() {
         std::process::exit(code);
     }
 

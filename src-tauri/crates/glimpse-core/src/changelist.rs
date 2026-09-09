@@ -3,8 +3,9 @@
 //! Changelists are N named groups of pending changes layered over one working
 //! tree, with file-level membership (a changed path belongs to exactly one
 //! list). The GUI owns the canonical model in TypeScript; this port exists so
-//! the headless CLI (`glimpse cl …`, see [`crate::cli`]) can read, reconcile and
-//! mutate the **same** on-disk store the GUI writes — without a JS runtime.
+//! the headless CLI (`glimpse cl …`, in the `glimpse-cli` crate) can read,
+//! reconcile and mutate the **same** on-disk store the GUI writes — without a
+//! JS runtime.
 //!
 //! The on-disk contract (`<git-dir>/glimpse/changelists.json`) is shared with
 //! the frontend: keep [`SCHEMA_VERSION`] and the serde shape in lock-step with

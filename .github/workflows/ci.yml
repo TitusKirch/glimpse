@@ -115,6 +115,26 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      # THE TAURI-FREE CLAIM, MEASURED (#103). `glimpse-core` carries the git
+      # engine so the CLI can run it with no desktop anywhere in reach — a
+      # promise that holds only as long as nothing drags Tauri back in, and one
+      # nobody notices breaking, because the GUI build stays green either way.
+      #
+      # `cargo tree` is what settles it, and the whole *transitive* graph is the
+      # point: the unit test in the crate reads its own manifest, which catches
+      # a direct dependency and nothing else. A helper crate that innocently
+      # depends on tauri would slip straight past it and be caught here.
+      - name: Core crate is Tauri-free
+        working-directory: src-tauri
+        run: |
+          tree=$(cargo tree --package glimpse-core --edges normal,build)
+          if printf '%s\n' "$tree" | grep -q 'tauri'; then
+            echo "::error::glimpse-core has Tauri in its dependency tree:"
+            printf '%s\n' "$tree" | grep 'tauri'
+            exit 1
+          fi
+          echo "glimpse-core is Tauri-free."
+
   # BUILT ONCE, NOT THREE TIMES (#196). `tauri build` runs `beforeBuildCommand`
   # — `pnpm generate` — inside every leg of the matrix below, and the result is
   # platform-independent: the same `.output/public` three times over. It is
