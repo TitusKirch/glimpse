@@ -233,9 +233,61 @@ fn the_readme_documents_every_subcommand_the_cli_claims() {
 
     for name in glimpse_cli::SUBCOMMANDS {
         assert!(
-            text.contains(&format!("glimpse {name}")),
+            documents(&text, name),
             "`glimpse {name}` is missing from {}",
             readme.display()
+        );
+    }
+}
+
+/// Does the README document `glimpse <name>` as a command in its own right?
+///
+/// The word boundary is the point. A plain `contains` matches a prefix, so
+/// renaming `stage` to `stagex` — or adding `stage` while only `staged` is
+/// documented — would still pass, and the guard would be quietly useless for
+/// exactly the change it exists to catch. Nothing collides among today's
+/// names; this keeps that true for the next one.
+fn documents(readme: &str, name: &str) -> bool {
+    let needle = format!("glimpse {name}");
+    readme.match_indices(&needle).any(|(i, _)| {
+        match readme[i + needle.len()..].chars().next() {
+            // End of file, or anything that cannot continue a command name.
+            None => true,
+            Some(c) => !c.is_alphanumeric() && c != '-' && c != '_',
+        }
+    })
+}
+
+#[test]
+fn the_readme_guard_would_notice_a_renamed_command() {
+    // The guard above can only be trusted if it fails on the case it claims to
+    // cover, so both directions are pinned here rather than assumed.
+    assert!(documents("run `glimpse status` to see", "status"));
+    assert!(documents("glimpse stage <file>...", "stage"));
+    assert!(documents("...ends with glimpse stage", "stage"));
+
+    assert!(
+        !documents("glimpse stagex <file>", "stage"),
+        "a prefix is not a match"
+    );
+    assert!(
+        !documents("glimpse status", "stat"),
+        "nor is a shorter prefix of a real command"
+    );
+    assert!(!documents("glimpse unstage a.txt", "stage"));
+}
+
+#[test]
+fn every_write_command_is_listed_where_the_help_and_readme_guards_can_see_it() {
+    // `SUBCOMMANDS` is what `claims`, the help guard and the README guard all
+    // read. A write command added only to the write module's own list would be
+    // dispatchable but undocumented — shipped by the code and not by
+    // criterion (b) — so the two lists are pinned to each other here.
+    for name in glimpse_cli::WRITE_SUBCOMMANDS {
+        assert!(
+            glimpse_cli::SUBCOMMANDS.contains(name),
+            "write command `{name}` is missing from SUBCOMMANDS, so neither \
+             `--help` nor the README is checked for it"
         );
     }
 }
