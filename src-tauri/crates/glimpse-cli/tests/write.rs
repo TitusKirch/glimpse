@@ -8,7 +8,7 @@
 
 mod common;
 
-use common::{git, git_out, json_of, run, scratch_repo};
+use common::{git, git_out, json_of, merged_with_conflict, run, scratch_repo};
 
 #[test]
 fn stage_moves_named_files_into_the_index() {
@@ -201,6 +201,176 @@ fn amend_replaces_the_message_when_one_is_given() {
 // tell — from the report alone — whether a file was reverted or deleted.
 
 #[test]
+fn discard_takes_a_file_back_to_head_even_when_the_change_is_staged() {
+    // `git restore -- <file>` sources the working tree from the INDEX, so a
+    // staged change survives a "discard" that reports the file was restored to
+    // the last committed state. `discard` means "throw away uncommitted work",
+    // and a staged change is uncommitted work.
+    let dir = scratch_repo("discard-staged");
+    let path = dir.to_str().unwrap();
+
+    // Staged content a2, working-tree content a3 — the two differ, so a restore
+    // from the index and a restore from HEAD land on different bytes.
+    git(&dir, &["add", "a.txt"]);
+    std::fs::write(dir.join("a.txt"), "a3\n").unwrap();
+
+    let (code, out, err) = run(&["discard", "-C", path, "a.txt"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(out.contains("restored"), "{out:?}");
+
+    assert_eq!(
+        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "a1\n",
+        "the working tree is at the committed content, not the staged one"
+    );
+    let staged = git_out(&dir, &["diff", "--cached", "--name-only"]);
+    assert!(
+        staged.trim().is_empty(),
+        "the staged change is gone too — it was uncommitted work: {staged:?}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_of_a_staged_only_change_is_not_a_no_op_that_claims_success() {
+    // The worst shape of the bug above: nothing differs between index and
+    // worktree, so `git restore` changes nothing at all — yet the command
+    // exited 0, said the file was restored, and left a receipt telling a
+    // running window something had happened.
+    let dir = scratch_repo("discard-staged-only");
+    let path = dir.to_str().unwrap();
+
+    git(&dir, &["add", "a.txt"]);
+
+    let (code, _out, err) = run(&["discard", "-C", path, "a.txt"]);
+    assert_eq!(code, 0, "stderr: {err}");
+
+    assert_eq!(
+        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "a1\n",
+        "the report claimed the committed state, so that is what must be there"
+    );
+    let staged = git_out(&dir, &["diff", "--cached", "--name-only"]);
+    assert!(staged.trim().is_empty(), "index restored too: {staged:?}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_covers_a_staged_deletion_rather_than_half_destroying_the_batch() {
+    // A path `status` lists that the index-sourced `git restore` rejects: a
+    // staged deletion answers "pathspec 'c.txt' did not match any file(s) known
+    // to git". The batch used to destroy the paths ahead of it and only then
+    // fail — the opposite of the all-or-nothing it advertises.
+    let dir = scratch_repo("discard-staged-delete");
+    let path = dir.to_str().unwrap();
+
+    std::fs::write(dir.join("c.txt"), "c1\n").unwrap();
+    git(&dir, &["add", "c.txt"]);
+    git(&dir, &["commit", "-q", "-m", "add c"]);
+    std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
+    git(&dir, &["rm", "-q", "c.txt"]);
+    let status = git_out(&dir, &["status", "--porcelain"]);
+    assert!(status.contains("D  c.txt"), "setup: {status:?}");
+
+    let (code, _out, err) = run(&["discard", "-C", path, "a.txt", "c.txt"]);
+    assert_eq!(code, 0, "stderr: {err}");
+
+    assert_eq!(
+        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "a1\n",
+        "the unstaged edit is gone"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("c.txt")).unwrap(),
+        "c1\n",
+        "the staged deletion is undone: the file is back on disk"
+    );
+    let left = git_out(&dir, &["status", "--porcelain"]);
+    assert!(
+        !left.contains("a.txt") && !left.contains("c.txt"),
+        "neither named path is still pending: {left:?}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_refuses_a_conflicted_path_before_it_destroys_the_rest_of_the_batch() {
+    // Mid-merge, HEAD is *ours*: taking a conflicted file back to it silently
+    // throws away the other side. The refusal is deliberate — and it happens in
+    // the plan, so the other paths in the batch are still untouched.
+    let dir = merged_with_conflict("discard-conflict");
+    let path = dir.to_str().unwrap();
+
+    std::fs::write(dir.join("z.txt"), "z2\n").unwrap();
+
+    let (code, _out, err) = run(&["discard", "-C", path, "z.txt", "a.txt"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("conflict"), "the state is named: {err:?}");
+    assert!(err.contains("a.txt"), "the path is named: {err:?}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("z.txt")).unwrap(),
+        "z2\n",
+        "the good path in the batch was NOT discarded"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_refuses_a_renamed_path_rather_than_undoing_half_of_it() {
+    // A rename is one change across two paths, and `status` names only the new
+    // one. Restoring that half alone leaves the old path deleted while the
+    // report claims the file is back at its committed state.
+    let dir = scratch_repo("discard-rename");
+    let path = dir.to_str().unwrap();
+
+    git(&dir, &["mv", "a.txt", "renamed.txt"]);
+
+    let (code, _out, err) = run(&["discard", "-C", path, "renamed.txt"]);
+    assert_eq!(code, 1, "{err}");
+    assert!(err.contains("rename"), "the state is named: {err:?}");
+    assert!(
+        dir.join("renamed.txt").exists(),
+        "nothing was destroyed by the refusal"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_reports_what_it_could_not_discard_rather_than_claiming_it_all() {
+    // `git clean -f` will not remove a nested repository (that needs -ff) and
+    // says nothing about it, so the path is still there afterwards. Checking
+    // the outcome against `status` — rather than assuming git did as asked — is
+    // what keeps the report true whatever git declines to do.
+    let dir = scratch_repo("discard-undone");
+    let path = dir.to_str().unwrap();
+
+    let nested = dir.join("nested");
+    std::fs::create_dir_all(&nested).unwrap();
+    git(&nested, &["init", "-q", "-b", "main"]);
+    std::fs::write(nested.join("x.txt"), "x\n").unwrap();
+
+    let (code, _out, err) = run(&["discard", "-C", path, "a.txt", "nested/"]);
+    assert_eq!(code, 1, "a report that does not match reality is a failure");
+    assert!(err.contains("nested/"), "what survived is named: {err:?}");
+    assert!(
+        err.contains("a.txt"),
+        "and so is what was already destroyed: {err:?}"
+    );
+
+    // The destruction that DID happen still refreshes a running window.
+    let r = receipt(&dir).expect("a receipt for the part that landed");
+    assert_eq!(r["action"], "discard");
+    assert_eq!(r["paths"][0], "a.txt");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn discard_reverts_a_tracked_file_and_says_so() {
     let dir = scratch_repo("discard-tracked");
     let path = dir.to_str().unwrap();
@@ -245,6 +415,33 @@ fn discard_deletes_an_untracked_file_and_says_that_instead() {
 
     assert!(!dir.join("b.txt").exists(), "the untracked file is gone");
     assert!(dir.join("a.txt").exists(), "the tracked one is untouched");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_says_deleted_for_a_path_the_last_commit_has_no_version_of() {
+    // A file staged as new goes back to a HEAD that never had it, so discarding
+    // it removes it from disk — the same outcome as an untracked file, and for
+    // the same reason. "Restored to the last committed state" would be the
+    // wrong sentence for a file that no longer exists anywhere.
+    let dir = scratch_repo("discard-added");
+    let path = dir.to_str().unwrap();
+
+    git(&dir, &["add", "b.txt"]);
+    let status = git_out(&dir, &["status", "--porcelain"]);
+    assert!(status.contains("A  b.txt"), "setup: {status:?}");
+
+    let (code, out, err) = run(&["discard", "-C", path, "b.txt", "--json"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let r = json_of(&out);
+    assert!(
+        r["detail"].as_str().is_some_and(|d| d.contains("deleted")),
+        "there is no copy of it left, and the wording has to say so: {r}"
+    );
+    assert!(!dir.join("b.txt").exists(), "gone from disk");
+    let staged = git_out(&dir, &["diff", "--cached", "--name-only"]);
+    assert!(staged.trim().is_empty(), "and out of the index: {staged:?}");
 
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -1613,8 +1613,16 @@ impl Repo {
             .to_string())
     }
 
-    /// Discard a file's working-tree changes. Untracked files are deleted
-    /// (`clean`); tracked files are reverted to HEAD (`restore`).
+    /// Discard a file's **unstaged** working-tree change, sourcing it from the
+    /// index. Untracked files are deleted (`clean`).
+    ///
+    /// This is the GUI's per-file discard, which lives in the *unstaged*
+    /// section next to a separately-shown index: "throw this away" there means
+    /// the unstaged half, and a staged change is meant to survive it. Anything
+    /// that promises to throw away a path's uncommitted work outright — the
+    /// CLI's `glimpse discard <path>` — wants [`discard_to_head`] instead.
+    ///
+    /// [`discard_to_head`]: Self::discard_to_head
     pub fn discard(&self, file: &str, untracked: bool) -> Result<(), String> {
         reject_unsafe_path(file)?;
         if untracked {
@@ -1622,6 +1630,51 @@ impl Repo {
         } else {
             self.run(&["restore", "--", file]).map(|_| ())
         }
+    }
+
+    /// Take `files` back to the last committed state — index **and** working
+    /// tree — in a single `git restore`.
+    ///
+    /// `--staged --worktree` with no `--source` makes HEAD the source, which is
+    /// the difference that matters against [`discard`](Self::discard): a change
+    /// that is merely *staged* is still uncommitted work, and leaving it behind
+    /// while reporting "restored to the last committed state" would be a lie
+    /// told by the one command that destroys things.
+    ///
+    /// It also accepts cases the index-sourced form rejects outright — a staged
+    /// deletion (`git restore -- <p>` answers "did not match any file(s) known
+    /// to git"), and a path staged as new, which HEAD has no version of and
+    /// which is therefore removed rather than reverted.
+    ///
+    /// **One invocation for the whole batch, on purpose.** git validates every
+    /// pathspec before it touches any of them, so a path it will not accept
+    /// costs nothing at all — where a path-at-a-time loop would already have
+    /// destroyed the paths ahead of it.
+    pub fn discard_to_head(&self, files: &[String]) -> Result<(), String> {
+        if files.is_empty() {
+            return Ok(());
+        }
+        let mut args = vec!["restore", "--staged", "--worktree", "--"];
+        for f in files {
+            reject_unsafe_path(f)?;
+            args.push(f);
+        }
+        self.run(&args).map(|_| ())
+    }
+
+    /// Delete `files` from disk — untracked paths, which no index or commit
+    /// holds a copy of. One `git clean` for the whole batch, for the same
+    /// reason [`discard_to_head`](Self::discard_to_head) takes one.
+    pub fn discard_untracked(&self, files: &[String]) -> Result<(), String> {
+        if files.is_empty() {
+            return Ok(());
+        }
+        let mut args = vec!["clean", "-f", "--"];
+        for f in files {
+            reject_unsafe_path(f)?;
+            args.push(f);
+        }
+        self.run(&args).map(|_| ())
     }
 
     pub fn checkout_branch(&self, branch: &str) -> Result<(), String> {

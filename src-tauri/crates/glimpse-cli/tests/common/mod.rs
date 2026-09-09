@@ -55,6 +55,43 @@ pub fn scratch_repo(tag: &str) -> PathBuf {
     dir
 }
 
+/// A scratch repository stopped mid-merge with one unresolved conflict in
+/// `a.txt` (`UU`), plus a clean tracked `z.txt` to act as the innocent
+/// bystander in a batch. The state a user is in when they reach for `commit`
+/// and get told nothing is staged.
+pub fn merged_with_conflict(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    std::fs::write(dir.join("a.txt"), "base\n").unwrap();
+    std::fs::write(dir.join("z.txt"), "z1\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "initial commit"]);
+
+    git(&dir, &["switch", "-q", "-c", "other"]);
+    std::fs::write(dir.join("a.txt"), "theirs\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "theirs"]);
+
+    git(&dir, &["switch", "-q", "main"]);
+    std::fs::write(dir.join("a.txt"), "ours\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "ours"]);
+
+    // Expected to fail — that failure IS the fixture.
+    let _ = Command::new("git")
+        .arg("-C")
+        .arg(&dir)
+        .args(["merge", "other"])
+        .output()
+        .expect("run git");
+    dir
+}
+
 pub fn argv(parts: &[&str]) -> Vec<String> {
     parts.iter().map(|s| s.to_string()).collect()
 }

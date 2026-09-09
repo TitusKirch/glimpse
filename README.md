@@ -151,7 +151,7 @@ glimpse unstage src/a.ts       # take them back out (the change itself survives)
 glimpse commit -m "feat: …"    # commit what is staged, and print the new hash
 glimpse amend                  # fold the index into the previous commit
 glimpse amend -m "docs: …"     # …or just reword it
-glimpse discard src/a.ts       # throw away one file's uncommitted changes
+glimpse discard src/a.ts       # throw the file back to the last commit
 glimpse discard --all --force  # …or every uncommitted change in the tree
 ```
 
@@ -161,7 +161,12 @@ Two options apply to all of them: `--json` emits machine-readable output — the
 > `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout and read its status, diffs, history, blame and layout — then stage, commit or amend — in the app's own shapes, never parsing porcelain by hand.
 
 > [!IMPORTANT]
-> `glimpse discard` is the one command here that destroys uncommitted work, so it refuses rather than guesses. It always needs an explicit subject: naming a path **is** the confirmation. `--all` names nothing, so it carries `--force` instead — there is no prompt, because the command exists to run unattended, where a prompt would either hang CI or be skipped in silence. A path with nothing to discard is an error that stops the whole batch **before** anything is deleted, so a typo costs nothing.
+> `glimpse discard` is the one command here that destroys uncommitted work, so it refuses rather than guesses.
+>
+> - **It always needs an explicit subject.** Naming a path **is** the confirmation. `--all` names nothing, so it carries `--force` instead — there is no prompt, because the command exists to run unattended, where a prompt would either hang CI or be skipped in silence.
+> - **It discards to the last commit, index included.** A staged change is uncommitted work, so `glimpse discard <file>` throws that away too — unlike `git restore <file>`, which would leave it and hand you the staged content back.
+> - **The plan covers what git will accept**, and is resolved against `status` before anything is destroyed: a path with nothing to discard, an unresolved merge conflict, a staged rename are all refused there, and the destruction itself is one `git restore` and one `git clean` for the whole batch. So a typo — or a state git would reject — costs nothing at all.
+> - **The report is checked against the repository afterwards**, not assumed: git can decline a path without a word (`git clean` will not remove a nested repository), and if anything named survives, the command fails and names both halves — what survived, and what it had already destroyed. A window open on the repository is still told about the part that landed.
 
 When a glimpse window is open on the same repository, it refreshes as soon as a write command succeeds — the CLI leaves a small receipt in the repository's git dir (`<git-dir>/glimpse/last-write.json`) that the window watches directly, instead of waiting on its debounced filesystem watcher. That notification is **best-effort**: if it cannot be written, the command that already succeeded still succeeds.
 
