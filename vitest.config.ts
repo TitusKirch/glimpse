@@ -24,8 +24,17 @@ export default defineConfig({
       // The coverage gate covers the unit-testable layer: pure utilities, the
       // git IPC client, the IPC seam and the settings store. UI components,
       // Pinia stores wired to Tauri/DOM, and the Nuxt/Tauri runtime glue are
-      // exercised by the e2e smoke test and manual QA, not unit coverage — so
-      // they are intentionally outside this gate to keep it meaningful.
+      // intentionally outside it, to keep the gate meaningful rather than
+      // padded with mock-driven tests of the shell.
+      //
+      // What stands behind that exclusion, stated honestly: ONE e2e smoke test
+      // (`tests/e2e/smoke.spec.ts`, run by `pnpm e2e` and by the `E2E smoke
+      // test` job in CI) plus manual QA. The smoke test drives the real binary
+      // through tauri-driver, so it proves the excluded layers boot, wire up
+      // and render a repository end to end — a launch regression cannot ship.
+      // It is not per-branch coverage of them, and no threshold here should be
+      // read as if it were. Broadening that suite is tracked separately; see
+      // `tests/e2e/README.md`.
       include: [
         'app/utils/**/*.ts',
         'app/lib/**/*.ts',
