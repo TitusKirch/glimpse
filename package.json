@@ -41,7 +41,7 @@
     "lint:fix": "oxlint . --fix --deny-warnings",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt .",
-    "typecheck": "nuxt typecheck && vue-tsc -p tests/e2e/tsconfig.json",
+    "typecheck": "nuxt typecheck && vue-tsc -p tests/e2e/tsconfig.json && vue-tsc -p tsconfig.tooling.json",
     "cargofmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --all --check",
     "cargofmt:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml --all",
     "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm cargofmt && pnpm test",
