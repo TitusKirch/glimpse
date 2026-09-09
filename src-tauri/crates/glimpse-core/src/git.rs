@@ -354,6 +354,42 @@ pub struct Commit {
     pub signer_key: String,
 }
 
+/// The note a headless write leaves behind for a running glimpse window: what
+/// changed, and when. Written by the CLI after a successful write action, read
+/// by the GUI's watcher so it can refresh immediately (see
+/// [`Repo::write_receipt`]).
+///
+/// Deliberately **not** a `ts-rs` type: it never crosses the IPC boundary to the
+/// frontend. The GUI consumes it in Rust and emits the `repo-changed` event the
+/// frontend already listens to, so the frontend learns nothing new about it.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteReceipt {
+    /// The subcommand that ran, e.g. `stage` or `commit`.
+    pub action: String,
+    /// The paths it touched, where the action's subject is paths at all.
+    #[serde(default)]
+    pub paths: Vec<String>,
+    /// Unix milliseconds, so a reader can order two receipts and ignore a stale
+    /// one left by a process that died before the window opened.
+    pub at: u64,
+}
+
+impl WriteReceipt {
+    pub fn new(action: &str, paths: Vec<String>) -> Self {
+        Self {
+            action: action.to_string(),
+            paths,
+            at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                // A clock before the epoch is not worth an error path; 0 simply
+                // reads as "unknown, treat as stale".
+                .unwrap_or(0),
+        }
+    }
+}
+
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Branch {
@@ -1490,13 +1526,55 @@ impl Repo {
     /// the file is per-worktree and never committed or pushed, yet any tool (the
     /// CLI, an agent) can read/write it by this same rule.
     fn changelists_file(&self) -> Result<String, String> {
+        self.glimpse_dir_file("changelists.json")
+    }
+
+    /// Absolute, host-visible path of `<git-dir>/glimpse/<name>` — the private
+    /// per-worktree drawer described on [`changelists_file`], which more than
+    /// one file now lives in.
+    fn glimpse_dir_file(&self, name: &str) -> Result<String, String> {
         let git_dir = self
             .run(&["rev-parse", "--absolute-git-dir"])?
             .trim()
             .to_string();
-        Ok(self
-            .target
-            .host_path(&format!("{git_dir}/glimpse/changelists.json")))
+        Ok(self.target.host_path(&format!("{git_dir}/glimpse/{name}")))
+    }
+
+    /// Absolute, host-visible path of this repo's **write receipt**
+    /// (`<git-dir>/glimpse/last-write.json`) — see [`write_receipt`].
+    ///
+    /// [`write_receipt`]: Repo::write_receipt
+    pub fn write_receipt_file(&self) -> Result<String, String> {
+        self.glimpse_dir_file("last-write.json")
+    }
+
+    /// Record that a write just happened, so a running glimpse window can
+    /// refresh **at once** instead of waiting for its debounced filesystem
+    /// watcher — which lags by design, and by seconds over the `\\wsl$` share
+    /// where it has to poll.
+    ///
+    /// The receipt lives beside the changelist store, in the git dir: private
+    /// to the worktree, never committed, and readable by any tool that can
+    /// reach the repository. It is written atomically (temp file + rename) so a
+    /// watcher never reads a half-written file.
+    ///
+    /// This returns a `Result` because writing a file can genuinely fail. It is
+    /// the **caller's** job to treat that failure as unimportant — the CLI does,
+    /// deliberately, since a notification that failed must never fail the write
+    /// that succeeded.
+    pub fn write_receipt(&self, receipt: &WriteReceipt) -> Result<(), String> {
+        let path = self.write_receipt_file()?;
+        let p = std::path::Path::new(&path);
+        if let Some(dir) = p.parent() {
+            std::fs::create_dir_all(dir)
+                .map_err(|e| format!("failed to create the glimpse dir: {e}"))?;
+        }
+        let json = serde_json::to_string(receipt)
+            .map_err(|e| format!("failed to serialise the receipt: {e}"))?;
+        let tmp = format!("{path}.tmp");
+        std::fs::write(&tmp, json).map_err(|e| format!("failed to write the receipt: {e}"))?;
+        std::fs::rename(&tmp, &path).map_err(|e| format!("failed to write the receipt: {e}"))?;
+        Ok(())
     }
 
     /// Read the raw changelist store JSON, or `None` if it has never been
@@ -3152,6 +3230,98 @@ mod sparse_status_tests {
             "the included directory is listed: {:?}",
             state.patterns
         );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod write_receipt_tests {
+    use super::{Repo, WriteReceipt};
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-receipt-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        dir
+    }
+
+    #[test]
+    fn the_receipt_lands_in_the_git_dir_and_round_trips() {
+        let dir = scratch("roundtrip");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let written = WriteReceipt::new("commit", vec!["a.txt".to_string()]);
+        repo.write_receipt(&written).expect("write the receipt");
+
+        // Inside the git dir, so it is per-worktree and never committed —
+        // asserted on the resolved path rather than on a string we built.
+        let path = repo.write_receipt_file().expect("resolve the receipt path");
+        assert!(
+            path.replace('\\', "/").contains("/glimpse/last-write.json"),
+            "{path}"
+        );
+        assert!(Path::new(&path).exists());
+
+        let text = std::fs::read_to_string(&path).unwrap();
+        let read: WriteReceipt = serde_json::from_str(&text).expect("parse the receipt");
+        assert_eq!(read, written, "what the GUI reads is what the CLI wrote");
+        assert!(read.at > 0, "a usable timestamp");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_second_write_replaces_the_first_rather_than_appending() {
+        let dir = scratch("replace");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        repo.write_receipt(&WriteReceipt::new("stage", vec!["a.txt".to_string()]))
+            .unwrap();
+        repo.write_receipt(&WriteReceipt::new("discard", vec!["b.txt".to_string()]))
+            .unwrap();
+
+        let path = repo.write_receipt_file().unwrap();
+        let read: WriteReceipt =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(read.action, "discard", "the latest write wins");
+        assert_eq!(read.paths, vec!["b.txt".to_string()]);
+
+        // The atomic-write temp file is not left behind for a watcher to trip on.
+        assert!(!Path::new(&format!("{path}.tmp")).exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn writing_a_receipt_reports_failure_rather_than_pretending() {
+        // The CLI treats a failed receipt as unimportant, but it can only make
+        // that choice if the engine tells it the truth. A file where the
+        // directory belongs makes the write genuinely impossible.
+        let dir = scratch("unwritable");
+        let repo = Repo::open(dir.to_str().unwrap());
+        let path = repo.write_receipt_file().unwrap();
+        let parent = Path::new(&path).parent().unwrap().to_path_buf();
+        std::fs::write(&parent, "not a directory").unwrap();
+
+        let err = repo
+            .write_receipt(&WriteReceipt::new("stage", vec![]))
+            .expect_err("an impossible write is an error");
+        assert!(!err.is_empty(), "the failure is named: {err:?}");
 
         let _ = std::fs::remove_dir_all(&dir);
     }
