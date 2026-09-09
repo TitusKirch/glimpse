@@ -1052,7 +1052,13 @@ fn branch_merge(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
         // so it exits 0 and says so. The sentence below stays reserved for git
         // succeeding at something it visibly did not do.
         let tip = repo.resolve_commit(&name)?;
-        if repo.merge_base(&name)? == tip {
+        // `merge_base` failing means there is no common ancestor at all, which
+        // is the *opposite* of "already merged" — so it answers the question
+        // rather than interrupting it. A `?` here would report a read-back
+        // probe's failure as the merge's own, which is the one thing this
+        // module's read-back discipline exists not to do. git refuses unrelated
+        // histories before `merge` returns, so nothing reaches this today.
+        if repo.merge_base(&name).is_ok_and(|base| base == tip) {
             return Ok(Report::new(
                 "branch merge",
                 vec![name.clone()],
