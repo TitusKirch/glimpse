@@ -35,6 +35,7 @@
     "bindings": "cargo test --manifest-path src-tauri/Cargo.toml -p glimpse-core --lib export_bindings -- --ignored && oxfmt app/types/bindings.ts",
     "test": "vitest run",
     "e2e": "wdio run tests/e2e/wdio.conf.ts",
+    "perf:baseline": "node scripts/perf-baseline.ts",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "oxlint . --deny-warnings",

@@ -24,6 +24,11 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
+    // These files are run by `node` with no bundler and no build step, and
+    // Node's type stripping does not rewrite specifiers — so a relative import
+    // between two of them has to name the `.ts` file that is actually on disk.
+    // Nothing is emitted here, so allowing the extension costs nothing.
+    "allowImportingTsExtensions": true,
     // Vitest's own types arrive through the explicit `vitest` imports every
     // spec here makes — the suite does not run with `globals: true`, so
     // declaring them ambiently would let an undeclared `describe` type-check
