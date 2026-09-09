@@ -398,15 +398,15 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
         // in "Already discarded" and would claim nothing was.
         let before = repo.status()?;
         // The whole-tree twin of the per-path conflict refusal, and the reason
-        // it is asked of git rather than of `before`: a merge whose conflicts
-        // are already staged has no unmerged entry left to see.
-        if repo.merge_in_progress() {
+        // it is asked of git rather than of `before`: an operation whose
+        // conflicts are already staged has no unmerged entry left to see.
+        if let Some(state) = refs::in_progress(repo) {
             let conflicted: Vec<String> = before
                 .iter()
                 .filter(|e| e.conflicted)
                 .map(|e| e.path.clone())
                 .collect();
-            return Err(mid_merge_refusal(&conflicted).into());
+            return Err(mid_operation_refusal(state, &conflicted).into());
         }
         repo.discard_all()?;
         // Same read-back as the per-path form: "every uncommitted change" is a
@@ -543,7 +543,7 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
     Ok(Report::new("discard", paths, detail))
 }
 
-/// Why `discard --all --force` will not run during a merge.
+/// Why `discard --all --force` will not run while an operation is open.
 ///
 /// The per-path form already refuses a conflicted path, and this is the same
 /// refusal at whole-tree scale — decided rather than inherited, because the two
@@ -556,23 +556,29 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
 /// The alternative — say plainly what it is about to do, then do it — has no
 /// shape here: this command exists to run unattended, so the sentence would be
 /// read after the other side of the merge was already gone.
-fn mid_merge_refusal(conflicted: &[String]) -> String {
+///
+/// A merge was refused first because that was the case a review reproduced; a
+/// stopped cherry-pick and a stopped revert are the same shape and are refused
+/// on the same grounds. Which states count is [`refs::in_progress`]'s to say —
+/// `REBASE_HEAD` is deliberately not among them, because a stopped rebase has no
+/// glimpse subcommand to finish it with yet.
+fn mid_operation_refusal(op: &str, conflicted: &[String]) -> String {
     let state = match conflicted {
-        [] => "a merge is still in progress".to_string(),
-        [one] => format!("a merge is still in progress, and {one} has an unresolved conflict"),
+        [] => format!("a {op} is still in progress"),
+        [one] => format!("a {op} is still in progress, and {one} has an unresolved conflict"),
         many => format!(
-            "a merge is still in progress, with unresolved conflicts:\n{}",
+            "a {op} is still in progress, with unresolved conflicts:\n{}",
             bulleted(many)
         ),
     };
     format!(
         "{state}\n\n\
          Discarding now would take every conflicted path to *ours* and throw the other \
-         side away — and the merge itself would stay open, with MERGE_HEAD still set and \
-         nothing left in the tree to show for it, so the next commit would record it as \
-         though both sides had been weighed.\n\n\
-         Finish the merge (resolve each path, then glimpse stage <path>... and glimpse \
-         commit), or undo it with `git merge --abort`."
+         side away — and the {op} itself would stay open, with its own HEAD ref still set \
+         and nothing left in the tree to show for it, so the next commit would record it \
+         as though both sides had been weighed.\n\n\
+         Finish it (resolve each path, then glimpse stage <path>... and glimpse commit), \
+         or undo it with `git {op} --abort`."
     )
 }
 

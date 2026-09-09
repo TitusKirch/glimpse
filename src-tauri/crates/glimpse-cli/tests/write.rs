@@ -8,7 +8,9 @@
 
 mod common;
 
-use common::{git, git_out, json_of, merged_with_conflict, receipt, run, scratch_repo};
+use common::{
+    git, git_out, json_of, merged_with_conflict, receipt, run, scratch_repo, stopped_mid,
+};
 
 #[test]
 fn stage_moves_named_files_into_the_index() {
@@ -755,6 +757,34 @@ fn discard_all_from_a_subdirectory_clears_the_whole_working_tree() {
     assert!(!dir.join("b.txt").exists(), "untracked files too");
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_all_refuses_mid_cherry_pick_and_mid_revert_for_the_same_reason() {
+    // `MERGE_HEAD` was refused first because that was the case a review
+    // reproduced. A stopped cherry-pick and a stopped revert are the same shape:
+    // the working tree holds one side of a conflict, the operation is not
+    // recorded anywhere, and discarding would settle it on *ours* and leave the
+    // sequencer's own ref behind a `status` that reads clean.
+    for op in ["cherry-pick", "revert"] {
+        let dir = stopped_mid(&format!("discard-all-{op}"), op);
+        let path = dir.to_str().unwrap();
+
+        let (code, out, err) = run(&["discard", "-C", path, "--all", "--force"]);
+        assert_eq!(code, 1, "{op}: stdout {out:?}");
+        assert!(err.contains(op), "{op}: the state is named: {err:?}");
+        assert!(err.contains("a.txt"), "{op}: and the path: {err:?}");
+        assert!(err.contains("--abort"), "{op}: and the way out: {err:?}");
+
+        let conflicted = std::fs::read_to_string(dir.join("a.txt")).unwrap();
+        assert!(
+            conflicted.contains("<<<<<<<"),
+            "{op}: nothing was decided: {conflicted:?}"
+        );
+        assert!(receipt(&dir).is_none(), "{op}: no receipt for a refusal");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
 
 #[test]

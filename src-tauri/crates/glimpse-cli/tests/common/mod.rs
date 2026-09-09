@@ -108,6 +108,58 @@ pub fn run(parts: &[&str]) -> (i32, String, String) {
     )
 }
 
+/// A scratch repository stopped mid-`cherry-pick` or mid-`revert` on a conflict
+/// in `a.txt` — the two in-progress states that are the same shape as a stopped
+/// merge, and that leave `CHERRY_PICK_HEAD` / `REVERT_HEAD` behind rather than
+/// `MERGE_HEAD`.
+pub fn stopped_mid(tag: &str, op: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    std::fs::write(dir.join("a.txt"), "base\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "initial commit"]);
+
+    let target = if op == "revert" {
+        // Revert a commit whose change has since been overwritten: undoing it
+        // no longer applies cleanly.
+        std::fs::write(dir.join("a.txt"), "first\n").unwrap();
+        git(&dir, &["commit", "-q", "-am", "first"]);
+        let hash = Command::new("git")
+            .arg("-C")
+            .arg(&dir)
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .expect("run git");
+        std::fs::write(dir.join("a.txt"), "second\n").unwrap();
+        git(&dir, &["commit", "-q", "-am", "second"]);
+        String::from_utf8(hash.stdout).unwrap().trim().to_string()
+    } else {
+        git(&dir, &["switch", "-q", "-c", "side"]);
+        std::fs::write(dir.join("a.txt"), "theirs\n").unwrap();
+        git(&dir, &["commit", "-q", "-am", "theirs"]);
+        git(&dir, &["switch", "-q", "main"]);
+        std::fs::write(dir.join("a.txt"), "ours\n").unwrap();
+        git(&dir, &["commit", "-q", "-am", "ours"]);
+        "side".to_string()
+    };
+
+    // Expected to fail — that failure IS the fixture.
+    let _ = Command::new("git")
+        .arg("-C")
+        .arg(&dir)
+        .args([op, "--no-edit", &target])
+        .output()
+        .expect("run git");
+    dir
+}
+
 /// A per-test scratch repository with a **clean** working tree and two commits,
 /// so a ref-level command has history to point at and nothing uncommitted to
 /// get in its way. [`scratch_repo`] deliberately leaves the tree dirty, which
