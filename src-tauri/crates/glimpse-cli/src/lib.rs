@@ -79,7 +79,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// unreachable as `glimpse log`; write `glimpse ./log` and it is a path again.
 /// That trade predates this list (`glimpse cl` already made it) and is the price
 /// of a subcommand and a positional path sharing one argument slot.
+///
+/// Globals written *before* the subcommand are looked past first, so `glimpse
+/// -C sub status` reaches the command line from the single installed binary
+/// rather than opening a window on a directory called `sub`.
 pub fn claims(args: &[String]) -> bool {
+    let hoisted = globals_after_the_subcommand(args);
+    let args = hoisted.as_deref().unwrap_or(args);
     match args.first().map(String::as_str) {
         Some(a) => {
             SUBCOMMANDS.contains(&a)
@@ -123,6 +129,8 @@ fn run_argv(args: &[String]) -> i32 {
 /// Run one command and return its exit code, writing everything the user would
 /// see into `out` and `err`.
 pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let hoisted = globals_after_the_subcommand(args);
+    let args = hoisted.as_deref().unwrap_or(args);
     match args.first().map(String::as_str) {
         // A bare invocation of the CLI has nothing to do but explain itself.
         None | Some("-h") | Some("--help") | Some("help") => {
@@ -137,6 +145,56 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
         Some(cmd) if write::claims(cmd) => write::run(cmd, &args[1..], out, err),
         Some(cmd) => read::run(cmd, &args[1..], out, err),
     }
+}
+
+/// Rewrite argv so the globals a user wrote *before* the subcommand sit after
+/// it, where the one parser looks for them.
+///
+/// `glimpse -C sub status` is the spelling every `git -C` habit produces, and
+/// it used to answer `unknown subcommand: -C`: [`run`] dispatches on the first
+/// word, and the first word was the option. Moving them is the whole fix —
+/// [`parse_globals`] already accepts a global anywhere among a command's
+/// arguments, so nothing else has to learn about the second spelling.
+///
+/// `None` when there is nothing to move: no leading global, or nothing *but*
+/// globals. That second case matters — `glimpse -C /repo` names no command, so
+/// it stays the GUI's, exactly as before.
+///
+/// The globals go immediately after the subcommand rather than at the end, so
+/// a command's own dangling value option still ends the line: `glimpse -C /r
+/// log -n` must report the missing count, not swallow `-C` as it.
+fn globals_after_the_subcommand(args: &[String]) -> Option<Vec<String>> {
+    let mut leading: Vec<String> = Vec::new();
+    let mut i = 0;
+    while let Some(a) = args.get(i) {
+        match a.as_str() {
+            "--json" => {
+                leading.push(a.clone());
+                i += 1;
+            }
+            "-C" | "--repo" => {
+                leading.push(a.clone());
+                i += 1;
+                // A dangling `-C` keeps its own error rather than gaining a
+                // second voice here: pass through what there is and let
+                // `parse_globals` say what is missing.
+                if let Some(value) = args.get(i) {
+                    leading.push(value.clone());
+                    i += 1;
+                }
+            }
+            _ => break,
+        }
+    }
+    let rest = &args[i..];
+    if leading.is_empty() || rest.is_empty() {
+        return None;
+    }
+    let mut rebuilt = Vec::with_capacity(args.len());
+    rebuilt.push(rest[0].clone());
+    rebuilt.extend(leading);
+    rebuilt.extend_from_slice(&rest[1..]);
+    Some(rebuilt)
 }
 
 /// Options every command understands, split off the command's own arguments.
@@ -313,6 +371,9 @@ Options:
   -h, --help                           Show this help
   -V, --version                        Show the version
 
+--json and -C may be written before the command as well as after it, so
+`glimpse -C <dir> status` and `glimpse status -C <dir>` mean the same thing.
+
 Every command above works with no glimpse window running, against the same
 repository state the app sees. A window that IS open on the repository refreshes
 as soon as a write command succeeds.
@@ -368,6 +429,22 @@ mod tests {
         for flag in ["-h", "--help", "help", "-V", "--version"] {
             assert!(claims(&argv(&[flag])), "`{flag}` should be claimed");
         }
+    }
+
+    #[test]
+    fn a_global_before_the_subcommand_is_still_the_cli_not_the_gui() {
+        // The single installed binary decides here whether argv is a command or
+        // a path to open. Claiming on argv[0] alone answered "path" for
+        // `glimpse -C sub status` and opened a window on nothing.
+        assert!(claims(&argv(&["-C", "sub", "status"])));
+        assert!(claims(&argv(&["--repo", "/r", "--json", "cl", "ls"])));
+        assert!(claims(&argv(&["--json", "status"])));
+
+        // Globals with no command after them name no command: still the GUI's,
+        // exactly as before.
+        assert!(!claims(&argv(&["-C", "/r"])));
+        assert!(!claims(&argv(&["--json"])));
+        assert!(!claims(&argv(&["."])));
     }
 
     #[test]

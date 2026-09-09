@@ -625,3 +625,38 @@ fn stashes_list_the_saved_entries() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_global_option_may_come_before_the_subcommand_too() {
+    // `-C` is spelled before the subcommand in every git habit a user brings
+    // with them, and it used to answer `unknown subcommand: -C` — the option
+    // was recognised only after the word that dispatched on it. Both spellings
+    // now mean the same thing, on the read side and the write side alike.
+    let dir = scratch_repo("globals-first");
+    let path = dir.to_str().unwrap();
+
+    let (code, out, err) = run(&["-C", path, "status"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(out.contains("a.txt"), "{out:?}");
+
+    // …including the long spelling, together with the other global, and with
+    // the command's own options still reaching the command.
+    let (code, out, err) = run(&["--json", "--repo", path, "log", "-n", "1"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let commits = json_of(&out);
+    assert_eq!(commits.as_array().expect("an array").len(), 1);
+
+    // A write command answers the same way, and really writes.
+    let (code, _out, err) = run(&["-C", path, "stage", "a.txt"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let staged = common::git_out(&dir, &["diff", "--cached", "--name-only"]);
+    assert!(staged.contains("a.txt"), "{staged:?}");
+
+    // An unknown word after the globals is still an unknown *subcommand*, named
+    // as itself rather than as the option that preceded it.
+    let (code, _out, err) = run(&["-C", path, "nonesuch"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("nonesuch"), "{err:?}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
