@@ -242,23 +242,25 @@ The Rust side is a **cargo workspace** rooted at `src-tauri/`:
 
 ## ⚡ Performance baseline
 
-The feature list above claims a **small disk and RAM footprint**. These are the numbers behind that claim — measured, not estimated, and reproducible: `pnpm perf:baseline` produces every one of them, so a later run is comparable with this table because it was taken the same way. See the header of [`scripts/perf-baseline.ts`](scripts/perf-baseline.ts) for what to build first.
+The feature list above claims a **small disk and RAM footprint**. These are the numbers behind that claim — measured, not estimated, and reproducible: `pnpm perf:baseline` produces every one of them, so a later run is comparable with this table because it was taken the same way. See the header of [`scripts/perf-baseline.ts`](scripts/perf-baseline.ts) for what to build first. The Windows row runs that same script on a GitHub-hosted runner via [`.github/workflows/perf-baseline.yml`](.github/workflows/perf-baseline.yml) — push a `perf/**` branch to re-measure it.
 
-| Platform                                                                       | Startup     | RSS, repository open | Installed package  |
-| :----------------------------------------------------------------------------- | ----------: | -------------------: | -----------------: |
-| **Linux** — x86-64, Ubuntu 22.04 on WSL2/WSLg, WebKitGTK 2.50.4 (no GPU)        | **1488 ms** |          **697 MiB** | **8.5 MiB** (`.deb`) |
-| **Windows** — x86-64, WebView2                                                  | not measured | not measured        | not measured       |
-| **macOS** — Apple Silicon, WKWebView                                            | not measured | not measured        | not measured       |
+| Platform                                                                 |      Startup | RSS, repository open |          Installed package |
+| :----------------------------------------------------------------------- | -----------: | -------------------: | -------------------------: |
+| **Linux** — x86-64, Ubuntu 22.04 on WSL2/WSLg, WebKitGTK 2.50.4 (no GPU) |  **1488 ms** |          **697 MiB** |       **8.5 MiB** (`.deb`) |
+| **Windows** — x86-64, WebView2, GitHub Actions `windows-latest`          | **723 ms** † |        **410 MiB** † | **5.0 MiB** (`-setup.exe`) |
+| **macOS** — Apple Silicon, WKWebView                                     | not measured |         not measured |               not measured |
 
-The **Nuxt client bundle** is **2.9 MiB** (excluding the source maps that ship beside it) — platform-independent, and the number that tracks frontend growth rather than packaging.
+† **The two Windows timings are CI numbers and the Linux ones are not — the rows are not the same kind of measurement.** Startup and RSS on that row come from a shared, virtualised GitHub-hosted runner (`windows-latest`, image `windows-2025-vs2026` `20260824.214.3`, Windows Server 2025, no GPU): reproducible run to run, but not what a desktop sees, while the Linux row was taken on real hardware. The **sizes carry no dagger because they need none** — they are properties of the build rather than of the machine that measured it. A *rebuild* still moves the installer by a few kilobytes, because NSIS compresses a binary that is not bit-reproducible; that is why it is quoted to one decimal.
 
-Measured on `dev` @ `e7cc9c9`, as the median of five launches, each opening this repository. Startup is the time from process start to the main window's first completed page load. RSS is the resident memory of the app process plus the WebKit web and network processes, sampled once it stops moving — summed across those processes, so pages they share are counted more than once.
+The **Nuxt client bundle** is **2.9 MiB** (excluding the source maps that ship beside it) — platform-independent, and the number that tracks frontend growth rather than packaging. Both Windows runs emitted the same byte count for it, which is the evidence for calling it platform-independent rather than the assumption.
+
+Each row is the median of five launches, each opening this repository. **Linux** on `dev` @ `e7cc9c9`; **Windows** on `dev` @ `c3faa95`, by [this run](https://github.com/TitusKirch/glimpse/actions/runs/34395338778) — [an earlier one](https://github.com/TitusKirch/glimpse/actions/runs/34394473534) of the same job reported 802 ms and 406 MiB, which is the spread to expect from a shared runner. Startup is the time from process start to the main window's first completed page load. RSS is the resident memory of the app process plus the webview's helper processes — WebKit's web and network processes on Linux, the WebView2 tree on Windows — sampled once it stops moving, and summed across those processes, so pages they share are counted more than once.
 
 > [!NOTE]
 > **These are a starting point, not a target.** Nothing here has been optimised yet; the point of writing the numbers down is to have something a later change can be argued against. Most of the Linux memory figure is the WebKit web process, in a software-rendered WSLg session — a GPU-accelerated desktop session should differ, possibly a lot.
 
 > [!IMPORTANT]
-> **Windows and macOS say "not measured" because they were not measured, not because they are unmeasurable.** The script carries a code path for all three platforms — process-tree memory and profile isolation are the two things that cannot be written once — but it has only been run on Linux. Anyone on Windows or macOS can fill a row in by running `pnpm perf:baseline` there.
+> **macOS says "not measured" because it was not measured, not because it is unmeasurable.** The script carries a code path for all three platforms — process-tree memory and profile isolation are the two things that cannot be written once — but it has never run on a Mac: macOS compiles in CI here and is tested by nobody. Anyone on one can fill the row in by running `pnpm perf:baseline` there.
 
 ## 🎨 Assets & branding
 
