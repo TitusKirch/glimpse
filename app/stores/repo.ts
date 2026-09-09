@@ -110,6 +110,22 @@ export interface RepoState {
   // with it, so a reopened tab walks back through history from one page rather
   // than resurrecting a depth the user has shut away.
   logLimit: number;
+  // Whether this tab's last log fetch hit its limit, i.e. more history exists
+  // behind it. Stored rather than derived so it doesn't flip false mid-load and
+  // hide the button. It belongs to the tab for the same reason `logLimit` does:
+  // a load takes a target, so a background repo's log — a watcher event, a
+  // window-focus refresh — answered the question for whichever tab the user was
+  // looking at, and a shallow repository loading behind the scenes hid the
+  // "load more history" button of a tab that genuinely had more.
+  hasMore: boolean;
+  // The message from this tab's last failed load, cleared when it loads again —
+  // drives the inline error panel and its Retry. Per tab because the load that
+  // sets it writes everything else into its target: as app-wide state a failure
+  // painted its panel over whichever tab was active, so the failure was
+  // invisible where it happened and the Retry button reloaded a repository that
+  // was fine. A tab closed mid-load takes its error with it, the request
+  // withdrawn.
+  loadError: string | null;
   // Activation stamp: a monotonic counter, higher meaning more recently
   // activated. It decides which tabs keep their data when more are open than
   // MAX_LOADED_TABS covers.
@@ -156,6 +172,8 @@ function demoRepo(): RepoState {
     commitFiles: [],
     diff: gitMock.diff,
     logLimit: LOG_PAGE,
+    hasMore: false,
+    loadError: null,
     // A tab is created active, so creating one counts as activating it.
     lastActive: nextActivation(),
     loaded: true,
@@ -194,6 +212,8 @@ function blankRepo({ id, path }: { id: string; path: string }): RepoState {
     commitFiles: [],
     diff: null,
     logLimit: LOG_PAGE,
+    hasMore: false,
+    loadError: null,
     // A newly opened tab is the most recently used one, so it is never the tab
     // the next release picks — a tab that dropped the data it was opened for
     // would reload it on the spot.
@@ -262,15 +282,10 @@ export const useRepoStore = defineStore('repo', {
     busy: false,
     // True while the active repo's git data loads — drives loading skeletons.
     loading: false,
-    // Set when a load fails outright — drives the inline error + retry state.
-    loadError: null as string | null,
     // Which remote sync (if any) is in flight — drives the button spinner.
     syncing: null as 'fetch' | 'pull' | 'push' | null,
     refreshing: false,
     loadingMore: false,
-    // Whether the last log fetch hit the limit (i.e. more history exists). Stored
-    // rather than derived so it doesn't flip false mid-load and hide the button.
-    hasMore: false,
     // Multi-selected commit hashes in the graph (Ctrl/Shift-click) for bulk
     // cherry-pick / revert. Cleared on a plain click or tab switch.
     multiSel: [] as string[]
@@ -369,9 +384,15 @@ export const useRepoStore = defineStore('repo', {
       const b = this.branches.find((x) => x.name === this.currentBranch);
       return b?.ahead ?? 0;
     },
-    // The last log fetch hit the limit, so more history can be loaded.
+    // The active tab's last log fetch hit its limit, so more history can be
+    // loaded. Read off the tab so a load elsewhere never answers for it.
     hasMoreHistory(): boolean {
-      return this.hasMore;
+      return this.active?.hasMore ?? false;
+    },
+    // The active tab's load failure, if it has one. A failure on another tab
+    // stays on that tab until the user switches to it.
+    loadError(): string | null {
+      return this.active?.loadError ?? null;
     }
   },
   actions: {
@@ -1713,7 +1734,7 @@ export const useRepoStore = defineStore('repo', {
         // and every reader replaces the list wholesale rather than mutating it.
         if (commits.length) r.commits = markRaw(commits);
         // Hitting the limit means git had more to give → another page exists.
-        this.hasMore = commits.length >= r.logLimit;
+        r.hasMore = commits.length >= r.logLimit;
       });
     },
 
@@ -1849,7 +1870,7 @@ export const useRepoStore = defineStore('repo', {
       if (!r) return;
       return this.native(async () => {
         this.loading = true;
-        this.loadError = null;
+        r.loadError = null;
         try {
           const start = path ?? (await gitClient.defaultRepo());
           const info = opts?.info ?? (await gitClient.info(start));
@@ -1910,7 +1931,7 @@ export const useRepoStore = defineStore('repo', {
           this.watchActive();
         } catch (err) {
           const raw = typeof err === 'string' ? err : String(err);
-          this.loadError = cleanGitError(raw);
+          r.loadError = cleanGitError(raw);
           console.error('loadFromBackend failed:', err);
         } finally {
           this.loading = false;
