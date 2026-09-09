@@ -21,22 +21,24 @@ permissions:
 jobs:
   check:
     name: CI
-    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@1e57db95ff601f03ae87b78e329ef238f9d0cbf6 # v0.8.2
+    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@4749430b355865343a7f70c111eeeb2e1f3e430b # v0.10.0
 
   # NO LONGER IN FRONT OF THE TAURI MATRIX — see `precheck` below for why, and
   # for what replaced it.
   #
-  # STILL MISSING ITS CACHE KEY, and this repo cannot set it: the body keys on
-  # `github.job`, which is `build` there, and takes no cache input.
-  # kirchDev/workflows#44 adds `cache-shared-key`; once that is released, bump
-  # the ref below and pass `cache-shared-key: rust-dev` so this shares the
-  # dev-profile entry `precheck` already writes. Until then this job keeps
-  # colliding with `_tauri-build.yml`'s release-profile job of the same name.
+  # `cache-shared-key` is what keeps this out of `_tauri-build.yml`'s cache. The
+  # body's job is called `build`, and so is that one — and `rust-cache` keys on
+  # the job id, so without a name of its own this repo's dev-profile checks and
+  # its release-profile installers wrote into one family with incompatible
+  # contents and evicted each other. Naming the family is the whole fix.
   rust:
     name: Rust
-    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@1e57db95ff601f03ae87b78e329ef238f9d0cbf6 # v0.8.2
+    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@4749430b355865343a7f70c111eeeb2e1f3e430b # v0.10.0
     with:
       working-directory: src-tauri
+      # Shares the dev-profile family `precheck` writes, and keeps both out of
+      # the release-profile one the Tauri legs use.
+      cache-shared-key: rust-dev
       platforms: '["ubuntu-latest", "windows-latest", "macos-latest"]'
       system-dependencies: >-
         libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
