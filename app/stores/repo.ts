@@ -154,9 +154,11 @@ function demoRepo(): RepoState {
     flavor: 'wsl',
     distro: 'Ubuntu-22.04',
     branches: [
-      { name: 'main', ahead: 0, behind: 0 },
-      { name: 'dev', ahead: 2, behind: 0 },
-      { name: 'feat/wsl', ahead: 1, behind: 3 }
+      { name: 'main', ahead: 0, behind: 0, published: true },
+      { name: 'dev', ahead: 2, behind: 0, published: true },
+      // Unpublished on purpose: it is the only branch here that exercises the
+      // sidebar's "not published" marker in browser demo mode.
+      { name: 'feat/wsl', ahead: 1, behind: 3, published: false }
     ],
     remoteBranches: ['origin/main', 'origin/dev'],
     currentBranch: 'main',
@@ -250,7 +252,7 @@ function isStashRef(ref: string): boolean {
 }
 
 // Validate the 1-based mainline parent entered when reverting a merge commit.
-function mainlineSchema(parents: number): z.ZodType<string> {
+function mainlineSchema(parents: number): z.ZodType<string, string> {
   return z.string().refine(
     (v) => {
       const n = Number(v);

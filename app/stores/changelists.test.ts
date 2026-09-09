@@ -202,8 +202,10 @@ describe('changelists store release() vs. an in-flight read (#186)', () => {
   it('does not let a write resolving after release restore the snapshot', async () => {
     let settle: () => void = () => {};
     writeChangelists.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
-        settle = resolve;
+      // Resolves with `null` because that is what the real command returns; the
+      // test only cares when it settles, not what it settles with.
+      new Promise<null>((resolve) => {
+        settle = () => resolve(null);
       })
     );
     const store = useChangelistsStore();

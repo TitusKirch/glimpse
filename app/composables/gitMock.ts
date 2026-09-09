@@ -13,7 +13,10 @@ export const gitMock = {
       date: '2026-05-30',
       refs: ['HEAD -> main'],
       parents: ['b2c3d4e'],
-      lane: 0
+      lane: 0,
+      signatureStatus: 'N',
+      signerName: '',
+      signerKey: ''
     },
     {
       hash: 'b2c3d4e',
@@ -22,7 +25,10 @@ export const gitMock = {
       date: '2026-05-29',
       refs: [],
       parents: ['c3d4e5f'],
-      lane: 0
+      lane: 0,
+      signatureStatus: 'N',
+      signerName: '',
+      signerKey: ''
     },
     {
       hash: 'c3d4e5f',
@@ -31,7 +37,10 @@ export const gitMock = {
       date: '2026-05-29',
       refs: ['origin/main'],
       parents: ['d4e5f60', 'f6a7b80'],
-      lane: 0
+      lane: 0,
+      signatureStatus: 'N',
+      signerName: '',
+      signerKey: ''
     },
     {
       hash: 'f6a7b80',
@@ -40,7 +49,10 @@ export const gitMock = {
       date: '2026-05-28',
       refs: ['feat/wsl'],
       parents: ['d4e5f60'],
-      lane: 1
+      lane: 1,
+      signatureStatus: 'N',
+      signerName: '',
+      signerKey: ''
     },
     {
       hash: 'd4e5f60',
@@ -49,7 +61,10 @@ export const gitMock = {
       date: '2026-05-28',
       refs: [],
       parents: ['e5f6071'],
-      lane: 0
+      lane: 0,
+      signatureStatus: 'N',
+      signerName: '',
+      signerKey: ''
     },
     {
       hash: 'e5f6071',
@@ -58,7 +73,10 @@ export const gitMock = {
       date: '2026-05-27',
       refs: ['v0.0.0'],
       parents: [],
-      lane: 0
+      lane: 0,
+      signatureStatus: 'N',
+      signerName: '',
+      signerKey: ''
     }
   ] satisfies Commit[],
   status: [

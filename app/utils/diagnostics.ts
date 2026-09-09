@@ -49,9 +49,9 @@ export function osFromUserAgent(ua: string): string {
   const windows = /Windows NT ([\d.]+)/.exec(ua);
   if (windows) return `Windows NT ${windows[1]}`;
   const mac = /Mac OS X ([\d_.]+)/.exec(ua);
-  if (mac) return `macOS ${mac[1].replaceAll('_', '.')}`;
+  if (mac) return `macOS ${mac[1]!.replaceAll('_', '.')}`;
   const linux = /X11; Linux ([^);]+)/.exec(ua);
-  if (linux) return `Linux ${linux[1].trim()}`;
+  if (linux) return `Linux ${linux[1]!.trim()}`;
   return 'unknown';
 }
 

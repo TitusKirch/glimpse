@@ -148,7 +148,7 @@ describe('error page', () => {
     const w = mountPage();
     await button(w, 'Copy diagnostics').trigger('click');
     expect(copy).toHaveBeenCalledTimes(1);
-    const md = copy.mock.calls[0][0] as string;
+    const md = copy.mock.calls[0]![0] as string;
     expect(md).toContain('0.11.0');
     expect(md).toContain('Windows NT 10.0');
     expect(md).toContain('WebView2 131.0.2903.86');
@@ -161,7 +161,7 @@ describe('error page', () => {
     const w = mountPage();
     await button(w, 'Report').trigger('click');
     expect(opened).toHaveBeenCalledTimes(1);
-    const url = opened.mock.calls[0][0] as string;
+    const url = opened.mock.calls[0]![0] as string;
     expect(url).toContain('github.com/TitusKirch/glimpse/issues/new');
     expect(url).toContain('template=bug_report.yml');
     // Prefills the template's short version & OS field; the stack goes via copy.

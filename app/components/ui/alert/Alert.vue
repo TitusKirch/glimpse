@@ -10,7 +10,10 @@ const props = defineProps<{
 }>();
 
 // The leading icon is derived purely from the variant — callers pass nothing.
-const variantIcons: Record<string, string> = {
+// Keyed by the variant union rather than by `string`, so the lookup below is
+// total and does not come back `string | undefined` under
+// `noUncheckedIndexedAccess`.
+const variantIcons: Record<NonNullable<AlertVariants['variant']>, string> = {
   default: 'lucide:info',
   info: 'lucide:info',
   success: 'lucide:circle-check',

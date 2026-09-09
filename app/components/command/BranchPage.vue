@@ -42,7 +42,12 @@ function onLocal(name: string) {
     case 'rename':
       return props.run(() => repo.renameBranchPrompt(name));
     case 'delete':
-      return props.run(() => repo.deleteBranch(name));
+      // `deleteBranch` resolves with a flag none of these callers reads, and
+      // `run` takes `() => void | Promise<void>`. Awaiting and returning
+      // nothing drops the value while keeping `run` waiting on the action.
+      return props.run(async () => {
+        await repo.deleteBranch(name);
+      });
     case 'merge':
       return props.run(() => repo.merge(name));
     case 'rebase':

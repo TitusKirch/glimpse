@@ -13,7 +13,7 @@ interface PromptOptions {
   placeholderKey: string;
   submitKey: string;
   initial?: string;
-  schema: z.ZodType<string>;
+  schema: z.ZodType<string, string>;
 }
 
 // What the dialog renders: a request id (so the form remounts per prompt) and a

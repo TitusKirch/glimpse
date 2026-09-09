@@ -21,8 +21,8 @@ export interface AppSourcemapsOptions {
 
 interface OutputChunk {
   type: 'chunk';
-  fileName: string;
-  code: string;
+  fileName?: string;
+  code?: string;
   moduleIds?: string[];
   map?: unknown;
   sourcemapFileName?: string | null;
@@ -30,10 +30,14 @@ interface OutputChunk {
 
 interface OutputAsset {
   type: 'asset';
-  source: string | Uint8Array;
+  source?: string | Uint8Array;
 }
 
-type OutputBundle = Record<string, Partial<OutputChunk & OutputAsset>>;
+// A discriminated union rather than `Partial<OutputChunk & OutputAsset>`:
+// intersecting the two `type` literals collapses the discriminant to `never`,
+// so `output.type !== 'chunk'` narrowed the entry to `never` and every property
+// read after it was an error instead of a checked read.
+type OutputBundle = Record<string, OutputChunk | OutputAsset>;
 
 export function appSourcemaps({ rootDir, appDir }: AppSourcemapsOptions) {
   const root = trimSlash(toPosix(rootDir));
@@ -54,7 +58,9 @@ export function appSourcemaps({ rootDir, appDir }: AppSourcemapsOptions) {
       // nowhere, while a `delete` on the same key still lands.
       const entries = Object.entries(bundle);
       const assets = new Map(
-        entries.filter(([, output]) => output.type === 'asset')
+        entries.filter(
+          (entry): entry is [string, OutputAsset] => entry[1].type === 'asset'
+        )
       );
 
       for (const [fileName, output] of entries) {
@@ -84,8 +90,8 @@ export function appSourcemaps({ rootDir, appDir }: AppSourcemapsOptions) {
 // which of the two the bundler serialises is its own business, so both are
 // replaced.
 function keepAppSources(
-  asset: Partial<OutputAsset>,
-  chunk: Partial<OutputChunk>,
+  asset: OutputAsset,
+  chunk: OutputChunk,
   root: string,
   isAppFile: (file: string) => boolean
 ): boolean {

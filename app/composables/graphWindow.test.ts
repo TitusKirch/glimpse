@@ -13,7 +13,18 @@ function edge(topRow: number, bottomRow: number): GraphEdge {
 }
 
 function commit(hash: string, lane: number, parents: string[] = []): Commit {
-  return { hash, subject: '', author: '', date: '', refs: [], parents, lane };
+  return {
+    hash,
+    subject: '',
+    author: '',
+    date: '',
+    refs: [],
+    parents,
+    lane,
+    signatureStatus: '',
+    signerName: '',
+    signerKey: ''
+  };
 }
 
 describe('graphWindow', () => {
