@@ -1154,3 +1154,33 @@ fn tag_push_says_so_when_there_are_no_tags_to_push() {
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::remove_dir_all(&remote);
 }
+#[test]
+fn merging_a_branch_that_is_already_in_is_an_outcome_not_a_malfunction() {
+    // git exits 0 and writes no commit — "Already up to date" — and HEAD not
+    // moving is exactly right. Reporting it with the sentence this module
+    // reserves for git misbehaving ("git reported no error, but …") tells a
+    // script something went wrong on a perfectly ordinary day.
+    let dir = clean_repo("branch-merge-ancestor");
+    let path = dir.to_str().unwrap();
+    git(&dir, &["branch", "old", "HEAD~1"]);
+    let was = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+
+    let (code, out, err) = run(&["branch", "-C", path, "merge", "old"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(
+        out.contains("already"),
+        "and it says which routine outcome this is: {out:?}"
+    );
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "HEAD"]).trim(),
+        was,
+        "nothing was merged, and nothing needed to be"
+    );
+
+    // The sentence it must not borrow still belongs to the case it was written
+    // for, so a real malfunction is not now silently reported as routine.
+    let (code, _out, err) = run(&["branch", "-C", path, "merge", "nope"]);
+    assert_eq!(code, 1, "an unknown branch is still a failure: {err:?}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

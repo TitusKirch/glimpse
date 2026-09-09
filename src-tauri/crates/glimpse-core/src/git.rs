@@ -2116,6 +2116,19 @@ impl Repo {
         Ok(lines(&raw).map(str::to_string).collect())
     }
 
+    /// The best common ancestor of `HEAD` and `rev` (`git merge-base`).
+    ///
+    /// The read-back that tells "there was nothing to merge" from "the merge
+    /// did nothing it should have done": when this equals `rev`'s own commit,
+    /// `rev` is already reachable from HEAD and git's silent success was the
+    /// correct answer. Returned as a hash rather than as a yes/no because
+    /// `merge-base --is-ancestor` answers by *exit code*, which this engine
+    /// cannot tell apart from git failing outright.
+    pub fn merge_base(&self, rev: &str) -> Result<String, String> {
+        reject_option(rev)?;
+        Ok(self.run(&["merge-base", "HEAD", rev])?.trim().to_string())
+    }
+
     /// Configured remote names, for the same reason again.
     pub fn remote_names(&self) -> Result<Vec<String>, String> {
         Ok(lines(&self.run(&["remote"])?).map(str::to_string).collect())

@@ -970,6 +970,22 @@ fn branch_merge(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
     }
     let hash = repo.resolve_commit("HEAD")?;
     if hash == before {
+        // HEAD not moving has two quite different causes, and only one of them
+        // is a malfunction. A branch already reachable from HEAD is "Already up
+        // to date" — git's own routine answer, and a routine day for a script —
+        // so it exits 0 and says so. The sentence below stays reserved for git
+        // succeeding at something it visibly did not do.
+        let tip = repo.resolve_commit(&name)?;
+        if repo.merge_base(&name)? == tip {
+            return Ok(Report::new(
+                "branch merge",
+                vec![name.clone()],
+                format!(
+                    "{name} is already in {}; nothing to merge",
+                    repo.current_branch()?
+                ),
+            ));
+        }
         return Err(format!(
             "git reported no error, but HEAD is still at {} — nothing was merged.",
             short(&before)
