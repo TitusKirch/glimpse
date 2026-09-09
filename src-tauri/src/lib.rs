@@ -58,6 +58,10 @@ fn report_startup(label: &str) {
 /// tuned without a rebuild, defaulting to these sensible values.
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(400);
 const WSL_POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// Poll interval for the write-receipt directory over `\\wsl$`. Far shorter than
+/// [`WSL_POLL_INTERVAL`] because it covers one directory of small files, not a
+/// source tree — see [`watch_write_receipt`].
+const RECEIPT_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Read a millisecond duration from `key`, falling back to `default` when unset
 /// or unparseable.
@@ -80,9 +84,21 @@ enum RepoWatcher {
     Poll(Debouncer<PollWatcher>),
 }
 
-/// Holds the active filesystem watcher. Only the most recently watched repo is
+/// Holds the active filesystem watchers. Only the most recently watched repo is
 /// tracked.
-struct WatcherState(Mutex<Option<RepoWatcher>>);
+///
+/// Two of them, for one repository: the recursive watcher over the working tree
+/// (`repo`), and a second one over the single file the headless CLI writes after
+/// a successful write (`receipt`). The second exists because the first is slow
+/// on purpose — 400ms of debounce, and seconds of poll interval over the
+/// `\\wsl$` share, where native events do not arrive at all. Watching one small
+/// file costs almost nothing, so it can react much faster, which is what makes
+/// `glimpse commit` in a terminal show up in the window immediately.
+#[derive(Default)]
+struct WatcherState {
+    repo: Mutex<Option<RepoWatcher>>,
+    receipt: Mutex<Option<RepoWatcher>>,
+}
 
 /// Per-repository write serialization. Every mutating git command takes its
 /// repo's lock, so two never run at once and can't collide on `index.lock`
@@ -605,8 +621,71 @@ async fn watch_repo(
             .map_err(|e| e.to_string())?;
         RepoWatcher::Native(debouncer)
     };
-    *state.0.lock().unwrap() = Some(watcher);
+    *state.repo.lock().unwrap() = Some(watcher);
+
+    // Best-effort, exactly like the CLI half that writes the file: a repository
+    // whose git dir cannot be resolved, or whose receipt cannot be watched, is
+    // still perfectly usable — it simply falls back to the recursive watcher
+    // above, which is what happened before this existed.
+    *state.receipt.lock().unwrap() = watch_write_receipt(&app, &path);
     Ok(())
+}
+
+/// How fast the write-receipt watcher reacts. Much shorter than
+/// [`WATCH_DEBOUNCE`] because it watches one small file rather than a whole
+/// tree: there is no burst of events here to coalesce, just the single rename
+/// the CLI performs, so the debounce only has to outlast that rename.
+const RECEIPT_DEBOUNCE: Duration = Duration::from_millis(50);
+
+/// Watch the file `glimpse stage`/`commit`/… writes after a successful headless
+/// write, and emit `repo-changed` when it moves.
+///
+/// Returns `None` rather than an error: this is a latency optimisation over the
+/// recursive watcher, never a correctness requirement, so nothing about opening
+/// a repository should fail because it could not be set up.
+///
+/// The *parent directory* is watched, not the file — the file may not exist yet
+/// (no headless write has happened), and `notify` cannot watch a path that is
+/// not there. That directory is therefore created here if missing, which is the
+/// one side effect of opening a repository: an empty `<git-dir>/glimpse/`, the
+/// same directory the changelist store creates on its first write. It holds only
+/// glimpse's own small state files, so the extra events are few and a spurious
+/// refresh is harmless anyway.
+fn watch_write_receipt(app: &AppHandle, path: &str) -> Option<RepoWatcher> {
+    let receipt = git::Repo::open(path).write_receipt_file().ok()?;
+    let dir = Path::new(&receipt).parent()?.to_path_buf();
+    std::fs::create_dir_all(&dir).ok()?;
+
+    let handle = app.clone();
+    let on_change = move |res: DebounceEventResult| {
+        if res.is_ok() {
+            let _ = handle.emit("repo-changed", ());
+        }
+    };
+    let debounce = duration_from_env("GLIMPSE_RECEIPT_DEBOUNCE_MS", RECEIPT_DEBOUNCE);
+
+    // A `\\wsl$` repo needs the polling backend here for the same reason the
+    // recursive watcher does, but it can poll far more often: one directory
+    // holding a handful of small files, rather than a whole source tree.
+    if platform::resolve(path).flavor == "wsl" {
+        let poll = duration_from_env("GLIMPSE_RECEIPT_POLL_MS", RECEIPT_POLL_INTERVAL);
+        let config = DebouncerConfig::default()
+            .with_timeout(debounce)
+            .with_notify_config(NotifyConfig::default().with_poll_interval(poll));
+        let mut debouncer = new_debouncer_opt::<_, PollWatcher>(config, on_change).ok()?;
+        debouncer
+            .watcher()
+            .watch(&dir, RecursiveMode::NonRecursive)
+            .ok()?;
+        Some(RepoWatcher::Poll(debouncer))
+    } else {
+        let mut debouncer = new_debouncer(debounce, on_change).ok()?;
+        debouncer
+            .watcher()
+            .watch(&dir, RecursiveMode::NonRecursive)
+            .ok()?;
+        Some(RepoWatcher::Native(debouncer))
+    }
 }
 
 #[tauri::command]
@@ -1781,7 +1860,7 @@ pub fn run() {
     }
 
     let builder = tauri::Builder::default()
-        .manage(WatcherState(Mutex::new(None)))
+        .manage(WatcherState::default())
         .manage(RepoLocks::default());
 
     // Holds a repo path passed on the launch command line until the frontend
