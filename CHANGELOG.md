@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.15.0](https://github.com/TitusKirch/glimpse/compare/v0.14.0...v0.15.0) (2026-09-09)
+
+
+### Features
+
+* **changes:** assign changelist membership by hunk, not only by file ([52c3f76](https://github.com/TitusKirch/glimpse/commit/52c3f76ccb0f1949f9ac6e8524838720f73b3ae9)), closes [#112](https://github.com/TitusKirch/glimpse/issues/112)
+* **repo:** scroll the tab strip instead of squeezing every tab ([f33039e](https://github.com/TitusKirch/glimpse/commit/f33039e369e439e390a27323c43018f2b5ec12d5)), closes [#185](https://github.com/TitusKirch/glimpse/issues/185)
+
+
+### Bug Fixes
+
+* **changelists:** release a closed repo's session state ([9d1e603](https://github.com/TitusKirch/glimpse/commit/9d1e6039222e5e2b99dd455f9704665132351f02)), closes [#186](https://github.com/TitusKirch/glimpse/issues/186)
+* **changelists:** stop a write in flight from restoring a released repo ([c6c1806](https://github.com/TitusKirch/glimpse/commit/c6c18060a10bb54fe06513fdadbfd09ff0fef90b)), closes [#186](https://github.com/TitusKirch/glimpse/issues/186)
+* **changes:** keep moveFile authoritative and survive a pre-hunk cache ([7b8b8ab](https://github.com/TitusKirch/glimpse/commit/7b8b8abda09d6cc30fbb408eb340ed0ef44e1844)), closes [#112](https://github.com/TitusKirch/glimpse/issues/112)
+* **diff:** carry contentsOmitted into every payload literal ([f45f124](https://github.com/TitusKirch/glimpse/commit/f45f124ec7d4e9cf5f38da9c9121faec8e75a801)), closes [#194](https://github.com/TitusKirch/glimpse/issues/194)
+* **git:** drop the lock reference before the map guard, not after ([055d4a1](https://github.com/TitusKirch/glimpse/commit/055d4a13f591a451d2480e01a11106015a8aa4c0)), closes [#189](https://github.com/TitusKirch/glimpse/issues/189)
+* **git:** release a repo's lock entry once no call holds it ([51d14ef](https://github.com/TitusKirch/glimpse/commit/51d14eff166a725fa03f4126d84edab93c596107)), closes [#189](https://github.com/TitusKirch/glimpse/issues/189)
+* **history:** make the log limit per tab instead of app-wide ([96547fb](https://github.com/TitusKirch/glimpse/commit/96547fba0bf378084c3c2c858bb3d46b5a26b549)), closes [#190](https://github.com/TitusKirch/glimpse/issues/190)
+* **hooks:** apply oxfmt's own ignore list before calling it ([b0cafa1](https://github.com/TitusKirch/glimpse/commit/b0cafa1167f0f1059464a3d8e0759b973e8806a7))
+* **repo:** keep vuedraggable's slots to a single node ([67cc1a2](https://github.com/TitusKirch/glimpse/commit/67cc1a21f2b019e4ef71351d81d5d28fad7c1597)), closes [#185](https://github.com/TitusKirch/glimpse/issues/185)
+* **repo:** release a platform probe's claim with the tab, not with the probe ([04b3832](https://github.com/TitusKirch/glimpse/commit/04b3832c6e60268fbbe7d019e78da4424a39a1ea)), closes [#187](https://github.com/TitusKirch/glimpse/issues/187)
+
+
+### Performance Improvements
+
+* **diff:** build only the row model that will actually render ([8061a52](https://github.com/TitusKirch/glimpse/commit/8061a5291b415560b11f7d50f7011ab1ae999b2d)), closes [#192](https://github.com/TitusKirch/glimpse/issues/192)
+* **git:** cap an image diff and stop holding each side twice ([d3655dc](https://github.com/TitusKirch/glimpse/commit/d3655dcdf05b7b0377cfee8f92938ea8c9b9383f)), closes [#194](https://github.com/TitusKirch/glimpse/issues/194)
+* **git:** cap the file contents a diff loads into memory ([28a1d73](https://github.com/TitusKirch/glimpse/commit/28a1d73f3ff17f2898574db4c0ee5c9c0dbfc4e0)), closes [#193](https://github.com/TitusKirch/glimpse/issues/193)
+* **graph:** window the graph's SVG nodes and edges to the rows in view ([0d823b6](https://github.com/TitusKirch/glimpse/commit/0d823b66063b38e0ecd66165677ae27a56d42d58)), closes [#191](https://github.com/TitusKirch/glimpse/issues/191)
+* **repo:** release an idle tab's git data and stop deep-proxying it ([5c26e99](https://github.com/TitusKirch/glimpse/commit/5c26e999a7a8071add896d5405e3d4d81715a7bf)), closes [#195](https://github.com/TitusKirch/glimpse/issues/195)
+
 ## [0.14.0](https://github.com/TitusKirch/glimpse/compare/v0.13.0...v0.14.0) (2026-09-08)
 
 
