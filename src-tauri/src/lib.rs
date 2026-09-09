@@ -7,8 +7,8 @@ use glimpse_core::{git, platform};
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use notify_debouncer_mini::notify::{
     Config as NotifyConfig, PollWatcher, RecommendedWatcher, RecursiveMode,
@@ -16,7 +16,41 @@ use notify_debouncer_mini::notify::{
 use notify_debouncer_mini::{
     new_debouncer, new_debouncer_opt, Config as DebouncerConfig, DebounceEventResult, Debouncer,
 };
+use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Emitter, Manager, State};
+
+/// When this process started, stamped before anything else runs.
+///
+/// It exists so startup is measurable from *outside* the app. A webview app has
+/// no moment it can be asked "are you up yet?" — so the app says so itself:
+/// `STARTUP_LOG_PREFIX` goes to stdout via `tauri-plugin-log` when the main
+/// window's first page load finishes, and `scripts/perf-baseline.ts` reads it
+/// off the spawned binary. Anything else (polling the window manager, watching
+/// for git subprocesses) measures a proxy and differs per platform.
+static PROCESS_START: OnceLock<Instant> = OnceLock::new();
+
+/// The line `scripts/perf-baseline.ts` matches on. THE SCRIPT PARSES THIS
+/// LITERAL — changing the wording changes the script too.
+const STARTUP_LOG_PREFIX: &str = "startup: main webview ready in ";
+
+/// Whether this page-load event is the one to report: the main window's, and
+/// the first of them. `logged` is the claim, won by whichever caller sets it —
+/// so a reload of the same window, or a second webview, never reports a second
+/// "startup" that would be measured from the wrong zero.
+fn claim_startup_report(label: &str, logged: &OnceLock<()>) -> bool {
+    label == "main" && logged.set(()).is_ok()
+}
+
+/// Report time-to-first-paint once per launch, for the perf baseline.
+fn report_startup(label: &str) {
+    static LOGGED: OnceLock<()> = OnceLock::new();
+    if !claim_startup_report(label, &LOGGED) {
+        return;
+    }
+    if let Some(start) = PROCESS_START.get() {
+        log::info!("{STARTUP_LOG_PREFIX}{} ms", start.elapsed().as_millis());
+    }
+}
 
 /// Default debounce window that coalesces a burst of FS events into a single
 /// refresh, and the poll cadence for the WSL fallback. Both are overridable via
@@ -1722,6 +1756,11 @@ fn restart_app() {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Stamped first, before the CLI branch and before any Tauri setup, so the
+    // startup number below is measured from as close to process start as this
+    // crate can reach.
+    let _ = PROCESS_START.set(Instant::now());
+
     // A headless invocation (`glimpse status`, `glimpse cl …`, `glimpse --help`)
     // is handled here and the process exits before any window/Tauri setup;
     // anything else — a repo path, no arguments — falls through to the app.
@@ -1775,6 +1814,12 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
 
     builder
+        // Time-to-first-paint, logged once per launch. See PROCESS_START.
+        .on_page_load(|webview, payload| {
+            if payload.event() == PageLoadEvent::Finished {
+                report_startup(webview.label());
+            }
+        })
         .setup(|app| {
             // Logging is registered in release builds too, not just under
             // `cfg!(debug_assertions)`: a bug report is worth far more with the
@@ -1933,11 +1978,12 @@ pub fn run() {
 #[cfg(all(test, desktop))]
 mod tests {
     use super::{
-        bake_wsl_shim, dev_panic_now, first_path_arg, locked, parse_wsl_distros, progress_percent,
-        resolve_cli_path, updater_allowed, version_outranks, wslpath_arg, RepoLocks,
+        bake_wsl_shim, claim_startup_report, dev_panic_now, first_path_arg, locked,
+        parse_wsl_distros, progress_percent, resolve_cli_path, updater_allowed, version_outranks,
+        wslpath_arg, RepoLocks,
     };
     use std::sync::mpsc::channel;
-    use std::sync::Arc;
+    use std::sync::{Arc, OnceLock};
     use std::thread;
 
     #[test]
@@ -1965,6 +2011,17 @@ mod tests {
         assert!(!updater_allowed(true, Some("")));
         assert!(!updater_allowed(true, Some("0")));
         assert!(!updater_allowed(true, Some("true")));
+    }
+
+    #[test]
+    fn startup_is_reported_once_and_only_for_the_main_window() {
+        // The number is measured from process start, so a second report would
+        // time a page *reload* against the wrong zero and read as a startup
+        // several minutes long. Only the main window counts, and only once.
+        let logged = OnceLock::new();
+        assert!(!claim_startup_report("devtools", &logged));
+        assert!(claim_startup_report("main", &logged));
+        assert!(!claim_startup_report("main", &logged));
     }
 
     #[test]
