@@ -133,7 +133,7 @@ glimpse info                   # branch, remotes, tags, stashes, git flavour
 glimpse --help                 # every command, with its options
 ```
 
-Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with failures reported as `{"error": …}` on stderr — and `-C <dir>` targets a repository other than the current directory.
+Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory.
 
 > [!TIP]
 > `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout, read its status, history and branches in the app's own shapes, and never parse porcelain by hand.

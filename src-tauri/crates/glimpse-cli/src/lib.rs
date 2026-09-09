@@ -143,6 +143,22 @@ pub(crate) fn parse_globals(args: &[String]) -> Result<Globals, String> {
     })
 }
 
+/// Was `--json` asked for, read straight off argv rather than off [`Globals`]?
+///
+/// Only for the one case [`parse_globals`] cannot answer: its own failure. The
+/// contract is that a `--json` caller never has to handle a second shape for
+/// errors, and `--json` living *inside* the options that failed to parse is no
+/// reason to break it — `glimpse status --json -C` is a mistake an agent should
+/// read the same way as every other.
+///
+/// Deliberately naive: a bare scan, no positional awareness, so `-C --json`
+/// (where `--json` is the path) would read as a request for JSON. That cannot
+/// mislead anyone, because it only runs on the failure path and `-C --json`
+/// parses successfully — there is no failure for it to shape.
+pub(crate) fn wants_json(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--json")
+}
+
 /// Open the repository a command should act on: `-C <dir>`, else the current
 /// directory, else `.` (a cwd that no longer exists is still worth trying).
 pub(crate) fn open_repo(dir: Option<String>) -> git::Repo {
@@ -159,6 +175,9 @@ pub(crate) fn open_repo(dir: Option<String>) -> git::Repo {
 /// Report a failure and return the exit code. Under `--json` the failure is
 /// itself JSON, so a caller parsing stdout does not need a second shape for
 /// errors; otherwise it is a prefixed line on stderr.
+///
+/// That holds with **no exception**, including a failure in parsing the very
+/// options `--json` is one of — see [`wants_json`], which is what closes it.
 pub(crate) fn fail(err: &mut dyn Write, json: bool, prefix: &str, msg: &str) -> i32 {
     if json {
         let _ = writeln!(err, "{}", serde_json::json!({ "error": msg }));

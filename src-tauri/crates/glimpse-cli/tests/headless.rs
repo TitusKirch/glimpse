@@ -212,6 +212,40 @@ fn an_error_under_json_is_itself_json() {
 }
 
 #[test]
+fn a_bad_global_option_under_json_is_still_json() {
+    // The hole the contract had: `--json` lives in the very options that failed
+    // to parse, so the failure used to fall back to a plain line and an agent
+    // handling only the JSON shape got something unparseable. Both front doors
+    // are checked, because each parses the globals for itself.
+    for parts in [
+        ["status", "--json", "-C"].as_slice(),
+        ["cl", "ls", "--json", "-C"].as_slice(),
+    ] {
+        let (code, _out, err) = run(parts);
+        assert_eq!(code, 1, "{parts:?}");
+        let failure = json_of(&err);
+        assert!(
+            failure["error"]
+                .as_str()
+                .is_some_and(|m| m.contains("after -C")),
+            "an {{error: …}} object naming the dangling -C for {parts:?}: {failure}"
+        );
+    }
+}
+
+#[test]
+fn a_bad_global_option_without_json_stays_a_plain_line() {
+    // The scan is naive on purpose, and this is the half that says so: no
+    // `--json` in argv means the human-readable line, prefix and all.
+    let (code, _out, err) = run(&["status", "-C"]);
+    assert_eq!(code, 1);
+    assert!(
+        err.starts_with("glimpse: ") && err.contains("after -C"),
+        "{err:?}"
+    );
+}
+
+#[test]
 fn an_unknown_subcommand_fails_and_points_at_help() {
     let (code, out, err) = run(&["frobnicate"]);
     assert_eq!(code, 1);

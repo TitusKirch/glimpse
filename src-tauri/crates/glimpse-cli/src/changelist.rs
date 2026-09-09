@@ -10,7 +10,7 @@
 //! `-C <path>`, `-h`) are the crate's, parsed once in
 //! [`parse_globals`](crate::parse_globals) rather than again here.
 
-use crate::{fail, open_repo, parse_globals};
+use crate::{fail, open_repo, parse_globals, wants_json};
 use glimpse_core::changelist as cl;
 use glimpse_core::git;
 use std::io::Write;
@@ -18,7 +18,9 @@ use std::io::Write;
 pub(crate) fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let globals = match parse_globals(args) {
         Ok(g) => g,
-        Err(e) => return fail(err, false, "glimpse cl", &e),
+        // Same reasoning as `read::run` — the flag comes off argv because
+        // `globals` is precisely what could not be parsed.
+        Err(e) => return fail(err, wants_json(args), "glimpse cl", &e),
     };
     if globals.help {
         let _ = write!(out, "{}", help());

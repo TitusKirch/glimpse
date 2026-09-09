@@ -8,7 +8,7 @@
 //! contract the GUI receives over IPC, so a script and the app never disagree
 //! about what a field is called.
 
-use crate::{fail, open_repo, parse_globals};
+use crate::{fail, open_repo, parse_globals, wants_json};
 use glimpse_core::git::{Branch, Commit, RepoInfo, StatusEntry};
 use std::io::Write;
 
@@ -20,7 +20,10 @@ const DEFAULT_LOG_LIMIT: u32 = 50;
 pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let globals = match parse_globals(args) {
         Ok(g) => g,
-        Err(e) => return fail(err, false, "glimpse", &e),
+        // `globals` is what failed, so the flag comes off argv instead — see
+        // `wants_json`. Without it a `--json` caller gets a plain line here and
+        // a JSON object everywhere else.
+        Err(e) => return fail(err, wants_json(args), "glimpse", &e),
     };
     if globals.help {
         let _ = write!(out, "{}", crate::help());
