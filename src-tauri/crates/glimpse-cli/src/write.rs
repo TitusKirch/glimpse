@@ -311,7 +311,10 @@ struct Planned {
 ///    decline a path and say nothing about it (`git clean` will not remove a
 ///    nested repository without `-ff`), so the outcome is read back from
 ///    `status`. If anything named survived, the command fails and names both
-///    halves — what survived, and what it had already destroyed.
+///    halves — what survived, and what it had already destroyed. `--all` names
+///    no paths of its own, so it snapshots the tree *before* destroying it:
+///    without that there is nothing to put in the second half, and the failure
+///    would answer "Nothing was discarded" having discarded the lot.
 fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
     let mut all = false;
     let mut force = false;
@@ -338,19 +341,30 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
                     .into(),
             );
         }
+        // Read *before* destroying, because that is the only moment the
+        // already-destroyed half can be known: `--all` names no paths, so
+        // without this snapshot the failure below has nothing truthful to put
+        // in "Already discarded" and would claim nothing was.
+        let before = repo.status()?;
         repo.discard_all()?;
         // Same read-back as the per-path form: "every uncommitted change" is a
         // strong sentence, and it is only true if `status` now says so.
         let left = repo.status()?;
         if !left.is_empty() {
             let survived: Vec<String> = left.iter().map(|e| e.path.clone()).collect();
+            let done: Vec<String> = before
+                .iter()
+                .map(|e| e.path.clone())
+                .filter(|p| !survived.contains(p))
+                .collect();
             return Err(Failure {
-                message: undone_message(&survived, &[]),
-                partial: Some(Report::new(
-                    "discard",
-                    Vec::new(),
-                    "discarded part of the working tree".to_string(),
-                )),
+                message: undone_message(&survived, &done),
+                // The same half the message names, so the window and the human
+                // are told one story. Absent when nothing landed at all — a
+                // receipt with no paths would make a window reload for a
+                // destruction that never happened.
+                partial: (!done.is_empty())
+                    .then(|| Report::new("discard", done.clone(), String::new())),
             });
         }
         return Ok(Report::new(

@@ -588,6 +588,57 @@ fn discard_needs_an_explicit_subject_and_a_flag_to_take_the_whole_tree() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn discard_all_names_what_it_already_destroyed_rather_than_saying_nothing_was() {
+    // The twin of `discard_reports_what_it_could_not_discard_rather_than_claiming_it_all`,
+    // for the `--all` branch — which read the outcome back but hardcoded an
+    // empty already-destroyed list, so the one case it anticipates (`clean`
+    // will not remove a nested repository) answered "Nothing was discarded."
+    // *after* wiping every tracked change. That is the dangerous direction: a
+    // caller believes the tree is intact and never looks for what it lost.
+    let dir = scratch_repo("discard-all-undone");
+    let path = dir.to_str().unwrap();
+
+    let nested = dir.join("nested");
+    std::fs::create_dir_all(&nested).unwrap();
+    git(&nested, &["init", "-q", "-b", "main"]);
+    std::fs::write(nested.join("x.txt"), "x\n").unwrap();
+
+    let (code, _out, err) = run(&["discard", "-C", path, "--all", "--force"]);
+    assert_eq!(code, 1, "a report that does not match reality is a failure");
+    assert!(err.contains("nested/"), "what survived is named: {err:?}");
+    assert!(
+        !err.contains("Nothing was discarded"),
+        "a.txt's work is gone, so that sentence is false: {err:?}"
+    );
+    assert!(
+        err.contains("Already discarded:") && err.contains("a.txt"),
+        "what it already destroyed is named: {err:?}"
+    );
+
+    // …and the destruction it is now honest about really happened.
+    assert_eq!(
+        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "a1\n",
+        "the tracked change was discarded"
+    );
+
+    // The window hears about the same half the human is told about — not an
+    // empty receipt claiming a destruction with no subject.
+    let r = receipt(&dir).expect("a receipt for the part that landed");
+    assert_eq!(r["action"], "discard");
+    let paths: Vec<String> = r["paths"]
+        .as_array()
+        .expect("the receipt names what was destroyed")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    assert!(paths.contains(&"a.txt".to_string()), "{r}");
+    assert!(!paths.contains(&"nested/".to_string()), "{r}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 // --- one path convention, from anywhere in the tree -----------------------
 //
 // `-C <dir>/sub` is exactly what running the command *in* `sub/` does: both
