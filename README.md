@@ -165,11 +165,12 @@ glimpse cl ls --json                          # machine-readable state (the file
 | `pnpm test`        | Frontend unit tests (Vitest)                  |
 | `pnpm lint`        | `oxlint . --deny-warnings`                    |
 | `pnpm format`      | `oxfmt --check .`                             |
+| `pnpm typecheck`   | `nuxt typecheck` (vue-tsc over app + SFCs)    |
 | `pnpm cargofmt`    | `cargo fmt --check` for the Rust backend      |
 | `pnpm cargo:update`   | Refresh Rust deps within semver            |
 | `pnpm cargo:outdated` | Show major Rust-dep upgrades (needs `cargo-edit`) |
 | `pnpm cargo:upgrade`  | Apply major Rust-dep upgrades (needs `cargo-edit`) |
-| `pnpm check`       | `lint` + `format` + `cargofmt` — the CI gate  |
+| `pnpm check`       | `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate |
 | `pnpm check:fix`   | Auto-fix lint, format, and Rust formatting    |
 
 </details>
