@@ -1341,36 +1341,42 @@ impl Repo {
         Ok(hash)
     }
 
-    /// Which of `paths` a commit's tree actually holds a file at.
+    /// The files a commit's tree holds **at, or anywhere under, each of
+    /// `paths`**.
     ///
     /// The question a checkout-shaped command has to ask before it claims a
     /// working-tree file is at risk. An **untracked** path is not touched by
-    /// `git reset --hard` at all — unless the target commit has a file at that
-    /// path, in which case it is written straight over. Nothing in `status`
-    /// answers that: `status` describes the working tree against *HEAD*, and
-    /// the target is a different tree entirely.
+    /// `git reset --hard` at all — unless the target commit needs that name,
+    /// in which case the checkout takes it. Nothing in `status` answers that:
+    /// `status` describes the working tree against *HEAD*, and the target is a
+    /// different tree entirely.
     ///
     /// `ls-tree -r -z --name-only <rev> -- <paths>` asks the tree directly.
     /// `-r` so every name that comes back is a **blob** path: `ls-tree` given a
-    /// directory otherwise answers with the directory, and "the tree has a
-    /// directory there" is not an answer to "does the tree have a file there".
-    /// `-z` so a path with a quote or a non-ASCII byte in it arrives as it is
-    /// rather than in git's quoted form. The paths are pathspecs, so the cost is
-    /// the caller's list rather than the whole tree — and `ls-tree` matches them
-    /// as plain path prefixes, with no glob or `:(magic)` (it rejects the latter
+    /// directory otherwise answers with the directory, and a caller comparing
+    /// names cannot then tell a file from the folder above it. `-z` so a path
+    /// with a quote or a non-ASCII byte in it arrives as it is rather than in
+    /// git's quoted form. The paths are pathspecs, so the cost is the caller's
+    /// list rather than the whole tree — and `ls-tree` matches them as plain
+    /// path prefixes, with no glob or `:(magic)` (it rejects the latter
     /// outright), which is what makes it safe to hand it names read back out of
     /// `status` rather than patterns anyone typed.
     ///
-    /// The result is narrowed to `paths` afterwards, so it always answers the
-    /// question that was asked: a prefix match can widen what git returns, and
-    /// a caller checking membership deserves a set it can compare against
-    /// directly.
+    /// That prefix matching is why the result is returned **as git matched
+    /// it**, not narrowed back down to the names that were asked about. Asking
+    /// about `d` and being told `d/inner.txt` is not noise: it is the tree
+    /// answering that it needs `d` to be a directory, which is exactly what a
+    /// caller holding an untracked *file* called `d` has to know. Narrowing
+    /// that away would answer a question — "is there a file at this exact
+    /// path?" — that no checkout decides anything by. Callers relating the two
+    /// sides own the comparison, because only they know which relation matters
+    /// to them.
     pub fn paths_in_tree(&self, rev: &str, paths: &[String]) -> Result<Vec<String>, String> {
         reject_option(rev)?;
         // An empty pathspec list means "everything" to git, which is the
-        // opposite of this question. The narrowing below would throw the whole
-        // tree away again, so this is the git call it saves — every `reset`
-        // against a tree with no untracked files at all.
+        // opposite of this question — and nothing downstream would throw the
+        // whole tree away again. This is the git call it saves, too: every
+        // `reset` against a tree with no untracked files at all.
         if paths.is_empty() {
             return Ok(Vec::new());
         }
@@ -1382,7 +1388,7 @@ impl Repo {
         let raw = self.run(&args)?;
         Ok(raw
             .split('\u{0}')
-            .filter(|found| paths.iter().any(|asked| asked == found))
+            .filter(|found| !found.is_empty())
             .map(str::to_string)
             .collect())
     }
@@ -3677,18 +3683,54 @@ mod paths_in_tree_tests {
     }
 
     #[test]
-    fn a_directory_is_not_a_file_at_that_path() {
+    fn a_directory_answers_with_the_files_under_it() {
         // `ls-tree` matches its paths as prefixes, so a directory name matches
-        // — and without `-r` it answers with the directory itself. Either way
-        // the answer to "is there a *file* at `sub`?" is no, and a guard that
-        // read git's yes would warn about work nothing can overwrite.
+        // everything beneath it — and `-r` is what turns that into blob paths
+        // instead of the directory's own name.
+        //
+        // This is load-bearing, not incidental. An earlier version of this test
+        // asserted the empty set and justified it with "a guard that read git's
+        // yes would warn about work nothing can overwrite". That is false
+        // against real git: `reset --hard` deletes an untracked *file* called
+        // `sub` to make room for the target's `sub/` directory, exactly as it
+        // deletes an untracked directory to make room for a file. Answering
+        // "no files at `sub`" hid that from the one caller who had to know.
         let dir = scratch("dir");
         let repo = Repo::open(dir.to_str().unwrap());
 
         let found = repo
             .paths_in_tree("HEAD", &["sub".to_string()])
             .expect("ls-tree");
-        assert!(found.is_empty(), "a directory is not a file: {found:?}");
+        assert_eq!(
+            found,
+            vec!["sub/b.txt".to_string()],
+            "the tree needs `sub` to be a directory, and says so by naming what is in it"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_path_under_a_file_matches_nothing_at_all() {
+        // Why a caller asking "what does this tree want at `p`?" has to ask
+        // about `p`'s ancestors too. `a.txt` is a file here, so nothing can
+        // live at `a.txt/inner` — and git does not say "there is a file in the
+        // way", it says nothing whatsoever. A caller that asked only about
+        // `a.txt/inner` would read that silence as "the tree wants nothing
+        // here", which is the exact opposite of the truth.
+        let dir = scratch("shadowed");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .paths_in_tree("HEAD", &["a.txt/inner".to_string()])
+            .expect("ls-tree");
+        assert!(found.is_empty(), "silence, not an answer: {found:?}");
+
+        // Asking about the ancestor is what turns the silence into the answer.
+        let found = repo
+            .paths_in_tree("HEAD", &["a.txt".to_string()])
+            .expect("ls-tree");
+        assert_eq!(found, vec!["a.txt".to_string()]);
 
         let _ = std::fs::remove_dir_all(&dir);
     }
