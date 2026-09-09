@@ -639,6 +639,50 @@ fn discard_all_names_what_it_already_destroyed_rather_than_saying_nothing_was() 
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn discard_all_refuses_while_a_merge_is_still_in_progress() {
+    // The per-path form refuses a conflicted path because discarding it would
+    // silently resolve the merge to *ours* and drop the other side. `--all`
+    // used to do exactly that and report success — and it left MERGE_HEAD
+    // behind, so `status` read clean while the merge was still open and the
+    // next commit would have recorded it as fully merged. `--force` is consent
+    // to lose the working tree, not consent to decide a merge.
+    let dir = merged_with_conflict("discard-all-merge");
+    let path = dir.to_str().unwrap();
+
+    let (code, out, err) = run(&["discard", "-C", path, "--all", "--force"]);
+    assert_eq!(code, 1, "stdout: {out:?}");
+    assert!(err.contains("merge"), "the state is named: {err:?}");
+    assert!(
+        err.contains("a.txt"),
+        "the conflicted path is named: {err:?}"
+    );
+    assert!(err.contains("--abort"), "and the way out is named: {err:?}");
+
+    // Nothing was destroyed and nothing was decided.
+    let conflicted = std::fs::read_to_string(dir.join("a.txt")).unwrap();
+    assert!(
+        conflicted.contains("<<<<<<<") && conflicted.contains("theirs"),
+        "the other side is still there: {conflicted:?}"
+    );
+    assert!(
+        dir.join(".git").join("MERGE_HEAD").exists(),
+        "the merge is still in progress"
+    );
+    assert!(receipt(&dir).is_none(), "no receipt for a refusal");
+
+    // The refusal is JSON under --json, like every other failure.
+    let (code, _out, err) = run(&["discard", "-C", path, "--all", "--force", "--json"]);
+    assert_eq!(code, 1);
+    let e = json_of(&err);
+    assert!(
+        e["error"].as_str().is_some_and(|m| m.contains("merge")),
+        "{e}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 // --- one path convention, from anywhere in the tree -----------------------
 //
 // `-C <dir>/sub` is exactly what running the command *in* `sub/` does: both

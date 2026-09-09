@@ -298,7 +298,9 @@ struct Planned {
 ///    to act as its confirmation, so it carries `--force` instead. A prompt is
 ///    not an option: this command's whole point is to run unattended, where
 ///    stdin is not a terminal — a prompt would either hang CI or be skipped
-///    silently, and silently skipped is the worse of the two.
+///    silently, and silently skipped is the worse of the two. That flag is
+///    consent to lose the **working tree** and nothing else, which is why
+///    `--all` refuses outright mid-merge ([`mid_merge_refusal`]).
 /// 3. **The plan covers what git will actually accept.** Every path is resolved
 ///    against `status` first, and a state git cannot discard one path at a time
 ///    — an unresolved conflict, a staged rename — is refused *there*, while
@@ -346,6 +348,17 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
         // without this snapshot the failure below has nothing truthful to put
         // in "Already discarded" and would claim nothing was.
         let before = repo.status()?;
+        // The whole-tree twin of the per-path conflict refusal, and the reason
+        // it is asked of git rather than of `before`: a merge whose conflicts
+        // are already staged has no unmerged entry left to see.
+        if repo.merge_in_progress() {
+            let conflicted: Vec<String> = before
+                .iter()
+                .filter(|e| e.conflicted)
+                .map(|e| e.path.clone())
+                .collect();
+            return Err(mid_merge_refusal(&conflicted).into());
+        }
         repo.discard_all()?;
         // Same read-back as the per-path form: "every uncommitted change" is a
         // strong sentence, and it is only true if `status` now says so.
@@ -479,6 +492,39 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
         ),
     };
     Ok(Report::new("discard", paths, detail))
+}
+
+/// Why `discard --all --force` will not run during a merge.
+///
+/// The per-path form already refuses a conflicted path, and this is the same
+/// refusal at whole-tree scale — decided rather than inherited, because the two
+/// forms disagreeing about the most destructive case in the command is worse
+/// than either answer. `--force` is the confirmation that `--all` names no
+/// path; it is consent to lose the working tree, and stretching it into consent
+/// to settle a merge would make one flag mean two different things, the second
+/// of which the caller never saw coming.
+///
+/// The alternative — say plainly what it is about to do, then do it — has no
+/// shape here: this command exists to run unattended, so the sentence would be
+/// read after the other side of the merge was already gone.
+fn mid_merge_refusal(conflicted: &[String]) -> String {
+    let state = match conflicted {
+        [] => "a merge is still in progress".to_string(),
+        [one] => format!("a merge is still in progress, and {one} has an unresolved conflict"),
+        many => format!(
+            "a merge is still in progress, with unresolved conflicts:\n{}",
+            bulleted(many)
+        ),
+    };
+    format!(
+        "{state}\n\n\
+         Discarding now would take every conflicted path to *ours* and throw the other \
+         side away — and the merge itself would stay open, with MERGE_HEAD still set and \
+         nothing left in the tree to show for it, so the next commit would record it as \
+         though both sides had been weighed.\n\n\
+         Finish the merge (resolve each path, then glimpse stage <path>... and glimpse \
+         commit), or undo it with `git merge --abort`."
+    )
 }
 
 /// "git left X unchanged" plus what *was* destroyed — the sentence a caller

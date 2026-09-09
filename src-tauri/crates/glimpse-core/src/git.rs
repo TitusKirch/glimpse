@@ -1703,6 +1703,25 @@ impl Repo {
         self.run(&["merge", "--no-ff", "--no-edit", "--", branch])
     }
 
+    /// Is a merge started and not yet concluded?
+    ///
+    /// `MERGE_HEAD` exists for exactly that window, which is what makes it worth
+    /// asking git rather than reading it off [`status`](Self::status): once the
+    /// conflicts are resolved and staged, a mid-merge index is indistinguishable
+    /// from an ordinary one. Anything about to throw the working tree away needs
+    /// the difference, because the merge is uncommitted state that discarding
+    /// does **not** undo — it would silently settle every conflict on *ours* and
+    /// leave the merge open behind a clean-looking `status`.
+    ///
+    /// A probe rather than a `Result`: `rev-parse --verify --quiet` exits
+    /// non-zero both when the ref is absent and when git itself fails, and
+    /// distinguishing the two here would be false precision — every caller runs
+    /// a git command that fails loudly first.
+    pub fn merge_in_progress(&self) -> bool {
+        self.run(&["rev-parse", "--verify", "--quiet", "MERGE_HEAD"])
+            .is_ok()
+    }
+
     /// Rebase the current branch onto `onto` (a branch, tag or commit). A
     /// conflict pauses the rebase for the continue / skip / abort controls.
     pub fn rebase(&self, onto: &str) -> Result<String, String> {
