@@ -10,7 +10,7 @@ const props = defineProps<{
   placeholderKey: string;
   submitKey: string;
   initial: string;
-  schema: z.ZodType<string>;
+  schema: z.ZodType<string, string>;
 }>();
 const emit = defineEmits<{ submit: [value: string]; cancel: [] }>();
 const { t } = useI18n();

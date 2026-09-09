@@ -9,6 +9,10 @@ interface FileItem {
   status: string;
   // Present on working-tree status entries; absent on commit file lists.
   isLfs?: boolean;
+  // Declared for the same reason as `isLfs`: the index signature below types
+  // every other member as `unknown`, so a slot consumer passing this straight
+  // to `repo.discard()` would not typecheck.
+  untracked?: boolean;
   [key: string]: unknown;
 }
 

@@ -9,6 +9,7 @@
 // because absolute rows can't push a `w-max` track wider than the viewport and
 // would kill horizontal scrolling of long lines.
 import { useVirtualizer } from '@tanstack/vue-virtual';
+import type { ComponentPublicInstance } from 'vue';
 import type { UnifiedRow } from '~/types/diff';
 
 const props = defineProps<{
@@ -265,8 +266,11 @@ function makeVirtualizer({
   });
   // Measure a row's real height — wired only when word-wrap makes rows variable.
   // With wrap off rows are a fixed `h-5`, so this reports a steady 20px.
-  const measure = (el: Element | null) => {
-    if (el) virt.value.measureElement(el);
+  // Vue's `:ref` callback is typed to receive a component instance as well as an
+  // element, so the parameter has to admit one: every row this is wired to is a
+  // plain element, but a narrower signature is not assignable to `VNodeRef`.
+  const measure = (el: Element | ComponentPublicInstance | null) => {
+    if (el instanceof Element) virt.value.measureElement(el);
   };
   return reactive({ items, padTop, padBottom, measure });
 }
@@ -307,7 +311,11 @@ const rVisible = computed(() =>
         paddingBottom: `${uv.padBottom}px`
       }"
     >
-      <template v-for="{ vi, row } in uVisible" :key="vi.key">
+      <!-- The virtualizer types its key as tanstack's `Key`, which admits
+           `bigint`; Vue takes a PropertyKey. Only the row index is ever used
+           here, so narrow it rather than stringify — stringifying would
+           change key identity and re-create every row. -->
+      <template v-for="{ vi, row } in uVisible" :key="vi.key as PropertyKey">
         <!-- a folded run of unchanged lines (whole-file view) -->
         <button
           v-if="row.type === 'expander'"
@@ -419,7 +427,7 @@ const rVisible = computed(() =>
         >
           <div
             v-for="{ vi, row: r } in lVisible"
-            :key="vi.key"
+            :key="vi.key as PropertyKey"
             class="flex h-5 leading-5"
           >
             <div
@@ -471,7 +479,7 @@ const rVisible = computed(() =>
         >
           <div
             v-for="{ vi, row: r } in rVisible"
-            :key="vi.key"
+            :key="vi.key as PropertyKey"
             class="flex h-5 leading-5"
           >
             <span

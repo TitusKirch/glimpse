@@ -481,7 +481,7 @@ watch(
                     @click="
                       repo.discard({
                         file: file.path,
-                        untracked: file.untracked
+                        untracked: file.untracked ?? false
                       })
                     "
                   >

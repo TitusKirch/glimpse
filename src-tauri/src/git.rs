@@ -439,6 +439,17 @@ pub struct DiffData {
     /// showed less than the file reads as broken, which is worse than one that
     /// admits it is capped.
     pub contents_omitted: bool,
+    /// The whole-file view was asked for and declined: the file's full text is
+    /// past [`MAX_DIFF_CONTENT_BYTES`], so `--unified=100000` was dropped and
+    /// these hunks are the ordinary unified diff instead.
+    ///
+    /// Distinct from `contents_omitted`, and the two occur independently: that
+    /// one says the side-car text was withheld while the diff stayed whole,
+    /// this one says the diff is a narrower one than the user's mode asked
+    /// for. Refusing the mode keeps every diff complete — a truncated
+    /// whole-file diff would show less of the change than the file holds, and
+    /// be harder to read than the shorter complete diff it replaced.
+    pub whole_refused: bool,
 }
 
 impl DiffData {
@@ -782,6 +793,45 @@ impl Repo {
         }
     }
 
+    /// Run a diff-producing command, adding the whole-file context flag when
+    /// the user's `whole` mode is on — and dropping it again when the diff it
+    /// produced is past [`MAX_DIFF_CONTENT_BYTES`]. Returns the raw diff and
+    /// whether the mode was refused.
+    ///
+    /// In `whole` mode the hunks *are* the whole file, so the per-side content
+    /// cap buys nothing: the same megabytes cross IPC through `hunks` instead,
+    /// and the payload even reports `contents_omitted` while shipping them. The
+    /// mode gives way rather than the content: a truncated whole-file diff
+    /// would show less of the change than was asked for, whereas the ordinary
+    /// unified diff is complete, merely narrower.
+    ///
+    /// The size is measured after the fact, at the cost of a second `git diff`
+    /// for an oversized file. Estimating it from the file's size beforehand (as
+    /// [`Repo::image_diff`] does with `cat-file -s`) would guess at the diff's
+    /// size and refuse the mode for files that would have fitted; this way the
+    /// extra call lands only on the files that are actually over.
+    ///
+    /// The flag goes in right after the subcommand, before any revision or
+    /// `--` separator, so one insertion point serves every caller's arg order.
+    fn run_whole_diff(&self, args: &[&str], whole: bool) -> Result<(String, bool), String> {
+        if !whole {
+            return self.run(args).map(|raw| (raw, false));
+        }
+        let mut whole_args = Vec::with_capacity(args.len() + 1);
+        whole_args.push(args[0]);
+        whole_args.push("--unified=100000");
+        whole_args.extend_from_slice(&args[1..]);
+        let raw = self.run(&whole_args)?;
+        if raw.len() <= MAX_DIFF_CONTENT_BYTES {
+            return Ok((raw, false));
+        }
+        // Free the oversized diff before asking for the smaller one, so the two
+        // are never resident together — the peak is what the ceiling promises,
+        // not twice it.
+        drop(raw);
+        self.run(args).map(|raw| (raw, true))
+    }
+
     /// Like [`run`], but returns raw stdout bytes — for binary blobs (e.g. an
     /// image's committed contents) that must not go through lossy UTF-8 decoding.
     fn run_bytes(&self, args: &[&str]) -> Result<Vec<u8>, String> {
@@ -1065,14 +1115,12 @@ impl Repo {
         if ignore_whitespace {
             args.push("-w");
         }
-        // Whole-file view: a huge context turns the diff into one hunk spanning
-        // the entire file (every line shown, changes still marked).
-        if whole {
-            args.push("--unified=100000");
-        }
         args.push("--");
         args.push(file);
-        let mut raw = self.run(&args)?;
+        // Whole-file view: a huge context turns the diff into one hunk spanning
+        // the entire file (every line shown, changes still marked) — unless the
+        // result is past the ceiling, in which case the mode is refused.
+        let (mut raw, whole_refused) = self.run_whole_diff(&args, whole)?;
 
         // Untracked files have no diff target; diff against the null device so
         // the whole file shows up as additions. --no-index exits 1 on any
@@ -1094,6 +1142,7 @@ impl Repo {
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
+        diff.whole_refused = whole_refused;
         // For an LFS file the hunks already hold the small text pointer; flag it
         // and skip loading full contents — the working side is the smudged binary
         // and shipping it would be wasteful and unrenderable.
@@ -1205,14 +1254,12 @@ impl Repo {
         if ignore_whitespace {
             args.push("-w");
         }
-        if whole {
-            args.push("--unified=100000");
-        }
         args.extend([hash, "--", file]);
-        let raw = self.run(&args)?;
+        let (raw, whole_refused) = self.run_whole_diff(&args, whole)?;
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
+        diff.whole_refused = whole_refused;
         diff.attach_contents(
             || self.content(&format!("{hash}^:{file}")),
             || self.content(&format!("{hash}:{file}")),
@@ -1257,17 +1304,15 @@ impl Repo {
         if ignore_whitespace {
             args.push("-w");
         }
-        if whole {
-            args.push("--unified=100000");
-        }
         args.push(from);
         args.push(to);
         args.push("--");
         args.push(file);
-        let raw = self.run(&args)?;
+        let (raw, whole_refused) = self.run_whole_diff(&args, whole)?;
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
+        diff.whole_refused = whole_refused;
         diff.attach_contents(
             || self.content(&format!("{from}:{file}")),
             || self.content(&format!("{to}:{file}")),
@@ -1933,17 +1978,15 @@ impl Repo {
         if ignore_whitespace {
             args.push("-w");
         }
-        if whole {
-            args.push("--unified=100000");
-        }
         args.push(&base);
         args.push(reference);
         args.push("--");
         args.push(file);
-        let raw = self.run(&args)?;
+        let (raw, whole_refused) = self.run_whole_diff(&args, whole)?;
         let Some(mut diff) = parse::diff(&raw) else {
             return Ok(None);
         };
+        diff.whole_refused = whole_refused;
         diff.attach_contents(
             || self.content(&format!("{reference}^:{file}")),
             || self.content(&format!("{reference}:{file}")),
@@ -2594,6 +2637,7 @@ mod diff_content_cap_tests {
             hunks: vec!["@@ -1 +1 @@\n-first\n+second".to_string()],
             is_lfs: false,
             contents_omitted: false,
+            whole_refused: false,
         }
     }
 
@@ -2855,6 +2899,149 @@ mod image_cap_tests {
         );
         assert_eq!(small.old.as_deref(), Some("data:image/png;base64,Zmlyc3Q="));
         assert_eq!(small.new.as_deref(), Some("data:image/png;base64,c2Vjb25k"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod whole_mode_refusal_tests {
+    use super::{Repo, MAX_DIFF_CONTENT_BYTES};
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    /// A repo holding one file past [`MAX_DIFF_CONTENT_BYTES`] and one ordinary
+    /// file, each changed in the working tree and each with that change also
+    /// committed, so every one of the four diff views has something to show.
+    fn repo_with_a_big_and_a_small_file(name: &str) -> (PathBuf, Repo) {
+        let dir: PathBuf = std::env::temp_dir().join(format!(
+            "glimpse-whole-refusal-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+
+        // Identical bulk on both sides: the *change* is one line, so the
+        // ordinary unified diff is tiny while the whole-file diff carries the
+        // entire file. That gap is exactly what the refusal turns on.
+        let bulk = ("x".repeat(63) + "\n").repeat(MAX_DIFF_CONTENT_BYTES / 64 + 2);
+        std::fs::write(dir.join("big.txt"), format!("first\n{bulk}")).unwrap();
+        std::fs::write(dir.join("small.txt"), "first\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        std::fs::write(dir.join("big.txt"), format!("second\n{bulk}")).unwrap();
+        std::fs::write(dir.join("small.txt"), "second\n").unwrap();
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        (dir, repo)
+    }
+
+    fn hunk_bytes(hunks: &[String]) -> usize {
+        hunks.iter().map(String::len).sum()
+    }
+
+    #[test]
+    fn whole_mode_is_refused_once_the_whole_file_diff_is_past_the_ceiling() {
+        let (dir, repo) = repo_with_a_big_and_a_small_file("worktree");
+
+        let big = repo
+            .file_diff("big.txt", false, false, true)
+            .expect("diff big.txt")
+            .expect("big.txt changed");
+        assert!(
+            big.whole_refused,
+            "the whole-file diff crossed IPC at full size anyway"
+        );
+        assert!(
+            hunk_bytes(&big.hunks) <= MAX_DIFF_CONTENT_BYTES,
+            "the refusal has to bound what is actually shipped"
+        );
+        assert!(
+            !big.hunks.is_empty(),
+            "the fallback still has to show the change"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_ordinary_file_still_gets_the_whole_file_view() {
+        let (dir, repo) = repo_with_a_big_and_a_small_file("small");
+
+        let small = repo
+            .file_diff("small.txt", false, false, true)
+            .expect("diff small.txt")
+            .expect("small.txt changed");
+        assert!(
+            !small.whole_refused,
+            "a file well under the ceiling must keep the mode it asked for"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_diff_that_never_asked_for_whole_mode_is_never_marked_refused() {
+        let (dir, repo) = repo_with_a_big_and_a_small_file("plain");
+
+        // Nothing was declined here: the default mode produced exactly the
+        // diff it always did. Flagging it would put a note in the toolbar for
+        // a user who never turned the mode on.
+        let big = repo
+            .file_diff("big.txt", false, false, false)
+            .expect("diff big.txt")
+            .expect("big.txt changed");
+        assert!(!big.whole_refused);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn every_diff_view_refuses_whole_mode_alike() {
+        // A mode that silently works in one view and not another is worse than
+        // one that never works, so all four paths are held to the same rule.
+        let (dir, repo) = repo_with_a_big_and_a_small_file("allviews");
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "second"]);
+
+        let commit = repo
+            .commit_file_diff("HEAD", "big.txt", false, true)
+            .expect("commit diff")
+            .expect("big.txt is in the commit");
+        assert!(commit.whole_refused, "commit view shipped the whole file");
+        assert!(hunk_bytes(&commit.hunks) <= MAX_DIFF_CONTENT_BYTES);
+
+        let compare = repo
+            .compare_file_diff("HEAD~1", "HEAD", "big.txt", false, true)
+            .expect("compare diff")
+            .expect("big.txt differs between the refs");
+        assert!(compare.whole_refused, "compare view shipped the whole file");
+        assert!(hunk_bytes(&compare.hunks) <= MAX_DIFF_CONTENT_BYTES);
+
+        let bulk = std::fs::read_to_string(dir.join("big.txt")).unwrap();
+        std::fs::write(dir.join("big.txt"), bulk.replace("second\n", "third\n")).unwrap();
+        git(&dir, &["stash", "-q"]);
+        let stash = repo
+            .stash_file_diff("stash@{0}", "big.txt", false, true)
+            .expect("stash diff")
+            .expect("big.txt is in the stash");
+        assert!(stash.whole_refused, "stash view shipped the whole file");
+        assert!(hunk_bytes(&stash.hunks) <= MAX_DIFF_CONTENT_BYTES);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

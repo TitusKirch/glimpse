@@ -3,7 +3,18 @@ import type { Commit } from '~/types/bindings';
 import { commitGraphLayout } from './commitGraphLayout';
 
 function commit(hash: string, lane: number, parents: string[] = []): Commit {
-  return { hash, subject: '', author: '', date: '', refs: [], parents, lane };
+  return {
+    hash,
+    subject: '',
+    author: '',
+    date: '',
+    refs: [],
+    parents,
+    lane,
+    signatureStatus: '',
+    signerName: '',
+    signerKey: ''
+  };
 }
 
 describe('commitGraphLayout', () => {

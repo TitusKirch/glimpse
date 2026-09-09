@@ -35,7 +35,8 @@ pnpm install   # wires husky hooks
 | :--------------- | :---------------------------------------- |
 | `pnpm lint`      | oxlint across the repo.                   |
 | `pnpm format`    | oxfmt check across JS / JSON / YAML / MD. |
-| `pnpm check`     | Runs `lint` and `format`.                 |
+| `pnpm typecheck` | vue-tsc over the app, SFCs included.      |
+| `pnpm check`     | Runs the full gate.                       |
 | `pnpm check:fix` | Auto-fix lint + format issues.            |
 
 The same commands run in CI — keep them green before you push.

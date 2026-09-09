@@ -29,7 +29,9 @@
       "omittedNote": "Un lado de esta imagen es demasiado grande para cargarlo en el visor, así que no se muestra ninguno: mostrar solo uno parecería que el archivo se acaba de añadir o eliminar."
     },
     "omitted": "Contenido completo omitido",
-    "omittedNote": "Este archivo es demasiado grande para cargarlo entero, por lo que el resaltado de sintaxis se limita a cada fragmento. El diff en sí está completo."
+    "omittedNote": "Este archivo es demasiado grande para cargarlo entero, por lo que el resaltado de sintaxis se limita a cada fragmento. El diff en sí está completo.",
+    "wholeRefused": "Vista de archivo completo no disponible",
+    "wholeRefusedNote": "Este archivo es demasiado grande para mostrarlo entero, así que se muestra el diff unificado normal. Lo que ves está completo, solo que es más breve: el ajuste sigue aplicándose a otros archivos."
   },
   "fileView": {
     "list": "Vista de lista",

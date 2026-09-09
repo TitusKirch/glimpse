@@ -70,8 +70,8 @@ describe('errors plugin', () => {
     rejected!(event);
     expect(prevented).toHaveBeenCalledTimes(1);
     expect(error).toHaveBeenCalledTimes(1);
-    expect(error.mock.calls[0][0]).toBe('error.unhandled.title');
-    expect(error.mock.calls[0][1]).toMatchObject({
+    expect(error.mock.calls[0]![0]).toBe('error.unhandled.title');
+    expect(error.mock.calls[0]![1]).toMatchObject({
       description: 'fetch blew up'
     });
   });
@@ -79,7 +79,7 @@ describe('errors plugin', () => {
   it('describes a rejection that carries no Error', async () => {
     const { rejected } = await run();
     rejected!(rejection('just a string').event);
-    expect(error.mock.calls[0][1]).toMatchObject({
+    expect(error.mock.calls[0]![1]).toMatchObject({
       description: 'just a string'
     });
   });

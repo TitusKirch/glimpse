@@ -44,25 +44,27 @@ This repo is often developed inside WSL2. Practical loop:
 
 ## Commands
 
-| Command           | What it does                                               |
-| :---------------- | :--------------------------------------------------------- |
-| `pnpm install`    | Install deps and wire husky hooks via the `prepare` script |
-| `pnpm lint`       | `oxlint . --deny-warnings`                                 |
-| `pnpm format`     | `oxfmt --check .` (note: `format` is the check, not fix)   |
-| `pnpm cargofmt`   | `cargo fmt --check` for the Rust backend                   |
-| `pnpm check`      | Runs `lint` + `format` + `cargofmt` — the CI gate          |
-| `pnpm lint:fix`   | Auto-fix lint                                              |
-| `pnpm format:fix` | Auto-fix format                                            |
-| `pnpm check:fix`  | Auto-fix lint + format + Rust formatting                   |
-| `pnpm test`       | Frontend unit tests (Vitest)                               |
-| `pnpm taze`       | Interactive dependency upgrade check                       |
-| `pnpm taze:w`     | Write upgrade results                                      |
+| Command           | What it does                                                             |
+| :---------------- | :----------------------------------------------------------------------- |
+| `pnpm install`    | Install deps and wire husky hooks via the `prepare` script               |
+| `pnpm lint`       | `oxlint . --deny-warnings`                                               |
+| `pnpm format`     | `oxfmt --check .` (note: `format` is the check, not fix)                 |
+| `pnpm typecheck`  | `nuxt typecheck` — vue-tsc over the app, SFCs included                   |
+| `pnpm cargofmt`   | `cargo fmt --check` for the Rust backend                                 |
+| `pnpm check`      | Runs `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate |
+| `pnpm lint:fix`   | Auto-fix lint                                                            |
+| `pnpm format:fix` | Auto-fix format                                                          |
+| `pnpm check:fix`  | Auto-fix lint + format + Rust formatting                                 |
+| `pnpm test`       | Frontend unit tests (Vitest)                                             |
+| `pnpm taze`       | Interactive dependency upgrade check                                     |
+| `pnpm taze:w`     | Write upgrade results                                                    |
 
-App commands: `pnpm dev` (Nuxt dev server, browser-testable with mocked IPC), `pnpm tauri dev` (desktop dev shell), `pnpm tauri build` (packaged binary). Tests: Rust unit tests cover the risky backend (git output parsing, WSL path translation) plus a few Vitest component specs. CI already runs `oxlint` + `oxfmt`, and on the ubuntu/windows/macos matrix `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, and `pnpm tauri build`.
+App commands: `pnpm dev` (Nuxt dev server, browser-testable with mocked IPC), `pnpm tauri dev` (desktop dev shell), `pnpm tauri build` (packaged binary). Tests: Rust unit tests cover the risky backend (git output parsing, WSL path translation) plus a few Vitest component specs. CI already runs `oxlint` + `oxfmt` + `vue-tsc`, and on the ubuntu/windows/macos matrix `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test`, and `pnpm tauri build`.
 
 ## Meta-layer conventions
 
 - **Node 24, pnpm 11.** Pinned via `.nvmrc`, `engines`, and `packageManager`. `pnpm-workspace.yaml` enforces `minimumReleaseAge=4320` (3-day cooldown), isolated node-linker. Don't loosen these without reason.
+- **Types are checked, and the gate is where.** `pnpm typecheck` is `nuxt typecheck` (vue-tsc, `.vue` files included) and sits inside `pnpm check`, so a `ts-rs` binding that gains a required field fails locally instead of shipping. `vue-tsc` rides TypeScript 6 through volar's shim fallback in `runTsc` — TS 6 moved the compiler to `lib/_tsc.js` and left `lib/tsc.js` as a loader shim — so keep an eye on that path when either is upgraded.
 - **oxc, not eslint/prettier.** Linting via `oxlint`, formatting via `oxfmt`. Configs live in `.oxlintrc.json` / `.oxfmtrc.json`. `oxlint` uses `unicorn` + `oxc` plugins; rules deliberately minimal.
 - **Husky hooks** (`.husky/pre-commit`, `.husky/commit-msg`) run `lint-staged` and `commitlint`. `lint-staged.config.js`: `oxlint --fix --deny-warnings` then `oxfmt` on JS/TS; `oxfmt` on JSON/JSONC/YAML/TOML/MD (excluding `README.md` and `pnpm-lock.yaml`); `rustfmt --edition 2021` on `*.rs`.
 - **Conventional Commits enforced** via `@commitlint/config-conventional`. Don't `--no-verify` unless explicitly asked.

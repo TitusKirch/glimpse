@@ -104,6 +104,12 @@ function wslTab(id: string, overrides: Partial<RepoState> = {}): RepoState {
     selectedFileStaged: false,
     commitFiles: [],
     diff: null,
+    // Mirrors the store's own blank tab: a full first page, nothing paged in
+    // yet, no load error, and activated on creation.
+    logLimit: 200,
+    hasMore: false,
+    loadError: null,
+    lastActive: 0,
     loaded: false,
     resolving: true,
     rebaseInProgress: false,

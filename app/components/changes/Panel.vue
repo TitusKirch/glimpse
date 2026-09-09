@@ -182,7 +182,10 @@ const conflictItems = computed(() =>
                   icon-size="sm"
                   :aria-label="t('changes.discard')"
                   @click.stop="
-                    repo.discard({ file: file.path, untracked: file.untracked })
+                    repo.discard({
+                      file: file.path,
+                      untracked: file.untracked ?? false
+                    })
                   "
                 />
               </UiTooltipTrigger>

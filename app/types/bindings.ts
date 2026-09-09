@@ -143,6 +143,19 @@ export type DiffData = {
    * admits it is capped.
    */
   contentsOmitted: boolean;
+  /**
+   * The whole-file view was asked for and declined: the file's full text is
+   * past [`MAX_DIFF_CONTENT_BYTES`], so `--unified=100000` was dropped and
+   * these hunks are the ordinary unified diff instead.
+   *
+   * Distinct from `contents_omitted`, and the two occur independently: that
+   * one says the side-car text was withheld while the diff stayed whole,
+   * this one says the diff is a narrower one than the user's mode asked
+   * for. Refusing the mode keeps every diff complete — a truncated
+   * whole-file diff would show less of the change than the file holds, and
+   * be harder to read than the shorter complete diff it replaced.
+   */
+  wholeRefused: boolean;
 };
 
 export type CommitFile = {

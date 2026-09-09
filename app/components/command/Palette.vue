@@ -44,10 +44,13 @@ const mod = navigator.platform.toLowerCase().includes('mac') ? '⌘' : 'Ctrl';
 // additional search locale (minus the active one, which the visible label
 // already covers). Empty unless the user opts in under Settings → Language, so
 // by default search behaves exactly as before.
+// The cast is needed because `searchLocales` is stored as plain strings while
+// `t` takes one of the configured locale codes; a string that is not one of them
+// resolves to no messages rather than throwing.
 function kw(key: string): string {
   return (settingsStore.searchLocales ?? [])
     .filter((l) => l !== locale.value)
-    .map((l) => t(key, {}, { locale: l }))
+    .map((l) => t(key, {}, { locale: l as typeof locale.value }))
     .join(' ');
 }
 

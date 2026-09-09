@@ -125,10 +125,21 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
+      # NAMED, NOT INFERRED (#196). `rust-cache` falls back to `github.job` for
+      # the key, and this job is called `build` — the same name `_ci-rust.yml`
+      # gives its dev-profile checks. The two were writing into one
+      # `v0-rust-build-…` family with incompatible profiles and evicting each
+      # other, on an account already at its 10 GB cache limit — measured as
+      # 6.0 GB under `v0-rust-build` and 4.5 GB under `v0-rust-tauri`, with the
+      # Windows legs reporting `No cache found.` and compiling cold.
+      # `tauri-release` puts every release-profile build of this workspace —
+      # beta, experiment, stable, and CI's own `tauri` job — on one entry per
+      # platform, and keeps them clear of the dev-profile one.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
+          shared-key: tauri-release
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

@@ -315,6 +315,9 @@ pub fn diff(raw: &str) -> Option<DiffData> {
             is_lfs: false,
             // Set by `DiffData::attach_contents` if a side is too big to ship.
             contents_omitted: false,
+            // Set by the caller when the whole-file mode was asked for and the
+            // diff it produced came back past the ceiling.
+            whole_refused: false,
         })
 }
 
