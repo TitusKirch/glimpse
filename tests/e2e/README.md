@@ -4,11 +4,6 @@ The toolchain is wired: `pnpm e2e` builds nothing itself but launches the built
 desktop binary through [`tauri-driver`](https://crates.io/crates/tauri-driver)
 and drives the real UI with WebdriverIO.
 
-> [!IMPORTANT]
-> The suite does not pass yet, and the remaining blocker is in the app, not in
-> this config — see [Known blocker](#known-blocker). It is deliberately **not**
-> wired into CI until that is settled.
-
 Tauri speaks the [WebDriver](https://v2.tauri.app/develop/tests/webdriver/)
 protocol through `tauri-driver`, which sits between a WebDriver client (here
 WebdriverIO) and the platform driver — `WebKitWebDriver` on Linux,
@@ -30,7 +25,10 @@ xvfb-run --auto-servernum pnpm e2e     # headless
 ```
 
 `pnpm e2e` is deliberately **outside `pnpm check`**: `check` is the fast gate
-(lint, format, cargofmt, unit tests) and must not grow a build-and-launch step.
+(lint, format, typecheck, cargofmt, unit tests) and must not grow a
+build-and-launch step. The spec itself is still held to the repo's standards
+there — `oxlint` covers it like any other file, and `pnpm typecheck` runs
+`vue-tsc` over `tests/e2e/tsconfig.json`.
 
 > [!TIP]
 > Quit any running glimpse first. `tauri-plugin-single-instance` hands a second
@@ -58,28 +56,15 @@ xvfb-run --auto-servernum pnpm e2e     # headless
   WebKitWebDriver reaches the app over a local socket and honours those same
   variables.
 
-## Known blocker
+## In CI
 
-Under WebDriver the app never opens a repository. It falls back to the
-browser-demo repo seeded in `app/stores/repo.ts` (`demoRepo()`, a Windows
-`\\wsl$\…` path that does not exist on the test machine), then issues a *real*
-git call against that fake path, and the global error handler turns the failure
-into the fatal error page. No app UI is reachable, so nothing can be asserted.
+The `E2E smoke test` job in `.github/workflows/ci.yml` runs it on
+`ubuntu-latest` only. `tauri-driver` has no macOS support at all, and the
+Windows leg needs a matching `msedgedriver` — that one is a follow-up, not a
+gap. The job is listed in `tauri-gate`'s `needs`, so a failure here cannot pass
+the merge button by leaving the gate green.
 
-It is not this config: with the same binary, the same environment (fresh
-profile, same proxy settings) and the same repository argument, launching the
-binary **directly** opens the repo correctly — the path only fails to arrive
-when WebKitWebDriver is the one launching the process. Neither
-`tauri:options.args` nor the process working directory reaches the app that way,
-and both of glimpse's launch routes (`take_cli_open_path`, and `default_repo()`
-falling back to the CWD) depend on one of them.
-
-Settling it needs a product decision, not a test tweak — for example whether the
-CLI path should survive extra argv entries the launcher adds, and whether
-`demoRepo()` belongs in a native build's initial state at all, given a fake path
-there reaches real git.
-
-## What to cover once it runs
+## What to cover next
 
 - launch → a repo opens and the commit graph renders (`smoke.spec.ts`)
 - open the command palette (Ctrl+K) and switch branch

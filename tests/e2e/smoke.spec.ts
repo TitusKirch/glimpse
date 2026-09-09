@@ -1,6 +1,6 @@
 // End-to-end smoke test: launches the built desktop binary through
-// tauri-driver and drives the real UI. See ./README.md for the setup and how to
-// run it, and for the blocker that stops it passing today.
+// tauri-driver and drives the real UI. See ./README.md for the setup, how to
+// run it locally, and how CI runs it.
 //
 // `browser`, `$` and `expect` are injected as globals by WebdriverIO; importing
 // them explicitly is what lets this file type-check like the rest of the repo.

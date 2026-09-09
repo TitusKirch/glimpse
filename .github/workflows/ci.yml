@@ -267,6 +267,101 @@ jobs:
       - name: Check the bundle for free Vue-API identifiers
         run: node scripts/check-bundle-globals.mjs
 
+  # THE ONE END-TO-END TEST, ON ONE PLATFORM (#159). It launches the built
+  # binary through `tauri-driver` + `WebKitWebDriver` and drives the real UI, so
+  # it is the only check in this workflow that proves the app BOOTS — the Tauri
+  # matrix above proves it links, which is not the same claim.
+  #
+  # UBUNTU ONLY, and not as a compromise: `tauri-driver` has no macOS support at
+  # all, on any version. Windows needs a matching `msedgedriver` and is a
+  # deliberate follow-up.
+  #
+  # It reuses `frontend`'s bundle exactly as the matrix does, and builds
+  # `--debug` rather than release: same code path, a fraction of the compile.
+  e2e:
+    name: E2E smoke test
+    needs: [precheck, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    if: github.event.pull_request.draft == false
+    steps:
+      # FULL HISTORY ON PURPOSE. The suite opens this checkout as the repository
+      # under test and asserts the commit graph renders, so the clone it drives
+      # has to look like a real one rather than a single grafted commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # HELD at v6.0.10 for the reason spelled out on the matrix job above.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # `webkit2gtk-driver` is what provides `WebKitWebDriver`, and `xvfb` the
+      # display the webview needs on a headless runner — neither is implied by
+      # the build dependencies the other jobs install.
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            wget \
+            webkit2gtk-driver \
+            xvfb
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      # `rust-dev` — the DEV-PROFILE family, shared with `precheck`: this job
+      # builds the same workspace with the same profile, and `cache-bin` (on by
+      # default) keeps the compiled `tauri-driver` below out of the critical
+      # path on subsequent runs.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          shared-key: rust-dev
+
+      # Ships as a cargo binary, not an npm package, which is why it is not a
+      # wdio service and not in the lockfile.
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Built once by `frontend` above, exactly as the Tauri matrix consumes it.
+      - name: Download the frontend bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-dist
+          path: .output/public
+
+      - name: Verify the frontend bundle arrived
+        shell: bash
+        run: test -f .output/public/index.html
+
+      - name: Build the debug binary
+        shell: bash
+        run: pnpm tauri build --debug --no-bundle --config '{"build":{"beforeBuildCommand":null}}'
+
+      # `dbus-run-session` as well as `xvfb-run`: the app registers a
+      # single-instance guard and a `glimpse://` scheme over the session bus,
+      # and a runner does not reliably have one.
+      - name: Run the smoke test
+        run: xvfb-run --auto-servernum dbus-run-session -- pnpm e2e
+
   # The one job above is what this repo actually ships, and nothing was
   # enforcing it: the required checks are `CI / Gate` and `Rust / Gate`, both
   # aggregators of the reusable workflows, and `tauri` sits outside both. A
@@ -291,16 +386,20 @@ jobs:
   # its timeout have no such twin, and any of those failing removes the matrix
   # from the merge gate silently. That is the #165 shape, and listing the job is
   # the whole fix.
+  #
+  # `e2e` is here for the same rule read the other way round: it reports nowhere
+  # else at all, so a red smoke test outside this list would be invisible to the
+  # merge button rather than merely skipped.
   tauri-gate:
     name: Tauri Gate
-    needs: [precheck, frontend, tauri]
+    needs: [precheck, frontend, tauri, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - name: Check every job the Tauri build matrix depends on
+      - name: Check every job this gate covers
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
@@ -309,6 +408,6 @@ jobs:
           for result in $RESULTS; do
             case "$result" in
               success | skipped) ;;
-              *) echo "::error::A job the Tauri build depends on reported '$result'." && exit 1 ;;
+              *) echo "::error::A job this gate covers reported '$result'." && exit 1 ;;
             esac
           done
