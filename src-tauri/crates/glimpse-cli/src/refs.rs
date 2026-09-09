@@ -511,6 +511,11 @@ fn stash_drop(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
 /// something to lose; on a clean tree `--hard` destroys nothing uncommitted and
 /// asking for it anyway would just teach the habit of passing it unread.
 ///
+/// "Something to lose" is decided against the **target tree**, not against
+/// `status` — see [`at_risk_of_reset`]. An untracked-only working tree is the
+/// common shape of dirty, and most of the time a `reset --hard` does not touch
+/// it at all.
+///
 /// It does **not** refuse mid-operation, unlike `discard --all --force`. That
 /// refusal exists because discarding settles every conflict on *ours* and leaves
 /// `MERGE_HEAD` behind a clean-looking status; `git reset` clears `MERGE_HEAD`
@@ -556,15 +561,30 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
     let was = repo.resolve_commit("HEAD")?;
     let to = repo.resolve_commit(rev)?;
     if matches!(mode, ResetMode::Hard) && !force {
-        let dirty: Vec<String> = repo.status()?.iter().map(|e| e.path.clone()).collect();
-        if !dirty.is_empty() {
+        let at_risk = at_risk_of_reset(repo, &to)?;
+        if !at_risk.is_empty() {
+            let paths: Vec<String> = at_risk.iter().map(|(p, _)| p.clone()).collect();
+            let stash = if at_risk.iter().any(|(_, untracked)| *untracked) {
+                "glimpse stash save -u"
+            } else {
+                "glimpse stash save"
+            };
             return Err(format!(
                 "reset --hard would throw away uncommitted changes to {}:\n{}\n\n\
                  Moving the branch is undoable — HEAD is at {} and the reflog keeps it. \
                  These are not: there is no copy of them anywhere. Re-run with --force if \
-                 that is what you mean, or put them somewhere first with glimpse stash save.",
-                listed(&dirty),
-                bulleted(&dirty),
+                 that is what you mean, or put them somewhere first with {stash}.",
+                listed(&paths),
+                bulleted(
+                    &at_risk
+                        .iter()
+                        .map(|(path, untracked)| if *untracked {
+                            format!("{path} (untracked, but {} has a file there)", short(&to))
+                        } else {
+                            path.clone()
+                        })
+                        .collect::<Vec<String>>()
+                ),
                 short(&was),
             )
             .into());
@@ -597,6 +617,41 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
         ),
     )
     .with_commit(now))
+}
+
+/// What a `reset --hard` to `target` would really destroy — each path paired
+/// with whether it is at risk *as an untracked file*.
+///
+/// The two halves of "dirty" are not at risk on the same terms, and a guard is
+/// only worth having if it says which. A tracked modification or a staged
+/// change is at risk unconditionally: the reset writes the target's version of
+/// the file over it and no copy of the caller's exists anywhere. An
+/// **untracked** path is at risk **exactly when the target commit has a file at
+/// that path** — `reset --hard` does not sweep the working tree, so otherwise
+/// it survives untouched, and listing it would be a false statement about the
+/// caller's repository on this CLI's most safety-critical prompt.
+///
+/// Neither direction of that is cosmetic. An untracked-only tree is the *common*
+/// shape of dirty — build output, a scratch note — so a guard that fires on it
+/// fires constantly on a reset that risks nothing, which is precisely how a
+/// caller learns to type `--force` without reading it. And an untracked file
+/// the target *does* have really is destroyed, silently, by the same command.
+///
+/// `status` cannot answer this on its own: it describes the working tree
+/// against **HEAD**, and the target is a different tree.
+fn at_risk_of_reset(repo: &Repo, target: &str) -> Result<Vec<(String, bool)>, Failure> {
+    let status = repo.status()?;
+    let untracked: Vec<String> = status
+        .iter()
+        .filter(|e| e.untracked)
+        .map(|e| e.path.clone())
+        .collect();
+    let written_over = repo.paths_in_tree(target, &untracked)?;
+    Ok(status
+        .iter()
+        .filter(|e| !e.untracked || written_over.contains(&e.path))
+        .map(|e| (e.path.clone(), e.untracked))
+        .collect())
 }
 
 /// The commit-ish operands the three commit-moving verbs take: at least one, no

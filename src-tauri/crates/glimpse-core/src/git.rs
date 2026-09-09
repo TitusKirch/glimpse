@@ -1289,6 +1289,52 @@ impl Repo {
         Ok(hash)
     }
 
+    /// Which of `paths` a commit's tree actually holds a file at.
+    ///
+    /// The question a checkout-shaped command has to ask before it claims a
+    /// working-tree file is at risk. An **untracked** path is not touched by
+    /// `git reset --hard` at all — unless the target commit has a file at that
+    /// path, in which case it is written straight over. Nothing in `status`
+    /// answers that: `status` describes the working tree against *HEAD*, and
+    /// the target is a different tree entirely.
+    ///
+    /// `ls-tree -r -z --name-only <rev> -- <paths>` asks the tree directly.
+    /// `-r` so every name that comes back is a **blob** path: `ls-tree` given a
+    /// directory otherwise answers with the directory, and "the tree has a
+    /// directory there" is not an answer to "does the tree have a file there".
+    /// `-z` so a path with a quote or a non-ASCII byte in it arrives as it is
+    /// rather than in git's quoted form. The paths are pathspecs, so the cost is
+    /// the caller's list rather than the whole tree — and `ls-tree` matches them
+    /// as plain path prefixes, with no glob or `:(magic)` (it rejects the latter
+    /// outright), which is what makes it safe to hand it names read back out of
+    /// `status` rather than patterns anyone typed.
+    ///
+    /// The result is narrowed to `paths` afterwards, so it always answers the
+    /// question that was asked: a prefix match can widen what git returns, and
+    /// a caller checking membership deserves a set it can compare against
+    /// directly.
+    pub fn paths_in_tree(&self, rev: &str, paths: &[String]) -> Result<Vec<String>, String> {
+        reject_option(rev)?;
+        // An empty pathspec list means "everything" to git, which is the
+        // opposite of this question. The narrowing below would throw the whole
+        // tree away again, so this is the git call it saves — every `reset`
+        // against a tree with no untracked files at all.
+        if paths.is_empty() {
+            return Ok(Vec::new());
+        }
+        for p in paths {
+            reject_unsafe_path(p)?;
+        }
+        let mut args = vec!["ls-tree", "-r", "-z", "--name-only", rev, "--"];
+        args.extend(paths.iter().map(String::as_str));
+        let raw = self.run(&args)?;
+        Ok(raw
+            .split('\u{0}')
+            .filter(|found| paths.iter().any(|asked| asked == found))
+            .map(str::to_string)
+            .collect())
+    }
+
     /// Full commit message (subject + body) for the detail panel.
     pub fn commit_body(&self, hash: &str) -> Result<String, String> {
         reject_option(hash)?;
@@ -3488,6 +3534,108 @@ mod write_receipt_tests {
             .write_receipt(&WriteReceipt::new("stage", vec![]))
             .expect_err("an impossible write is an error");
         assert!(!err.is_empty(), "the failure is named: {err:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod paths_in_tree_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-in-tree-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        std::fs::write(dir.join("sub/b.txt"), "b\n").unwrap();
+        std::fs::write(dir.join("g1.txt"), "g\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        dir
+    }
+
+    #[test]
+    fn a_tree_answers_for_the_paths_it_holds_and_stays_quiet_about_the_rest() {
+        let dir = scratch("holds");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let asked: Vec<String> = ["a.txt", "sub/b.txt", "gone.txt"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let found = repo.paths_in_tree("HEAD", &asked).expect("ls-tree");
+
+        assert_eq!(
+            found,
+            vec!["a.txt".to_string(), "sub/b.txt".to_string()],
+            "a nested path comes back whole, and an absent one comes back not at all"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_directory_is_not_a_file_at_that_path() {
+        // `ls-tree` matches its paths as prefixes, so a directory name matches
+        // — and without `-r` it answers with the directory itself. Either way
+        // the answer to "is there a *file* at `sub`?" is no, and a guard that
+        // read git's yes would warn about work nothing can overwrite.
+        let dir = scratch("dir");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .paths_in_tree("HEAD", &["sub".to_string()])
+            .expect("ls-tree");
+        assert!(found.is_empty(), "a directory is not a file: {found:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_file_name_is_a_name_and_never_a_pattern() {
+        // The paths handed in here are read back out of `git status`, not typed
+        // by anyone, so any pattern reading would be wrong: `g[1].txt` must be a
+        // file that is not in this tree, never a match for the `g1.txt` that is.
+        let dir = scratch("literal");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .paths_in_tree("HEAD", &["g[1].txt".to_string()])
+            .expect("ls-tree");
+        assert!(found.is_empty(), "no such path in the tree: {found:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn asking_about_nothing_answers_nothing() {
+        // The commonest call of all: a working tree with nothing untracked in
+        // it. Empty in, empty out — never "the whole tree", which is what an
+        // empty pathspec list means to git.
+        let dir = scratch("empty");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo.paths_in_tree("HEAD", &[]).expect("ls-tree");
+        assert!(found.is_empty(), "{found:?}");
 
         let _ = std::fs::remove_dir_all(&dir);
     }

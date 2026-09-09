@@ -915,3 +915,92 @@ fn stash_drop_needs_the_entry_named_because_naming_it_is_the_confirmation() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+#[test]
+fn reset_hard_asks_the_target_tree_what_an_untracked_file_stands_to_lose() {
+    // `reset --hard` does not sweep the working tree: an untracked path
+    // survives it **unless the target commit has a file there**, in which case
+    // that file is written straight over it. Whether an untracked path is at
+    // risk is therefore a question about the target tree and nothing else — and
+    // the guard owes the answer in both directions, because warning where
+    // nothing is at risk teaches `--force` as a reflex just as surely as
+    // staying quiet where something is teaches it as a surprise.
+    let dir = std::env::temp_dir().join(format!(
+        "glimpse-cli-reset-hard-untracked-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+    std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "first"]);
+    std::fs::write(dir.join("keep.txt"), "k\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "second"]);
+    let without = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    std::fs::write(dir.join("tracked-later.txt"), "t\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "third"]);
+    let with = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    git(&dir, &["rm", "-q", "tracked-later.txt"]);
+    git(&dir, &["commit", "-q", "-m", "fourth"]);
+    let head = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    let path = dir.to_str().unwrap();
+
+    // Two untracked files, and only one of them is at risk: the target has a
+    // file at `tracked-later.txt` and none at `brandnew.txt`.
+    std::fs::write(dir.join("tracked-later.txt"), "mine\n").unwrap();
+    std::fs::write(dir.join("brandnew.txt"), "untracked\n").unwrap();
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &with]);
+    assert_eq!(code, 1, "the one at risk is refused: {err:?}");
+    assert!(
+        err.contains("tracked-later.txt"),
+        "it names the untracked path the target would write over: {err:?}"
+    );
+    assert!(
+        !err.contains("brandnew.txt"),
+        "and not the one nothing would touch: {err:?}"
+    );
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "HEAD"]).trim(),
+        head,
+        "HEAD did not move behind the refusal"
+    );
+    assert!(receipt(&dir).is_none(), "no receipt for a refusal");
+
+    // …and the warning was true: with consent, the target's version wins.
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &with, "--force"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("tracked-later.txt")).unwrap(),
+        "t\n",
+        "the untracked file really was written over by the target's"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("brandnew.txt")).unwrap(),
+        "untracked\n",
+        "and the one that was never at risk is untouched"
+    );
+
+    // The other direction: an untracked-only tree the target knows nothing
+    // about risks nothing, so there is nothing to consent to and no flag to ask
+    // for. This is the common shape of "dirty" — a build artefact, a scratch
+    // note — and refusing on it is what teaches --force as a reflex.
+    let (code, out, err) = run(&["reset", "-C", path, "--hard", &without]);
+    assert_eq!(
+        code, 0,
+        "nothing is at risk, so nothing is refused: {err:?}"
+    );
+    assert!(out.contains(&without[..8]), "where HEAD went: {out:?}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("brandnew.txt")).unwrap(),
+        "untracked\n",
+        "the untracked file is still there, as reset --hard always left it"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
