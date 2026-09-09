@@ -23,6 +23,15 @@ jobs:
     name: CI
     uses: kirchDev/workflows/.github/workflows/_ci-check.yml@1e57db95ff601f03ae87b78e329ef238f9d0cbf6 # v0.8.2
 
+  # NO LONGER IN FRONT OF THE TAURI MATRIX — see `precheck` below for why, and
+  # for what replaced it.
+  #
+  # STILL MISSING ITS CACHE KEY, and this repo cannot set it: the body keys on
+  # `github.job`, which is `build` there, and takes no cache input.
+  # kirchDev/workflows#44 adds `cache-shared-key`; once that is released, bump
+  # the ref below and pass `cache-shared-key: rust-dev` so this shares the
+  # dev-profile entry `precheck` already writes. Until then this job keeps
+  # colliding with `_tauri-build.yml`'s release-profile job of the same name.
   rust:
     name: Rust
     uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@1e57db95ff601f03ae87b78e329ef238f9d0cbf6 # v0.8.2
@@ -33,14 +42,128 @@ jobs:
         libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
         libxdo-dev libssl-dev build-essential file wget
 
+  # THE NARROWED FAIL-FAST GATE (#196). The Tauri matrix used to sit behind
+  # `needs: rust`, which cost about nine minutes of wall clock on every green
+  # run. Two reasons were given for it; only one survived measurement.
+  #
+  #   • "The Tauri job restores the cargo cache that job just wrote." FALSE, and
+  #     the keys proved it: `Swatinem/rust-cache` keys on `github.job` unless
+  #     `shared-key` is set, so `rust` wrote `v0-rust-build-…` and `tauri` read
+  #     `v0-rust-tauri-…`. Two disjoint families that never met. Worse, they
+  #     build different profiles — dev for clippy and tests, release for
+  #     `tauri build` — so even a shared key would not share much.
+  #   • "The expensive 3-OS link should not start unless the checks passed."
+  #     TRUE, and kept — but it does not need the whole matrix to answer it.
+  #     Nearly every red run is red on fmt or clippy, and one Linux runner
+  #     settles that in a fraction of the time three platforms plus the tests
+  #     take.
+  #
+  # So this job is the precondition instead, and `rust` now runs beside the
+  # Tauri matrix rather than in front of it. This duplicates the fmt and clippy
+  # that `rust`'s ubuntu leg also runs — deliberately, for the same reason the
+  # central body already accepts duplicating `cargo fmt`: a cheap check on one
+  # runner that unblocks an expensive one is worth running twice.
+  #
+  # NOT A REQUIRED CHECK, and it does not need to be. Anything that fails here
+  # fails `rust`'s ubuntu leg too, which reports under `Rust / Gate`. This job
+  # exists to gate the matrix below, not to add coverage.
+  precheck:
+    name: Rust precheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            wget
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          components: rustfmt, clippy
+
+      # `rust-dev` is the DEV-PROFILE family: this job and, once
+      # kirchDev/workflows#44 is released, `rust`'s matrix too. The command
+      # below is the one that body runs, so the dependency graph they cache is
+      # the same one and sharing the entry is exact rather than approximate.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2
+        with:
+          workspaces: src-tauri
+          shared-key: rust-dev
+
+      - name: Format check
+        working-directory: src-tauri
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # BUILT ONCE, NOT THREE TIMES (#196). `tauri build` runs `beforeBuildCommand`
+  # — `pnpm generate` — inside every leg of the matrix below, and the result is
+  # platform-independent: the same `.output/public` three times over. It is
+  # built here and carried in as an artifact instead, and the legs run the Tauri
+  # CLI with `beforeBuildCommand` overridden to nothing.
+  #
+  # Gated on `draft == false` to match the matrix it feeds — a draft that skips
+  # the Tauri build has no use for the frontend either. `tauri-gate` needs this
+  # job as well, so a frontend that fails to build cannot pass the merge button
+  # by leaving the matrix skipped.
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v7
+
+      # HELD at v6.0.10 for the reason spelled out on the matrix job below.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the frontend
+        run: pnpm generate
+
+      - name: Upload the frontend bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: .output/public
+          # Long enough to inspect a failed run, short enough not to accumulate.
+          retention-days: 1
+          # An empty upload here would leave the matrix below with nothing to
+          # download — exactly the shape of #164, where a step returned 0 having
+          # done nothing. Fail on the upload instead of three platforms later.
+          if-no-files-found: error
+
   # NOT A BODY, and deliberately so: linking the Nuxt frontend into the Tauri
   # binary is what this repo ships, and no other repo in the estate does it.
-  # `needs: rust` keeps the shape the copy had — the expensive 3-OS link never
-  # starts unless fmt, clippy and the tests passed — and lets it restore the
-  # cargo cache that job just wrote.
   tauri:
     name: Tauri build (${{ matrix.os }})
-    needs: rust
+    needs: [precheck, frontend]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -83,21 +206,62 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
+      # `tauri-release` IS A DELIBERATE KEY, not a label (#196). Left unset,
+      # `rust-cache` keys on `github.job`, and the estate's Rust jobs are called
+      # `tauri` here, `build` in `_ci-rust.yml` and `build` in
+      # `_tauri-build.yml` — so the release installers and the dev-profile
+      # checks shared one family and overwrote each other, while this job sat in
+      # a third family of its own. Every Windows leg logged `No cache found.`
+      # Naming the family puts every RELEASE-profile build of this workspace —
+      # this job and all three release chains — on one entry, and leaves the
+      # dev-profile checks on `rust-dev`.
       - name: Cache Rust build
         uses: Swatinem/rust-cache@63fed3e2fecf6f7b51dc6f043341b79ef82a9ae7 # v2
         with:
           workspaces: src-tauri
+          shared-key: tauri-release
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Built once by `frontend` above, for all three platforms.
+      - name: Download the frontend bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-dist
+          path: .output/public
+
+      # #164 AGAIN, IN A NEW PLACE. `tauri build` no longer builds the frontend
+      # itself, so a download that lands nothing would leave the CLI pointed at
+      # an empty `frontendDist`. Say so here, in one line, rather than letting it
+      # surface as something else three minutes into a Windows compile.
+      - name: Verify the frontend bundle arrived
+        shell: bash
+        run: test -f .output/public/index.html
+
+      # `beforeBuildCommand` is dropped on the command line rather than in
+      # `src-tauri/tauri.conf.json`, because that file is also what a developer
+      # builds with locally, and there `pnpm generate` must still run. `--config`
+      # takes a merge patch over the file, so this changes one key for this
+      # invocation only.
+      #
+      # `null` RATHER THAN `""`. The schema types the key as `HookCommand | null`
+      # (`node_modules/@tauri-apps/cli/config.schema.json`), so null is a valid
+      # value that deserialises to "no hook" — and under a merge-patch reading of
+      # `--config`, null removes the key instead, which lands on the same place.
+      # An empty string would rely on the CLI treating a blank script as absent,
+      # which the schema does not promise.
+      #
+      # `shell: bash` so those JSON quotes mean the same thing on the Windows leg
+      # as on the other two.
       - name: Tauri build (compile, no installers)
-        run: pnpm tauri build --no-bundle
+        shell: bash
+        run: pnpm tauri build --no-bundle --config '{"build":{"beforeBuildCommand":null}}'
 
       # A Vue auto-import Nuxt decided not to inject leaves a bare `ref(` in the
       # bundle and throws only once that component renders — invisible to `pnpm
-      # dev`, invisible to the unit tests, and fatal in the packaged app. The
-      # build above already produced `.output/public`, so the scan is free.
+      # dev`, invisible to the unit tests, and fatal in the packaged app.
+      # `.output/public` is on disk from the download above, so the scan is free.
       - name: Check the bundle for free Vue-API identifiers
         run: node scripts/check-bundle-globals.mjs
 
@@ -113,21 +277,29 @@ jobs:
   # rather than passing it (the same reasoning as the missing `paths-ignore`
   # above). Reporting on every pull request, draft included, is what lets this
   # be required without stranding the drafts the AI work loop opens.
+  # `frontend` is in `needs` for a reason of the same shape: it now builds what
+  # the matrix links, and a job the matrix merely `needs` reports nowhere. A
+  # broken `pnpm generate` would fail `frontend`, skip `tauri`, and — before it
+  # was listed here — leave this gate looking at a single `skipped` and calling
+  # it a pass.
   tauri-gate:
     name: Tauri Gate
-    needs: tauri
+    needs: [frontend, tauri]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - name: Check the Tauri build matrix
+      - name: Check the frontend build and the Tauri build matrix
         env:
-          RESULT: ${{ needs.tauri.result }}
+          RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "Tauri build matrix: $RESULT"
-          case "$RESULT" in
-            success | skipped) exit 0 ;;
-            *) echo "::error::The Tauri build matrix reported '$RESULT'." && exit 1 ;;
-          esac
+          set -euo pipefail
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) echo "::error::A job the Tauri build depends on reported '$result'." && exit 1 ;;
+            esac
+          done
