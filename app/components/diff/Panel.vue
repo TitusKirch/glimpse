@@ -129,6 +129,25 @@ function onStageLines({ hunk, lines }: { hunk: string; lines: number[] }) {
               <p class="text-xs">{{ t('diff.omittedNote') }}</p>
             </UiTooltipContent>
           </UiTooltip>
+          <!-- Whole-file mode was asked for and declined: the file's full diff
+               was past the size ceiling, so the backend returned the ordinary
+               unified diff instead. A separate note from the one above, because
+               it is a separate fact — the mode gave way, not the content — and
+               the two can occur apart. Still a status, not an action: the mode
+               tab stays on 'whole' and will apply again to the next file. -->
+          <UiTooltip v-if="repo.diff?.wholeRefused">
+            <UiTooltipTrigger as-child>
+              <span
+                class="flex size-7 items-center justify-center text-muted-foreground"
+              >
+                <NuxtIcon name="lucide:fold-vertical" class="size-4" />
+              </span>
+            </UiTooltipTrigger>
+            <UiTooltipContent class="max-w-xs space-y-1">
+              <p class="font-medium">{{ t('diff.wholeRefused') }}</p>
+              <p class="text-xs">{{ t('diff.wholeRefusedNote') }}</p>
+            </UiTooltipContent>
+          </UiTooltip>
           <UiTooltip v-if="effectiveMode === 'unified'">
             <UiTooltipTrigger as-child>
               <UiButton

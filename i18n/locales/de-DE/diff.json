@@ -29,7 +29,9 @@
       "omittedNote": "Eine Seite dieses Bildes ist zu groß, um sie in die Ansicht zu laden, deshalb wird keine der beiden gezeigt — eine einzelne Seite sähe so aus, als wäre die Datei gerade hinzugefügt oder gelöscht worden."
     },
     "omitted": "Volltext zurückgehalten",
-    "omittedNote": "Diese Datei ist zu groß, um sie ganz zu laden; die Syntaxhervorhebung beschränkt sich daher auf die einzelnen Hunks. Der Diff selbst ist vollständig."
+    "omittedNote": "Diese Datei ist zu groß, um sie ganz zu laden; die Syntaxhervorhebung beschränkt sich daher auf die einzelnen Hunks. Der Diff selbst ist vollständig.",
+    "wholeRefused": "Ganzdatei-Ansicht nicht verfügbar",
+    "wholeRefusedNote": "Diese Datei ist zu groß, um sie vollständig anzuzeigen; stattdessen wird der gewöhnliche Unified-Diff gezeigt. Was zu sehen ist, ist vollständig, nur knapper — die Einstellung gilt für andere Dateien weiterhin."
   },
   "fileView": {
     "list": "Listenansicht",

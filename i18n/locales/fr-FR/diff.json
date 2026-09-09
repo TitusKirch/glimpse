@@ -29,7 +29,9 @@
       "omittedNote": "Un côté de cette image est trop volumineux pour être chargé dans la vue ; aucun des deux n'est donc affiché — un seul côté donnerait l'impression que le fichier vient d'être ajouté ou supprimé."
     },
     "omitted": "Contenu complet non chargé",
-    "omittedNote": "Ce fichier est trop volumineux pour être chargé en entier ; la coloration syntaxique se limite donc à chaque section. Le diff lui-même est complet."
+    "omittedNote": "Ce fichier est trop volumineux pour être chargé en entier ; la coloration syntaxique se limite donc à chaque section. Le diff lui-même est complet.",
+    "wholeRefused": "Vue fichier entier indisponible",
+    "wholeRefusedNote": "Ce fichier est trop volumineux pour être affiché en entier ; le diff unifié habituel est affiché à la place. Ce qui est montré est complet, simplement plus restreint — le réglage s'applique toujours aux autres fichiers."
   },
   "fileView": {
     "list": "Vue en liste",

@@ -54,7 +54,8 @@ function diffData(fileName: string): DiffData {
     newContent: 'new',
     hunks: ['@@ -1 +1 @@'],
     isLfs: false,
-    contentsOmitted: false
+    contentsOmitted: false,
+    wholeRefused: false
   };
 }
 

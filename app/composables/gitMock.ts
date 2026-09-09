@@ -106,6 +106,7 @@ export const gitMock = {
  })`
     ],
     isLfs: false,
-    contentsOmitted: false
+    contentsOmitted: false,
+    wholeRefused: false
   } satisfies DiffData
 };

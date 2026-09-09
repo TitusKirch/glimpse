@@ -29,7 +29,9 @@
       "omittedNote": "One side of this image is too large to load into the viewer, so neither is shown — a single side would look like the file had just been added or deleted."
     },
     "omitted": "Full file withheld",
-    "omittedNote": "This file is too large to load whole, so syntax highlighting is limited to each hunk. The diff itself is complete."
+    "omittedNote": "This file is too large to load whole, so syntax highlighting is limited to each hunk. The diff itself is complete.",
+    "wholeRefused": "Whole-file view unavailable",
+    "wholeRefusedNote": "This file is too large to show in full, so the ordinary unified diff is shown instead. What you see is complete, just narrower — the setting still applies to other files."
   },
   "fileView": {
     "list": "List view",
