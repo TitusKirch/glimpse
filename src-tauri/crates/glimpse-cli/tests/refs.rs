@@ -11,7 +11,10 @@
 
 mod common;
 
-use common::{clean_repo, git, git_out, json_of, merged_with_conflict, receipt, run, scratch_repo};
+use common::{
+    clean_repo, git, git_out, json_of, merged_with_conflict, receipt, run, scratch_repo,
+    stashed_over_a_conflict,
+};
 
 #[test]
 fn branch_create_makes_the_branch_and_switches_to_it() {
@@ -1003,4 +1006,72 @@ fn reset_hard_asks_the_target_tree_what_an_untracked_file_stands_to_lose() {
     );
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+#[test]
+fn a_conflicted_restore_leaves_a_receipt_naming_the_verb_that_actually_ran() {
+    // The receipt is the one thing a running window reads to learn what
+    // happened, so an `apply` that files itself as a `pop` tells that window
+    // the entry is gone when it is still there. `pop` and `apply` share every
+    // line of this path except which of them ran, which is exactly the line the
+    // receipt exists to carry.
+    for verb in ["pop", "apply"] {
+        let dir = stashed_over_a_conflict(&format!("stash-{verb}-receipt"));
+        let path = dir.to_str().unwrap();
+
+        let (code, _out, err) = run(&["stash", "-C", path, verb]);
+        assert_eq!(code, 1, "the restore conflicted: {err:?}");
+        let written = receipt(&dir).expect("a stopped restore moved the tree, so it says so");
+        assert_eq!(
+            written["action"],
+            format!("stash {verb}"),
+            "the receipt names the verb that ran: {written}"
+        );
+        assert_eq!(
+            git_out(&dir, &["stash", "list"]).lines().count(),
+            1,
+            "and neither verb dropped an entry it could not restore"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[test]
+fn a_conflicted_restore_says_what_stopped_before_it_says_anything_else() {
+    // git writes `CONFLICT` to **stdout**, and the engine returns stdout only
+    // on success — so the reason a stopped restore is handed is empty and the
+    // message opens on nothing at all. A failure's first sentence is the one
+    // thing it owes. Both verbs also keep their entry here, so both can say so.
+    for verb in ["pop", "apply"] {
+        let dir = stashed_over_a_conflict(&format!("stash-{verb}-message"));
+        let path = dir.to_str().unwrap();
+
+        let (code, _out, err) = run(&["stash", "-C", path, verb]);
+        assert_eq!(code, 1, "the restore conflicted: {err:?}");
+        let opening = err
+            .strip_prefix("glimpse: ")
+            .expect("the CLI's own prefix")
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .to_string();
+        assert!(
+            !opening.trim().is_empty() && !opening.starts_with('$'),
+            "the first line says what failed, not nothing and not a command line: {err:?}"
+        );
+        assert!(
+            opening.contains(verb),
+            "and it names the verb that stopped: {opening:?}"
+        );
+        assert!(
+            err.contains("a.txt is in conflict"),
+            "the useful half is still there: {err:?}"
+        );
+        assert!(
+            err.contains("was kept, so nothing is lost"),
+            "and so is the reassurance, which apply earns unconditionally: {err:?}"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

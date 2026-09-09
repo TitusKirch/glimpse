@@ -182,6 +182,37 @@ pub fn clean_repo(tag: &str) -> PathBuf {
     dir
 }
 
+/// A per-test scratch repository holding **one stash entry that cannot be
+/// restored cleanly**: `a.txt` was stashed at `mine`, and HEAD has moved on to
+/// `other` since, so the three-way merge a `pop` or an `apply` runs collides.
+///
+/// The state matters because it is the one where the two verbs stop being the
+/// same command: git writes `CONFLICT` to **stdout** (so the engine's failure
+/// carries no reason at all), the working tree and index have already moved,
+/// and the entry is kept — by `apply` always, and by `pop` because it refuses
+/// to drop what it could not fully restore.
+pub fn stashed_over_a_conflict(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    std::fs::write(dir.join("a.txt"), "base\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "initial commit"]);
+
+    std::fs::write(dir.join("a.txt"), "mine\n").unwrap();
+    git(&dir, &["stash", "push", "-q", "-m", "mine"]);
+
+    std::fs::write(dir.join("a.txt"), "other\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "other"]);
+    dir
+}
+
 /// The receipt a successful write leaves for a running window, or `None` when
 /// the command wrote none. Read straight off disk, because "was a receipt
 /// written?" is a question about the repository, not about the CLI's own view.

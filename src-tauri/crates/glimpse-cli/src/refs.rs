@@ -378,6 +378,11 @@ fn stash_save(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
 /// way. [`stash_drop`] does not get that latitude.
 fn stash_restore(repo: &Repo, args: &[String], pop: bool) -> Result<Report, Failure> {
     let verb = if pop { "pop" } else { "apply" };
+    // Named once, at the top, because both exits below carry it — the receipt a
+    // stopped restore leaves and the report a finished one returns. Spelling it
+    // out separately in each is how the receipt came to say `stash pop` after
+    // an `apply`.
+    let action = if pop { "stash pop" } else { "stash apply" };
     let named = match args {
         [] => None,
         [one] if !one.starts_with('-') => Some(one.clone()),
@@ -401,11 +406,15 @@ fn stash_restore(repo: &Repo, args: &[String], pop: bool) -> Result<Report, Fail
     };
     if let Err(e) = outcome {
         // A stash that conflicts has already written to the working tree, and
-        // (for `pop`) has deliberately kept its entry so nothing is lost. Both
-        // facts belong in the message, and the tree having moved is why this
-        // failure carries a receipt.
+        // has kept its entry so nothing is lost — `apply` always, `pop` because
+        // it will not drop what it could not fully restore. Both facts belong
+        // in the message, and the tree having moved is why this failure carries
+        // a receipt.
         let conflicted = conflicted_paths(repo);
-        let kept = if pop && repo.stash_list()?.iter().any(|s| s.reference == reference) {
+        // Counted rather than looked up by name: `stash@{0}` still names *an*
+        // entry after the one it named is dropped, so finding the reference
+        // again is not evidence it survived.
+        let kept = if repo.stash_list()?.len() == entries.len() {
             format!("\n\n{reference} was kept, so nothing is lost.")
         } else {
             String::new()
@@ -416,9 +425,9 @@ fn stash_restore(repo: &Repo, args: &[String], pop: bool) -> Result<Report, Fail
             many => format!("\n\nStill in conflict:\n{}", bulleted(many)),
         };
         return Err(Failure {
-            message: format!("{e}{detail}{kept}"),
+            message: format!("{}{detail}{kept}", said_what_stopped(action, &e)),
             partial: (!conflicted.is_empty())
-                .then(|| Report::new("stash pop", vec![reference.clone()], String::new())),
+                .then(|| Report::new(action, vec![reference.clone()], String::new())),
         });
     }
 
@@ -429,7 +438,6 @@ fn stash_restore(repo: &Repo, args: &[String], pop: bool) -> Result<Report, Fail
             format!("git reported no error, but {reference} is still in the stash list.").into(),
         );
     }
-    let action = if pop { "stash pop" } else { "stash apply" };
     let tail = if pop {
         format!("{reference} is gone")
     } else {
@@ -1009,6 +1017,27 @@ fn conflicted_paths(repo: &Repo) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// A failure's opening sentence, supplied when git did not write one.
+///
+/// **A conflict is the case where git says nothing on stderr**: it writes
+/// `CONFLICT (content): …` to *stdout*, and the engine returns stdout only on
+/// success, so every command that can stop on a conflict is handed either an
+/// empty reason or one that opens straight into the echoed git command line.
+/// Neither says what failed, and that is the one thing a failure owes its first
+/// sentence.
+///
+/// Shared rather than repeated because the shape recurs across the whole group
+/// — merge, cherry-pick, revert and both stash restores stop the same way, and
+/// a repair living inside [`stopped_operation`] reached only the three that
+/// went through it.
+fn said_what_stopped(op: &str, reason: &str) -> String {
+    if reason.trim_start().starts_with('$') || reason.trim().is_empty() {
+        format!("the {op} stopped without completing\n{reason}")
+    } else {
+        reason.to_string()
+    }
+}
+
 /// How a merge, cherry-pick or revert failed — **asked of the repository**,
 /// rather than assumed from the fact that git returned an error.
 ///
@@ -1040,15 +1069,7 @@ fn stopped_operation(
         .map(|now| now != before)
         .unwrap_or(false);
     let open = in_progress(repo).is_some();
-    // A merge conflict is the one case where git says nothing on stderr — it
-    // writes CONFLICT to stdout — so the engine hands this an empty reason and
-    // the message would open with a blank line and a git command line. A failure
-    // has to say what failed in its first sentence.
-    let reason = if reason.trim_start().starts_with('$') || reason.trim().is_empty() {
-        format!("the {op} stopped without completing\n{reason}")
-    } else {
-        reason.to_string()
-    };
+    let reason = said_what_stopped(op, reason);
 
     if !open && !landed && conflicted.is_empty() {
         return reason.into();
