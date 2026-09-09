@@ -1754,18 +1754,27 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 use tauri_plugin_cli::CliExt;
-                if let Ok(matches) = app.cli().matches() {
-                    let resolved = matches
-                        .args
-                        .get("path")
-                        .and_then(|arg| arg.value.as_str())
-                        .and_then(|raw| {
-                            let cwd = env::current_dir().ok()?;
-                            resolve_cli_path(raw, &cwd.to_string_lossy())
-                        });
-                    if let Some(path) = resolved {
-                        *app.state::<CliOpenState>().0.lock().unwrap() = Some(path);
+                match app.cli().matches() {
+                    Ok(matches) => {
+                        let resolved = matches
+                            .args
+                            .get("path")
+                            .and_then(|arg| arg.value.as_str())
+                            .and_then(|raw| {
+                                let cwd = env::current_dir().ok()?;
+                                resolve_cli_path(raw, &cwd.to_string_lossy())
+                            });
+                        if let Some(path) = resolved {
+                            *app.state::<CliOpenState>().0.lock().unwrap() = Some(path);
+                        }
                     }
+                    // Clap rejects the WHOLE argv over one entry it does not
+                    // know — a flag a launcher or a test harness appended, say —
+                    // and the repo path goes down with it. The launch is not
+                    // worth aborting over that, but it was previously dropped
+                    // with no trace anywhere: the app just came up on the start
+                    // screen and nothing said why. Say why.
+                    Err(e) => log::warn!("ignoring the launch command line ({e})"),
                 }
             }
             Ok(())
