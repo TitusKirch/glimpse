@@ -740,7 +740,10 @@ pub struct RebaseStep {
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
-#[derive(Deserialize)]
+/// `Copy` because it is a three-valued flag: a caller that parses one out of
+/// argv and then both reports on it and passes it to git should not have to
+/// clone a fieldless enum to do so.
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ResetMode {
     Soft,
@@ -1722,6 +1725,22 @@ impl Repo {
             .is_ok()
     }
 
+    /// Is a cherry-pick stopped and not yet concluded? The same window, and the
+    /// same reasoning, as [`merge_in_progress`](Self::merge_in_progress):
+    /// `CHERRY_PICK_HEAD` exists for exactly as long as the operation is open,
+    /// and once its conflicts are staged the index alone cannot tell you.
+    pub fn cherry_pick_in_progress(&self) -> bool {
+        self.run(&["rev-parse", "--verify", "--quiet", "CHERRY_PICK_HEAD"])
+            .is_ok()
+    }
+
+    /// Is a revert stopped and not yet concluded? `REVERT_HEAD`, on the same
+    /// terms as the two probes above.
+    pub fn revert_in_progress(&self) -> bool {
+        self.run(&["rev-parse", "--verify", "--quiet", "REVERT_HEAD"])
+            .is_ok()
+    }
+
     /// Rebase the current branch onto `onto` (a branch, tag or commit). A
     /// conflict pauses the rebase for the continue / skip / abort controls.
     pub fn rebase(&self, onto: &str) -> Result<String, String> {
@@ -1959,6 +1978,51 @@ impl Repo {
         self.run(&["checkout", hash]).map(|_| ())
     }
 
+    /// The checked-out branch, or `HEAD` when it is detached.
+    ///
+    /// The cheap probe [`info`](Self::info) is not: `info` runs half a dozen git
+    /// commands to build the whole picture, and a command that has just moved
+    /// one ref and wants to read back *where HEAD ended up* should not pay for
+    /// the branch list, the tag list and the stash list to find out.
+    pub fn current_branch(&self) -> Result<String, String> {
+        Ok(self
+            .run(&["rev-parse", "--abbrev-ref", "HEAD"])?
+            .trim()
+            .to_string())
+    }
+
+    /// Local branch names, nothing else — the read-back after a create, rename
+    /// or delete. [`info`](Self::info) computes ahead/behind and upstream state
+    /// per branch, which is a page of work to answer "does this ref exist?".
+    pub fn branch_names(&self) -> Result<Vec<String>, String> {
+        let raw = self.run(&["for-each-ref", "--format=%(refname:short)", "refs/heads"])?;
+        Ok(lines(&raw).map(str::to_string).collect())
+    }
+
+    /// Tag names, for the same reason as [`branch_names`](Self::branch_names).
+    pub fn tag_names(&self) -> Result<Vec<String>, String> {
+        let raw = self.run(&["for-each-ref", "--format=%(refname:short)", "refs/tags"])?;
+        Ok(lines(&raw).map(str::to_string).collect())
+    }
+
+    /// Commit hashes reachable from `HEAD` but not from `base`, oldest first —
+    /// what an operation *actually added*, asked of git afterwards.
+    ///
+    /// The commits a cherry-pick or revert produces are new objects with new
+    /// hashes, so the arguments a caller passed in are not an answer to "what
+    /// landed?"; only this is.
+    pub fn commits_since(&self, base: &str) -> Result<Vec<String>, String> {
+        reject_option(base)?;
+        let range = format!("{base}..HEAD");
+        let raw = self.run(&["rev-list", "--reverse", &range])?;
+        Ok(lines(&raw).map(str::to_string).collect())
+    }
+
+    /// Configured remote names, for the same reason again.
+    pub fn remote_names(&self) -> Result<Vec<String>, String> {
+        Ok(lines(&self.run(&["remote"])?).map(str::to_string).collect())
+    }
+
     pub fn create_branch(&self, name: &str) -> Result<(), String> {
         reject_option(name)?;
         self.run(&["switch", "-c", name]).map(|_| ())
@@ -1971,9 +2035,14 @@ impl Repo {
         self.run(&["switch", "-c", name, hash]).map(|_| ())
     }
 
-    pub fn delete_branch(&self, name: &str) -> Result<(), String> {
+    /// Delete a branch. `force` is `-D` rather than `-d`: it deletes a branch
+    /// whose commits no other ref holds, which is the only way this call can
+    /// lose work. Kept as a parameter rather than a second method so a caller
+    /// has to *say* which one it means at the call site.
+    pub fn delete_branch(&self, name: &str, force: bool) -> Result<(), String> {
         reject_option(name)?;
-        self.run(&["branch", "-d", "--", name]).map(|_| ())
+        let flag = if force { "-D" } else { "-d" };
+        self.run(&["branch", flag, "--", name]).map(|_| ())
     }
 
     /// Revert a commit (creates a new inverse commit, no editor).
@@ -2074,9 +2143,23 @@ impl Repo {
         self.run(&["tag", "-d", "--", name]).map(|_| ())
     }
 
-    /// Push all local tags to the default remote.
+    /// Push all local tags to the default remote, answering in git's
+    /// machine-readable push format.
+    ///
+    /// `--porcelain` because the human format goes to **stderr**, which this
+    /// returns only on failure — so a successful `git push --tags` used to hand
+    /// its caller an empty string and no way to say what moved. The porcelain
+    /// summary is on stdout: one `<flag>\t<from>:<to>\t<summary>` line per ref,
+    /// plus `To <url>` and `Done`.
     pub fn push_tags(&self) -> Result<String, String> {
-        self.run(&["push", "--tags"])
+        self.run(&["push", "--porcelain", "--tags"])
+    }
+
+    /// A remote's fetch URL — read before a rename or a removal, because after
+    /// one there is nowhere left to read it from.
+    pub fn remote_url(&self, name: &str) -> Result<String, String> {
+        reject_option(name)?;
+        Ok(self.run(&["remote", "get-url", name])?.trim().to_string())
     }
 
     pub fn add_remote(&self, name: &str, url: &str) -> Result<(), String> {

@@ -1332,7 +1332,10 @@ async fn delete_branch(
     name: String,
 ) -> Result<(), String> {
     locked(&locks, &path, || {
-        git::Repo::open(&path).delete_branch(&name)
+        // The GUI has no force-delete button, so it is always the safe `-d`:
+        // git refuses a branch whose commits nothing else holds, and the dialog
+        // shows that refusal rather than overriding it.
+        git::Repo::open(&path).delete_branch(&name, false)
     })
 }
 
