@@ -609,7 +609,7 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
         let at_risk = at_risk_of_reset(repo, &to)?;
         if !at_risk.is_empty() {
             let paths: Vec<String> = at_risk.iter().map(|(p, _)| p.clone()).collect();
-            let stash = if at_risk.iter().any(|(_, untracked)| *untracked) {
+            let stash = if at_risk.iter().any(|(_, how)| how.is_some()) {
                 "glimpse stash save -u"
             } else {
                 "glimpse stash save"
@@ -623,10 +623,19 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
                 bulleted(
                     &at_risk
                         .iter()
-                        .map(|(path, untracked)| if *untracked {
-                            format!("{path} (untracked, but {} has a file there)", short(&to))
-                        } else {
-                            path.clone()
+                        .map(|(path, how)| match how {
+                            None => path.clone(),
+                            Some(Collision::Here) => {
+                                format!("{path} (untracked, but {} has a file there)", short(&to))
+                            }
+                            Some(Collision::FileAt(ancestor)) => format!(
+                                "{path} (untracked, but {} has a file at {ancestor})",
+                                short(&to)
+                            ),
+                            Some(Collision::DirectoryHere) => format!(
+                                "{path} (untracked, but {} has a directory there)",
+                                short(&to)
+                            ),
                         })
                         .collect::<Vec<String>>()
                 ),
@@ -664,39 +673,103 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
     .with_commit(now))
 }
 
+/// How a target tree comes for an untracked path — which is also *why* it is at
+/// risk, and a refusal that names the path owes the caller the reason too.
+///
+/// A checkout does not sweep the working tree; it takes the names its own tree
+/// needs. There are three ways it can need one that untracked work is sitting
+/// on, and only the first is a plain overwrite.
+enum Collision {
+    /// The target has a file at exactly this path, written straight over the
+    /// caller's.
+    Here,
+    /// The target has a file at an **ancestor** directory of this path. Making
+    /// room for that file means removing the directory, and everything under it
+    /// goes with it — this path included.
+    FileAt(String),
+    /// The target has a **directory** at this path, so the caller's file is
+    /// removed to make room for it.
+    DirectoryHere,
+}
+
 /// What a `reset --hard` to `target` would really destroy — each path paired
-/// with whether it is at risk *as an untracked file*.
+/// with the collision that puts it at risk, or `None` where it is at risk as
+/// tracked work rather than as an untracked file.
 ///
 /// The two halves of "dirty" are not at risk on the same terms, and a guard is
 /// only worth having if it says which. A tracked modification or a staged
 /// change is at risk unconditionally: the reset writes the target's version of
 /// the file over it and no copy of the caller's exists anywhere. An
-/// **untracked** path is at risk **exactly when the target commit has a file at
-/// that path** — `reset --hard` does not sweep the working tree, so otherwise
-/// it survives untouched, and listing it would be a false statement about the
-/// caller's repository on this CLI's most safety-critical prompt.
+/// **untracked** path is at risk exactly when the target tree needs its name —
+/// the three relations [`Collision`] enumerates — and otherwise survives
+/// untouched, so listing it would be a false statement about the caller's
+/// repository on this CLI's most safety-critical prompt.
 ///
 /// Neither direction of that is cosmetic. An untracked-only tree is the *common*
 /// shape of dirty — build output, a scratch note — so a guard that fires on it
 /// fires constantly on a reset that risks nothing, which is precisely how a
-/// caller learns to type `--force` without reading it. And an untracked file
-/// the target *does* have really is destroyed, silently, by the same command.
+/// caller learns to type `--force` without reading it. And an untracked path the
+/// target *does* need really is destroyed, silently, by the same command,
+/// leaving behind a report of success and a `git reset` hint that brings the
+/// branch back but not the file.
 ///
 /// `status` cannot answer this on its own: it describes the working tree
 /// against **HEAD**, and the target is a different tree.
-fn at_risk_of_reset(repo: &Repo, target: &str) -> Result<Vec<(String, bool)>, Failure> {
+fn at_risk_of_reset(
+    repo: &Repo,
+    target: &str,
+) -> Result<Vec<(String, Option<Collision>)>, Failure> {
     let status = repo.status()?;
-    let untracked: Vec<String> = status
-        .iter()
-        .filter(|e| e.untracked)
-        .map(|e| e.path.clone())
-        .collect();
-    let written_over = repo.paths_in_tree(target, &untracked)?;
+    let mut asked: Vec<String> = Vec::new();
+    for entry in status.iter().filter(|e| e.untracked) {
+        asked.push(entry.path.clone());
+        // Every ancestor directory, because a blob at one of them is a
+        // collision the path's own pathspec cannot see: `ls-tree -- d/inner.txt`
+        // matches nothing at all when the tree's `d` is a file. Asking about
+        // `d` is what makes that answerable, and it costs no extra git call.
+        let mut rest = entry.path.as_str();
+        while let Some((parent, _)) = rest.rsplit_once('/') {
+            asked.push(parent.to_string());
+            rest = parent;
+        }
+    }
+    asked.sort();
+    asked.dedup();
+    let blobs = repo.paths_in_tree(target, &asked)?;
     Ok(status
         .iter()
-        .filter(|e| !e.untracked || written_over.contains(&e.path))
-        .map(|e| (e.path.clone(), e.untracked))
+        .filter_map(|e| {
+            if !e.untracked {
+                return Some((e.path.clone(), None));
+            }
+            collision(&e.path, &blobs).map(|how| (e.path.clone(), Some(how)))
+        })
         .collect())
+}
+
+/// Which relation, if any, puts an untracked `path` in the way of a tree that
+/// holds files at `blobs`.
+///
+/// The three are mutually exclusive in any real tree — a name is a file or a
+/// directory, never both — so the order here is for reading, not for
+/// precedence.
+fn collision(path: &str, blobs: &[String]) -> Option<Collision> {
+    if blobs.iter().any(|blob| blob == path) {
+        return Some(Collision::Here);
+    }
+    if let Some(ancestor) = blobs.iter().find(|blob| {
+        path.strip_prefix(blob.as_str())
+            .is_some_and(|r| r.starts_with('/'))
+    }) {
+        return Some(Collision::FileAt(ancestor.clone()));
+    }
+    if blobs
+        .iter()
+        .any(|blob| blob.strip_prefix(path).is_some_and(|r| r.starts_with('/')))
+    {
+        return Some(Collision::DirectoryHere);
+    }
+    None
 }
 
 /// The commit-ish operands the three commit-moving verbs take: at least one, no

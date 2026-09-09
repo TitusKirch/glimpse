@@ -1008,6 +1008,111 @@ fn reset_hard_asks_the_target_tree_what_an_untracked_file_stands_to_lose() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 #[test]
+fn reset_hard_counts_an_untracked_path_the_target_collides_with_by_shape() {
+    // "The target has a file at this exact path" is only the first of three
+    // ways a checkout comes for untracked work, and the other two do not
+    // announce themselves: they happen where the working tree and the target
+    // disagree about whether a name is a file or a directory. Both are
+    // silent — `reset --hard` clears the way, exits 0, and offers a `git reset`
+    // undo that restores the branch and not the file.
+    let dir = std::env::temp_dir().join(format!(
+        "glimpse-cli-reset-hard-collide-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+    std::fs::write(dir.join("keep.txt"), "k\n").unwrap();
+    // A commit whose tree has a **file** at `d`.
+    std::fs::write(dir.join("d"), "target file\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "d is a file"]);
+    let file_at_d = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    // …and one whose tree has a **directory** there instead.
+    git(&dir, &["rm", "-q", "d"]);
+    std::fs::create_dir_all(dir.join("d")).unwrap();
+    std::fs::write(dir.join("d/inner.txt"), "target inner\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "d is a directory"]);
+    let dir_at_d = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    // HEAD knows nothing about `d` in either shape, so `status` is the only
+    // thing that has ever seen the caller's version of it.
+    git(&dir, &["rm", "-q", "-r", "d"]);
+    git(&dir, &["commit", "-q", "-m", "no d at all"]);
+    let head = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    let path = dir.to_str().unwrap();
+
+    // Shape A — the working tree has an untracked *directory* where the target
+    // has a file. Writing that file means removing the directory, and
+    // everything in it goes with it.
+    std::fs::create_dir_all(dir.join("d")).unwrap();
+    std::fs::write(dir.join("d/inner.txt"), "mine\n").unwrap();
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &file_at_d]);
+    assert_eq!(
+        code, 1,
+        "an untracked directory in the way is refused: {err:?}"
+    );
+    assert!(
+        err.contains("d/inner.txt"),
+        "it names the work that would go: {err:?}"
+    );
+    assert!(
+        err.contains("has a file at d"),
+        "and says which name the target wants, since nothing is at `d/inner.txt`: {err:?}"
+    );
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "HEAD"]).trim(),
+        head,
+        "HEAD did not move behind the refusal"
+    );
+    assert!(receipt(&dir).is_none(), "no receipt for a refusal");
+
+    // …and the refusal was telling the truth: with consent it really does go.
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &file_at_d, "--force"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("d")).unwrap(),
+        "target file\n",
+        "the target's file took the name, so the directory under it is gone"
+    );
+
+    // Shape B — the mirror. An untracked *file* sits where the target has a
+    // directory, and the checkout removes the file to make room for it.
+    git(&dir, &["reset", "-q", "--hard", &head]);
+    std::fs::write(dir.join("d"), "mine\n").unwrap();
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &dir_at_d]);
+    assert_eq!(code, 1, "an untracked file in the way is refused: {err:?}");
+    assert!(
+        err.contains("has a directory there"),
+        "it names the file and why the target wants its name: {err:?}"
+    );
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "HEAD"]).trim(),
+        head,
+        "HEAD did not move behind the refusal"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("d")).unwrap(),
+        "mine\n",
+        "and the file is still the caller's"
+    );
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &dir_at_d, "--force"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("d/inner.txt")).unwrap(),
+        "target inner\n",
+        "the target's directory took the name, so the file that had it is gone"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+#[test]
 fn a_conflicted_restore_leaves_a_receipt_naming_the_verb_that_actually_ran() {
     // The receipt is the one thing a running window reads to learn what
     // happened, so an `apply` that files itself as a `pop` tells that window
