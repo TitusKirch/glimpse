@@ -217,6 +217,18 @@ The git spellings work too — `glimpse rebase --continue`, `glimpse rebase --ab
 > [!IMPORTANT]
 > **`--ours` and `--theirs` swap places in a rebase, and `glimpse resolve` will not guess for you.** In a merge, `--ours` is the branch you are on and `--theirs` is the one being brought in. In a **rebase** git replays your commits *onto* the other branch, so `--ours` is the branch you are rebasing onto and `--theirs` is your own commit. glimpse keeps git's convention rather than silently redefining two words you already know — and every message that offers the choice says which is which, in the state the repository is actually in. A `glimpse resolve` with no side is a refusal: which side of a conflict wins is the one decision this command line will not make on your behalf.
 
+And the repository's own layout — a second working tree, an embedded repository, the slice of the tree that is checked out at all. Each of these is **one-shot**: it changes the layout or it refuses, and none of them leaves a state behind for a later invocation to continue. Each reads git's own listing back afterwards and reports the entry that appeared or vanished, never the argument it was handed:
+
+```bash
+glimpse worktree add ../review        # a second working tree, on a new branch named after it
+glimpse worktree add ../hotfix v1.2   # …or on an existing branch or commit
+glimpse worktree remove ../review     # …naming the branch it held, so you can put it back
+glimpse submodule update              # check every submodule out at its recorded commit
+glimpse submodule sync                # re-read the submodule URLs from .gitmodules
+glimpse sparse set app src            # narrow the working tree to those directories
+glimpse sparse disable                # …and restore the whole tree
+```
+
 Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory. Both may be written **before** the command as well as after it, so `glimpse -C <dir> status` and `glimpse status -C <dir>` mean the same thing. A write answers with what it did (`{"action": "commit", "detail": …, "commit": "<hash>"}`), so a script never needs a second command to find out whether the first one landed.
 
 Every path argument means the same thing on every command: **relative to the repository root**, the spelling `glimpse status` prints and `--json` reports back — whichever directory you run from. So the obvious pipeline (read paths out of one command, hand them to the next) holds from a subdirectory too, which is where a script, a CI job or an agent usually finds itself.
@@ -241,7 +253,7 @@ Every path argument means the same thing on every command: **relative to the rep
 When a glimpse window is open on the same repository, it refreshes as soon as a write command succeeds — the CLI leaves a small receipt in the repository's git dir (`<git-dir>/glimpse/last-write.json`) that the window watches directly, instead of waiting on its debounced filesystem watcher. That notification is **best-effort**: if it cannot be written, the command that already succeeded still succeeds.
 
 > [!NOTE]
-> Every read view ships, and so do the working-tree writes, the commit writes, the refs-and-metadata group, the network operations and the paused flows above. The remaining write actions — creating and removing **worktrees**, updating and syncing **submodules**, and setting or disabling **sparse-checkout** — are still GUI-only; they are tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
+> **Every read view and every write action the app offers now has a subcommand**, `--json` and `-C` included — the working-tree writes, the commit writes, the refs-and-metadata group, the network operations, the paused flows and the layout writes above. What is still open is **WSL parity**: inside a WSL shell `glimpse <subcommand>` does not yet reach this command line. That is tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
 
 ### Changelists
 

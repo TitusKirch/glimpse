@@ -23,6 +23,7 @@ use glimpse_core::git;
 use std::io::Write;
 
 mod changelist;
+mod layout;
 mod network;
 mod paused;
 mod read;
@@ -71,6 +72,8 @@ pub const SUBCOMMANDS: &[&str] = &[
     "rebase",
     "bisect",
     "resolve",
+    "worktree",
+    "submodule",
     "cl",
 ];
 
@@ -110,6 +113,12 @@ pub const GROUPED: &[&str] = &[
     "bisect bad",
     "bisect skip",
     "bisect reset",
+    "worktree add",
+    "worktree remove",
+    "submodule update",
+    "submodule sync",
+    "sparse set",
+    "sparse disable",
     "cl add",
     "cl mv",
     "cl rm",
@@ -124,13 +133,7 @@ pub const GROUPED: &[&str] = &[
 /// and `stashes`. They are commands in their own right now — grouped ones, whose
 /// verbs write — and the bare spelling still lists, so nothing a user typed
 /// before means anything different today.
-const ALIASES: &[&str] = &[
-    "changelist",
-    "worktree",
-    "submodule",
-    "sparse-checkout",
-    "file-history",
-];
+const ALIASES: &[&str] = &["changelist", "sparse-checkout", "file-history"];
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -206,6 +209,11 @@ pub fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
             0
         }
         Some("cl") | Some("changelist") => changelist::run(&args[1..], out, err),
+        // The long spelling of the sparse group, normalised to the one word the
+        // rest of the CLI knows it by — the same door `changelist` opens onto
+        // `cl`. Without this the alias would reach only the read view, so
+        // `glimpse sparse-checkout disable` would list instead of disabling.
+        Some("sparse-checkout") => write::run("sparse", &args[1..], out, err),
         Some(cmd) if write::claims(cmd) => write::run(cmd, &args[1..], out, err),
         Some(cmd) => read::run(cmd, &args[1..], out, err),
     }
@@ -470,6 +478,17 @@ Flows that pause and wait:
   The git spellings work too: `rebase --continue`, `rebase --abort`.
   In a MERGE, --ours is the branch you are on. In a REBASE they swap: --ours is
   the branch you are rebasing onto, --theirs is your own commit being replayed.
+
+Repository layout:
+  worktree [ls]                        List linked worktrees
+  worktree add <path> [<commit>]       Create a worktree at <path> (default: a new branch)
+  worktree remove <path>               Remove a linked worktree
+  submodule [ls]                       List submodules and their sync state
+  submodule update                     Check every submodule out at its recorded commit
+  submodule sync                       Re-read submodule URLs from .gitmodules
+  sparse [ls]                          Show the sparse-checkout state
+  sparse set <dir>...                  Narrow the working tree to those directories
+  sparse disable                       Restore the whole working tree
 
 Changelists:
   cl [ls]                              List changelists and their files

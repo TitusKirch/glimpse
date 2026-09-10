@@ -13,14 +13,14 @@
 //! * **A running GUI is told afterwards** ([`crate::signal`]), best-effort: the
 //!   notification cannot fail the command that succeeded.
 
-use crate::{fail, network, open_repo, parse_globals, paused, refs, signal, wants_json};
+use crate::{fail, layout, network, open_repo, parse_globals, paused, refs, signal, wants_json};
 use glimpse_core::git::Repo;
 use std::io::Write;
 
 /// The write commands this module answers to. Kept beside the implementation so
 /// [`crate::run`] routes on one list rather than on a match arm that can drift.
 ///
-/// The last seven are **grouped**: their own verb follows the name (`branch
+/// The last ten are **grouped**: their own verb follows the name (`branch
 /// create`, `stash pop`), the way `cl` already spells its own. They are listed
 /// here as the one word `claims` and the two documentation guards see, and
 /// [`crate::GROUPED`] carries the verbs.
@@ -43,6 +43,9 @@ pub const WRITE_SUBCOMMANDS: &[&str] = &[
     "rebase",
     "bisect",
     "resolve",
+    "worktree",
+    "submodule",
+    "sparse",
 ];
 
 pub(crate) fn claims(cmd: &str) -> bool {
@@ -69,6 +72,12 @@ fn listing_instead(cmd: &str, rest: &[String]) -> Option<&'static str> {
         "stash" => Some("stashes"),
         "tag" => Some("tags"),
         "remote" => Some("remotes"),
+        "worktree" => Some("worktrees"),
+        "submodule" => Some("submodules"),
+        // The one group whose bare word is already the read command's own name:
+        // sparse-checkout has no plural, so `glimpse sparse` was the listing
+        // before it had verbs and still is.
+        "sparse" => Some("sparse"),
         _ => None,
     }
 }
@@ -116,6 +125,11 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
         // requires, and what "it worked" means, is a question about the
         // repository rather than about the arguments.
         "rebase" | "bisect" | "resolve" => paused::run(cmd, &repo, &globals.rest),
+        // The one-shot layout writes. Same contract again, own module: their
+        // subject is the repository's layout — a second working tree, an
+        // embedded repository, the slice of the tree that is checked out — so
+        // what each one reads back afterwards is git's own listing of it.
+        "worktree" | "submodule" | "sparse" => layout::run(cmd, &repo, &globals.rest),
         // The refs and metadata group. Same contract, own module: their subject
         // is a ref rather than a path, so what they read back afterwards — and
         // what they refuse — is a different question from the working tree's.

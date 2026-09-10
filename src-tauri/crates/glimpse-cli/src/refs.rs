@@ -823,7 +823,7 @@ fn landed(
 /// Split a grouped command's verb from its own arguments, naming the verbs it
 /// does have rather than deferring to `--help` — the user is one word away from
 /// what they meant, and the list is short enough to say here.
-fn verb<'a>(
+pub(crate) fn verb<'a>(
     rest: &'a [String],
     group: &str,
     verbs: &[&str],
@@ -860,7 +860,11 @@ fn must_exist(have: &[String], name: &str, kind: &str, lister: &str) -> Result<(
 /// Too many matters as much as too few here: `glimpse branch rename old new
 /// extra` with the tail dropped would rename against arguments the user did not
 /// think they were giving.
-fn operands<'a>(args: &'a [String], usage: &str, n: usize) -> Result<&'a [String], Failure> {
+pub(crate) fn operands<'a>(
+    args: &'a [String],
+    usage: &str,
+    n: usize,
+) -> Result<&'a [String], Failure> {
     for a in args {
         if a.starts_with('-') {
             return Err(format!("unexpected argument: {a}").into());
