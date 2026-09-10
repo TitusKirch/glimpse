@@ -2528,16 +2528,45 @@ impl Repo {
         self.run(&["add", "--", file]).map(|_| ())
     }
 
+    /// The remote a branch with no upstream would be published to: `origin`
+    /// when it exists, otherwise the sole remote when there is exactly one.
+    ///
+    /// `None` where there are several and none is called `origin` — a genuine
+    /// ambiguity, and the one case this cannot answer for the caller. Naming
+    /// `origin` unconditionally is what it replaces: a repository whose one
+    /// remote is called `upstream` has an upstream to publish to, and hardcoding
+    /// the conventional name told it otherwise.
+    pub fn push_remote(&self) -> Option<String> {
+        let remotes = self.remote_names().ok()?;
+        if remotes.iter().any(|r| r == "origin") {
+            return Some("origin".to_string());
+        }
+        match remotes.as_slice() {
+            [only] => Some(only.clone()),
+            _ => None,
+        }
+    }
+
     /// Push the current branch. `set_upstream` publishes a new branch and
-    /// records its upstream (`-u origin HEAD`); `force` uses the safe
+    /// records its upstream (`-u <remote> HEAD`, the remote resolved by
+    /// [`push_remote`](Self::push_remote)); `force` uses the safe
     /// `--force-with-lease` (never the unconditional `--force`).
     pub fn push(&self, set_upstream: bool, force: bool) -> Result<String, String> {
+        let remote = if set_upstream {
+            self.push_remote().ok_or_else(|| {
+                "several remotes are configured and none is named origin, so there is no \
+                 default to publish to\n\nName the one you mean: git push -u <remote> HEAD"
+                    .to_string()
+            })?
+        } else {
+            String::new()
+        };
         let mut args = vec!["push"];
         if force {
             args.push("--force-with-lease");
         }
         if set_upstream {
-            args.extend(["--set-upstream", "origin", "HEAD"]);
+            args.extend(["--set-upstream", remote.as_str(), "HEAD"]);
         }
         self.run(&args)
     }

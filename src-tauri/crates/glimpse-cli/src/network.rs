@@ -153,11 +153,24 @@ fn push(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
     let branch = on_a_branch(repo, "push")?;
     let upstream = repo.upstream();
     if upstream.is_empty() && !set_upstream {
-        return Err(format!(
-            "{branch} has no upstream, so there is nowhere to push it\n\n\
-             Publish it and record where it went: glimpse push -u"
-        )
-        .into());
+        // The advice has to be true where it is given: `-u` publishes to the
+        // remote the engine resolves, which is `origin` only where `origin` is
+        // what the remote is called. Recommending a command that then fails with
+        // git's "'origin' does not appear to be a git repository" is worse than
+        // no advice at all.
+        let how = match repo.push_remote() {
+            Some(remote) => {
+                format!(
+                    "Publish it and record where it went: glimpse push -u — it goes to {remote}."
+                )
+            }
+            None => "Several remotes are configured and none is named origin, so nothing here \
+                     can pick one for you: git push -u <remote> HEAD"
+                .to_string(),
+        };
+        return Err(
+            format!("{branch} has no upstream, so there is nowhere to push it\n\n{how}").into(),
+        );
     }
 
     // Where the remote stood before, so the report can say what this push added

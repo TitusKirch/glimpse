@@ -332,6 +332,45 @@ fn push_refuses_an_unpublished_branch_until_it_is_asked_to_publish_it() {
 }
 
 #[test]
+fn push_u_publishes_to_the_only_remote_even_when_it_is_not_called_origin() {
+    // The refusal above sends the reader to `glimpse push -u`, so that command
+    // has to work wherever the refusal can appear. It used to hardcode `origin`
+    // and dead-end with git's own "'origin' does not appear to be a git
+    // repository" in any repository that named its remote something else.
+    let r = repo_with_remote("push-upstream-named");
+    git(&r.dir, &["remote", "rename", "origin", "upstream"]);
+    git(&r.dir, &["switch", "-q", "-c", "feat"]);
+    commit_local(&r.dir, "c.txt", "c1\n", "mine");
+
+    let dir = r.dir.to_string_lossy().to_string();
+    let (code, _out, err) = run(&["push", "-C", &dir]);
+    assert_eq!(code, 1);
+    assert!(err.contains("glimpse push -u"), "{err:?}");
+    assert!(
+        err.contains("upstream"),
+        "the advice names the remote it would publish to: {err:?}"
+    );
+
+    let (code, out, err) = run(&["push", "-C", &dir, "-u"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(out.contains("feat"), "{out:?}");
+    assert_eq!(tracking(&r.origin, "refs/heads/feat"), head(&r.dir));
+    assert_eq!(
+        git_out(
+            &r.dir,
+            &[
+                "rev-parse",
+                "--abbrev-ref",
+                "--symbolic-full-name",
+                "@{upstream}"
+            ]
+        )
+        .trim(),
+        "upstream/feat"
+    );
+}
+
+#[test]
 fn push_refuses_a_detached_head_because_there_is_no_branch_to_publish() {
     let r = repo_with_remote("push-detached");
     git(&r.dir, &["checkout", "-q", "--detach", "HEAD"]);
