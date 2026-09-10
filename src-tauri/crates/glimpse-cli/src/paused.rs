@@ -468,8 +468,17 @@ fn resolve(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
         }
     }
 
+    // A path git refuses outright is *not* returned here. `checkout --theirs` on
+    // a modify/delete conflict fails rather than leaving the path unmerged, and
+    // propagating that would hand the caller git's raw error, command line and
+    // all, before the read-back below — which knows the conflict has no such
+    // side and what to do about it — ever ran. So the refusals are held, and the
+    // repository gets the last word.
+    let mut refused: Vec<String> = Vec::new();
     for p in &paths {
-        repo.resolve_conflict(p, side)?;
+        if let Err(e) = repo.resolve_conflict(p, side) {
+            refused.push(e);
+        }
     }
 
     // Read back: `git checkout --ours` can leave a path unmerged in cases it
@@ -506,6 +515,12 @@ fn resolve(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
                 (!done.is_empty()).then(|| Report::new("resolve", done, String::new()))
             },
         });
+    }
+
+    // Every path came out settled and git still complained: not a shape this
+    // knows how to explain, so its own words are the honest answer.
+    if let Some(first) = refused.first() {
+        return Err(first.clone().into());
     }
 
     let detail = format!(

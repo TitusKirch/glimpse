@@ -11,8 +11,8 @@
 mod common;
 
 use common::{
-    bisectable, clean_repo, git, git_out, json_of, merged_with_conflict, paused_on_break,
-    paused_on_failed_exec, rebase_that_conflicts, receipt, run,
+    bisectable, clean_repo, git, git_out, json_of, merged_over_a_deletion, merged_with_conflict,
+    paused_on_break, paused_on_failed_exec, rebase_that_conflicts, receipt, run,
 };
 
 /// Is a rebase paused, asked of git rather than of the CLI under test?
@@ -701,6 +701,40 @@ fn a_failure_in_a_paused_flow_is_json_when_json_was_asked_for() {
         let e = json_of(&err);
         assert!(e["error"].is_string(), "{args:?} -> {err:?}");
     }
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn resolve_theirs_on_a_deleted_side_explains_itself_rather_than_echoing_git() {
+    // A modify/delete conflict has no `theirs` content to check out, so git's
+    // own `checkout --theirs` fails outright — and that failure used to be
+    // returned as it came, command line and all, before the read-back that
+    // knows how to say what happened could run. The read-back is the answer
+    // here, not a fallback.
+    let dir = merged_over_a_deletion("resolve-theirs-deleted");
+    let path = dir.to_str().unwrap();
+
+    let (code, out, err) = run(&["resolve", "-C", path, "a.txt", "--theirs"]);
+    assert_eq!(code, 1, "stdout: {out:?}");
+    assert!(
+        err.contains("deleted the file"),
+        "the shape of the conflict is named: {err:?}"
+    );
+    assert!(
+        err.contains("glimpse stage") && err.contains("glimpse discard"),
+        "and both ways out are offered: {err:?}"
+    );
+    assert!(
+        !err.contains("$ git "),
+        "git's own command line is not the answer: {err:?}"
+    );
+
+    // Nothing was settled, so the conflict is still there to settle.
+    assert!(
+        git_out(&dir, &["status", "--porcelain"]).contains("a.txt"),
+        "the path is still unresolved"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }

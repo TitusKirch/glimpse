@@ -427,3 +427,42 @@ pub fn paused_on_failed_exec(tag: &str) -> PathBuf {
     assert!(!status.success(), "the exec was supposed to fail");
     dir
 }
+
+/// A scratch repository stopped mid-merge on a **modify/delete** conflict: the
+/// other side deleted `a.txt`, this one changed it.
+///
+/// The conflict shape with no `theirs` content to check out at all, which is
+/// what makes it the case `resolve --theirs` has to answer for rather than hand
+/// git's own error to.
+pub fn merged_over_a_deletion(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    std::fs::write(dir.join("a.txt"), "base\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "initial commit"]);
+
+    git(&dir, &["switch", "-q", "-c", "side"]);
+    git(&dir, &["rm", "-q", "a.txt"]);
+    git(&dir, &["commit", "-q", "-m", "side deletes a"]);
+
+    git(&dir, &["switch", "-q", "main"]);
+    std::fs::write(dir.join("a.txt"), "main\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "main edits a"]);
+
+    // Deliberately not `git()`: the merge is meant to stop.
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(&dir)
+        .args(["merge", "side"])
+        .status()
+        .expect("run git");
+    assert!(!status.success(), "the merge was supposed to conflict");
+    dir
+}
