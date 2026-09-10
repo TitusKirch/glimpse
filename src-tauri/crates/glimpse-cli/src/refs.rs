@@ -1102,6 +1102,14 @@ pub(crate) fn in_progress(repo: &Repo) -> Option<&'static str> {
         Some("cherry-pick")
     } else if repo.revert_in_progress() {
         Some("revert")
+    } else if repo.rebase_in_progress() {
+        // A paused rebase belongs on this list for exactly the reason the other
+        // three do, and its absence was a real hole: `glimpse discard --all
+        // --force` gates on this function, so mid-rebase it took every conflict
+        // to *ours*, dropped the other side and left `REBASE_HEAD` set behind a
+        // `status` that read clean — the precise failure the refusal for
+        // `MERGE_HEAD` exists to prevent.
+        Some("rebase")
     } else {
         None
     }

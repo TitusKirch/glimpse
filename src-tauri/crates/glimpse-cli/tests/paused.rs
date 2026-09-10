@@ -276,6 +276,41 @@ fn a_rebase_verb_mid_merge_points_at_the_operation_that_is_actually_open() {
 }
 
 // ---------------------------------------------------------------------------
+// the carried-forward REBASE_HEAD gap
+// ---------------------------------------------------------------------------
+
+#[test]
+fn discard_all_refuses_mid_rebase_instead_of_settling_it_on_ours() {
+    // Carried forward from three review rounds: `discard --all --force` gated
+    // on merge / cherry-pick / revert but not on REBASE_HEAD, so mid-rebase it
+    // took every conflict to *ours*, threw the other side away and left the
+    // rebase open behind a `status` that read clean.
+    let dir = rebase_that_conflicts("discard-mid-rebase");
+    let path = dir.to_str().unwrap();
+    let (_code, _out, _err) = run(&["rebase", "-C", path, "main"]);
+    assert!(rebasing(&dir));
+
+    let (code, out, err) = run(&["discard", "-C", path, "--all", "--force"]);
+    assert_eq!(code, 1, "stdout: {out:?}");
+    assert!(err.contains("rebase"), "the state is named: {err:?}");
+    assert!(
+        err.contains("glimpse rebase abort"),
+        "and the way out is glimpse's own verb, not git's: {err:?}"
+    );
+
+    // Nothing was destroyed behind the refusal: the rebase is still paused and
+    // the conflict is still there to settle.
+    assert!(rebasing(&dir), "the rebase is still open");
+    let status = git_out(&dir, &["status", "--porcelain"]);
+    assert!(
+        status.contains("a.txt"),
+        "the conflict survived: {status:?}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+// ---------------------------------------------------------------------------
 // bisect
 // ---------------------------------------------------------------------------
 
