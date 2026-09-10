@@ -23,6 +23,7 @@ use glimpse_core::git;
 use std::io::Write;
 
 mod changelist;
+mod network;
 mod read;
 mod refs;
 mod signal;
@@ -63,6 +64,9 @@ pub const SUBCOMMANDS: &[&str] = &[
     "cherry-pick",
     "revert",
     "reset",
+    "fetch",
+    "pull",
+    "push",
     "cl",
 ];
 
@@ -428,6 +432,11 @@ Branches, tags, remotes and stashes:
   stash pop [<stash>]                  Restore an entry and remove it (default: stash@{{0}})
   stash apply [<stash>]                Restore an entry and keep it
   stash drop <stash>                   Throw an entry away (the name is required)
+
+Talking to a remote:
+  fetch                                Update every remote-tracking branch
+  pull [--merge|--rebase|--ff-only]    Bring the upstream's commits down
+  push [-u] [--force]                  Publish this branch (--force is a lease)
 
 Moving commits:
   cherry-pick <commit>...              Replay commits onto the current branch

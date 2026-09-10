@@ -13,7 +13,7 @@
 //! * **A running GUI is told afterwards** ([`crate::signal`]), best-effort: the
 //!   notification cannot fail the command that succeeded.
 
-use crate::{fail, open_repo, parse_globals, refs, signal, wants_json};
+use crate::{fail, network, open_repo, parse_globals, refs, signal, wants_json};
 use glimpse_core::git::Repo;
 use std::io::Write;
 
@@ -37,6 +37,9 @@ pub const WRITE_SUBCOMMANDS: &[&str] = &[
     "cherry-pick",
     "revert",
     "reset",
+    "fetch",
+    "pull",
+    "push",
 ];
 
 pub(crate) fn claims(cmd: &str) -> bool {
@@ -100,6 +103,10 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
         "discard" => discard(&repo, &globals.rest),
         "commit" => commit(&repo, &globals.rest),
         "amend" => amend(&repo, &globals.rest),
+        // The network group. Same contract again, own module: their subject is
+        // a remote, which can decline the write after the local repository has
+        // already agreed to it.
+        "fetch" | "pull" | "push" => network::run(cmd, &repo, &globals.rest),
         // The refs and metadata group. Same contract, own module: their subject
         // is a ref rather than a path, so what they read back afterwards — and
         // what they refuse — is a different question from the working tree's.

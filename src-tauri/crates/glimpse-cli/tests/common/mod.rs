@@ -225,3 +225,98 @@ pub fn receipt(dir: &Path) -> Option<serde_json::Value> {
 pub fn json_of(text: &str) -> serde_json::Value {
     serde_json::from_str(text.trim()).unwrap_or_else(|e| panic!("not JSON ({e}): {text:?}"))
 }
+
+/// A working repository wired to a **local bare remote**, plus a second clone of
+/// that same remote.
+///
+/// The network commands are the first slice whose subject lives outside the
+/// repository, so the fixture has to be able to move the remote *behind the
+/// repository's back* — that is the only way `fetch` has anything to find,
+/// `pull` anything to bring down, and `--force-with-lease` anything to refuse.
+/// [`Remoted::other`] is that second hand: commits pushed from there reach
+/// `origin` without the repository under test ever hearing about it.
+///
+/// A bare repository on disk rather than a real host: the transport is git's
+/// own either way, and a test that needs the network is a test that does not
+/// run in CI, in a container, or on a train.
+pub struct Remoted {
+    /// The repository under test, with `origin` set and its branch published.
+    pub dir: PathBuf,
+    /// The bare repository both clones push to.
+    pub origin: PathBuf,
+    /// A second clone, for moving `origin` on without touching `dir`.
+    pub other: PathBuf,
+}
+
+pub fn repo_with_remote(tag: &str) -> Remoted {
+    let root = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("create temp root");
+
+    let origin = root.join("origin.git");
+    let seed = root.join("seed");
+    let dir = root.join("work");
+    let other = root.join("other");
+
+    let init = Command::new("git")
+        .args(["init", "-q", "--bare", "-b", "main"])
+        .arg(&origin)
+        .status()
+        .expect("run git");
+    assert!(init.success(), "git init --bare failed");
+
+    // Seeded with `init` + `remote add` rather than by cloning: cloning a bare
+    // repository that has no commits yet is legal, but git warns about it on
+    // every one, and a suite that prints sixteen warnings it expects trains the
+    // reader to skim past the one it does not.
+    std::fs::create_dir_all(&seed).expect("create seed");
+    git(&seed, &["init", "-q", "-b", "main"]);
+    git(&seed, &["config", "user.email", "test@example.com"]);
+    git(&seed, &["config", "user.name", "Test"]);
+    git(&seed, &["config", "commit.gpgsign", "false"]);
+    git(
+        &seed,
+        &["remote", "add", "origin", &origin.to_string_lossy()],
+    );
+    std::fs::write(seed.join("a.txt"), "a1\n").unwrap();
+    git(&seed, &["add", "-A"]);
+    git(&seed, &["commit", "-q", "-m", "first"]);
+    git(&seed, &["push", "-q", "--set-upstream", "origin", "main"]);
+
+    clone(&origin, &dir);
+    clone(&origin, &other);
+    Remoted { dir, origin, other }
+}
+
+/// Clone `origin` into `dir` with the same hermetic identity every other
+/// fixture uses, so a commit made in a clone never depends on the developer's
+/// global config.
+fn clone(origin: &Path, dir: &Path) {
+    let status = Command::new("git")
+        .args(["clone", "-q"])
+        .arg(origin)
+        .arg(dir)
+        .status()
+        .expect("run git");
+    assert!(status.success(), "git clone failed");
+    git(dir, &["config", "user.email", "test@example.com"]);
+    git(dir, &["config", "user.name", "Test"]);
+    git(dir, &["config", "commit.gpgsign", "false"]);
+}
+
+/// Commit `content` to `file` in `dir` and push it to `origin`. The one move the
+/// network fixtures are built for: the remote gains a commit the repository
+/// under test has never seen.
+pub fn commit_and_push(dir: &Path, file: &str, content: &str, message: &str) {
+    std::fs::write(dir.join(file), content).unwrap();
+    git(dir, &["add", "-A"]);
+    git(dir, &["commit", "-q", "-m", message]);
+    git(dir, &["push", "-q"]);
+}
+
+/// Commit `content` to `file` in `dir` without pushing it.
+pub fn commit_local(dir: &Path, file: &str, content: &str, message: &str) {
+    std::fs::write(dir.join(file), content).unwrap();
+    git(dir, &["add", "-A"]);
+    git(dir, &["commit", "-q", "-m", message]);
+}

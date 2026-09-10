@@ -177,6 +177,16 @@ glimpse stash apply stash@{1}  # …or restore one and keep it
 glimpse stash drop stash@{1}   # throw one away (the name is required)
 ```
 
+Talking to a remote is the same shape — nothing is asked interactively, and every one of them says what actually moved:
+
+```bash
+glimpse fetch                  # update every remote-tracking branch, and name the ones that moved
+glimpse pull                   # bring the upstream's commits down (--rebase, --ff-only)
+glimpse push                   # publish this branch's commits
+glimpse push -u                # …publishing a branch for the first time, recording its upstream
+glimpse push --force           # overwrite the remote — a lease, never a bare --force
+```
+
 And the three that move commits about:
 
 ```bash

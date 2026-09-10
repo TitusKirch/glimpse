@@ -1115,7 +1115,7 @@ pub(crate) fn in_progress(repo: &Repo) -> Option<&'static str> {
 /// the paths still in dispute, and says how to get out. Starting a second
 /// operation on top of an unfinished one is the half-act these commands exist
 /// not to commit.
-fn refuse_if_open(repo: &Repo) -> Result<(), Failure> {
+pub(crate) fn refuse_if_open(repo: &Repo) -> Result<(), Failure> {
     let Some(state) = in_progress(repo) else {
         return Ok(());
     };
@@ -1140,7 +1140,7 @@ fn refuse_if_open(repo: &Repo) -> Result<(), Failure> {
 /// The paths git still shows as unmerged. Best-effort: this only ever decorates
 /// a message that is already being written, so a `status` that itself fails
 /// leaves the message shorter rather than replacing the real reason with its own.
-fn conflicted_paths(repo: &Repo) -> Vec<String> {
+pub(crate) fn conflicted_paths(repo: &Repo) -> Vec<String> {
     repo.status()
         .map(|entries| {
             entries
@@ -1165,7 +1165,7 @@ fn conflicted_paths(repo: &Repo) -> Vec<String> {
 /// — merge, cherry-pick, revert and both stash restores stop the same way, and
 /// a repair living inside [`stopped_operation`] reached only the three that
 /// went through it.
-fn said_what_stopped(op: &str, reason: &str) -> String {
+pub(crate) fn said_what_stopped(op: &str, reason: &str) -> String {
     if reason.trim_start().starts_with('$') || reason.trim().is_empty() {
         format!("the {op} stopped without completing\n{reason}")
     } else {
@@ -1238,7 +1238,7 @@ fn stopped_operation(
 }
 
 /// A hash short enough to read in a sentence, long enough to paste back.
-fn short(hash: &str) -> String {
+pub(crate) fn short(hash: &str) -> String {
     hash.chars().take(8).collect()
 }
 
