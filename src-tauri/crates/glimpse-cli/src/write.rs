@@ -603,8 +603,8 @@ fn mid_operation_refusal(op: &str, conflicted: &[String]) -> String {
     format!(
         "{state}\n\n\
          Discarding now would take every conflicted path to *ours* and throw the other \
-         side away — and the {op} itself would stay open, with its own HEAD ref still set \
-         and nothing left in the tree to show for it, so the next commit would record it \
+         side away — and the {op} itself would stay open, with git still part-way through \
+         it and nothing left in the tree to show for it, so the next commit would record it \
          as though both sides had been weighed.\n\n\
          Finish it (resolve each path, then glimpse stage <path>... and glimpse commit), \
          or undo it with `{}`.",
