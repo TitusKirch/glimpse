@@ -1828,8 +1828,15 @@ impl Repo {
     /// process that owns the repository.
     ///
     /// A method rather than a line inside [`info`](Self::info) because a command
-    /// that has just failed needs the same answer without paying for the whole
+    /// that has just failed needs the same answer without building the whole
     /// repository summary to get it.
+    ///
+    /// **It costs up to three git invocations**, not the single ref lookup it
+    /// used to be: one `rev-parse`, then one `hash-object` per backend until one
+    /// answers. [`info`](Self::info) pays that on every summary. The price is
+    /// deliberate — a cheaper probe was the wrong probe — and it is stated here
+    /// rather than left to be rediscovered, because it is the number to weigh if
+    /// this is ever called in a loop.
     pub fn rebase_in_progress(&self) -> bool {
         let Ok(git_dir) = self.run(&["rev-parse", "--absolute-git-dir"]) else {
             return false;
@@ -1854,6 +1861,15 @@ impl Repo {
     /// (that would need `-w`); the files asked about here are one object id
     /// long.
     fn file_in_git_dir(&self, git_dir: &str, name: &str) -> bool {
+        // The `rev-parse` half above goes through `run`, so a simulated git
+        // failure stops the probe there and it answers `false`. This half calls
+        // the target directly and would not have — an inconsistency that today
+        // is latent only because the failing `rev-parse` returns first. Asked
+        // here explicitly so the two steps agree by construction rather than by
+        // the order they happen to run in.
+        if trace::faults().injected_failure().is_some() {
+            return false;
+        }
         let path = format!("{git_dir}/{name}");
         self.target
             .command(&["hash-object", "--", &path])
