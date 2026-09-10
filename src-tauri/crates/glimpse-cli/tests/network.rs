@@ -115,12 +115,31 @@ fn pull_with_nothing_to_get_reports_that_and_leaves_head_alone() {
 fn pull_rebase_replays_local_work_on_top_rather_than_merging_it() {
     let r = repo_with_remote("pull-rebase");
     commit_and_push(&r.other, "b.txt", "b1\n", "from elsewhere");
+    let theirs = head(&r.other);
     commit_local(&r.dir, "c.txt", "c1\n", "mine");
 
     let dir = r.dir.to_string_lossy().to_string();
-    let (code, out, err) = run(&["pull", "-C", &dir, "--rebase"]);
+    let (code, out, err) = run(&["pull", "-C", &dir, "--rebase", "--json"]);
     assert_eq!(code, 0, "stderr: {err}");
-    assert!(out.contains("rebase"), "the strategy is reported: {out:?}");
+    let json = json_of(&out);
+    let detail = json["detail"].as_str().unwrap().to_string();
+    assert!(
+        detail.contains("rebase"),
+        "the strategy is reported: {detail:?}"
+    );
+
+    // The count is about the *remote*, not about HEAD. A rebase replays the
+    // local commit onto the new base, so it is a brand-new object unreachable
+    // from where HEAD stood — but nobody pulled it, it was already here.
+    assert!(
+        detail.contains("pulled 1 commit from"),
+        "one commit arrived, not two: {detail:?}"
+    );
+    assert_eq!(
+        json["paths"].as_array().unwrap(),
+        &vec![serde_json::Value::from(theirs)],
+        "and the receipt names exactly the commit the remote sent: {json}"
+    );
 
     // Linear: the merge strategy would have written a commit with two parents.
     let parents = git_out(&r.dir, &["rev-list", "--parents", "-n", "1", "HEAD"]);
@@ -131,6 +150,47 @@ fn pull_rebase_replays_local_work_on_top_rather_than_merging_it() {
     );
     // Both sides are present, so the replay kept the local work.
     assert!(r.dir.join("b.txt").exists() && r.dir.join("c.txt").exists());
+}
+
+#[test]
+fn a_diverged_merge_does_not_count_the_merge_commit_it_wrote_itself() {
+    // The other half of the same claim: `pulled N commits from <upstream>` is a
+    // statement about what the remote sent. A merge of a diverged branch writes
+    // one more commit — locally, here, in this command — and counting it would
+    // credit the remote with work it has never seen.
+    let r = repo_with_remote("pull-merge-diverged");
+    commit_and_push(&r.other, "b.txt", "b1\n", "from elsewhere");
+    let theirs = head(&r.other);
+    commit_local(&r.dir, "c.txt", "c1\n", "mine");
+
+    let dir = r.dir.to_string_lossy().to_string();
+    let (code, out, err) = run(&["pull", "-C", &dir, "--json"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let json = json_of(&out);
+    let detail = json["detail"].as_str().unwrap().to_string();
+    assert!(detail.contains("merge"), "{detail:?}");
+    assert!(
+        detail.contains("pulled 1 commit from"),
+        "one commit arrived; the merge commit is this repository's own: {detail:?}"
+    );
+
+    let paths: Vec<String> = json["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p.as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(paths, vec![theirs]);
+    // HEAD is the merge commit, and it is deliberately not in the receipt.
+    let merge_commit = head(&r.dir);
+    assert!(!paths.contains(&merge_commit), "{paths:?}");
+    assert_eq!(
+        git_out(&r.dir, &["rev-list", "--parents", "-n", "1", "HEAD"])
+            .split_whitespace()
+            .count(),
+        3,
+        "this really is the diverged case: a merge commit with two parents"
+    );
 }
 
 #[test]

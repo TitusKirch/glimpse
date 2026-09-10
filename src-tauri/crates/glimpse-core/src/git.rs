@@ -2135,8 +2135,21 @@ impl Repo {
     /// hashes, so the arguments a caller passed in are not an answer to "what
     /// landed?"; only this is.
     pub fn commits_since(&self, base: &str) -> Result<Vec<String>, String> {
-        reject_option(base)?;
-        let range = format!("{base}..HEAD");
+        self.commits_between(base, "HEAD")
+    }
+
+    /// Commit hashes reachable from `to` but not from `from`, oldest first —
+    /// [`commits_since`](Self::commits_since) with both ends named.
+    ///
+    /// The end that is not `HEAD` is the point: "what did this operation add?"
+    /// and "what did the other side send?" are different questions, and a pull
+    /// of a diverged branch answers them differently — the local commits a
+    /// rebase replays, and the merge commit a merge writes, are both new to
+    /// `HEAD` and neither came from the remote.
+    pub fn commits_between(&self, from: &str, to: &str) -> Result<Vec<String>, String> {
+        reject_option(from)?;
+        reject_option(to)?;
+        let range = format!("{from}..{to}");
         let raw = self.run(&["rev-list", "--reverse", &range])?;
         Ok(lines(&raw).map(str::to_string).collect())
     }

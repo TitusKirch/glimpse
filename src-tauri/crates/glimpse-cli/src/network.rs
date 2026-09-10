@@ -101,7 +101,19 @@ fn pull(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
         return Err(stopped_pull(repo, strategy, &e, &before));
     }
 
-    let added = repo.commits_since(&before)?;
+    // What the *upstream* sent — not what HEAD gained. The two differ exactly
+    // where the branch had diverged: a rebase replays the local commits onto the
+    // new base as new objects unreachable from `before`, and a merge writes a
+    // merge commit here, and neither of those came from the remote. So the
+    // read-back is against the upstream ref, which the pull has just moved, and
+    // `paths` names commits the remote really did send — it is also the receipt
+    // a running window is handed.
+    let added = match repo.resolve_commit(&upstream) {
+        Ok(tip) => repo.commits_between(&before, &tip)?,
+        // No remote-tracking ref to read back against. Nothing else here knows
+        // better than "what HEAD gained", so say that rather than nothing.
+        Err(_) => repo.commits_since(&before)?,
+    };
     let now = repo.resolve_commit("HEAD")?;
     let detail = if added.is_empty() {
         format!("{branch} is already up to date with {upstream}")
