@@ -1020,13 +1020,7 @@ impl Repo {
             .collect();
         let stashes = self.stash_list()?;
         let rebase_in_progress = self.rebase_in_progress();
-        // `git bisect log` succeeds only while a bisect session is active.
-        let bisect_in_progress = self
-            .target
-            .command(&["bisect", "log"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        let bisect_in_progress = self.bisect_in_progress();
 
         Ok(RepoInfo {
             toplevel,
@@ -1962,6 +1956,25 @@ impl Repo {
             _ => return Err(format!("invalid bisect verdict: {verdict}")),
         };
         self.run(&["bisect", sub])
+    }
+
+    /// Is a bisect session open?
+    ///
+    /// `git bisect log` is the probe rather than a ref: bisect keeps its state
+    /// in `BISECT_START` and a log file, and the log is the one thing that
+    /// exists for exactly as long as the session does. It succeeds only while
+    /// a session is running, which is the whole question.
+    ///
+    /// A method rather than the line it replaces inside [`info`](Self::info),
+    /// on the same reasoning as [`rebase_in_progress`](Self::rebase_in_progress):
+    /// a command about to begin an operation needs this answer without paying
+    /// for the whole repository summary to get it.
+    pub fn bisect_in_progress(&self) -> bool {
+        self.target
+            .command(&["bisect", "log"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
     }
 
     /// End the bisect session and return to the original HEAD.
