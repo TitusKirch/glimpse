@@ -320,3 +320,60 @@ pub fn commit_local(dir: &Path, file: &str, content: &str, message: &str) {
     git(dir, &["add", "-A"]);
     git(dir, &["commit", "-q", "-m", message]);
 }
+
+/// A repository whose `side` branch cannot be rebased onto `main` without a
+/// conflict: both changed `a.txt` away from the same base, and `side` is checked
+/// out with a clean tree.
+///
+/// `z.txt` rides along untouched so a test can tell "the rebase stopped" from
+/// "the rebase mangled the tree", and `side` carries **two** commits so `skip`
+/// has something to drop and something to keep.
+pub fn rebase_that_conflicts(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    std::fs::write(dir.join("a.txt"), "base\n").unwrap();
+    std::fs::write(dir.join("z.txt"), "z1\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "initial commit"]);
+
+    git(&dir, &["switch", "-q", "-c", "side"]);
+    std::fs::write(dir.join("a.txt"), "side\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "side touches a"]);
+    std::fs::write(dir.join("z.txt"), "z2\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "side touches z"]);
+
+    git(&dir, &["switch", "-q", "main"]);
+    std::fs::write(dir.join("a.txt"), "main\n").unwrap();
+    git(&dir, &["commit", "-q", "-am", "main touches a"]);
+
+    git(&dir, &["switch", "-q", "side"]);
+    dir
+}
+
+/// A repository with a linear history of five commits on `main`, where `a.txt`
+/// gains a line each time — the shape a bisect needs: a known-good root, a
+/// known-bad tip and enough in between for the bisection to take a step.
+pub fn bisectable(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("glimpse-cli-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("create temp repo");
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+
+    for n in 1..=5 {
+        std::fs::write(dir.join("a.txt"), format!("line {n}\n")).unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", &format!("commit {n}")]);
+    }
+    dir
+}

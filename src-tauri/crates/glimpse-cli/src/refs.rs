@@ -1107,6 +1107,19 @@ pub(crate) fn in_progress(repo: &Repo) -> Option<&'static str> {
     }
 }
 
+/// The command that puts an open operation back, per operation.
+///
+/// `git <op> --abort` is right for three of the four and wrong for the fourth
+/// only in spelling, but two of them now have a glimpse verb of their own — and
+/// sending a reader to `git` for something this CLI does is the kind of hint
+/// that goes stale the moment the surface grows. One table, so it cannot.
+pub(crate) fn undo_hint(op: &str) -> String {
+    match op {
+        "rebase" => "glimpse rebase abort".to_string(),
+        other => format!("git {other} --abort"),
+    }
+}
+
 /// Refuse to *begin* an operation while one is already open.
 ///
 /// git refuses most of these itself, in its own words and at its own moment —
@@ -1132,7 +1145,8 @@ pub(crate) fn refuse_if_open(repo: &Repo) -> Result<(), Failure> {
         "{where_it_is}\n\n\
          Starting another one on top of it would record a decision nobody made. Finish \
          this one (resolve each path, then glimpse stage <path>... and glimpse commit), \
-         or undo it with `git {state} --abort`."
+         or undo it with `{}`.",
+        undo_hint(state)
     )
     .into())
 }
@@ -1227,7 +1241,8 @@ fn stopped_operation(
         message: format!(
             "{reason}{detail}{moved}\n\n\
              The repository is left mid-operation. Resolve each path and stage it, then \
-             glimpse commit — or undo it with `git {op} --abort`."
+             glimpse commit — or undo it with `{}`.",
+            undo_hint(op)
         ),
         // The tree and the index moved even though the command failed, so the
         // window is told — with the subject that was being applied, which is the

@@ -13,7 +13,7 @@
 //! * **A running GUI is told afterwards** ([`crate::signal`]), best-effort: the
 //!   notification cannot fail the command that succeeded.
 
-use crate::{fail, network, open_repo, parse_globals, refs, signal, wants_json};
+use crate::{fail, network, open_repo, parse_globals, paused, refs, signal, wants_json};
 use glimpse_core::git::Repo;
 use std::io::Write;
 
@@ -40,6 +40,9 @@ pub const WRITE_SUBCOMMANDS: &[&str] = &[
     "fetch",
     "pull",
     "push",
+    "rebase",
+    "bisect",
+    "resolve",
 ];
 
 pub(crate) fn claims(cmd: &str) -> bool {
@@ -107,6 +110,12 @@ pub(crate) fn run(cmd: &str, args: &[String], out: &mut dyn Write, err: &mut dyn
         // a remote, which can decline the write after the local repository has
         // already agreed to it.
         "fetch" | "pull" | "push" => network::run(cmd, &repo, &globals.rest),
+        // The paused flows. Same contract again, own module: their subject is a
+        // *state* that outlives the process — a rebase halfway through, a bisect
+        // session, a conflict waiting for a decision — so what each verb
+        // requires, and what "it worked" means, is a question about the
+        // repository rather than about the arguments.
+        "rebase" | "bisect" | "resolve" => paused::run(cmd, &repo, &globals.rest),
         // The refs and metadata group. Same contract, own module: their subject
         // is a ref rather than a path, so what they read back afterwards — and
         // what they refuse — is a different question from the working tree's.
@@ -585,7 +594,8 @@ fn mid_operation_refusal(op: &str, conflicted: &[String]) -> String {
          and nothing left in the tree to show for it, so the next commit would record it \
          as though both sides had been weighed.\n\n\
          Finish it (resolve each path, then glimpse stage <path>... and glimpse commit), \
-         or undo it with `git {op} --abort`."
+         or undo it with `{}`.",
+        refs::undo_hint(op)
     )
 }
 

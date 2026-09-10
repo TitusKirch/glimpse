@@ -24,6 +24,7 @@ use std::io::Write;
 
 mod changelist;
 mod network;
+mod paused;
 mod read;
 mod refs;
 mod signal;
@@ -67,6 +68,9 @@ pub const SUBCOMMANDS: &[&str] = &[
     "fetch",
     "pull",
     "push",
+    "rebase",
+    "bisect",
+    "resolve",
     "cl",
 ];
 
@@ -98,6 +102,14 @@ pub const GROUPED: &[&str] = &[
     "stash pop",
     "stash apply",
     "stash drop",
+    "rebase continue",
+    "rebase skip",
+    "rebase abort",
+    "bisect start",
+    "bisect good",
+    "bisect bad",
+    "bisect skip",
+    "bisect reset",
     "cl add",
     "cl mv",
     "cl rm",
@@ -444,6 +456,21 @@ Moving commits:
   reset [--soft|--mixed|--hard] <commit> [--force]
                                        Move the current branch (default: --mixed)
 
+Flows that pause and wait:
+  rebase <branch>                      Replay this branch's commits onto <branch>
+  rebase continue                      Carry on once the conflicts are settled
+  rebase skip                          Drop the commit it stopped on and carry on
+  rebase abort                         Put everything back where the rebase started
+  bisect start <bad> <good>            Begin hunting the commit that broke it
+  bisect good | bisect bad             Say how the commit under test behaved
+  bisect skip                          This one cannot be tested; try another
+  bisect reset                         End the session and go back to your branch
+  resolve <file>... --ours|--theirs    Settle conflicts by taking one whole side
+
+  The git spellings work too: `rebase --continue`, `rebase --abort`.
+  In a MERGE, --ours is the branch you are on. In a REBASE they swap: --ours is
+  the branch you are rebasing onto, --theirs is your own commit being replayed.
+
 Changelists:
   cl [ls]                              List changelists and their files
   cl add <name>                        Create a changelist and make it active
@@ -469,7 +496,10 @@ as soon as a write command succeeds.
 Anything that destroys work says so and asks for it: naming the subject is the
 confirmation (`branch delete <name>`, `stash drop <stash>`), and an action that
 names no subject carries --force instead (`discard --all --force`, and
-`reset --hard` when there are uncommitted changes).
+`reset --hard` when there are uncommitted changes). `rebase abort` needs no flag
+because the paused rebase IS its subject and what it restores is the commit that
+rebase started from; `resolve` needs none either, but it will never pick a side
+for you.
 
 Every <file> is relative to the repository root — the spelling `glimpse status`
 prints and `--json` reports back — whichever directory you run the command from.

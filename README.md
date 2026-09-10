@@ -196,6 +196,27 @@ glimpse reset --soft HEAD~1    # move the branch, keep the change staged
 glimpse reset --hard <commit>  # …or throw the working tree away with it
 ```
 
+And the flows that pause and wait — a rebase stopped on a conflict, a bisect halfway through, a conflict nobody has settled. Each one asks the repository what state it is in before it does anything, and says where it left you:
+
+```bash
+glimpse rebase main            # replay this branch's commits onto main
+glimpse rebase continue        # carry on once the conflicts are settled
+glimpse rebase skip            # drop the commit it stopped on and carry on
+glimpse rebase abort           # put everything back where the rebase started
+glimpse bisect start bad good  # begin hunting the commit that broke it
+glimpse bisect good            # …say how the commit under test behaved
+glimpse bisect bad             # …and it names the first bad commit when it knows
+glimpse bisect skip            # this one cannot be tested; try another
+glimpse bisect reset           # end the session and go back to your branch
+glimpse resolve a.txt --ours   # settle a conflict by taking one whole side
+glimpse resolve a.txt --theirs # …and stage it
+```
+
+The git spellings work too — `glimpse rebase --continue`, `glimpse rebase --abort` — because that is the habit thirty years of `git` produces, and refusing it would be a refusal over nothing.
+
+> [!IMPORTANT]
+> **`--ours` and `--theirs` swap places in a rebase, and `glimpse resolve` will not guess for you.** In a merge, `--ours` is the branch you are on and `--theirs` is the one being brought in. In a **rebase** git replays your commits *onto* the other branch, so `--ours` is the branch you are rebasing onto and `--theirs` is your own commit. glimpse keeps git's convention rather than silently redefining two words you already know — and every message that offers the choice says which is which, in the state the repository is actually in. A `glimpse resolve` with no side is a refusal: which side of a conflict wins is the one decision this command line will not make on your behalf.
+
 Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory. Both may be written **before** the command as well as after it, so `glimpse -C <dir> status` and `glimpse status -C <dir>` mean the same thing. A write answers with what it did (`{"action": "commit", "detail": …, "commit": "<hash>"}`), so a script never needs a second command to find out whether the first one landed.
 
 Every path argument means the same thing on every command: **relative to the repository root**, the spelling `glimpse status` prints and `--json` reports back — whichever directory you run from. So the obvious pipeline (read paths out of one command, hand them to the next) holds from a subdirectory too, which is where a script, a CI job or an agent usually finds itself.
@@ -204,7 +225,7 @@ Every path argument means the same thing on every command: **relative to the rep
 > `--json` plus `-C` is the whole automation surface: an agent can point glimpse at any checkout and read its status, diffs, history, blame and layout — then stage, commit or amend — in the app's own shapes, never parsing porcelain by hand.
 
 > [!IMPORTANT]
-> **Anything that destroys work asks for it, and the rule is the same everywhere: naming the subject *is* the confirmation.** `glimpse discard <file>`, `glimpse branch delete <name>` and `glimpse stash drop <stash>` need no flag, because the caller has said exactly what they are willing to lose — which is also why `stash drop` refuses to assume `stash@{0}` the way bare `git stash drop` does. An action that names **no** subject carries `--force` instead: `glimpse discard --all --force`, and `glimpse reset --hard` when something is actually at risk — which is asked of the **target commit**, not of `git status`. A tracked or staged change is always at risk; an untracked path only where the target needs its name — it has a file there, or a file at a directory above it, or a directory where the file is. So a tree dirty with nothing but build output is not refused, and an untracked path the checkout would clear away is named along with which of those it is. `glimpse branch delete --force` is the one place the flag means something extra — deleting the ref is what you named, losing commits no other ref holds is not.
+> **Anything that destroys work asks for it, and the rule is the same everywhere: naming the subject *is* the confirmation.** `glimpse discard <file>`, `glimpse branch delete <name>`, `glimpse stash drop <stash>` and `glimpse rebase abort` need no flag, because the caller has said exactly what they are willing to lose — which is also why `stash drop` refuses to assume `stash@{0}` the way bare `git stash drop` does. An action that names **no** subject carries `--force` instead: `glimpse discard --all --force`, and `glimpse reset --hard` when something is actually at risk — which is asked of the **target commit**, not of `git status`. A tracked or staged change is always at risk; an untracked path only where the target needs its name — it has a file there, or a file at a directory above it, or a directory where the file is. So a tree dirty with nothing but build output is not refused, and an untracked path the checkout would clear away is named along with which of those it is. `glimpse branch delete --force` is the one place the flag means something extra — deleting the ref is what you named, losing commits no other ref holds is not.
 >
 > There is never a prompt: these commands exist to run unattended, where a prompt would either hang CI or be skipped in silence.
 
@@ -214,13 +235,13 @@ Every path argument means the same thing on every command: **relative to the rep
 > - **It always needs an explicit subject.** Naming a path **is** the confirmation. `--all` names nothing, so it carries `--force` instead.
 > - **It discards to the last commit, index included.** A staged change is uncommitted work, so `glimpse discard <file>` throws that away too — unlike `git restore <file>`, which would leave it and hand you the staged content back.
 > - **The plan covers what git will accept**, and is resolved against `status` before anything is destroyed: a path with nothing to discard, an unresolved merge conflict, a staged rename are all refused there, and the destruction itself is one `git restore` and one `git clean` for the whole batch. So a typo — or a state git would reject — costs nothing at all.
-> - **It will not settle a merge, cherry-pick or revert for you.** `--force` is consent to lose the working tree, not to decide which side of a conflict wins — so while one of those is still in progress (`MERGE_HEAD` / `CHERRY_PICK_HEAD` / `REVERT_HEAD` set, conflicts resolved or not) `glimpse discard --all --force` refuses, exactly as the per-path form already refuses a conflicted path. Otherwise it would quietly take every conflict to *ours*, drop the other side, and leave the operation open behind a `status` that reads clean. Finish it, or `git <op> --abort`. (`glimpse reset --hard` is the exception, and deliberately so: it clears those refs, so it concludes the operation rather than hiding it — which makes it the way *out* of one.)
+> - **It will not settle a merge, cherry-pick, revert or rebase for you.** `--force` is consent to lose the working tree, not to decide which side of a conflict wins — so while one of those is still in progress (`MERGE_HEAD` / `CHERRY_PICK_HEAD` / `REVERT_HEAD` / `REBASE_HEAD` set, conflicts resolved or not) `glimpse discard --all --force` refuses, exactly as the per-path form already refuses a conflicted path. Otherwise it would quietly take every conflict to *ours*, drop the other side, and leave the operation open behind a `status` that reads clean. Finish it, or undo it — `glimpse rebase abort`, or `git <op> --abort` for the other three. (`glimpse reset --hard` is the exception, and deliberately so: it clears those refs, so it concludes the operation rather than hiding it — which makes it the way *out* of one.)
 > - **The report is checked against the repository afterwards**, not assumed: git can decline a path without a word (`git clean` will not remove a nested repository), and if anything named survives, the command fails and names both halves — what survived, and what it had already destroyed. That holds for `--all` too, which reads the working tree **before** it destroys anything so the second half can be named at all. A window open on the repository is told about exactly that part, and only when there is one.
 
 When a glimpse window is open on the same repository, it refreshes as soon as a write command succeeds — the CLI leaves a small receipt in the repository's git dir (`<git-dir>/glimpse/last-write.json`) that the window watches directly, instead of waiting on its debounced filesystem watcher. That notification is **best-effort**: if it cannot be written, the command that already succeeded still succeeds.
 
 > [!NOTE]
-> Every read view ships, and so do the working-tree writes, the commit writes and the refs-and-metadata group above. The remaining write actions (fetch/pull/push, rebase, bisect, worktrees, submodules, sparse-checkout, conflict resolution) are still GUI-only; they are tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
+> Every read view ships, and so do the working-tree writes, the commit writes, the refs-and-metadata group, the network operations and the paused flows above. The remaining write actions — creating and removing **worktrees**, updating and syncing **submodules**, and setting or disabling **sparse-checkout** — are still GUI-only; they are tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
 
 ### Changelists
 
