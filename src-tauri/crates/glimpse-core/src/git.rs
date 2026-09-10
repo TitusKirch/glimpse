@@ -1798,15 +1798,65 @@ impl Repo {
         self.run(&["merge", "--no-ff", "--no-edit", "--", branch])
     }
 
-    /// True when a rebase is paused (e.g. stopped on a conflict) awaiting
-    /// continue / skip / abort — `REBASE_HEAD` exists.
+    /// True when a rebase is paused — stopped on a conflict, held at an `edit`
+    /// or a `break`, or halted by an `exec` that failed — awaiting
+    /// continue / skip / abort.
+    ///
+    /// **`REBASE_HEAD` is not the question**, which is what this used to ask.
+    /// Git sets that ref only when the sequencer stops *on a commit*; a `break`
+    /// and a failed `exec` stop between commits and set nothing. Both are states
+    /// glimpse's own rebase dialog produces — [`interactive_rebase`](Self::interactive_rebase) writes an
+    /// `exec … --amend --file=…` line for every reword — so a probe that missed
+    /// them had `rebase abort`, `rebase continue` and `glimpse info` all denying
+    /// a rebase the program had just started, and let `discard --all --force`
+    /// run through and leave it open behind a clean-looking `status`.
+    ///
+    /// What decides it is the sequencer's state directory, which is what git
+    /// itself consults before answering "No rebase in progress?". `onto` is the
+    /// file to look for: both backends write it, and `git am` — which shares the
+    /// apply backend's `rebase-apply` directory — does not, so a patch
+    /// application is not mistaken for a rebase.
+    ///
+    /// **Asked of git, never of the host filesystem.** The tempting probe is
+    /// `Path::exists` on `.git/rebase-merge`, and it is wrong the moment the
+    /// repository is not local: every other call here goes through
+    /// [`self.target`], so on Windows a `\\wsl$` repository is reached by
+    /// `wsl.exe` and a `Path::exists` in the Windows process would be answering
+    /// about the wrong filesystem. So git resolves the directory
+    /// (`rev-parse --absolute-git-dir`) and git reads the file
+    /// (`hash-object`, which fails when the path is not there) — both in the
+    /// process that owns the repository.
     ///
     /// A method rather than a line inside [`info`](Self::info) because a command
     /// that has just failed needs the same answer without paying for the whole
     /// repository summary to get it.
     pub fn rebase_in_progress(&self) -> bool {
+        let Ok(git_dir) = self.run(&["rev-parse", "--absolute-git-dir"]) else {
+            return false;
+        };
+        let git_dir = git_dir.trim();
+        if git_dir.is_empty() {
+            return false;
+        }
+        // Merge backend first: it is the default, and the only one that can
+        // reach a `break` or an `exec` at all.
+        ["rebase-merge/onto", "rebase-apply/onto"]
+            .iter()
+            .any(|state| self.file_in_git_dir(git_dir, state))
+    }
+
+    /// Does `<git dir>/<name>` exist, **as the git that owns the repository sees
+    /// it**?
+    ///
+    /// `hash-object` is the existence check because it is plumbing that reads
+    /// the path and exits non-zero when it cannot — and, unlike a host-side
+    /// `Path::exists`, it runs wherever the repository does. It writes nothing
+    /// (that would need `-w`); the files asked about here are one object id
+    /// long.
+    fn file_in_git_dir(&self, git_dir: &str, name: &str) -> bool {
+        let path = format!("{git_dir}/{name}");
         self.target
-            .command(&["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
+            .command(&["hash-object", "--", &path])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false)
@@ -3867,5 +3917,183 @@ mod paths_in_tree_tests {
         assert!(found.is_empty(), "{found:?}");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod rebase_state_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) -> bool {
+        Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git")
+            .success()
+    }
+
+    fn must(dir: &Path, args: &[&str]) {
+        assert!(git(dir, args), "git {args:?} failed");
+    }
+
+    fn git_out(dir: &Path, args: &[&str]) -> String {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .expect("run git");
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    /// Two commits on `main`, clean tree — enough history for a rebase to have
+    /// something to replay.
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-rebase-state-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+
+        must(&dir, &["init", "-q", "-b", "main"]);
+        must(&dir, &["config", "user.email", "test@example.com"]);
+        must(&dir, &["config", "user.name", "Test"]);
+        must(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
+        must(&dir, &["add", "-A"]);
+        must(&dir, &["commit", "-q", "-m", "first"]);
+        std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
+        must(&dir, &["commit", "-q", "-am", "second"]);
+        dir
+    }
+
+    fn has_rebase_head(dir: &Path) -> bool {
+        git(dir, &["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
+    }
+
+    #[test]
+    fn a_clean_repository_is_not_mid_rebase() {
+        let dir = scratch("clean");
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(!repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rebase_stopped_on_a_conflict_is_in_progress() {
+        let dir = scratch("conflict");
+        must(&dir, &["switch", "-q", "-c", "side", "HEAD~1"]);
+        std::fs::write(dir.join("a.txt"), "side\n").unwrap();
+        must(&dir, &["commit", "-q", "-am", "side"]);
+        assert!(!git(&dir, &["rebase", "main"]), "the rebase should stop");
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(has_rebase_head(&dir), "a conflict stop sets REBASE_HEAD");
+        assert!(repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rebase_paused_on_a_break_is_in_progress() {
+        // The state glimpse's own rebase dialog reaches: the sequencer stopped
+        // *between* commits, so git set no `REBASE_HEAD` — the probe this test
+        // guards used to answer "no rebase in progress" here, which made
+        // `rebase abort`, `rebase continue` and the `discard --all` refusal all
+        // wrong about a state the program creates itself.
+        let dir = scratch("break");
+        let head = git_out(&dir, &["rev-parse", "HEAD"]);
+        let todo = std::env::temp_dir().join(format!("glimpse-todo-break-{}", std::process::id()));
+        std::fs::write(&todo, format!("break\npick {head}\n")).unwrap();
+        must(
+            &dir,
+            &[
+                "-c",
+                "core.editor=true",
+                "-c",
+                &format!("sequence.editor=cp {}", todo.display()),
+                "rebase",
+                "-i",
+                "HEAD~1",
+            ],
+        );
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(
+            !has_rebase_head(&dir),
+            "the premise: a break stop sets no REBASE_HEAD"
+        );
+        assert!(repo.rebase_in_progress(), "but the rebase *is* in progress");
+
+        // And it goes back to false once the rebase is over, so the probe is
+        // reading the state rather than answering true for everything.
+        must(&dir, &["rebase", "--abort"]);
+        assert!(!repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&todo);
+    }
+
+    #[test]
+    fn a_rebase_stopped_on_a_failed_exec_is_in_progress() {
+        // The other `REBASE_HEAD`-less stop, and the one glimpse writes for
+        // every reword: `exec … --amend --file=…`.
+        let dir = scratch("exec");
+        assert!(
+            !git(&dir, &["rebase", "--exec", "false", "HEAD~1"]),
+            "the exec was supposed to fail"
+        );
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(
+            !has_rebase_head(&dir),
+            "the premise: a failed exec sets no REBASE_HEAD"
+        );
+        assert!(repo.rebase_in_progress(), "but the rebase *is* in progress");
+
+        must(&dir, &["rebase", "--abort"]);
+        assert!(!repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_am_in_progress_is_not_a_rebase() {
+        // `git am` uses the same `rebase-apply` directory as the apply backend,
+        // so a probe that answered on the directory alone would call a patch
+        // application a rebase and offer `rebase abort` as the way out of it.
+        let dir = scratch("am");
+        must(&dir, &["switch", "-q", "-c", "side", "HEAD~1"]);
+        std::fs::write(dir.join("a.txt"), "side\n").unwrap();
+        must(&dir, &["commit", "-q", "-am", "side"]);
+        let patches = std::env::temp_dir().join(format!("glimpse-am-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&patches);
+        must(
+            &dir,
+            &[
+                "format-patch",
+                "-1",
+                "main",
+                "-o",
+                patches.to_str().unwrap(),
+            ],
+        );
+        let patch = std::fs::read_dir(&patches)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert!(
+            !git(&dir, &["am", patch.to_str().unwrap()]),
+            "the patch was supposed to collide"
+        );
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(!repo.rebase_in_progress(), "an `am` is not a rebase");
+
+        must(&dir, &["am", "--abort"]);
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&patches);
     }
 }

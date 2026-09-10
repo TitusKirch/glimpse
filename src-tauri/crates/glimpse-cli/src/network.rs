@@ -269,7 +269,10 @@ fn stopped_pull(repo: &Repo, strategy: &str, reason: &str, before: &str) -> Fail
         .resolve_commit("HEAD")
         .map(|now| now != before)
         .unwrap_or(false);
-    let open = in_progress(repo).is_some() || repo.rebase_in_progress();
+    // A paused rebase is one of the states `in_progress` reports, so it needs no
+    // second question here — it used to, back when that list left `REBASE_HEAD`
+    // out.
+    let open = in_progress(repo).is_some();
     let reason = said_what_stopped(op, reason);
 
     // Nothing was touched — `--ff-only` declining a diverged branch, a remote

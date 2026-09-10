@@ -11,15 +11,20 @@
 mod common;
 
 use common::{
-    bisectable, clean_repo, git, git_out, json_of, merged_with_conflict, rebase_that_conflicts,
-    receipt, run,
+    bisectable, clean_repo, git, git_out, json_of, merged_with_conflict, paused_on_break,
+    paused_on_failed_exec, rebase_that_conflicts, receipt, run,
 };
 
 /// Is a rebase paused, asked of git rather than of the CLI under test?
+///
+/// The sequencer's state directory rather than `REBASE_HEAD`, because that ref
+/// is set only when the rebase stops *on a commit* — a `break` and a failed
+/// `exec` are just as paused and set nothing. These fixtures are always local,
+/// so the test may read the path directly; the engine may not, and asks git.
 fn rebasing(dir: &std::path::Path) -> bool {
-    !git_out(dir, &["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
-        .trim()
-        .is_empty()
+    let git_dir = git_out(dir, &["rev-parse", "--absolute-git-dir"]);
+    let git_dir = std::path::Path::new(git_dir.trim());
+    git_dir.join("rebase-merge").exists() || git_dir.join("rebase-apply").exists()
 }
 
 // ---------------------------------------------------------------------------
@@ -305,6 +310,80 @@ fn discard_all_refuses_mid_rebase_instead_of_settling_it_on_ours() {
     assert!(
         status.contains("a.txt"),
         "the conflict survived: {status:?}"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn rebase_abort_ends_a_rebase_paused_on_a_break() {
+    // A `break` stop sets no `REBASE_HEAD`, and the probe behind `must_be_paused`
+    // used to ask for nothing else — so `glimpse rebase abort` answered "there
+    // is no rebase in progress" in a state glimpse's own rebase dialog produces.
+    let dir = paused_on_break("rebase-abort-break");
+    let path = dir.to_str().unwrap();
+    assert!(rebasing(&dir), "the fixture really is paused");
+    assert!(
+        git_out(&dir, &["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
+            .trim()
+            .is_empty(),
+        "the premise: a break stop sets no REBASE_HEAD"
+    );
+
+    let (code, out, err) = run(&["rebase", "-C", path, "abort", "--json"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let r = json_of(&out);
+    assert_eq!(r["action"], "rebase abort");
+    assert!(!rebasing(&dir), "and the rebase really is over");
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "--abbrev-ref", "HEAD"]).trim(),
+        "main",
+        "back on the branch it started from"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn rebase_continue_carries_on_from_a_failed_exec() {
+    // The other `REBASE_HEAD`-less stop — and the one glimpse writes itself, as
+    // `exec … --amend --file=…` for every reword. `continue` is the documented
+    // way past a failed exec, and it was refused here for the same reason.
+    let dir = paused_on_failed_exec("rebase-continue-exec");
+    let path = dir.to_str().unwrap();
+    assert!(rebasing(&dir), "the fixture really is paused");
+
+    let (code, out, err) = run(&["rebase", "-C", path, "continue", "--json"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    let r = json_of(&out);
+    assert_eq!(r["action"], "rebase continue");
+    assert!(!rebasing(&dir), "the rebase finished");
+    assert_eq!(
+        git_out(&dir, &["log", "--oneline"]).lines().count(),
+        2,
+        "and both commits are still there"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn info_reports_a_rebase_that_stopped_without_setting_rebase_head() {
+    // `glimpse info` is where a caller looks to find out what state they are in,
+    // and it reads the same probe. Reporting `rebaseInProgress: false` mid-rebase
+    // is the answer that sends the next command wrong.
+    let dir = paused_on_break("info-break");
+    let path = dir.to_str().unwrap();
+
+    let (code, out, err) = run(&["info", "-C", path, "--json"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert_eq!(json_of(&out)["rebaseInProgress"], true);
+
+    let (code, out, err) = run(&["info", "-C", path]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(
+        out.contains("In progress: rebase"),
+        "and a human is told too: {out:?}"
     );
 
     let _ = std::fs::remove_dir_all(&dir);

@@ -377,3 +377,53 @@ pub fn bisectable(tag: &str) -> PathBuf {
     }
     dir
 }
+
+/// A scratch repository whose rebase is paused on a **`break`** — the sequencer
+/// stopped between commits rather than *on* one, so git has set no
+/// `REBASE_HEAD` at all.
+///
+/// The plan is fed through `sequence.editor=cp`, the same editor-free route
+/// `Repo::interactive_rebase` uses in production, so the fixture reaches the
+/// state the GUI's own rebase dialog can reach rather than a contrived one.
+pub fn paused_on_break(tag: &str) -> PathBuf {
+    let dir = clean_repo(tag);
+    let head = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    // Outside the repository on purpose: an untracked file in the working tree
+    // would change what a `discard --all` test is looking at.
+    let todo = std::env::temp_dir().join(format!("glimpse-cli-{tag}-todo-{}", std::process::id()));
+    std::fs::write(&todo, format!("break\npick {head}\n")).unwrap();
+    let editor = format!("sequence.editor=cp {}", todo.display());
+    git(
+        &dir,
+        &[
+            "-c",
+            "core.editor=true",
+            "-c",
+            &editor,
+            "rebase",
+            "-i",
+            "HEAD~1",
+        ],
+    );
+    dir
+}
+
+/// A scratch repository whose rebase is paused on a **failed `exec`** — the
+/// commits replayed cleanly and the command on the `exec` line exited non-zero,
+/// which again leaves no `REBASE_HEAD` behind.
+///
+/// `--exec` needs no editor, and it is the shape `Repo::interactive_rebase`
+/// writes for every reword: `exec … --amend --file=…`, a line that fails
+/// whenever the amend does.
+pub fn paused_on_failed_exec(tag: &str) -> PathBuf {
+    let dir = clean_repo(tag);
+    // Deliberately not `git()`: this rebase is *meant* to exit non-zero.
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(&dir)
+        .args(["rebase", "--exec", "false", "HEAD~1"])
+        .status()
+        .expect("run git");
+    assert!(!status.success(), "the exec was supposed to fail");
+    dir
+}

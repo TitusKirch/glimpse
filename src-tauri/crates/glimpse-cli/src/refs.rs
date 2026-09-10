@@ -1091,10 +1091,10 @@ fn branch_merge(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
 /// tree holds one side of a conflict, the index holds part of an answer, and the
 /// operation is not recorded anywhere until it concludes.
 ///
-/// `REBASE_HEAD` is deliberately absent. A stopped rebase is the one of these
-/// whose own subcommands do not exist yet, so refusing on it would refuse work a
-/// caller has no glimpse way to finish; it belongs with the slice that adds
-/// `rebase` (#103).
+/// A paused rebase is on the list too, now that `glimpse rebase
+/// continue|skip|abort` exists to finish one — and it is asked of the
+/// sequencer's own state rather than of `REBASE_HEAD`, so a stop on a `break` or
+/// a failed `exec` counts as much as a stop on a conflict.
 pub(crate) fn in_progress(repo: &Repo) -> Option<&'static str> {
     if repo.merge_in_progress() {
         Some("merge")
@@ -1106,9 +1106,9 @@ pub(crate) fn in_progress(repo: &Repo) -> Option<&'static str> {
         // A paused rebase belongs on this list for exactly the reason the other
         // three do, and its absence was a real hole: `glimpse discard --all
         // --force` gates on this function, so mid-rebase it took every conflict
-        // to *ours*, dropped the other side and left `REBASE_HEAD` set behind a
-        // `status` that read clean — the precise failure the refusal for
-        // `MERGE_HEAD` exists to prevent.
+        // to *ours*, dropped the other side and left the sequencer mid-plan
+        // behind a `status` that read clean — the precise failure the refusal
+        // for `MERGE_HEAD` exists to prevent.
         Some("rebase")
     } else {
         None

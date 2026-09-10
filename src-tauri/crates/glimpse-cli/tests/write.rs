@@ -9,7 +9,8 @@
 mod common;
 
 use common::{
-    git, git_out, json_of, merged_with_conflict, receipt, run, scratch_repo, stopped_mid,
+    git, git_out, json_of, merged_with_conflict, paused_on_break, receipt, run, scratch_repo,
+    stopped_mid,
 };
 
 #[test]
@@ -681,6 +682,39 @@ fn discard_all_refuses_while_a_merge_is_still_in_progress() {
         e["error"].as_str().is_some_and(|m| m.contains("merge")),
         "{e}"
     );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn discard_all_refuses_while_a_rebase_is_paused_on_a_break() {
+    // The same refusal, in the rebase state that sets no `REBASE_HEAD`. It is
+    // the state glimpse's own rebase dialog reaches, and the one where a probe
+    // that asked only for that ref let `--force` run straight through: the
+    // sequencer would have been left mid-plan, with a `status` reading clean.
+    let dir = paused_on_break("discard-all-break");
+    let path = dir.to_str().unwrap();
+    std::fs::write(dir.join("a.txt"), "edited mid-rebase\n").unwrap();
+
+    let (code, out, err) = run(&["discard", "-C", path, "--all", "--force"]);
+    assert_eq!(code, 1, "stdout: {out:?}");
+    assert!(err.contains("rebase"), "the state is named: {err:?}");
+
+    // Nothing was destroyed and the rebase is still there for git to see.
+    assert_eq!(
+        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        "edited mid-rebase\n",
+        "the working tree was left alone"
+    );
+    assert!(
+        !git_out(&dir, &["status"]).is_empty(),
+        "git still answers about the repository"
+    );
+    assert!(
+        dir.join(".git").join("rebase-merge").exists(),
+        "the rebase is still in progress"
+    );
+    assert!(receipt(&dir).is_none(), "no receipt for a refusal");
 
     let _ = std::fs::remove_dir_all(&dir);
 }

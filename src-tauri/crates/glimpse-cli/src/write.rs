@@ -574,10 +574,9 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
 /// read after the other side of the merge was already gone.
 ///
 /// A merge was refused first because that was the case a review reproduced; a
-/// stopped cherry-pick and a stopped revert are the same shape and are refused
-/// on the same grounds. Which states count is [`refs::in_progress`]'s to say —
-/// `REBASE_HEAD` is deliberately not among them, because a stopped rebase has no
-/// glimpse subcommand to finish it with yet.
+/// stopped cherry-pick, a stopped revert and a paused rebase are the same shape
+/// and are refused on the same grounds. Which states count is
+/// [`refs::in_progress`]'s to say.
 fn mid_operation_refusal(op: &str, conflicted: &[String]) -> String {
     let state = match conflicted {
         [] => format!("a {op} is still in progress"),
