@@ -1019,13 +1019,7 @@ impl Repo {
             .map(str::to_string)
             .collect();
         let stashes = self.stash_list()?;
-        // A rebase is paused (e.g. stopped on a conflict) when REBASE_HEAD exists.
-        let rebase_in_progress = self
-            .target
-            .command(&["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        let rebase_in_progress = self.rebase_in_progress();
         // `git bisect log` succeeds only while a bisect session is active.
         let bisect_in_progress = self
             .target
@@ -1824,6 +1818,20 @@ impl Repo {
     /// non-zero both when the ref is absent and when git itself fails, and
     /// distinguishing the two here would be false precision — every caller runs
     /// a git command that fails loudly first.
+    /// True when a rebase is paused (e.g. stopped on a conflict) awaiting
+    /// continue / skip / abort — `REBASE_HEAD` exists.
+    ///
+    /// A method rather than a line inside [`info`](Self::info) because a command
+    /// that has just failed needs the same answer without paying for the whole
+    /// repository summary to get it.
+    pub fn rebase_in_progress(&self) -> bool {
+        self.target
+            .command(&["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
     pub fn merge_in_progress(&self) -> bool {
         self.run(&["rev-parse", "--verify", "--quiet", "MERGE_HEAD"])
             .is_ok()
@@ -2414,6 +2422,47 @@ impl Repo {
 
     pub fn fetch(&self) -> Result<String, String> {
         self.run(&["fetch", "--all", "--prune"])
+    }
+
+    /// Every remote-tracking ref and the commit it points at, `origin/HEAD`
+    /// excluded (it is a symbolic pointer at another entry in this same list,
+    /// so counting it would report one ref twice).
+    ///
+    /// The read-back a fetch is checked against. `git fetch` reports what it
+    /// moved on **stderr**, in a format that has changed between git versions
+    /// and is localised, so parsing it would be guessing; comparing this list
+    /// either side of the fetch is the repository's own answer to the same
+    /// question, and it is the answer `--json` can carry.
+    pub fn remote_tips(&self) -> Result<Vec<(String, String)>, String> {
+        let raw = self.run(&[
+            "for-each-ref",
+            "--format=%(refname:short) %(objectname)",
+            "refs/remotes",
+        ])?;
+        Ok(lines(&raw)
+            .filter_map(|l| l.split_once(' '))
+            .filter(|(name, _)| !name.ends_with("/HEAD"))
+            .map(|(name, hash)| (name.to_string(), hash.to_string()))
+            .collect())
+    }
+
+    /// The current branch's configured upstream (`origin/main`), or an empty
+    /// string when it has none.
+    ///
+    /// Infallible by design: "this branch has no upstream" is a **normal**
+    /// state, not an error, and git answers it by failing `rev-parse` with a
+    /// message about `@{upstream}` that assumes the reader knows the syntax.
+    /// A caller that has to tell that failure apart from a broken repository
+    /// would be re-deriving this every time, so it is derived once here.
+    pub fn upstream(&self) -> String {
+        self.run(&[
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}",
+        ])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
     }
 
     /// Pull with an explicit reconcile strategy so git never aborts with "Need
