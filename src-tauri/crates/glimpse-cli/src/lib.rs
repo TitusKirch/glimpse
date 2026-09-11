@@ -294,7 +294,12 @@ pub(crate) struct Globals {
 /// does this; the value is the caller's, not the parser's to reinterpret.
 ///
 /// `-C`'s own value is consumed by the arm below, for the same reason.
-const VALUE_OPTIONS: &[&str] = &["-m", "--message", "-n", "--max-count"];
+///
+/// PUBLIC because a second parser has to agree with this one: the WSL launcher
+/// (`scripts/glimpse-wsl.sh`) scans a forwarded argv for `-C` and would read a
+/// `-m "-C"` message as naming a repository. `tests/wsl_shim.rs` pins its list
+/// against this one in both directions.
+pub const VALUE_OPTIONS: &[&str] = &["-m", "--message", "-n", "--max-count"];
 
 pub(crate) fn parse_globals(args: &[String]) -> Result<Globals, String> {
     let mut json = false;

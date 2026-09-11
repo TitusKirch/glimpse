@@ -65,6 +65,18 @@ commit amend branch tag remote stash cherry-pick revert reset fetch pull push
 rebase bisect resolve worktree submodule cl changelist sparse-checkout
 file-history help -V --version"
 
+# Every option whose NEXT word is a VALUE and not another option: `VALUE_OPTIONS`
+# in crates/glimpse-cli/src/lib.rs, pinned against it in both directions by
+# `tests/wsl_shim.rs::the_launcher_skips_every_value_the_command_line_skips`.
+#
+# Only the forwarding route needs them, and it needs them for one reason: it
+# scans a whole argv for `-C`, so a value that is literally `-C` — `glimpse
+# commit -m "-C" --json` — was read as naming a repository, and the word after
+# it (`--json`) was translated into a Windows path. The native route never had
+# the bug, because it passes argv through untouched, and the two routes are
+# meant to be indistinguishable.
+GLIMPSE_VALUE_OPTIONS="-m --message -n --max-count"
+
 die() {
 	echo "glimpse: $1" >&2
 	exit 1
@@ -113,6 +125,15 @@ first_word() {
 		esac
 	done
 	return 0
+}
+
+is_value_option() {
+	for opt in $GLIMPSE_VALUE_OPTIONS; do
+		if [ "$opt" = "$1" ]; then
+			return 0
+		fi
+	done
+	return 1
 }
 
 is_subcommand() {
@@ -253,6 +274,18 @@ forward_subcommand() {
 				seen_repo=1
 				win="$(wslpath -w "$2")" || die "could not translate to a Windows path: $2"
 				set -- "$@" "$1" "$win"
+				shift 2
+				remaining=$((remaining - 2))
+				continue
+			fi
+			;;
+		*)
+			# A value belongs to the option that took it, whatever it spells. A
+			# dangling one is passed through as it stands, exactly as
+			# `parse_globals` does: the command's own parser owns "missing
+			# message after -m", and answering it here would say it twice.
+			if is_value_option "$1" && [ "$remaining" -ge 2 ]; then
+				set -- "$@" "$1" "$2"
 				shift 2
 				remaining=$((remaining - 2))
 				continue

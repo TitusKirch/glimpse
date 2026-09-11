@@ -332,6 +332,31 @@ fn an_explicit_repo_is_translated_rather_than_duplicated() {
 }
 
 #[test]
+fn a_commit_message_that_spells_an_option_is_not_read_as_one() {
+    // `-m`'s value is the caller's text, whatever it looks like. Scanning every
+    // word for `-C` read this message as naming a repository: the launcher
+    // translated the word after it (`--json`) into a Windows path and skipped
+    // injecting the real repository. The native route never had it, because it
+    // hands argv over untouched — and the two routes are meant to be
+    // indistinguishable.
+    let mut env = Env::new("fallback-message");
+    let exe = env.binary("glimpse.exe", 0);
+    let run = env
+        .var("GLIMPSE_EXE", exe.to_str().unwrap())
+        .run(&["commit", "-m", "-C", "--json"]);
+
+    assert_eq!(run.code, 0, "stderr: {}", run.err);
+    let unc = format!(
+        "\\\\wsl.localhost\\Test{}",
+        env.dir.display().to_string().replace('/', "\\")
+    );
+    assert_eq!(
+        run.log,
+        vec!["glimpse.exe", "-C", &unc, "commit", "-m", "-C", "--json"]
+    );
+}
+
+#[test]
 fn globals_written_before_the_subcommand_still_reach_the_command_line() {
     // `claims` in the binary looks past leading globals; the launcher has to do
     // the same or `glimpse -C sub status` would be read as a path called `-C`.
@@ -527,15 +552,22 @@ fn the_copy_the_installer_bakes_still_routes_a_subcommand() {
 // The guard
 // ---------------------------------------------------------------------------
 
-/// The words the launcher routes to the command line, read out of the script.
-fn shim_subcommands() -> Vec<String> {
+/// One of the launcher's whitespace-separated shell lists, read out of the
+/// script so a test reads what a distro actually runs.
+fn shim_list(name: &str) -> Vec<String> {
     let text = std::fs::read_to_string(shim()).expect("read the launcher");
+    let opener = format!("{name}=\"");
     let start = text
-        .find("GLIMPSE_SUBCOMMANDS=\"")
-        .expect("the launcher declares its subcommand list");
-    let rest = &text[start + "GLIMPSE_SUBCOMMANDS=\"".len()..];
+        .find(&opener)
+        .unwrap_or_else(|| panic!("the launcher declares {name}"));
+    let rest = &text[start + opener.len()..];
     let end = rest.find('"').expect("the list is closed");
     rest[..end].split_whitespace().map(str::to_string).collect()
+}
+
+/// The words the launcher routes to the command line, read out of the script.
+fn shim_subcommands() -> Vec<String> {
+    shim_list("GLIMPSE_SUBCOMMANDS")
 }
 
 #[test]
@@ -571,4 +603,28 @@ fn the_launcher_routes_every_word_the_command_line_claims() {
         !listed.iter().any(|w| w == "-h" || w == "--help"),
         "the launcher keeps its own help: {listed:?}"
     );
+}
+
+#[test]
+fn the_launcher_skips_every_value_the_command_line_skips() {
+    // The other list the launcher mirrors, and it is mirrored for one reason:
+    // the forwarding route scans a whole argv for `-C`, so an option's VALUE
+    // that spells `-C` would be read as naming a repository. A value option
+    // added to the command line and forgotten here reopens exactly that.
+    let listed = shim_list("GLIMPSE_VALUE_OPTIONS");
+    for opt in glimpse_cli::VALUE_OPTIONS {
+        assert!(
+            listed.iter().any(|w| w == opt),
+            "`{opt}` takes a value but the launcher does not know it, so its \
+             value is scanned as if it were an option"
+        );
+    }
+    // And nothing more: a word listed here that takes no value would swallow
+    // the argument after it, which is the same bug pointing the other way.
+    for word in &listed {
+        assert!(
+            glimpse_cli::VALUE_OPTIONS.contains(&word.as_str()),
+            "the launcher skips the word after `{word}`, which takes no value"
+        );
+    }
 }
