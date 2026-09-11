@@ -494,15 +494,23 @@ fn discard(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
             )
             .into());
         }
-        // A rename is one change across two paths, and `status` names only the
-        // new one — so restoring it would leave the old path deleted while the
-        // report claimed the file was back at its committed state.
+        // A rename is one change across two paths, and this command can name
+        // only one of them — so restoring it would leave the old path deleted
+        // while the report claimed the file was back at its committed state.
+        //
+        // The refusal is the posture, not a gap: `discard` resolves its plan
+        // against `status` and refuses there what git cannot discard per path.
+        // What it owes in exchange is a way out, so it says where the other half
+        // is written down (`git status` prints `old -> new`) and gives the exact
+        // command that undoes the rename with that name in hand. Advice a reader
+        // cannot act on is the same as no advice.
         if entry.x == "R" || entry.x == "C" {
             return Err(format!(
-                "{p} is a staged rename\n\n\
-                 Only half of it can be named here, and discarding that half would \
-                 leave the other behind. Discard the whole working tree with \
-                 --all --force, or undo the rename with git."
+                "{p} is a staged rename, and only this half of it can be named here\n\n\
+                 Discarding that half would restore {p} and leave the path it came from \
+                 deleted. `git status` prints the rename as `<old> -> {p}`; undo it with \
+                 `git mv {p} <old>`, or take the whole working tree back to HEAD with \
+                 `glimpse discard --all --force`."
             )
             .into());
         }

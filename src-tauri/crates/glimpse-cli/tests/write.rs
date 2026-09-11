@@ -420,8 +420,31 @@ fn discard_refuses_a_renamed_path_rather_than_undoing_half_of_it() {
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("rename"), "the state is named: {err:?}");
     assert!(
+        err.contains("renamed.txt"),
+        "and the path it is refusing, by name: {err:?}"
+    );
+    // A refusal owes a way out, and one the reader can act on: the other half
+    // of the rename is not in this message, so the message has to say where it
+    // IS written down and what to type once it is in hand.
+    assert!(
+        err.contains("git status"),
+        "it says where the other half is named: {err:?}"
+    );
+    assert!(
+        err.contains("git mv renamed.txt"),
+        "and gives the command that undoes the rename: {err:?}"
+    );
+    assert!(
+        err.contains("glimpse discard --all --force"),
+        "and the whole-tree route, spelled as this CLI spells it: {err:?}"
+    );
+    assert!(
         dir.join("renamed.txt").exists(),
         "nothing was destroyed by the refusal"
+    );
+    assert!(
+        !dir.join("a.txt").exists(),
+        "and the half that was already gone is still gone — the rename stands"
     );
 
     let _ = std::fs::remove_dir_all(&dir);
