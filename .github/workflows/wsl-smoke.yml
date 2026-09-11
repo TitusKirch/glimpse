@@ -18,6 +18,13 @@ name: WSL smoke test
 # `windows-latest` image carries no WSL, so this job installs one and drives the
 # real thing.
 #
+# BOTH ROUTES, because criterion (c) names both. The first test installs the
+# payload and runs the subjects natively; the second stages a `glimpse-cli.exe`
+# where the launcher forwards to, takes the payload away again, and runs the
+# same subjects over the `\\wsl.localhost` share. Neither is inferred from the
+# other's absence — `glimpse info` reports `linux` on one and `wsl` on the
+# other, and only the responder can say it.
+#
 # WHAT IT DOES NOT PROVE, stated here rather than discovered later:
 #
 #   • A step running the install is NOT the packaged installer running it. The
@@ -27,9 +34,13 @@ name: WSL smoke test
 #   • The distro a runner hands out is not the distro a user has. The job
 #     records the WSL version and the distro it actually got — see the step that
 #     prints them — rather than assuming either. A runner that can only give
-#     WSL1 differs from a user's WSL2 in `\\wsl$` share behaviour, which is the
-#     FORWARDING route's concern; the native route this job exercises does not
-#     cross the share at all.
+#     WSL1 differs from a user's WSL2 in `\\wsl$` share behaviour, which the
+#     forwarding half of this job does cross; read the recorded version before
+#     reading that half's result as covering the other one.
+#   • A `cargo build`'d glimpse-cli.exe is not the bundled one. What the
+#     fallback half proves is the ROUTE — that a WSL shell reaches a Windows
+#     console binary beside glimpse.exe and gets this distro's repository back
+#     — not that the installer put that binary there.
 #   • One distro, one architecture. x86_64 only, because that is the only
 #     payload built (an ARM64 host keeps the forwarding route by design).
 #
@@ -173,6 +184,11 @@ jobs:
       # The test asserts the outcome; this prints it, so a human reading the
       # log sees the two halves of the install with their own eyes.
       #
+      # BEFORE the fallback steps below, deliberately: that test removes the
+      # payload from the distro on purpose, and a listing taken afterwards
+      # would report the install missing right after the test that proved it
+      # was there.
+      #
       # `pwsh`, NOT `bash`: Git-bash rewrites an argument that looks like a unix
       # path before the child ever sees it, so `wsl.exe -- ls -l
       # /usr/local/bin/glimpse` reached the distro as `C:/Program
@@ -186,3 +202,28 @@ jobs:
           wsl.exe -- ls -l /usr/local/bin/glimpse /usr/local/lib/glimpse/glimpse-cli
           wsl.exe -- /usr/local/lib/glimpse/glimpse-cli --version
           exit 0
+
+      # THE OTHER HALF OF CRITERION (c). The fallback route forwards to the
+      # CONSOLE binary beside glimpse.exe (`console_exe` in glimpse-wsl.sh), so
+      # the machine it needs is: launcher installed, glimpse-cli.exe staged,
+      # native payload removed from the distro. Built here rather than in the
+      # step above so the native test keeps running on the machine it was
+      # written for — nothing to forward to at all.
+      - name: Build the Windows console binary the fallback forwards to
+        shell: bash
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml -p glimpse-cli
+          cp src-tauri/target/debug/glimpse-cli.exe src-tauri/binaries/glimpse-cli.exe
+
+      # Runs AFTER the native test, and destroys what that one installed: it
+      # removes the payload from the distro so `find_native` has nothing to
+      # return. `glimpse info` then has to answer `wsl`, which only a Windows
+      # process reading the \\wsl.localhost share can say.
+      - name: Run the same subjects through the forwarding fallback
+        shell: bash
+        env:
+          GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: ${{ github.workspace }}/src-tauri/binaries
+        run: >-
+          cargo test --manifest-path src-tauri/Cargo.toml -p glimpse --lib --
+          --ignored --nocapture
+          the_launcher_forwards_to_the_windows_binary_from_a_real_distro

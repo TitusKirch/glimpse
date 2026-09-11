@@ -2609,6 +2609,57 @@ mod tests {
         )
     }
 
+    /// The subjects #103's criterion (c) names, run through whichever route the
+    /// launcher picks, in one `sh -c` program: a read (`status`), the flavour
+    /// probe that says WHICH route answered (`info`), the changelist read
+    /// (`cl ls`) and one write (`stage`).
+    ///
+    /// One program rather than four `wsl.exe` calls because the repository has
+    /// to be the same one throughout — and because a `set -e` script that gets
+    /// as far as the last line has proved every earlier one exited 0.
+    #[cfg(windows)]
+    fn criterion_subjects_in(distro: &str, repo: &str) -> (bool, String, String) {
+        in_distro(
+            distro,
+            &format!(
+                "set -e; rm -rf {repo}; mkdir -p {repo}; cd {repo}; git init -q .; \
+                 echo smoke > smoke.txt; \
+                 glimpse status --json; glimpse info --json; \
+                 glimpse cl ls --json; glimpse stage smoke.txt"
+            ),
+        )
+    }
+
+    /// The three assertions that hold whichever route answered. `flavor` is
+    /// deliberately NOT among them: it is the one thing that differs, and each
+    /// test asserts its own.
+    #[cfg(windows)]
+    fn assert_the_subjects_answered(route: &str, out: &str) {
+        assert!(
+            out.contains("smoke.txt"),
+            "`glimpse status --json` did not see the untracked file ({route}): {out}"
+        );
+        assert!(
+            out.contains("\"activeId\""),
+            "`glimpse cl ls --json` did not render the changelist store ({route}): {out}"
+        );
+        assert!(
+            out.contains("staged smoke.txt"),
+            "`glimpse stage` did not report the write ({route}): {out}"
+        );
+    }
+
+    /// What **git** says is staged inside the distro. The write is read back by
+    /// something other than the tool that claimed to have made it, so a `stage`
+    /// that only printed its own report fails here rather than passing.
+    #[cfg(windows)]
+    fn staged_in_distro(distro: &str, repo: &str) -> String {
+        let (ok, staged, err) =
+            in_distro(distro, &format!("git -C {repo} diff --cached --name-only"));
+        assert!(ok, "git could not read the index in {repo}: {err}");
+        staged
+    }
+
     /// THE WINDOWS HALF OF CRITERION (c), RUN RATHER THAN ARGUED (#103).
     ///
     /// Every other test of this install proves a piece of it off Windows: the
@@ -2672,17 +2723,102 @@ mod tests {
         // route cannot answer: whatever replies here is the native binary
         // reading the distro's own git.
         let repo = "/tmp/glimpse-wsl-smoke";
-        let (ok, status, err) = in_distro(
-            &distro,
-            &format!(
-                "set -e; rm -rf {repo}; mkdir -p {repo}; cd {repo}; git init -q .; \
-                 echo smoke > smoke.txt; glimpse status --json"
-            ),
-        );
-        assert!(ok, "`glimpse status` failed inside {distro}: {err}");
+        let (ok, out, err) = criterion_subjects_in(&distro, repo);
+        assert!(ok, "the command line failed inside {distro}: {err}");
+        assert_the_subjects_answered("native", &out);
+        // Which route answered, said by the answer rather than inferred from
+        // the absence of the other one: the native binary IS Linux git, so it
+        // reports `linux`. The forwarding route cannot produce that string —
+        // it reaches the same repository over the share and reports `wsl`.
         assert!(
-            status.contains("smoke.txt"),
-            "`glimpse status` did not see the untracked file: {status}"
+            out.contains("\"flavor\":\"linux\""),
+            "the native route did not answer `glimpse info`: {out}"
+        );
+        assert_eq!(
+            staged_in_distro(&distro, repo),
+            "smoke.txt",
+            "git does not agree that the native `glimpse stage` staged anything"
+        );
+    }
+
+    /// THE OTHER HALF OF CRITERION (c): the same subjects through the
+    /// FORWARDING FALLBACK, from a WSL shell (#103).
+    ///
+    /// `tests/wsl_shim.rs` already proves the argv this route builds, under
+    /// `sh` against stub executables — good cover for the program, none at all
+    /// for the route being taken on a real machine. The test above deliberately
+    /// forecloses it by leaving no Windows binary to forward to.
+    ///
+    /// So this one arranges the opposite machine: the launcher installed, a
+    /// real `glimpse-cli.exe` beside where glimpse.exe would be (`console_exe`
+    /// in `scripts/glimpse-wsl.sh` execs exactly that), and NO native command
+    /// line inside the distro. Every subject then has one possible responder —
+    /// a Windows process reading `\\wsl.localhost\<distro>\…` through the UNC
+    /// share and routing git back into the distro — and `glimpse info` is asked
+    /// to say so: that path resolves to the `wsl` flavour, which the native
+    /// binary cannot report.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "drives a real WSL distro; needs GLIMPSE_WSL_SMOKE_PAYLOAD_DIR with a glimpse-cli.exe in it"]
+    fn the_launcher_forwards_to_the_windows_binary_from_a_real_distro() {
+        let dir = std::path::PathBuf::from(
+            std::env::var("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR")
+                .expect("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: the directory holding the staged payload"),
+        );
+        // The binary the fallback execs. Absent, the launcher would fall back
+        // to glimpse.exe itself — a GUI-subsystem program whose stdout is
+        // best-effort — and the assertions below would fail for a reason that
+        // has nothing to do with the route, so say it here instead.
+        let console = dir.join("glimpse-cli.exe");
+        assert!(
+            console.is_file(),
+            "{}: the console binary the fallback forwards to was not staged",
+            console.display()
+        );
+        let distro = smoke_distro();
+
+        // Install the launcher the way the app does — the same call, the same
+        // baked glimpse.exe path, which is what `console_exe` takes the
+        // directory from.
+        in_distro(
+            &distro,
+            &format!("rm -f {WSL_CLI_PATH} /usr/local/bin/glimpse"),
+        );
+        let labels = super::install_wsl_shims(&dir.join("glimpse.exe"));
+        assert!(
+            !labels.is_empty(),
+            "no distro was reached, though wsl.exe listed {distro}"
+        );
+
+        // Then take the native route away. This is the whole experiment: with
+        // the payload gone, `find_native` has nothing to return and the
+        // launcher must forward or fail.
+        in_distro(&distro, &format!("rm -f {WSL_CLI_PATH}"));
+        let (_, left, _) = in_distro(
+            &distro,
+            &format!("ls {WSL_CLI_PATH} 2>/dev/null || true; command -v glimpse-cli || true"),
+        );
+        assert!(
+            left.is_empty(),
+            "a native command line is still reachable, so this proves nothing: {left}"
+        );
+
+        let repo = "/tmp/glimpse-wsl-fallback";
+        let (ok, out, err) = criterion_subjects_in(&distro, repo);
+        assert!(ok, "the forwarded command line failed in {distro}: {err}");
+        assert_the_subjects_answered("forwarded", &out);
+        assert!(
+            out.contains("\"flavor\":\"wsl\""),
+            "the answer did not come from the Windows binary over the share: {out}"
+        );
+        assert!(
+            out.contains(&format!("\"distro\":\"{distro}\"")),
+            "the forwarded repository was not this distro's: {out}"
+        );
+        assert_eq!(
+            staged_in_distro(&distro, repo),
+            "smoke.txt",
+            "git does not agree that the forwarded `glimpse stage` staged anything"
         );
     }
 

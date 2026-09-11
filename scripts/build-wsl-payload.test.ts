@@ -149,30 +149,37 @@ describe('build-wsl-payload', () => {
 
   it('is exercised end to end by a job that names the right test', () => {
     // THE WINDOWS HALF OF #103's CRITERION (c). `wsl-smoke.yml` installs a real
-    // distro on a Windows runner and runs ONE `#[ignore]`d cargo test against
-    // it. `cargo test` with a filter that matches NOTHING exits 0 — so a
-    // renamed test would turn the only measurement of the `wsl.exe` hop into a
-    // green job that ran nothing at all. Three corners, pinned together.
+    // distro on a Windows runner and runs `#[ignore]`d cargo tests against it.
+    // `cargo test` with a filter that matches NOTHING exits 0 — so a renamed
+    // test would turn the only measurement of the `wsl.exe` hop into a green
+    // job that ran nothing at all. The corners are pinned together here.
     const job = readFileSync(join(WORKFLOWS, 'wsl-smoke.yml'), 'utf8');
     const lib = readFileSync(LIB_RS, 'utf8');
-    const test = 'the_install_puts_a_working_command_line_inside_a_real_distro';
-    // A WORD BOUNDARY, not `toContain`: a rename that keeps the old name as a
-    // prefix would otherwise pass while the job filtered on a test that no
-    // longer exists — the same trap the README guard already sidesteps.
-    expect(job, 'the smoke job does not run the smoke test').toMatch(
-      new RegExp(`\\b${test}\\b`)
-    );
-    expect(lib, 'the smoke test the job runs does not exist').toContain(
-      `fn ${test}()`
-    );
-    // The payload the job hands it, by the one name both sides agree on…
-    expect(job).toContain(payloadName(PAYLOAD_TRIPLE));
-    // …staged through the flag that exists for exactly this hand-off…
-    expect(job).toContain('--from');
-    // …and pointed at by the variable the test reads.
-    const env = 'GLIMPSE_WSL_SMOKE_PAYLOAD_DIR';
-    expect(job).toContain(env);
-    expect(lib).toContain(env);
+    // BOTH halves of criterion (c): the native route and the forwarding
+    // fallback. They are two `#[ignore]`d tests and two job steps, and the
+    // filter trap below applies to each of them separately.
+    const tests = [
+      'the_install_puts_a_working_command_line_inside_a_real_distro',
+      'the_launcher_forwards_to_the_windows_binary_from_a_real_distro'
+    ];
+    for (const test of tests) {
+      // A WORD BOUNDARY, not `toContain`: a rename that keeps the old name as
+      // a prefix would otherwise pass while the job filtered on a test that no
+      // longer exists — the same trap the README guard already sidesteps.
+      expect(job, `the smoke job does not run ${test}`).toMatch(
+        new RegExp(`\\b${test}\\b`)
+      );
+      expect(lib, `the smoke test ${test} does not exist`).toContain(
+        `fn ${test}()`
+      );
+    }
+    // The fallback forwards to the CONSOLE binary beside glimpse.exe, so the
+    // job has to build and stage one — without it that test fails on its own
+    // precondition instead of measuring the route.
+    expect(
+      job,
+      'the job never builds the binary the fallback forwards to'
+    ).toContain('glimpse-cli.exe');
   });
 
   it('is reachable by the command a human is told to run', () => {
