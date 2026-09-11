@@ -172,9 +172,17 @@ jobs:
 
       # The test asserts the outcome; this prints it, so a human reading the
       # log sees the two halves of the install with their own eyes.
+      #
+      # `pwsh`, NOT `bash`: Git-bash rewrites an argument that looks like a unix
+      # path before the child ever sees it, so `wsl.exe -- ls -l
+      # /usr/local/bin/glimpse` reached the distro as `C:/Program
+      # Files/Git/usr/local/bin/glimpse` and reported the install missing while
+      # the test that had just passed proved it was there. A log that says the
+      # opposite of the measurement is worse than no log.
       - name: Show what landed in the distro
         if: always()
-        shell: bash
+        shell: pwsh
         run: |
-          wsl.exe -- ls -l /usr/local/bin/glimpse /usr/local/lib/glimpse/glimpse-cli || true
-          wsl.exe -- /usr/local/lib/glimpse/glimpse-cli --version || true
+          wsl.exe -- ls -l /usr/local/bin/glimpse /usr/local/lib/glimpse/glimpse-cli
+          wsl.exe -- /usr/local/lib/glimpse/glimpse-cli --version
+          exit 0
