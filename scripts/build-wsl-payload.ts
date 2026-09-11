@@ -36,7 +36,9 @@
 // instead of building. The two routes stage the identical name, which is the
 // only thing the bundler and the installer agree on.
 //
-// Usage: node scripts/build-wsl-payload.ts [--from <file>] [--print-plan]
+// Usage: pnpm cli:wsl-payload -- [--from <file>] [--print-plan]
+//   (or `node scripts/build-wsl-payload.ts` directly — which is what the
+//    release chain's Linux job runs, because it sets up no pnpm at all)
 //   --from <file>  — stage this prebuilt ELF instead of building one (CI's
 //                    artifact hand-off; there is no Linux toolchain on the
 //                    Windows runner that needs the payload)

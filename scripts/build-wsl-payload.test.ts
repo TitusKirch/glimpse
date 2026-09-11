@@ -31,6 +31,10 @@ const LIB_RS = fileURLToPath(
   new URL('../src-tauri/src/lib.rs', import.meta.url)
 );
 const LAUNCHER = fileURLToPath(new URL('./glimpse-wsl.sh', import.meta.url));
+
+// The package script that runs this file, named once so the guard below and a
+// human's `pnpm` invocation cannot drift apart.
+const PAYLOAD_SCRIPT = 'cli:wsl-payload';
 const WORKFLOWS = fileURLToPath(
   new URL('../.github/workflows', import.meta.url)
 );
@@ -120,6 +124,35 @@ describe('build-wsl-payload', () => {
     const p = printedPlan(['--from', '/tmp/glimpse-cli']);
     expect(p.from).toBe('/tmp/glimpse-cli');
     expect(p.target).toBe(printedPlan().target);
+  });
+
+  it('is reachable by the command a human is told to run', () => {
+    // A build step nobody can name is a build step nobody reproduces: the
+    // installer's second binary would then only ever be produced by CI, and a
+    // human debugging the WSL route locally has to reverse-engineer the
+    // invocation out of a workflow. The script, the package script and the
+    // agent files' Commands table are pinned to each other here, so a rename
+    // fails rather than leaving two of the three pointing at nothing.
+    const pkg = JSON.parse(
+      readFileSync(
+        fileURLToPath(new URL('../package.json', import.meta.url)),
+        'utf8'
+      )
+    ) as { scripts: Record<string, string> };
+    expect(
+      Object.keys(pkg.scripts),
+      'package.json has no script for the payload build'
+    ).toContain(PAYLOAD_SCRIPT);
+    expect(pkg.scripts[PAYLOAD_SCRIPT]).toContain(
+      `scripts/${basename(SCRIPT)}`
+    );
+    // Both agent files, because they are kept byte-identical and a row added
+    // to one of them only is exactly the drift that rule exists to prevent.
+    for (const doc of ['../CLAUDE.md', '../AGENTS.md'])
+      expect(
+        readFileSync(fileURLToPath(new URL(doc, import.meta.url)), 'utf8'),
+        doc
+      ).toContain(`pnpm ${PAYLOAD_SCRIPT}`);
   });
 
   it('merges the payload fragment into the chain that ships installers', () => {
