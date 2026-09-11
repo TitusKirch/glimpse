@@ -260,6 +260,44 @@ console_exe() {
 	printf '%s' "$1"
 }
 
+# Can a shell in this distro `exec` a Windows program at all?
+#
+# Forwarding means exactly that: a Linux shell exec'ing a PE binary, which the
+# kernel only accepts while `binfmt_misc` holds a handler for one. WSL's `/init`
+# registers `WSLInterop` at boot — and on a **systemd** distro `systemd-binfmt`
+# FLUSHES `binfmt_misc` afterwards, so whether the handler is still there is a
+# boot race. CI lost it once, minutes after a probe had answered; a user's distro
+# will not have CI's option of turning systemd off.
+#
+# Without this check the loss surfaces as the shell's own
+# `exec: /…/glimpse-cli.exe: Exec format error` — a message that names nothing
+# the reader can act on and does not mention glimpse at all. So the route is
+# checked before it is taken, and the refusal says which mechanism is missing.
+#
+# **Absence of evidence is not evidence**: where `binfmt_misc` is not mounted, or
+# cannot be read, the check says nothing and the `exec` is attempted anyway. The
+# same posture the rest of the install takes — degrade to trying, never refuse on
+# a guard that could not see.
+BINFMT_DIR="${GLIMPSE_BINFMT_DIR:-/proc/sys/fs/binfmt_misc}"
+
+pe_handler_registered() {
+	[ -d "$BINFMT_DIR" ] || return 0
+	# The `status` file is the master switch; `disabled` there means no handler
+	# fires whatever is registered.
+	if [ -r "$BINFMT_DIR/status" ]; then
+		read -r state <"$BINFMT_DIR/status" 2>/dev/null || return 0
+		[ "$state" = "disabled" ] && return 1
+	fi
+	# `WSLInterop` classically, `WSLInterop-late` where systemd re-registers it.
+	# The first line of a handler file is `enabled` or `disabled`.
+	for handler in "$BINFMT_DIR"/WSLInterop "$BINFMT_DIR"/WSLInterop-late; do
+		[ -r "$handler" ] || continue
+		read -r state <"$handler" 2>/dev/null || continue
+		[ "$state" = "enabled" ] && return 0
+	done
+	return 1
+}
+
 # Hand a subcommand to the Windows binary. The repository is named explicitly —
 # translated if the caller gave one, injected from $PWD if not — rather than
 # left to whatever working directory the interop layer hands the child, because
@@ -299,6 +337,16 @@ forward_subcommand() {
 	if [ "$seen_repo" -eq 0 ]; then
 		here="$(wslpath -w "$PWD")" || die "could not translate to a Windows path: $PWD"
 		set -- "-C" "$here" "$@"
+	fi
+	if ! pe_handler_registered; then
+		die "this distro cannot run Windows programs right now, so the subcommand \
+cannot be forwarded to glimpse.exe
+
+No enabled WSLInterop handler is registered in binfmt_misc ($BINFMT_DIR). On a \
+systemd distro, systemd-binfmt flushes binfmt_misc after WSL's /init registered \
+one. Restart the distro with 'wsl.exe --shutdown' from Windows, or install a \
+glimpse command line inside this distro (Settings -> General -> Command line in \
+the app) to take the native route instead, which needs no interop at all."
 	fi
 	exec "$(console_exe "$GLIMPSE_EXE")" "$@"
 }

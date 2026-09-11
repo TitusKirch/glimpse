@@ -77,6 +77,21 @@ esac
     );
 }
 
+/// A stand-in for `/proc/sys/fs/binfmt_misc`: each `(name, contents)` becomes a
+/// file in it. Passing none at all leaves the directory absent, which is how a
+/// kernel with `binfmt_misc` unmounted looks.
+fn binfmt(dir: &Path, files: &[(&str, &str)]) {
+    let root = dir.join("binfmt");
+    let _ = std::fs::remove_dir_all(&root);
+    if files.is_empty() {
+        return;
+    }
+    std::fs::create_dir_all(&root).expect("create the binfmt stand-in");
+    for (name, body) in files {
+        std::fs::write(root.join(name), body).expect("write the handler");
+    }
+}
+
 /// One run of the launcher.
 struct Run {
     code: i32,
@@ -97,6 +112,15 @@ impl Env {
     fn new(tag: &str) -> Self {
         let dir = scratch(tag);
         stub_wslpath(&dir.join("bin/wslpath"));
+        // A distro that CAN exec a Windows program, which is the precondition
+        // every forwarding test here assumes. Faked rather than read from the
+        // runner: `/proc/sys/fs/binfmt_misc` on a Linux CI machine says nothing
+        // about WSL, and letting it decide would make these tests pass or fail
+        // on the shape of the host.
+        binfmt(
+            &dir,
+            &[("status", "enabled\n"), ("WSLInterop", "enabled\n")],
+        );
         Self {
             dir,
             vars: Vec::new(),
@@ -149,7 +173,9 @@ impl Env {
             // The launcher's WSL gate: the distro name is what WSL itself sets,
             // and it is how these tests get past a check that would otherwise
             // only pass on a WSL kernel.
-            .env("WSL_DISTRO_NAME", "Test");
+            .env("WSL_DISTRO_NAME", "Test")
+            // The launcher's binfmt probe, pointed at the fake registry above.
+            .env("GLIMPSE_BINFMT_DIR", self.dir.join("binfmt"));
         for (k, v) in &self.vars {
             cmd.env(k, v);
         }
@@ -413,6 +439,93 @@ fn the_console_binary_is_not_used_to_open_a_window() {
 
     assert_eq!(run.code, 0, "stderr: {}", run.err);
     assert_eq!(run.log.first().map(String::as_str), Some("glimpse.exe"));
+}
+
+#[test]
+fn forwarding_says_what_is_missing_rather_than_dying_on_exec_format_error() {
+    // A Linux shell can `exec` a Windows PE only while binfmt_misc holds a
+    // handler for one. WSL's /init registers `WSLInterop` at boot, and on a
+    // systemd distro `systemd-binfmt` flushes binfmt_misc afterwards — so the
+    // handler's survival is a boot race, and CI has lost it. What reaches the
+    // user when it is lost is the shell's own `Exec format error`, which names
+    // neither glimpse nor anything to do about it.
+    let mut env = Env::new("binfmt-flushed");
+    let exe = env.binary("glimpse.exe", 0);
+    binfmt(&env.dir, &[("status", "enabled\n")]);
+
+    let run = env
+        .var("GLIMPSE_EXE", exe.to_str().unwrap())
+        .run(&["status"]);
+
+    assert_eq!(run.code, 1, "stderr: {}", run.err);
+    assert!(run.log.is_empty(), "nothing was exec'd: {:?}", run.log);
+    assert!(
+        run.err.contains("WSLInterop") && run.err.contains("binfmt_misc"),
+        "the refusal names the mechanism that is missing: {:?}",
+        run.err
+    );
+    assert!(
+        run.err.contains("wsl.exe --shutdown"),
+        "and the way to put it back: {:?}",
+        run.err
+    );
+
+    // A handler that is registered but switched OFF is the same refusal: the
+    // `status` master switch decides whether anything fires at all.
+    binfmt(
+        &env.dir,
+        &[("status", "disabled\n"), ("WSLInterop", "enabled\n")],
+    );
+    let run = env.run(&["status"]);
+    assert_eq!(run.code, 1, "stderr: {}", run.err);
+    assert!(run.log.is_empty(), "{:?}", run.log);
+
+    // …and `WSLInterop-late`, the name systemd re-registers it under, is the
+    // handler too — refusing there would break the distros that recover.
+    binfmt(
+        &env.dir,
+        &[("status", "enabled\n"), ("WSLInterop-late", "enabled\n")],
+    );
+    let run = env.run(&["status"]);
+    assert_eq!(run.code, 0, "stderr: {}", run.err);
+    assert_eq!(run.log.first().map(String::as_str), Some("glimpse.exe"));
+}
+
+#[test]
+fn a_binfmt_registry_it_cannot_read_is_not_read_as_a_refusal() {
+    // Absence of evidence is not evidence. Where binfmt_misc is not mounted at
+    // all the check can say nothing, and a guard that refused there would break
+    // forwarding on every kernel that simply does not expose it — turning a
+    // working route into a hard error on the strength of a file that was never
+    // going to be present. Degrade to trying, exactly as the payload install
+    // degrades to forwarding.
+    let mut env = Env::new("binfmt-absent");
+    let exe = env.binary("glimpse.exe", 0);
+    binfmt(&env.dir, &[]);
+
+    let run = env
+        .var("GLIMPSE_EXE", exe.to_str().unwrap())
+        .run(&["status"]);
+
+    assert_eq!(run.code, 0, "stderr: {}", run.err);
+    assert_eq!(run.log.first().map(String::as_str), Some("glimpse.exe"));
+}
+
+#[test]
+fn the_native_route_never_asks_about_binfmt_at_all() {
+    // The check belongs to forwarding and nowhere else: the native binary is an
+    // ELF this distro runs directly, so a flushed binfmt_misc is irrelevant to
+    // it. Refusing here would take away the one route that still worked.
+    let mut env = Env::new("binfmt-native");
+    let native = env.binary("glimpse-cli", 0);
+    binfmt(&env.dir, &[("status", "disabled\n")]);
+
+    let run = env
+        .var("GLIMPSE_CLI", native.to_str().unwrap())
+        .run(&["status"]);
+
+    assert_eq!(run.code, 0, "stderr: {}", run.err);
+    assert_eq!(run.log.first().map(String::as_str), Some("glimpse-cli"));
 }
 
 #[test]
