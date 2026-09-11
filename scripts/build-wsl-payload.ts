@@ -31,10 +31,14 @@
 // payload — which is not a failure, it is the forwarding route, unchanged.
 //
 // WHERE THE BYTES COME FROM ON A WINDOWS RUNNER. There is no Linux linker
-// there, so the release chain builds the payload once on a Linux runner and
-// hands it to the Windows leg as an artifact; `--from <file>` stages that file
-// instead of building. The two routes stage the identical name, which is the
-// only thing the bundler and the installer agree on.
+// there, so the payload is built once on a Linux runner and handed to the
+// Windows side as an artifact; `--from <file>` stages that file instead of
+// building. The two routes stage the identical name, which is the only thing
+// the bundler and the installer agree on. The release chain
+// (`_tauri-build.yml`) unpacks its artifact straight into the staging
+// directory and needs no flag; `wsl-smoke.yml`'s Windows job is what passes
+// `--from`, because it downloads the payload to a directory of its own and
+// then asks this script for the canonical name and place.
 //
 // Usage: pnpm cli:wsl-payload -- [--from <file>] [--print-plan]
 //   (or `node scripts/build-wsl-payload.ts` directly — which is what the
@@ -114,10 +118,23 @@ export function payloadPlan(triple: string): Plan {
 function main() {
   const argv = process.argv.slice(2);
   const fromFlag = argv.indexOf('--from');
-  const from =
-    fromFlag !== -1 && argv[fromFlag + 1] !== undefined
-      ? resolve(argv[fromFlag + 1] as string)
-      : undefined;
+  const fromValue = fromFlag === -1 ? undefined : argv[fromFlag + 1];
+  // A FLAG WITH NO VALUE IS A MISTAKE, NOT A DEFAULT. `--from` with nothing
+  // after it used to fall back to building — and on the one runner that passes
+  // it, a Windows one, there is no Linux linker, so the fallback could only
+  // fail obscurely minutes later or, worse, stage a binary built for the wrong
+  // operating system. Say it here, where the argv is still in hand.
+  if (
+    fromFlag !== -1 &&
+    (fromValue === undefined || fromValue.startsWith('-'))
+  ) {
+    console.error(
+      'build-wsl-payload: --from needs a path to a prebuilt ELF ' +
+        '(e.g. --from ./glimpse-cli-linux-x86_64)'
+    );
+    process.exit(1);
+  }
+  const from = fromValue === undefined ? undefined : resolve(fromValue);
   const p = payloadPlan(PAYLOAD_TRIPLE);
 
   if (argv.includes('--print-plan')) {

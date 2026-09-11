@@ -126,6 +126,27 @@ describe('build-wsl-payload', () => {
     expect(p.target).toBe(printedPlan().target);
   });
 
+  it('refuses `--from` with no value instead of silently building', () => {
+    // The seam `--target` already closed on the sidecar script. `--from` is
+    // passed by a WINDOWS job, and a Windows runner has no Linux linker — so
+    // falling back to building could only fail obscurely minutes later, or
+    // stage a binary for the wrong operating system under the payload's name.
+    const bare = spawnSync(process.execPath, [SCRIPT, '--from'], {
+      encoding: 'utf8'
+    });
+    expect(bare.status).toBe(1);
+    expect(bare.stderr).toContain('--from needs a path');
+    // …and a flag where the value should be is the same mistake.
+    const flag = spawnSync(
+      process.execPath,
+      [SCRIPT, '--from', '--print-plan'],
+      {
+        encoding: 'utf8'
+      }
+    );
+    expect(flag.status).toBe(1);
+  });
+
   it('is reachable by the command a human is told to run', () => {
     // A build step nobody can name is a build step nobody reproduces: the
     // installer's second binary would then only ever be produced by CI, and a
