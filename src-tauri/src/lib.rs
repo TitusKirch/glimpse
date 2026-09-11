@@ -436,18 +436,34 @@ fn wsl_payload_name(machine: &str) -> Option<String> {
 }
 
 /// The `sh -c` program that takes the payload on stdin and leaves it executable
-/// at `WSL_CLI_PATH`.
+/// at `target` — `WSL_CLI_PATH` in the install, a scratch path in the tests
+/// that actually run it.
 ///
 /// It writes a sibling and `mv`s it into place rather than truncating the
 /// target, because replacing a *running* ELF in place fails with ETXTBSY — and
 /// a user who reinstalls from the app while a `glimpse log` is open in that
 /// distro would otherwise be left with a half-written command line, which is
 /// worse than the one they had.
+///
+/// And it PROVES the sibling before moving it. `set -e` plus `cat >` catches a
+/// broken pipe, not a payload that arrives complete and wrong: that one is
+/// chmod'd, moved into place and `exec`'d by the launcher forever, because the
+/// only thing the launcher asks of a candidate is that it be executable. A
+/// route that worked before the install would then be permanently broken, which
+/// is exactly what the best-effort posture exists to rule out. So the write is
+/// measured against `size` — the byte count the Rust side is streaming, the one
+/// number this side of the hop knows and the distro cannot infer — and then run
+/// once; either check failing removes the sibling and exits non-zero, leaving
+/// whatever was there before (usually nothing) and the forwarding route intact.
 #[allow(dead_code)] // used by the Windows install path + the unit tests
-fn wsl_cli_install_script() -> String {
+fn wsl_cli_install_script(target: &str, size: usize) -> String {
     format!(
-        "set -e; mkdir -p \"$(dirname {WSL_CLI_PATH})\"; cat > {WSL_CLI_PATH}.new; \
-         chmod 0755 {WSL_CLI_PATH}.new; mv -f {WSL_CLI_PATH}.new {WSL_CLI_PATH}"
+        "set -e; mkdir -p \"$(dirname {target})\"; cat > {target}.new; \
+         chmod 0755 {target}.new; \
+         if [ \"$(wc -c < {target}.new)\" -ne {size} ] || \
+         ! {target}.new --version >/dev/null 2>&1; \
+         then rm -f {target}.new; exit 1; fi; \
+         mv -f {target}.new {target}"
     )
 }
 
@@ -606,7 +622,7 @@ fn install_wsl_cli_into(distro: &str, payload_dir: &Path) -> Result<(), String> 
             "--",
             "sh",
             "-c",
-            &wsl_cli_install_script(),
+            &wsl_cli_install_script(WSL_CLI_PATH, bytes.len()),
         ])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::null())
@@ -2458,7 +2474,7 @@ mod tests {
         // Overwriting a RUNNING ELF in place fails with ETXTBSY, and a
         // half-written command line is worse than the one it replaced — so the
         // payload lands beside the target and is moved onto it.
-        let script = wsl_cli_install_script();
+        let script = wsl_cli_install_script(WSL_CLI_PATH, 1_487_056);
         assert!(script.contains(&format!("cat > {WSL_CLI_PATH}.new")));
         assert!(script.contains(&format!("chmod 0755 {WSL_CLI_PATH}.new")));
         assert!(script.contains(&format!("mv -f {WSL_CLI_PATH}.new {WSL_CLI_PATH}")));
@@ -2468,6 +2484,98 @@ mod tests {
         // `set -e`, so a failed chmod cannot leave a non-executable file to be
         // moved into place and reported as installed.
         assert!(script.starts_with("set -e;"));
+    }
+
+    /// Run the install script the way `install_wsl_cli_into` runs it inside a
+    /// distro — `sh -c <script>` with the payload on stdin — against a target
+    /// inside a scratch directory. Returns what the target holds afterwards, if
+    /// anything: `None` is the degrade-to-forwarding outcome.
+    #[cfg(unix)]
+    fn run_install_script(dir: &std::path::Path, payload: &[u8], size: usize) -> Option<String> {
+        use std::io::Write;
+        let target = dir.join("glimpse-cli").to_string_lossy().into_owned();
+        let mut child = std::process::Command::new("sh")
+            .args(["-c", &wsl_cli_install_script(&target, size)])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("sh");
+        child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(payload)
+            .expect("write the payload");
+        child.wait().expect("wait");
+        // A `.new` sibling left behind is a failure of its own: the next
+        // install would find a stale half-write already in place.
+        assert!(
+            !std::path::Path::new(&format!("{target}.new")).exists(),
+            "the script left a .new sibling behind"
+        );
+        std::fs::read_to_string(&target).ok()
+    }
+
+    #[cfg(unix)]
+    fn payload_scratch(tag: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-wsl-payload-{tag}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_payload_that_arrives_whole_is_installed() {
+        // The happy path, RUN rather than pinned: the bytes land, executable,
+        // at the path the launcher searches first.
+        let dir = payload_scratch("whole");
+        let payload = b"#!/bin/sh\necho 'glimpse 0.13.0'\n";
+        assert_eq!(
+            run_install_script(&dir, payload, payload.len()).as_deref(),
+            Some(std::str::from_utf8(payload).unwrap())
+        );
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(dir.join("glimpse-cli"))
+            .expect("the installed payload")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o111, 0o111, "the payload is not executable");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_payload_that_arrives_short_never_reaches_the_native_path() {
+        // THE POINT OF THE SIZE CHECK. A truncated stream is still a file, and
+        // `chmod 0755` makes it an executable one — so without this the
+        // launcher would `exec` a broken command line forever, on a route that
+        // worked before the install. It has to degrade to forwarding, which
+        // means nothing at the native path at all.
+        let dir = payload_scratch("short");
+        let payload = b"#!/bin/sh\necho 'glimpse 0.13.0'\n";
+        assert_eq!(run_install_script(&dir, payload, payload.len() + 512), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_payload_that_cannot_run_never_replaces_a_working_one() {
+        // Complete but WRONG: the right byte count and not a runnable program.
+        // The install already there is the better of the two, so the check runs
+        // before the move and the old command line survives it.
+        let dir = payload_scratch("corrupt");
+        let good = "#!/bin/sh\necho 'glimpse 0.13.0'\n";
+        std::fs::write(dir.join("glimpse-cli"), good).expect("seed the old install");
+        let corrupt = b"\x7fELF but not an executable one\n";
+        assert_eq!(
+            run_install_script(&dir, corrupt, corrupt.len()).as_deref(),
+            Some(good),
+            "a corrupt payload replaced a working command line"
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
