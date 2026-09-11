@@ -208,32 +208,32 @@ jobs:
           wsl.exe -- /usr/local/lib/glimpse/glimpse-cli --version
           exit 0
 
-      # WIN32 INTEROP, MEASURED BEFORE IT IS RELIED ON. Forwarding means a
-      # Linux SHELL `exec`ing a Windows PE binary, which works only while the
-      # kernel has a binfmt_misc handler registered for one. A runner's distro
-      # does not always have it: the first runs of this job died inside the
-      # test with `exec: …/glimpse-cli.exe: Exec format error` — the route
-      # taken correctly, the environment unable to complete it. Debian-13 boots
-      # systemd, and `systemd-binfmt` flushes binfmt_misc after `/init`
-      # registered WSLInterop into it.
+      # WIN32 INTEROP, MADE DETERMINISTIC AND THEN MEASURED. Forwarding means
+      # a Linux SHELL `exec`ing a Windows PE binary, which works only while the
+      # kernel has a binfmt_misc handler registered for one. Debian-13 boots
+      # systemd, and `systemd-binfmt` FLUSHES binfmt_misc after `/init`
+      # registered WSLInterop into it — so whether a shell can exec a Windows
+      # program is a race, and a run of this job lost it in the middle: a probe
+      # right after boot answered, and the test minutes later died on
+      # `exec: …/glimpse-cli.exe: Exec format error`.
       #
-      # `wsl.exe -- cmd.exe` is NOT the check for this: wsl.exe launches a
-      # Windows command itself and answered fine while a shell in the same
-      # distro could not exec one. So the check runs cmd.exe THROUGH `sh`, the
-      # shape the launcher uses, and a distro that fails it fails this step —
-      # naming the environment — rather than the test, which would read like a
-      # defect in the launcher.
+      # Turning systemd off is what removes the race rather than out-waiting
+      # it. Nothing in this job wants systemd; `git` inside the distro does not
+      # need it, and the native half has already run by here.
       #
-      # AFTER the native half, deliberately: that half needs no interop at all,
-      # and is left running on exactly the machine it was measured on.
+      # `wsl.exe -- cmd.exe` is NOT the check: wsl.exe launches a Windows
+      # command itself and answered fine while a shell in the same distro could
+      # not exec one. The probe therefore runs cmd.exe THROUGH `sh`, the shape
+      # the launcher uses — and re-registers the handler if even that is gone,
+      # so a distro that still cannot do it fails HERE, naming the environment,
+      # instead of failing the test and reading like a defect in the launcher.
       - name: Make sure a shell in the distro can exec a Windows program
         shell: pwsh
         run: |
-          wsl.exe -u root -- sh -c "printf '\n[interop]\nenabled=true\n' >> /etc/wsl.conf"
+          wsl.exe -u root -- sh -c "printf '[boot]\nsystemd=false\n[interop]\nenabled=true\n' > /etc/wsl.conf"
           wsl.exe --shutdown
           wsl.exe -u root -- sh -c "cat /etc/wsl.conf; ls /proc/sys/fs/binfmt_misc/"
           wsl.exe -u root -- sh -c "/mnt/c/Windows/System32/cmd.exe /c ver >/dev/null 2>&1 || echo ':WSLInterop:M::MZ::/init:PF' > /proc/sys/fs/binfmt_misc/register"
-          wsl.exe -u root -- sh -c "ls /proc/sys/fs/binfmt_misc/"
           wsl.exe -u root -- sh -c "/mnt/c/Windows/System32/cmd.exe /c ver"
           if ($LASTEXITCODE -ne 0) {
             throw 'a shell in this distro cannot exec a Windows program: the forwarding route cannot be measured here'
