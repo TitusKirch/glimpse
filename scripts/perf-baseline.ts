@@ -11,8 +11,18 @@
 // WHAT IT NEEDS BUILT FIRST (it refuses rather than measuring something else):
 //
 //   pnpm build                     # the Nuxt client bundle, into .output/public
-//   pnpm tauri build               # the platform packages
+//   pnpm tauri:build               # the platform packages
 //   pnpm tauri build --no-bundle   # …and the plain binary back, on Linux
+//
+// The second line is `tauri:build`, not `tauri build`, and the colon is the
+// whole point: `tauri:build` is the invocation that merges
+// `tauri.sidecar.conf.json` in, so the packages it produces carry the
+// `glimpse-cli` sidecar a user actually downloads. The colonless spelling
+// produces packages without it and understates the installed size by roughly
+// the command line's 1.4 MB — a number that is then not comparable with the
+// one `perf-baseline.yml` publishes, which does merge the fragment. A guard in
+// `scripts/build-cli-sidecar.test.ts` holds every bundling mention in this file
+// to the packaging spelling, so the two cannot drift apart again.
 //
 // That third line is not redundant. On Linux the AppImage step leaves an
 // AppImage at `target/release/<name>`, in place of the executable that was
@@ -158,7 +168,7 @@ function resolveBinary(meta: CargoMetadata): string {
   if (!found) {
     die(
       `no release binary. Looked for:\n  ${candidates.join('\n  ')}\n` +
-        'Build it first: pnpm tauri build'
+        'Build it first: pnpm tauri:build'
     );
   }
   if (isAppImage(readHeader(found))) {
@@ -379,7 +389,7 @@ async function main() {
   const packages = packageArtifacts(meta);
   if (packages.length === 0) {
     die(
-      'no platform package under target/release/bundle. Run: pnpm tauri build'
+      'no platform package under target/release/bundle. Run: pnpm tauri:build'
     );
   }
 

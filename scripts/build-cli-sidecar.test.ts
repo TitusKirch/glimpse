@@ -34,6 +34,10 @@ const WORKFLOWS = fileURLToPath(
 
 const PACKAGE_JSON = fileURLToPath(new URL('../package.json', import.meta.url));
 
+const PERF_BASELINE = fileURLToPath(
+  new URL('./perf-baseline.ts', import.meta.url)
+);
+
 function printedPlan(args: string[]) {
   const result = spawnSync(
     process.execPath,
@@ -148,6 +152,30 @@ release: 1.96.0
     // command line in it, `pnpm tauri:build` is the one that packages.
     const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'));
     expect(pkg.scripts['tauri:build']).toContain(SIDECAR_CONFIG);
+  });
+
+  it('tells a human to run the packaging invocation, not the compile', () => {
+    // THE THIRD ROUTE, and the one the split quietly broke. The guard above
+    // covers what CI runs; `scripts/perf-baseline.ts` is a PROCEDURE a person
+    // follows, and it said `pnpm tauri build` — which after the split produces
+    // packages with no `glimpse-cli` in them. A locally re-measured installer
+    // size then understates the published one by the command line's ~1.4 MB and
+    // is no longer comparable with the figure `perf-baseline.yml` prints, which
+    // is precisely what a baseline exists to make comparable.
+    //
+    // Only the BUNDLING mentions are the rule. `pnpm tauri build --no-bundle`
+    // stays as it is: it wants the plain binary back and declares no sidecar
+    // either way.
+    const script = readFileSync(PERF_BASELINE, 'utf8');
+    const bundling = script
+      .split('\n')
+      .filter(
+        (line) =>
+          /pnpm tauri:?\s?build/.test(line) && !line.includes('--no-bundle')
+      );
+    expect(bundling.length).toBeGreaterThan(0);
+    for (const line of bundling)
+      expect(line, line.trim()).toContain('pnpm tauri:build');
   });
 
   it('takes the release build from target/release and the debug one from target/debug', () => {
