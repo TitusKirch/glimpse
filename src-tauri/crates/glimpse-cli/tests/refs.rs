@@ -1113,6 +1113,226 @@ fn reset_hard_counts_an_untracked_path_the_target_collides_with_by_shape() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 #[test]
+fn reset_hard_counts_the_ignored_files_a_checkout_comes_for_too() {
+    // `status` is asked without `--ignored`, so the guard used to see exactly
+    // half of the working tree — and a checkout sees all of it. A gitignored
+    // `out.log` whose name the target tracks is overwritten; an ignored
+    // `build/` directory is deleted whole to make room for the target's file at
+    // `build`. Both exited 0 and said nothing, behind a refusal whose own
+    // sentence promises "there is no copy of them anywhere".
+    let dir = std::env::temp_dir().join(format!(
+        "glimpse-cli-reset-hard-ignored-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+    std::fs::write(dir.join(".gitignore"), "out.log\nbuild/\ncache/\n").unwrap();
+    std::fs::write(dir.join("keep.txt"), "k\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "first"]);
+    // A commit that tracks a file at BOTH ignored names — one a plain overwrite,
+    // one a directory the target wants the name of.
+    std::fs::write(dir.join("out.log"), "theirs\n").unwrap();
+    std::fs::write(dir.join("build"), "theirs\n").unwrap();
+    git(&dir, &["add", "-f", "out.log", "build"]);
+    git(&dir, &["commit", "-q", "-m", "tracks both"]);
+    let target = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    git(&dir, &["rm", "-q", "out.log", "build"]);
+    git(&dir, &["commit", "-q", "-m", "tracks neither"]);
+    let head = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    let path = dir.to_str().unwrap();
+
+    // The caller's own ignored work, in both shapes, plus one the target knows
+    // nothing about — the common case, which must stay unmentioned.
+    std::fs::write(dir.join("out.log"), "mine\n").unwrap();
+    std::fs::create_dir_all(dir.join("build")).unwrap();
+    std::fs::write(dir.join("build/app"), "mine\n").unwrap();
+    std::fs::create_dir_all(dir.join("cache")).unwrap();
+    std::fs::write(dir.join("cache/blob"), "mine\n").unwrap();
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &target]);
+    assert_eq!(code, 1, "the ignored work at risk is refused: {err:?}");
+    assert!(
+        err.contains("out.log"),
+        "it names the ignored file the target writes over: {err:?}"
+    );
+    // The ignored listing is collapsed to directories, so the bullet names
+    // `build` rather than each file under it — which is also what actually
+    // happens: the whole directory goes to make room for the target's file.
+    assert!(
+        err.contains("build (ignored"),
+        "and the ignored directory the target takes the name of: {err:?}"
+    );
+    assert!(
+        err.contains("ignored"),
+        "and says these are ignored, not untracked — the advice differs: {err:?}"
+    );
+    assert!(
+        !err.contains("cache/blob"),
+        "and not the ignored work nothing would touch: {err:?}"
+    );
+    // `glimpse stash save -u` takes untracked files and leaves ignored ones
+    // exactly where they are, so recommending it here would send the reader
+    // through a command that reports success and protects nothing.
+    assert!(
+        !err.contains("glimpse stash save"),
+        "it does not offer a stash that would not carry them: {err:?}"
+    );
+    assert_eq!(
+        git_out(&dir, &["rev-parse", "HEAD"]).trim(),
+        head,
+        "HEAD did not move behind the refusal"
+    );
+
+    // …and the refusal was true: with consent both really do go.
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &target, "--force"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("out.log")).unwrap(),
+        "theirs\n",
+        "the target's file took the ignored name"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("build")).unwrap(),
+        "theirs\n",
+        "and the ignored directory is gone, file in its place"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("cache/blob")).unwrap(),
+        "mine\n",
+        "while the ignored work nothing wanted is untouched"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_ignored_directory_the_target_reaches_into_is_answered_file_by_file() {
+    // The collapsed listing is an optimisation, and it owes the caller the same
+    // answer the expensive listing would give. Where the target tree has blobs
+    // *under* an ignored directory, the directory itself is not in the way — a
+    // checkout writes into it — so only the individual file names can say which
+    // ignored work is at risk and which is not. One directory, both answers.
+    let dir = std::env::temp_dir().join(format!(
+        "glimpse-cli-reset-hard-inside-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+    std::fs::write(dir.join(".gitignore"), "cache/\n").unwrap();
+    std::fs::write(dir.join("keep.txt"), "k\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "first"]);
+    std::fs::create_dir_all(dir.join("cache")).unwrap();
+    std::fs::write(dir.join("cache/wanted"), "theirs\n").unwrap();
+    git(&dir, &["add", "-f", "cache/wanted"]);
+    git(
+        &dir,
+        &[
+            "commit",
+            "-q",
+            "-m",
+            "the target reaches into the ignored directory",
+        ],
+    );
+    let target = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    git(&dir, &["rm", "-q", "cache/wanted"]);
+    git(&dir, &["commit", "-q", "-m", "and HEAD does not"]);
+    let path = dir.to_str().unwrap();
+
+    std::fs::create_dir_all(dir.join("cache")).unwrap();
+    std::fs::write(dir.join("cache/wanted"), "mine\n").unwrap();
+    std::fs::write(dir.join("cache/spare"), "mine\n").unwrap();
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &target]);
+    assert_eq!(code, 1, "the one name the target wants is refused: {err:?}");
+    assert!(
+        err.contains("cache/wanted"),
+        "named by its own path, not by the directory holding it: {err:?}"
+    );
+    assert!(
+        !err.contains("cache/spare"),
+        "and its neighbour, which nothing wants, is not: {err:?}"
+    );
+
+    let (code, _out, err) = run(&["reset", "-C", path, "--hard", &target, "--force"]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("cache/wanted")).unwrap(),
+        "theirs\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.join("cache/spare")).unwrap(),
+        "mine\n",
+        "the checkout wrote into the directory rather than replacing it"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn reset_hard_does_not_fire_on_an_ancestor_the_target_merely_has_a_directory_at() {
+    // THE ANCESTOR PATHSPEC'S NEGATIVE. `at_risk_of_reset` asks the tree about
+    // every ancestor directory of an untracked path, because `ls-tree --
+    // d/inner.txt` matches nothing at all when the tree's `d` is a *file* and
+    // git reports that silence rather than the collision. Asking about `d` is
+    // what turns the silence into an answer — and it is also what could turn an
+    // ordinary shared directory into a false alarm, since `d` matches every
+    // blob underneath it too. A guard that fires where a checkout would touch
+    // nothing is how `--force` is learned as a reflex.
+    let dir = std::env::temp_dir().join(format!(
+        "glimpse-cli-reset-hard-ancestor-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "test@example.com"]);
+    git(&dir, &["config", "user.name", "Test"]);
+    git(&dir, &["config", "commit.gpgsign", "false"]);
+    std::fs::create_dir_all(dir.join("d")).unwrap();
+    std::fs::write(dir.join("d/theirs.txt"), "t\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(
+        &dir,
+        &["commit", "-q", "-m", "d is a directory with one file in it"],
+    );
+    let target = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    std::fs::write(dir.join("later.txt"), "l\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "second"]);
+    let head = git_out(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+    let path = dir.to_str().unwrap();
+
+    // Untracked work in a directory the target also has — and the target wants
+    // a different name inside it, so nothing of the caller's is in the way.
+    std::fs::write(dir.join("d/mine.txt"), "mine\n").unwrap();
+
+    let (code, out, err) = run(&["reset", "-C", path, "--hard", &target]);
+    assert_eq!(
+        code, 0,
+        "the target shares the directory, it does not want this name: {err:?}"
+    );
+    assert!(out.contains(&target[..8]), "where HEAD went: {out:?}");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("d/mine.txt")).unwrap(),
+        "mine\n",
+        "and the guard was right — the checkout left it alone"
+    );
+    assert_ne!(git_out(&dir, &["rev-parse", "HEAD"]).trim(), head);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn a_conflicted_restore_leaves_a_receipt_naming_the_verb_that_actually_ran() {
     // The receipt is the one thing a running window reads to learn what
     // happened, so an `apply` that files itself as a `pop` tells that window

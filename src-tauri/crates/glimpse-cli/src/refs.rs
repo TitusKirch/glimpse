@@ -608,8 +608,17 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
     if matches!(mode, ResetMode::Hard) && !force {
         let at_risk = at_risk_of_reset(repo, &to)?;
         if !at_risk.is_empty() {
-            let paths: Vec<String> = at_risk.iter().map(|(p, _)| p.clone()).collect();
-            let stash = if at_risk.iter().any(|(_, how)| how.is_some()) {
+            let paths: Vec<String> = at_risk.iter().map(|r| r.path.clone()).collect();
+            // Where to put the work instead — and the advice has to be true, so
+            // it is decided by which half of the working tree is at risk. A
+            // stash takes tracked changes; `-u` adds the untracked ones; NEITHER
+            // takes an **ignored** file, so offering one there would send the
+            // reader through a command that reports success and protects
+            // nothing. `git stash push --all` is the one that does, and this CLI
+            // has no spelling for it.
+            let stash = if at_risk.iter().any(|r| r.ignored) {
+                "git stash push --all"
+            } else if at_risk.iter().any(|r| r.how.is_some()) {
                 "glimpse stash save -u"
             } else {
                 "glimpse stash save"
@@ -623,19 +632,26 @@ fn reset(repo: &Repo, rest: &[String]) -> Result<Report, Failure> {
                 bulleted(
                     &at_risk
                         .iter()
-                        .map(|(path, how)| match how {
-                            None => path.clone(),
-                            Some(Collision::Here) => {
-                                format!("{path} (untracked, but {} has a file there)", short(&to))
+                        .map(|r| {
+                            let kind = if r.ignored { "ignored" } else { "untracked" };
+                            match &r.how {
+                                None => r.path.clone(),
+                                Some(Collision::Here) => format!(
+                                    "{} ({kind}, but {} has a file there)",
+                                    r.path,
+                                    short(&to)
+                                ),
+                                Some(Collision::FileAt(ancestor)) => format!(
+                                    "{} ({kind}, but {} has a file at {ancestor})",
+                                    r.path,
+                                    short(&to)
+                                ),
+                                Some(Collision::DirectoryHere) => format!(
+                                    "{} ({kind}, but {} has a directory there)",
+                                    r.path,
+                                    short(&to)
+                                ),
                             }
-                            Some(Collision::FileAt(ancestor)) => format!(
-                                "{path} (untracked, but {} has a file at {ancestor})",
-                                short(&to)
-                            ),
-                            Some(Collision::DirectoryHere) => format!(
-                                "{path} (untracked, but {} has a directory there)",
-                                short(&to)
-                            ),
                         })
                         .collect::<Vec<String>>()
                 ),
@@ -692,9 +708,19 @@ enum Collision {
     DirectoryHere,
 }
 
-/// What a `reset --hard` to `target` would really destroy — each path paired
-/// with the collision that puts it at risk, or `None` where it is at risk as
-/// tracked work rather than as an untracked file.
+/// One path a `reset --hard` would really destroy, and why.
+struct AtRisk {
+    path: String,
+    /// The collision that puts it in the way, or `None` where it is at risk as
+    /// tracked work rather than as a file the target tree needs the name of.
+    how: Option<Collision>,
+    /// Whether git is **ignoring** it. Only the advice differs — no stash this
+    /// CLI can spell carries an ignored file — but a bullet that called it
+    /// untracked would be false.
+    ignored: bool,
+}
+
+/// What a `reset --hard` to `target` would really destroy.
 ///
 /// The two halves of "dirty" are not at risk on the same terms, and a guard is
 /// only worth having if it says which. A tracked modification or a staged
@@ -713,38 +739,103 @@ enum Collision {
 /// leaving behind a report of success and a `git reset` hint that brings the
 /// branch back but not the file.
 ///
-/// `status` cannot answer this on its own: it describes the working tree
+/// **Ignored paths are asked about on exactly those terms too.** `status` is
+/// asked without `--ignored`, so for a long time this guard saw half a working
+/// tree and spoke for all of it: a gitignored file whose name the target tracks
+/// was overwritten, and an ignored directory the target wants the name of was
+/// deleted whole, both in silence behind a refusal promising "there is no copy
+/// of them anywhere". A checkout does not consult `.gitignore`. The listing is
+/// **collapsed to directories** first — `node_modules` is one path, not a
+/// hundred thousand — and expanded only where the target reaches inside one,
+/// which is the rare case and the only one whose file names matter.
+///
+/// `status` cannot answer any of this on its own: it describes the working tree
 /// against **HEAD**, and the target is a different tree.
-fn at_risk_of_reset(
-    repo: &Repo,
-    target: &str,
-) -> Result<Vec<(String, Option<Collision>)>, Failure> {
+fn at_risk_of_reset(repo: &Repo, target: &str) -> Result<Vec<AtRisk>, Failure> {
     let status = repo.status()?;
+    let ignored = repo.ignored_paths()?;
+
     let mut asked: Vec<String> = Vec::new();
-    for entry in status.iter().filter(|e| e.untracked) {
-        asked.push(entry.path.clone());
-        // Every ancestor directory, because a blob at one of them is a
-        // collision the path's own pathspec cannot see: `ls-tree -- d/inner.txt`
-        // matches nothing at all when the tree's `d` is a file. Asking about
-        // `d` is what makes that answerable, and it costs no extra git call.
-        let mut rest = entry.path.as_str();
-        while let Some((parent, _)) = rest.rsplit_once('/') {
-            asked.push(parent.to_string());
-            rest = parent;
-        }
+    for path in status
+        .iter()
+        .filter(|e| e.untracked)
+        .map(|e| e.path.as_str())
+        .chain(ignored.iter().map(|(p, _)| p.as_str()))
+    {
+        ask_about(&mut asked, path);
     }
-    asked.sort();
-    asked.dedup();
     let blobs = repo.paths_in_tree(target, &asked)?;
-    Ok(status
+
+    let mut at_risk: Vec<AtRisk> = status
         .iter()
         .filter_map(|e| {
             if !e.untracked {
-                return Some((e.path.clone(), None));
+                return Some(AtRisk {
+                    path: e.path.clone(),
+                    how: None,
+                    ignored: false,
+                });
             }
-            collision(&e.path, &blobs).map(|how| (e.path.clone(), Some(how)))
+            collision(&e.path, &blobs).map(|how| AtRisk {
+                path: e.path.clone(),
+                how: Some(how),
+                ignored: false,
+            })
         })
-        .collect())
+        .collect();
+
+    // An ignored *directory* the target has blobs under is the one answer the
+    // collapsed listing cannot give: the directory itself is not in the way —
+    // a checkout writes into it — but individual files inside it may be, and
+    // only their own names can say which.
+    let mut expand: Vec<String> = Vec::new();
+    for (path, is_dir) in &ignored {
+        match collision(path, &blobs) {
+            Some(Collision::DirectoryHere) if *is_dir => expand.push(path.clone()),
+            Some(how) => at_risk.push(AtRisk {
+                path: path.clone(),
+                how: Some(how),
+                ignored: true,
+            }),
+            None => {}
+        }
+    }
+    if !expand.is_empty() {
+        let files = repo.ignored_files_in(&expand)?;
+        let mut asked: Vec<String> = Vec::new();
+        for file in &files {
+            ask_about(&mut asked, file);
+        }
+        let blobs = repo.paths_in_tree(target, &asked)?;
+        for file in files {
+            if let Some(how) = collision(&file, &blobs) {
+                at_risk.push(AtRisk {
+                    path: file,
+                    how: Some(how),
+                    ignored: true,
+                });
+            }
+        }
+    }
+    Ok(at_risk)
+}
+
+/// Add `path` and every ancestor directory of it to the pathspec list.
+///
+/// The ancestors are what make the question answerable at all: a blob at one of
+/// them is a collision the path's own pathspec cannot see — `ls-tree --
+/// d/inner.txt` matches nothing whatsoever when the tree's `d` is a file, and a
+/// caller reading that silence as "the tree wants nothing here" has it exactly
+/// backwards. Asking about `d` costs no extra git call.
+fn ask_about(asked: &mut Vec<String>, path: &str) {
+    asked.push(path.to_string());
+    let mut rest = path;
+    while let Some((parent, _)) = rest.rsplit_once('/') {
+        asked.push(parent.to_string());
+        rest = parent;
+    }
+    asked.sort();
+    asked.dedup();
 }
 
 /// Which relation, if any, puts an untracked `path` in the way of a tree that
