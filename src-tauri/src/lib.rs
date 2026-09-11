@@ -2578,6 +2578,114 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// The distro the Windows smoke test drives: the first one `wsl.exe -l -q`
+    /// lists, read through the same parser the installer itself uses — so a
+    /// listing this test can read is a listing the installer can read.
+    #[cfg(windows)]
+    fn smoke_distro() -> String {
+        let out = std::process::Command::new("wsl.exe")
+            .args(["-l", "-q"])
+            .output()
+            .expect("wsl.exe -l -q");
+        assert!(out.status.success(), "wsl.exe -l -q failed");
+        parse_wsl_distros(&out.stdout)
+            .into_iter()
+            .next()
+            .expect("no WSL distro is installed on this machine")
+    }
+
+    /// Run one `sh -c` program inside the distro as root — the same hop the
+    /// installer takes — and hand back what it said.
+    #[cfg(windows)]
+    fn in_distro(distro: &str, script: &str) -> (bool, String, String) {
+        let out = std::process::Command::new("wsl.exe")
+            .args(["-d", distro, "-u", "root", "--", "sh", "-c", script])
+            .output()
+            .expect("wsl.exe");
+        (
+            out.status.success(),
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        )
+    }
+
+    /// THE WINDOWS HALF OF CRITERION (c), RUN RATHER THAN ARGUED (#103).
+    ///
+    /// Every other test of this install proves a piece of it off Windows: the
+    /// `sh -c` program runs under this container's shell, the payload name is
+    /// pinned against the script that stages it, the launcher's candidate list
+    /// is pinned against the path written to. What none of them touches is the
+    /// hop itself — `wsl.exe -l -q` against a real distro, `uname -m`, the
+    /// binary going down a pipe into `sh`, the chmod, the `mv`, and the
+    /// launcher then choosing the native route over forwarding.
+    ///
+    /// So this test does exactly that, against whatever distro the machine has.
+    /// It is `#[ignore]`d because it needs one: a developer's Windows box runs
+    /// it with `cargo test -p glimpse -- --ignored`, and the `wsl-smoke.yml`
+    /// workflow arranges a runner that can.
+    ///
+    /// WHAT IT DOES NOT PROVE, and the job says so too: a step running the
+    /// install is not the packaged installer running it, and the distro a
+    /// runner hands out is not the distro a user has.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "drives a real WSL distro; needs GLIMPSE_WSL_SMOKE_PAYLOAD_DIR"]
+    fn the_install_puts_a_working_command_line_inside_a_real_distro() {
+        let dir = std::path::PathBuf::from(
+            std::env::var("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR")
+                .expect("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: the directory holding the staged payload"),
+        );
+        let distro = smoke_distro();
+
+        // A previous run's install would let every assertion below pass without
+        // the hop happening at all, so the distro starts without either half.
+        in_distro(
+            &distro,
+            &format!("rm -f {WSL_CLI_PATH} /usr/local/bin/glimpse"),
+        );
+
+        // `exe` is where glimpse.exe WOULD be: the payload sits beside it,
+        // exactly as the bundler places the resource, and `install_wsl_shims`
+        // reads the directory from the path it is given. The file itself need
+        // not exist — `wslpath -u` translates a path, it does not open one.
+        let labels = super::install_wsl_shims(&dir.join("glimpse.exe"));
+        assert!(
+            !labels.is_empty(),
+            "no distro was reached, though wsl.exe listed {distro}"
+        );
+        assert!(
+            labels.iter().any(|l| l.ends_with("+ command line")),
+            "the native command line was not installed: {labels:?}"
+        );
+
+        // The payload ran under `--version` inside the install script already;
+        // asking again from the outside proves it survived the `mv` as well.
+        let (ok, version, err) = in_distro(&distro, &format!("{WSL_CLI_PATH} --version"));
+        assert!(ok, "the installed payload does not run: {err}");
+        assert!(
+            version.starts_with("glimpse "),
+            "unexpected version line: {version}"
+        );
+
+        // And the launcher takes it. glimpse.exe does not exist on this
+        // machine — `dir/glimpse.exe` was never written — so the forwarding
+        // route cannot answer: whatever replies here is the native binary
+        // reading the distro's own git.
+        let repo = "/tmp/glimpse-wsl-smoke";
+        let (ok, status, err) = in_distro(
+            &distro,
+            &format!(
+                "set -e; rm -rf {repo}; mkdir -p {repo}; cd {repo}; git init -q .; \
+                 echo smoke > smoke.txt; glimpse status --json"
+            ),
+        );
+        assert!(ok, "`glimpse status` failed inside {distro}: {err}");
+        assert!(
+            status.contains("smoke.txt"),
+            "`glimpse status` did not see the untracked file: {status}"
+        );
+    }
+
     #[test]
     fn the_payload_is_named_by_what_uname_reports() {
         // `scripts/build-wsl-payload.ts` stages exactly this name from the
