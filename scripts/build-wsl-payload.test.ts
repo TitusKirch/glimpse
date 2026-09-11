@@ -176,10 +176,29 @@ describe('build-wsl-payload', () => {
     // The fallback forwards to the CONSOLE binary beside glimpse.exe, so the
     // job has to build and stage one — without it that test fails on its own
     // precondition instead of measuring the route.
+    //
+    // Asserted against the job with its COMMENTS STRIPPED. This workflow
+    // explains itself at length and says `glimpse-cli.exe` five times in prose,
+    // so the guard passed on the commentary alone: delete the build step and it
+    // stayed green, which is the one outcome it exists to rule out.
+    const code = job
+      .split('\n')
+      .filter((line) => !/^\s*#/.test(line))
+      .join('\n');
     expect(
-      job,
+      code,
       'the job never builds the binary the fallback forwards to'
     ).toContain('glimpse-cli.exe');
+    // And it is BUILT and PUT THERE, not merely mentioned in a path: the
+    // fallback reads the console binary out of the directory holding
+    // glimpse.exe, so a job that compiles one and leaves it in `target/` proves
+    // nothing about the route.
+    expect(code, 'the job never compiles the console binary').toMatch(
+      /cargo build[^\n]*-p glimpse-cli/
+    );
+    expect(code, 'the job never stages it where the launcher looks').toMatch(
+      /binaries\/glimpse-cli\.exe/
+    );
     // The engine the payload runs and the resource declaration that ships it:
     // a change to either changes what this job measures, so neither may be
     // outside the paths filter that decides whether it runs at all.
