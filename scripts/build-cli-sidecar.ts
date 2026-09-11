@@ -38,11 +38,17 @@
 // would pin none of it. Every case in scripts/build-cli-sidecar.test.ts reads
 // this plan, so the naming rule is checked without a Rust toolchain in reach.
 //
-// Usage: node scripts/build-cli-sidecar.ts [--debug] [--host <triple>] [--print-plan]
-//   --debug        — stage the dev-profile build (what a `--debug` build wants)
-//                    instead of the release one
-//   --host <triple>— use this target triple instead of asking `rustc -vV`
-//   --print-plan   — print the plan as JSON and exit, building nothing
+// Usage: node scripts/build-cli-sidecar.ts [--debug] [--target <triple>]
+//                                          [--host <triple>] [--print-plan]
+//   --debug          — stage the dev-profile build (what a `--debug` build
+//                      wants) instead of the release one
+//   --target <triple>— CROSS-BUILD for this triple: `cargo --target <triple>`,
+//                      read back out of `target/<triple>/<profile>`
+//   --host <triple>  — say what `rustc -vV` would have reported. Names the
+//                      staged file and nothing else; the build stays native.
+//                      A test seam, so the naming rule is checkable with no
+//                      toolchain — never a way to retarget a build.
+//   --print-plan     — print the plan as JSON and exit, building nothing
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync } from 'node:fs';
@@ -100,7 +106,7 @@ export function hostTriple(rustcVersion: string): string {
   return triple;
 }
 
-export function plan(triple: string, debug: boolean): Plan {
+export function plan(triple: string, debug: boolean, cross = false): Plan {
   const profile = debug ? 'debug' : 'release';
   return {
     triple,
@@ -113,13 +119,19 @@ export function plan(triple: string, debug: boolean): Plan {
         join(WORKSPACE, 'Cargo.toml'),
         '--package',
         PACKAGE,
+        ...(cross ? ['--target', triple] : []),
         ...(debug ? [] : ['--release'])
       ],
       cwd: WORKSPACE
     },
     // `--release` writes to `target/release`, a dev build to `target/debug`;
     // the workspace has no custom `target-dir`, so both sit under src-tauri.
-    source: join(WORKSPACE, 'target', profile, binaryName(triple)),
+    // `--target` moves the whole lot under `target/<triple>/` — staging the
+    // native path after a cross-build would ship the HOST binary under the
+    // foreign triple's name, which the bundler would accept without a word.
+    source: cross
+      ? join(WORKSPACE, 'target', triple, profile, binaryName(triple))
+      : join(WORKSPACE, 'target', profile, binaryName(triple)),
     target: join(WORKSPACE, STAGE_DIR, sidecarName(triple))
   };
 }
@@ -127,12 +139,15 @@ export function plan(triple: string, debug: boolean): Plan {
 function main() {
   const argv = process.argv.slice(2);
   const debug = argv.includes('--debug');
+  const targetFlag = argv.indexOf('--target');
+  const cross = targetFlag !== -1 && argv[targetFlag + 1] !== undefined;
   const hostFlag = argv.indexOf('--host');
-  const triple =
-    hostFlag !== -1 && argv[hostFlag + 1] !== undefined
+  const triple = cross
+    ? (argv[targetFlag + 1] as string)
+    : hostFlag !== -1 && argv[hostFlag + 1] !== undefined
       ? (argv[hostFlag + 1] as string)
       : hostTriple(rustcVersion());
-  const p = plan(triple, debug);
+  const p = plan(triple, debug, cross);
 
   if (argv.includes('--print-plan')) {
     console.log(JSON.stringify(p));

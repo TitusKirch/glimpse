@@ -170,6 +170,33 @@ release: 1.96.0
     expect(debug.target).toBe(release.target);
   });
 
+  it('cross-builds for `--target` instead of renaming a host binary', () => {
+    // `--host` is the test seam — it says what `rustc -vV` WOULD have reported
+    // and changes the name only. `--target` is the cross-build, and the two
+    // halves have to move together: `cargo --target <triple>` writes to
+    // `target/<triple>/<profile>`, so a staged name without the retargeted
+    // source is a HOST binary shipped under a foreign triple's name.
+    const cross = printedPlan(['--target', 'aarch64-unknown-linux-gnu']);
+    expect(cross.triple).toBe('aarch64-unknown-linux-gnu');
+    expect(cross.build.args).toContain('--target');
+    expect(cross.build.args[cross.build.args.indexOf('--target') + 1]).toBe(
+      'aarch64-unknown-linux-gnu'
+    );
+    expect(cross.source).toContain(
+      '/target/aarch64-unknown-linux-gnu/release/glimpse-cli'
+    );
+    expect(cross.target.endsWith('glimpse-cli-aarch64-unknown-linux-gnu')).toBe(
+      true
+    );
+
+    // The host build stays on the plain layout — passing `--target` for the
+    // host triple would move the output directory and break the source path.
+    const host = printedPlan(['--host', 'aarch64-unknown-linux-gnu']);
+    expect(host.build.args).not.toContain('--target');
+    expect(host.source).toContain('/target/release/glimpse-cli');
+    expect(host.target).toBe(cross.target);
+  });
+
   it('builds the CLI package out of the workspace, not the GUI one', () => {
     // A `cargo build` without `--package` in this workspace builds the default
     // members — the Tauri GUI included — which on a runner with no WebView
