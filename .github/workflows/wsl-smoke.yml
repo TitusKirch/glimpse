@@ -250,6 +250,19 @@ jobs:
         run: |
           cargo build --manifest-path src-tauri/Cargo.toml -p glimpse-cli
           cp src-tauri/target/debug/glimpse-cli.exe src-tauri/binaries/glimpse-cli.exe
+          ls -l src-tauri/binaries/
+
+      # The file the distro will exec, described BY the distro: what it sees,
+      # what the first bytes are, and whether it runs at all from there. When
+      # the route fails, this is what says whether the launcher picked the
+      # wrong thing or the environment refused a right one.
+      - name: Show the distro what it is being asked to exec
+        shell: pwsh
+        run: |
+          $ws = $env:GITHUB_WORKSPACE -replace '\\', '/'
+          $exe = wsl.exe -u root -- wslpath -u "$ws/src-tauri/binaries/glimpse-cli.exe"
+          wsl.exe -u root -- sh -c "ls -l '$exe'; od -An -c -N 4 '$exe'; '$exe' --version"
+          exit 0
 
       # Runs AFTER the native test, and destroys what that one installed: it
       # removes the payload from the distro so `find_native` has nothing to
