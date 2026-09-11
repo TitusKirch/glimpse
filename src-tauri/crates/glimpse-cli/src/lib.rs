@@ -551,7 +551,7 @@ fn attach_console() {}
 
 #[cfg(test)]
 mod tests {
-    use super::{claims, help, parse_globals, ALIASES, SUBCOMMANDS};
+    use super::{claims, help, parse_globals, run, ALIASES, GROUPED, SUBCOMMANDS};
 
     fn argv(parts: &[&str]) -> Vec<String> {
         parts.iter().map(|s| s.to_string()).collect()
@@ -638,6 +638,57 @@ mod tests {
         // the wrong repository, which is worse than refusing.
         let e = parse_globals(&argv(&["status", "-C"])).unwrap_err();
         assert!(e.contains("-C"), "{e:?}");
+    }
+
+    #[test]
+    fn no_subcommand_falls_back_to_the_cwd_on_a_dangling_repo_flag() {
+        // The refusal above is `parse_globals`' and therefore uniform *by
+        // construction* — but "by construction" is what every silent divergence
+        // looked like the day before it diverged. `-C` is the one global that
+        // decides WHICH REPOSITORY answers, so a command that quietly took the
+        // cwd instead would do real work in the wrong place and report success.
+        // Driven through `run`, the entry point a user reaches, for every word
+        // this CLI answers to — the grouped verbs included, since a group's bare
+        // word says nothing about what its verbs do — and for both spellings of
+        // the flag.
+        //
+        // Only the trailing position is a *dangling* flag. `glimpse -C status`
+        // is not one: the word after `-C` is its value, so that is a repository
+        // called `status`, exactly as written.
+        let mut checked = 0;
+        for word in SUBCOMMANDS.iter().chain(GROUPED.iter()) {
+            for flag in ["-C", "--repo"] {
+                let mut args: Vec<String> = word.split(' ').map(str::to_string).collect();
+                args.push(flag.to_string());
+                let (mut out, mut err) = (Vec::new(), Vec::new());
+                let code = run(&args, &mut out, &mut err);
+                let err = String::from_utf8(err).unwrap();
+                let spelled = args.join(" ");
+                assert_eq!(code, 1, "`glimpse {spelled}` was not refused: {err:?}");
+                assert!(
+                    err.contains("-C"),
+                    "`glimpse {spelled}` refused without naming the flag: {err:?}"
+                );
+                assert!(
+                    out.is_empty(),
+                    "`glimpse {spelled}` printed a result anyway: {:?}",
+                    String::from_utf8_lossy(&out)
+                );
+                checked += 1;
+            }
+        }
+        // A guard that iterates an empty list passes for free.
+        assert_eq!(checked, (SUBCOMMANDS.len() + GROUPED.len()) * 2);
+
+        // And the flag with no command at all in front of it: still a refusal,
+        // rather than a window opened on a directory named `-C`.
+        for flag in ["-C", "--repo"] {
+            let (mut out, mut err) = (Vec::new(), Vec::new());
+            let code = run(&argv(&[flag]), &mut out, &mut err);
+            assert_eq!(code, 1, "`glimpse {flag}` was not refused");
+            assert!(String::from_utf8(err).unwrap().contains(flag));
+            assert!(out.is_empty());
+        }
     }
 
     #[test]
