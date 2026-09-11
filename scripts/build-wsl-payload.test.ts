@@ -147,6 +147,34 @@ describe('build-wsl-payload', () => {
     expect(flag.status).toBe(1);
   });
 
+  it('is exercised end to end by a job that names the right test', () => {
+    // THE WINDOWS HALF OF #103's CRITERION (c). `wsl-smoke.yml` installs a real
+    // distro on a Windows runner and runs ONE `#[ignore]`d cargo test against
+    // it. `cargo test` with a filter that matches NOTHING exits 0 — so a
+    // renamed test would turn the only measurement of the `wsl.exe` hop into a
+    // green job that ran nothing at all. Three corners, pinned together.
+    const job = readFileSync(join(WORKFLOWS, 'wsl-smoke.yml'), 'utf8');
+    const lib = readFileSync(LIB_RS, 'utf8');
+    const test = 'the_install_puts_a_working_command_line_inside_a_real_distro';
+    // A WORD BOUNDARY, not `toContain`: a rename that keeps the old name as a
+    // prefix would otherwise pass while the job filtered on a test that no
+    // longer exists — the same trap the README guard already sidesteps.
+    expect(job, 'the smoke job does not run the smoke test').toMatch(
+      new RegExp(`\\b${test}\\b`)
+    );
+    expect(lib, 'the smoke test the job runs does not exist').toContain(
+      `fn ${test}()`
+    );
+    // The payload the job hands it, by the one name both sides agree on…
+    expect(job).toContain(payloadName(PAYLOAD_TRIPLE));
+    // …staged through the flag that exists for exactly this hand-off…
+    expect(job).toContain('--from');
+    // …and pointed at by the variable the test reads.
+    const env = 'GLIMPSE_WSL_SMOKE_PAYLOAD_DIR';
+    expect(job).toContain(env);
+    expect(lib).toContain(env);
+  });
+
   it('is reachable by the command a human is told to run', () => {
     // A build step nobody can name is a build step nobody reproduces: the
     // installer's second binary would then only ever be produced by CI, and a
