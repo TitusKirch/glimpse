@@ -252,8 +252,22 @@ Every path argument means the same thing on every command: **relative to the rep
 
 When a glimpse window is open on the same repository, it refreshes as soon as a write command succeeds — the CLI leaves a small receipt in the repository's git dir (`<git-dir>/glimpse/last-write.json`) that the window watches directly, instead of waiting on its debounced filesystem watcher. That notification is **best-effort**: if it cannot be written, the command that already succeeded still succeeds.
 
+### From a WSL shell
+
+Inside a WSL distro `glimpse` is a small launcher, and it tells a **path** from a **subcommand** the way the binary does — `glimpse .` opens a window on that repository, `glimpse status` runs headlessly:
+
+```bash
+glimpse .                 # open this repo in the desktop app (a Windows window)
+glimpse status            # …and run any subcommand right here
+glimpse cl ls --json
+```
+
+A subcommand takes the shortest route available. If the distro has a **native** glimpse command line — the Linux `glimpse-cli` binary, or the Linux package's own `glimpse` — it runs there, driving the distro's git directly with nothing crossing the Windows boundary. Otherwise it is **forwarded to `glimpse.exe`** (or to the console binary beside it, whose output is not the best-effort console attach a GUI program has to make do with), with the repository translated to its `\\wsl.localhost\<distro>\…` form by `wslpath -w` — glimpse's engine routes that straight back through `wsl.exe -d <distro>`, so the same repository answers either way. Only `-C` crosses as a path; every other path argument is repo-root-relative on both sides and is passed through exactly as you wrote it.
+
 > [!NOTE]
-> **Every read view and every write action the app offers now has a subcommand**, `--json` and `-C` included — the working-tree writes, the commit writes, the refs-and-metadata group, the network operations, the paused flows and the layout writes above. What is still open is **WSL parity**: inside a WSL shell `glimpse <subcommand>` does not yet reach this command line. That is tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103).
+> **What stays a GUI job.** The command line works at **file** granularity, so staging, discarding or committing only *part* of a file is the GUI's (hunk- and line-level, an opt-in extra under **Settings → Git**). So are the actions whose whole point is the window: rewriting history interactively — reword, squash, fixup, drop, reorder (`glimpse rebase` *replays* a branch, it does not rewrite it) — the three-way merge editor's save, importing and exporting patches, checking out a detached commit, and cloning or initialising a repository. Everything else the app can do to a repository is above, `--json` and `-C` included: the working-tree writes, the commit writes, the refs-and-metadata group, the network operations, the paused flows and the layout writes.
+>
+> Still open, and tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103): **shipping** the native Linux command line into each distro (and the console binary in the Windows installer) rather than leaving both to be installed by hand.
 
 ### Changelists
 
@@ -283,7 +297,7 @@ glimpse cl ls --json                          # machine-readable state (the file
 > Because the state is a plain JSON file in the git directory (reachable across the `\\wsl$` share on Windows) and a list-commit never touches the staging index, **scripts and AI coding agents can read and drive changelists too** — carving a sprawling diff into reviewable, separately-committable sets, deterministically, without the GUI.
 
 > [!NOTE]
-> Committing only **part** of a file (hunk-level) is a GUI-only, opt-in extra (**Settings → Git**); the CLI works at file granularity. The commands above are answered by the installed `glimpse` binary, which on Windows is a GUI program attaching to its parent console — output there is still best-effort. A dedicated console binary (`glimpse-cli`) already builds from the same crate; shipping it in the installers, and into each WSL distro, is still to come ([#103](https://github.com/TitusKirch/glimpse/issues/103)).
+> The commands above are answered by the installed `glimpse` binary, which on Windows is a GUI program attaching to its parent console — output there is still best-effort. A dedicated console binary (`glimpse-cli`) builds from the same crate and is preferred wherever it is found; shipping it in the installers, and into each WSL distro, is still to come ([#103](https://github.com/TitusKirch/glimpse/issues/103)).
 
 ## 🧪 Development
 

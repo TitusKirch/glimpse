@@ -133,7 +133,7 @@ pub const GROUPED: &[&str] = &[
 /// and `stashes`. They are commands in their own right now — grouped ones, whose
 /// verbs write — and the bare spelling still lists, so nothing a user typed
 /// before means anything different today.
-const ALIASES: &[&str] = &["changelist", "sparse-checkout", "file-history"];
+pub const ALIASES: &[&str] = &["changelist", "sparse-checkout", "file-history"];
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
