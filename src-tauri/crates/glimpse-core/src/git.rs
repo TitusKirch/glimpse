@@ -1381,6 +1381,76 @@ impl Repo {
             .collect())
     }
 
+    /// The paths git is **ignoring** in the working tree, each paired with
+    /// whether it is a directory.
+    ///
+    /// [`status`](Self::status) deliberately cannot answer this — it is asked
+    /// without `--ignored`, because the ignored population is build output and
+    /// caches and listing it would bury the working tree's real changes. A
+    /// checkout, however, does not care that a path is ignored: it takes the
+    /// names its own tree needs, and an ignored file or directory sitting on one
+    /// is removed exactly as an untracked one is. So a guard asking "what would
+    /// this checkout destroy?" has to ask here as well, or it answers for half
+    /// the working tree while claiming to answer for all of it.
+    ///
+    /// **Collapsed to directories** (`--directory`), because the alternative is
+    /// unbounded: a repository with a `node_modules` or a `target` has tens of
+    /// thousands of ignored files, and none of them is at risk at all unless the
+    /// target tree reaches into that directory in the first place.
+    /// [`ignored_files_in`](Self::ignored_files_in) asks the follow-up question
+    /// in the rare case where one does.
+    pub fn ignored_paths(&self) -> Result<Vec<(String, bool)>, String> {
+        let raw = self.run(&[
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--directory",
+            "--no-empty-directory",
+            "-z",
+        ])?;
+        Ok(raw
+            .split('\u{0}')
+            .filter(|p| !p.is_empty())
+            // git marks a collapsed directory with a trailing slash, and that is
+            // the only place the file/directory distinction is carried.
+            .map(|p| match p.strip_suffix('/') {
+                Some(dir) => (dir.to_string(), true),
+                None => (p.to_string(), false),
+            })
+            .collect())
+    }
+
+    /// The ignored files inside each of `dirs`, one path per file — the
+    /// expansion of a directory [`ignored_paths`](Self::ignored_paths)
+    /// collapsed.
+    ///
+    /// Asked only where the collapsed answer was not enough, which keeps the
+    /// unbounded listing off every call that does not need it.
+    pub fn ignored_files_in(&self, dirs: &[String]) -> Result<Vec<String>, String> {
+        if dirs.is_empty() {
+            return Ok(Vec::new());
+        }
+        for d in dirs {
+            reject_unsafe_path(d)?;
+        }
+        let mut args = vec![
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "-z",
+            "--",
+        ];
+        args.extend(dirs.iter().map(String::as_str));
+        let raw = self.run(&args)?;
+        Ok(raw
+            .split('\u{0}')
+            .filter(|p| !p.is_empty())
+            .map(str::to_string)
+            .collect())
+    }
+
     /// Full commit message (subject + body) for the detail panel.
     pub fn commit_body(&self, hash: &str) -> Result<String, String> {
         reject_option(hash)?;
@@ -3931,6 +4001,81 @@ mod paths_in_tree_tests {
 
         let found = repo.paths_in_tree("HEAD", &[]).expect("ls-tree");
         assert!(found.is_empty(), "{found:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod ignored_paths_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    /// One commit, a `.gitignore` that hides `out.log` and `build/`, and both of
+    /// those actually present in the working tree.
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-ignored-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::write(dir.join(".gitignore"), "out.log\nbuild/\n").unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        std::fs::write(dir.join("out.log"), "log\n").unwrap();
+        std::fs::create_dir_all(dir.join("build")).unwrap();
+        std::fs::write(dir.join("build/app"), "binary\n").unwrap();
+        std::fs::write(dir.join("untracked.txt"), "u\n").unwrap();
+        dir
+    }
+
+    #[test]
+    fn an_ignored_file_is_a_file_and_an_ignored_directory_is_one_entry() {
+        // The collapse is the point: `build/` answers as ONE path, not as every
+        // file underneath it, so a repository with a `node_modules` does not
+        // hand its caller a hundred thousand paths to ask the tree about.
+        let dir = scratch("list");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let mut found = repo.ignored_paths().expect("ls-files");
+        found.sort();
+        assert_eq!(
+            found,
+            vec![("build".to_string(), true), ("out.log".to_string(), false)],
+            "the directory is marked as one, and the untracked file is not ignored at all"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_collapsed_directory_expands_to_the_files_in_it_when_asked() {
+        let dir = scratch("expand");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .ignored_files_in(&["build".to_string()])
+            .expect("ls-files");
+        assert_eq!(found, vec!["build/app".to_string()]);
+
+        // …and asking about nothing stays nothing, never "every ignored file":
+        // an empty pathspec list means "everything" to git.
+        assert!(repo.ignored_files_in(&[]).expect("ls-files").is_empty());
 
         let _ = std::fs::remove_dir_all(&dir);
     }
