@@ -267,7 +267,7 @@ A subcommand takes the shortest route available. If the distro has a **native** 
 > [!NOTE]
 > **What stays a GUI job.** The command line works at **file** granularity, so staging, discarding or committing only *part* of a file is the GUI's (hunk- and line-level, an opt-in extra under **Settings → Git**). So are the actions whose whole point is the window: rewriting history interactively — reword, squash, fixup, drop, reorder (`glimpse rebase` *replays* a branch, it does not rewrite it) — the three-way merge editor's save, importing and exporting patches, checking out a detached commit, and cloning or initialising a repository. Everything else the app can do to a repository is above, `--json` and `-C` included: the working-tree writes, the commit writes, the refs-and-metadata group, the network operations, the paused flows and the layout writes.
 >
-> **Where the two routes come from.** Both binaries now ship with the app: the Windows installer carries `glimpse-cli.exe` beside `glimpse.exe`, and the Linux packages (`.deb`, `.rpm`, `.AppImage`) carry `glimpse-cli` — so installing the Linux package *inside* a distro is what gives that distro the native route. What is still open, and tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103): the Windows app's **Settings → General → Command line** installs only the launcher into each distro, not a Linux binary alongside it, so a distro with no glimpse package of its own takes the forwarding route.
+> **Where the two routes come from.** The command line ships with the app as a Tauri sidecar: the `.deb` carries `glimpse-cli` on `PATH` beside `glimpse` (measured), and the same bundler list puts it into the `.rpm` and `.AppImage`, and `glimpse-cli.exe` beside `glimpse.exe` in the Windows installer — those three are Tauri's documented sidecar behaviour rather than something anyone here has opened and looked at. Installing the Linux package *inside* a distro is what gives that distro the native route. What is still open, and tracked in [#103](https://github.com/TitusKirch/glimpse/issues/103): the Windows app's **Settings → General → Command line** installs only the launcher into each distro, not a Linux binary alongside it, so a distro with no glimpse package of its own takes the forwarding route.
 
 ### Changelists
 
@@ -297,7 +297,7 @@ glimpse cl ls --json                          # machine-readable state (the file
 > Because the state is a plain JSON file in the git directory (reachable across the `\\wsl$` share on Windows) and a list-commit never touches the staging index, **scripts and AI coding agents can read and drive changelists too** — carving a sprawling diff into reviewable, separately-committable sets, deterministically, without the GUI.
 
 > [!NOTE]
-> On Windows, `glimpse.exe` is a GUI program attaching to its parent console, so its output there is best-effort. The installer therefore also ships `glimpse-cli.exe` — the same command line built as a real console program — beside it, and the WSL launcher prefers it whenever it is there. The Linux packages ship the same binary as `glimpse-cli`.
+> On Windows, `glimpse.exe` is a GUI program attaching to its parent console, so its output there is best-effort. The installer therefore also ships `glimpse-cli.exe` — the same command line built as a real console program — beside it, and the WSL launcher prefers it whenever it is there. The Linux packages ship the same binary as `glimpse-cli`. (Verified on the `.deb`; the Windows placement is Tauri's documented behaviour, not yet an observation.)
 
 ## 🧪 Development
 
@@ -320,7 +320,8 @@ The Rust side is a **cargo workspace** rooted at `src-tauri/`:
 | :----------------- | :-------------------------------------------- |
 | `pnpm dev`         | Nuxt dev server (browser-testable, mocked IPC) |
 | `pnpm tauri dev`   | Desktop dev shell                             |
-| `pnpm tauri build` | Packaged binary                               |
+| `pnpm tauri build` | Compile the desktop app (no command line in it) |
+| `pnpm tauri:build` | Packaged installers, `glimpse-cli` included   |
 | `pnpm test`        | Frontend unit tests (Vitest)                  |
 | `pnpm lint`        | `oxlint . --deny-warnings`                    |
 | `pnpm format`      | `oxfmt --check .`                             |
