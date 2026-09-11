@@ -354,6 +354,42 @@ pub struct Commit {
     pub signer_key: String,
 }
 
+/// The note a headless write leaves behind for a running glimpse window: what
+/// changed, and when. Written by the CLI after a successful write action, read
+/// by the GUI's watcher so it can refresh immediately (see
+/// [`Repo::write_receipt`]).
+///
+/// Deliberately **not** a `ts-rs` type: it never crosses the IPC boundary to the
+/// frontend. The GUI consumes it in Rust and emits the `repo-changed` event the
+/// frontend already listens to, so the frontend learns nothing new about it.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteReceipt {
+    /// The subcommand that ran, e.g. `stage` or `commit`.
+    pub action: String,
+    /// The paths it touched, where the action's subject is paths at all.
+    #[serde(default)]
+    pub paths: Vec<String>,
+    /// Unix milliseconds, so a reader can order two receipts and ignore a stale
+    /// one left by a process that died before the window opened.
+    pub at: u64,
+}
+
+impl WriteReceipt {
+    pub fn new(action: &str, paths: Vec<String>) -> Self {
+        Self {
+            action: action.to_string(),
+            paths,
+            at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                // A clock before the epoch is not worth an error path; 0 simply
+                // reads as "unknown, treat as stale".
+                .unwrap_or(0),
+        }
+    }
+}
+
 #[derive(Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Branch {
@@ -704,7 +740,10 @@ pub struct RebaseStep {
 /// How far `git reset` rewinds. Deserialized from the frontend's
 /// `'soft' | 'mixed' | 'hard'` union, so an unknown value is rejected at the IPC
 /// seam instead of silently falling back to `--mixed`.
-#[derive(Deserialize)]
+/// `Copy` because it is a three-valued flag: a caller that parses one out of
+/// argv and then both reports on it and passes it to git should not have to
+/// clone a fieldless enum to do so.
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ResetMode {
     Soft,
@@ -716,6 +755,34 @@ pub enum ResetMode {
 /// against the same [`GitTarget`], so the platform seam is touched in one place.
 pub struct Repo {
     target: GitTarget,
+}
+
+/// Everything one git call produced, before anything is thrown away.
+///
+/// The two are independent: git writes useful stdout on plenty of the calls it
+/// exits non-zero on. [`Repo::run`] collapses this into a `Result` because most
+/// callers want exactly that; the ones that cannot afford to lose stdout take
+/// this instead.
+struct GitOutput {
+    stdout: String,
+    /// Why git exited non-zero, already carrying the command line, or `None`
+    /// when it did not.
+    failure: Option<String>,
+}
+
+/// What a `git push --tags` did, whichever way it exited.
+///
+/// A push is a **batch**, and its exit code covers the whole batch: one
+/// rejected ref makes git exit 1 having already pushed the others. "It failed"
+/// and "nothing moved" are therefore different questions, and only the
+/// `--porcelain` summary on stdout answers the second — so this keeps both
+/// rather than making the caller choose in advance.
+pub struct TagPush {
+    /// git's `--porcelain` summary: one `<flag>\t<from>:<to>\t<summary>` line
+    /// per ref, wrapped in `To <url>` and `Done`.
+    pub porcelain: String,
+    /// Why git exited non-zero, or `None` when every ref got through.
+    pub failure: Option<String>,
 }
 
 impl Repo {
@@ -749,6 +816,23 @@ impl Repo {
     /// the process-wide state — the seam a test can drive without flipping a
     /// global the rest of the suite is running git against.
     fn run_with(&self, args: &[&str], faults: trace::Faults) -> Result<String, String> {
+        let done = self.run_capturing(args, faults);
+        match done.failure {
+            Some(message) => Err(message),
+            None => Ok(done.stdout),
+        }
+    }
+
+    /// The whole of what a git call produced — **stdout whichever way it
+    /// exited**, and the failure if it failed.
+    ///
+    /// [`run`](Self::run) drops stdout on failure, which is right for the
+    /// commands whose stdout *is* their answer: a `rev-parse` that failed has
+    /// no hash to report. It is wrong wherever git's exit code covers a batch
+    /// and stdout is the per-item record — a `push` that moved three refs and
+    /// had a fourth rejected exits 1, and a caller handed only stderr can say
+    /// nothing about the three.
+    fn run_capturing(&self, args: &[&str], faults: trace::Faults) -> GitOutput {
         // Started before the injected delay on purpose: the logged duration is
         // what the app waited, not what git took. While a fault switch is on the
         // app is bent and says so; a log that under-reported the wait would be
@@ -762,21 +846,28 @@ impl Repo {
         // Rendered once per call rather than only on failure now that the log
         // wants it — a string build against a subprocess spawn.
         let described = self.target.describe(args);
-        let fail = |message: &str| {
+        let fail = |stdout: String, message: &str| {
             trace::record(described.clone(), started.elapsed(), false, message);
-            format!("{message}\n\n$ {described}")
+            GitOutput {
+                stdout,
+                failure: Some(format!("{message}\n\n$ {described}")),
+            }
         };
         if let Some(injected) = faults.injected_failure() {
-            return Err(fail(injected));
+            return fail(String::new(), injected);
         }
         match self.target.command(args).output() {
-            Err(e) => Err(fail(&format!("failed to run git: {e}"))),
-            Ok(output) if !output.status.success() => {
-                Err(fail(String::from_utf8_lossy(&output.stderr).trim()))
-            }
+            Err(e) => fail(String::new(), &format!("failed to run git: {e}")),
+            Ok(output) if !output.status.success() => fail(
+                String::from_utf8_lossy(&output.stdout).to_string(),
+                String::from_utf8_lossy(&output.stderr).trim(),
+            ),
             Ok(output) => {
                 trace::record(described, started.elapsed(), true, "");
-                Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                GitOutput {
+                    stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                    failure: None,
+                }
             }
         }
     }
@@ -886,12 +977,23 @@ impl Repo {
         Ok(self.run(&["--version"])?.trim().to_string())
     }
 
+    /// This repository's root directory, as a **host** path.
+    ///
+    /// git reports its toplevel from inside its own environment (a Linux path
+    /// under WSL), so it is mapped back through [`GitTarget::host_path`]: the
+    /// result is a spelling [`Repo::open`] routes identically. Without that a
+    /// WSL repo's root would resolve to native git on Windows ("cannot change
+    /// to '/root/…'").
+    ///
+    /// Fails when the directory is not inside a repository at all, which is
+    /// what makes it usable as a probe.
+    pub fn toplevel(&self) -> Result<String, String> {
+        let raw = self.run(&["rev-parse", "--show-toplevel"])?;
+        Ok(self.target.host_path(raw.trim()))
+    }
+
     pub fn info(&self) -> Result<RepoInfo, String> {
-        // git reports the toplevel in its own environment (a Linux path under
-        // WSL). Map it back to a host path so re-opening it routes the same way
-        // — otherwise the WSL distro is lost and the next call hits native git.
-        let raw_top = self.run(&["rev-parse", "--show-toplevel"])?;
-        let toplevel = self.target.host_path(raw_top.trim());
+        let toplevel = self.toplevel()?;
         // `rev-parse --abbrev-ref HEAD` resolves a branch name (or "HEAD" when
         // detached), but fails on a freshly-initialised repo whose branch is
         // still unborn — fall back to the symbolic ref so empty repos open.
@@ -917,20 +1019,8 @@ impl Repo {
             .map(str::to_string)
             .collect();
         let stashes = self.stash_list()?;
-        // A rebase is paused (e.g. stopped on a conflict) when REBASE_HEAD exists.
-        let rebase_in_progress = self
-            .target
-            .command(&["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-        // `git bisect log` succeeds only while a bisect session is active.
-        let bisect_in_progress = self
-            .target
-            .command(&["bisect", "log"])
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
+        let rebase_in_progress = self.rebase_in_progress();
+        let bisect_in_progress = self.bisect_in_progress();
 
         Ok(RepoInfo {
             toplevel,
@@ -1218,6 +1308,149 @@ impl Repo {
         }
     }
 
+    /// Resolve a revision — `HEAD`, a branch, a tag, a short hash — to the full
+    /// commit hash it names.
+    ///
+    /// `^{commit}` makes an annotated tag resolve to the commit it points at
+    /// rather than to the tag object, and makes a ref that names a tree or blob
+    /// an error instead of a hash that later commands would choke on. A caller
+    /// that resolves first gets one clear failure here rather than the same
+    /// bad revision reported separately by every command it is passed to.
+    pub fn resolve_commit(&self, rev: &str) -> Result<String, String> {
+        reject_option(rev)?;
+        let spec = format!("{rev}^{{commit}}");
+        let hash = self
+            .run(&["rev-parse", "--verify", &spec])?
+            .trim()
+            .to_string();
+        if hash.is_empty() {
+            return Err(format!("not a commit: {rev}"));
+        }
+        Ok(hash)
+    }
+
+    /// The files a commit's tree holds **at, or anywhere under, each of
+    /// `paths`**.
+    ///
+    /// The question a checkout-shaped command has to ask before it claims a
+    /// working-tree file is at risk. An **untracked** path is not touched by
+    /// `git reset --hard` at all — unless the target commit needs that name,
+    /// in which case the checkout takes it. Nothing in `status` answers that:
+    /// `status` describes the working tree against *HEAD*, and the target is a
+    /// different tree entirely.
+    ///
+    /// `ls-tree -r -z --name-only <rev> -- <paths>` asks the tree directly.
+    /// `-r` so every name that comes back is a **blob** path: `ls-tree` given a
+    /// directory otherwise answers with the directory, and a caller comparing
+    /// names cannot then tell a file from the folder above it. `-z` so a path
+    /// with a quote or a non-ASCII byte in it arrives as it is rather than in
+    /// git's quoted form. The paths are pathspecs, so the cost is the caller's
+    /// list rather than the whole tree — and `ls-tree` matches them as plain
+    /// path prefixes, with no glob or `:(magic)` (it rejects the latter
+    /// outright), which is what makes it safe to hand it names read back out of
+    /// `status` rather than patterns anyone typed.
+    ///
+    /// That prefix matching is why the result is returned **as git matched
+    /// it**, not narrowed back down to the names that were asked about. Asking
+    /// about `d` and being told `d/inner.txt` is not noise: it is the tree
+    /// answering that it needs `d` to be a directory, which is exactly what a
+    /// caller holding an untracked *file* called `d` has to know. Narrowing
+    /// that away would answer a question — "is there a file at this exact
+    /// path?" — that no checkout decides anything by. Callers relating the two
+    /// sides own the comparison, because only they know which relation matters
+    /// to them.
+    pub fn paths_in_tree(&self, rev: &str, paths: &[String]) -> Result<Vec<String>, String> {
+        reject_option(rev)?;
+        // An empty pathspec list means "everything" to git, which is the
+        // opposite of this question — and nothing downstream would throw the
+        // whole tree away again. This is the git call it saves, too: every
+        // `reset` against a tree with no untracked files at all.
+        if paths.is_empty() {
+            return Ok(Vec::new());
+        }
+        for p in paths {
+            reject_unsafe_path(p)?;
+        }
+        let mut args = vec!["ls-tree", "-r", "-z", "--name-only", rev, "--"];
+        args.extend(paths.iter().map(String::as_str));
+        let raw = self.run(&args)?;
+        Ok(raw
+            .split('\u{0}')
+            .filter(|found| !found.is_empty())
+            .map(str::to_string)
+            .collect())
+    }
+
+    /// The paths git is **ignoring** in the working tree, each paired with
+    /// whether it is a directory.
+    ///
+    /// [`status`](Self::status) deliberately cannot answer this — it is asked
+    /// without `--ignored`, because the ignored population is build output and
+    /// caches and listing it would bury the working tree's real changes. A
+    /// checkout, however, does not care that a path is ignored: it takes the
+    /// names its own tree needs, and an ignored file or directory sitting on one
+    /// is removed exactly as an untracked one is. So a guard asking "what would
+    /// this checkout destroy?" has to ask here as well, or it answers for half
+    /// the working tree while claiming to answer for all of it.
+    ///
+    /// **Collapsed to directories** (`--directory`), because the alternative is
+    /// unbounded: a repository with a `node_modules` or a `target` has tens of
+    /// thousands of ignored files, and none of them is at risk at all unless the
+    /// target tree reaches into that directory in the first place.
+    /// [`ignored_files_in`](Self::ignored_files_in) asks the follow-up question
+    /// in the rare case where one does.
+    pub fn ignored_paths(&self) -> Result<Vec<(String, bool)>, String> {
+        let raw = self.run(&[
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--directory",
+            "--no-empty-directory",
+            "-z",
+        ])?;
+        Ok(raw
+            .split('\u{0}')
+            .filter(|p| !p.is_empty())
+            // git marks a collapsed directory with a trailing slash, and that is
+            // the only place the file/directory distinction is carried.
+            .map(|p| match p.strip_suffix('/') {
+                Some(dir) => (dir.to_string(), true),
+                None => (p.to_string(), false),
+            })
+            .collect())
+    }
+
+    /// The ignored files inside each of `dirs`, one path per file — the
+    /// expansion of a directory [`ignored_paths`](Self::ignored_paths)
+    /// collapsed.
+    ///
+    /// Asked only where the collapsed answer was not enough, which keeps the
+    /// unbounded listing off every call that does not need it.
+    pub fn ignored_files_in(&self, dirs: &[String]) -> Result<Vec<String>, String> {
+        if dirs.is_empty() {
+            return Ok(Vec::new());
+        }
+        for d in dirs {
+            reject_unsafe_path(d)?;
+        }
+        let mut args = vec![
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "-z",
+            "--",
+        ];
+        args.extend(dirs.iter().map(String::as_str));
+        let raw = self.run(&args)?;
+        Ok(raw
+            .split('\u{0}')
+            .filter(|p| !p.is_empty())
+            .map(str::to_string)
+            .collect())
+    }
+
     /// Full commit message (subject + body) for the detail panel.
     pub fn commit_body(&self, hash: &str) -> Result<String, String> {
         reject_option(hash)?;
@@ -1469,13 +1702,55 @@ impl Repo {
     /// the file is per-worktree and never committed or pushed, yet any tool (the
     /// CLI, an agent) can read/write it by this same rule.
     fn changelists_file(&self) -> Result<String, String> {
+        self.glimpse_dir_file("changelists.json")
+    }
+
+    /// Absolute, host-visible path of `<git-dir>/glimpse/<name>` — the private
+    /// per-worktree drawer described on [`changelists_file`], which more than
+    /// one file now lives in.
+    fn glimpse_dir_file(&self, name: &str) -> Result<String, String> {
         let git_dir = self
             .run(&["rev-parse", "--absolute-git-dir"])?
             .trim()
             .to_string();
-        Ok(self
-            .target
-            .host_path(&format!("{git_dir}/glimpse/changelists.json")))
+        Ok(self.target.host_path(&format!("{git_dir}/glimpse/{name}")))
+    }
+
+    /// Absolute, host-visible path of this repo's **write receipt**
+    /// (`<git-dir>/glimpse/last-write.json`) — see [`write_receipt`].
+    ///
+    /// [`write_receipt`]: Repo::write_receipt
+    pub fn write_receipt_file(&self) -> Result<String, String> {
+        self.glimpse_dir_file("last-write.json")
+    }
+
+    /// Record that a write just happened, so a running glimpse window can
+    /// refresh **at once** instead of waiting for its debounced filesystem
+    /// watcher — which lags by design, and by seconds over the `\\wsl$` share
+    /// where it has to poll.
+    ///
+    /// The receipt lives beside the changelist store, in the git dir: private
+    /// to the worktree, never committed, and readable by any tool that can
+    /// reach the repository. It is written atomically (temp file + rename) so a
+    /// watcher never reads a half-written file.
+    ///
+    /// This returns a `Result` because writing a file can genuinely fail. It is
+    /// the **caller's** job to treat that failure as unimportant — the CLI does,
+    /// deliberately, since a notification that failed must never fail the write
+    /// that succeeded.
+    pub fn write_receipt(&self, receipt: &WriteReceipt) -> Result<(), String> {
+        let path = self.write_receipt_file()?;
+        let p = std::path::Path::new(&path);
+        if let Some(dir) = p.parent() {
+            std::fs::create_dir_all(dir)
+                .map_err(|e| format!("failed to create the glimpse dir: {e}"))?;
+        }
+        let json = serde_json::to_string(receipt)
+            .map_err(|e| format!("failed to serialise the receipt: {e}"))?;
+        let tmp = format!("{path}.tmp");
+        std::fs::write(&tmp, json).map_err(|e| format!("failed to write the receipt: {e}"))?;
+        std::fs::rename(&tmp, &path).map_err(|e| format!("failed to write the receipt: {e}"))?;
+        Ok(())
     }
 
     /// Read the raw changelist store JSON, or `None` if it has never been
@@ -1514,8 +1789,16 @@ impl Repo {
             .to_string())
     }
 
-    /// Discard a file's working-tree changes. Untracked files are deleted
-    /// (`clean`); tracked files are reverted to HEAD (`restore`).
+    /// Discard a file's **unstaged** working-tree change, sourcing it from the
+    /// index. Untracked files are deleted (`clean`).
+    ///
+    /// This is the GUI's per-file discard, which lives in the *unstaged*
+    /// section next to a separately-shown index: "throw this away" there means
+    /// the unstaged half, and a staged change is meant to survive it. Anything
+    /// that promises to throw away a path's uncommitted work outright — the
+    /// CLI's `glimpse discard <path>` — wants [`discard_to_head`] instead.
+    ///
+    /// [`discard_to_head`]: Self::discard_to_head
     pub fn discard(&self, file: &str, untracked: bool) -> Result<(), String> {
         reject_unsafe_path(file)?;
         if untracked {
@@ -1523,6 +1806,51 @@ impl Repo {
         } else {
             self.run(&["restore", "--", file]).map(|_| ())
         }
+    }
+
+    /// Take `files` back to the last committed state — index **and** working
+    /// tree — in a single `git restore`.
+    ///
+    /// `--staged --worktree` with no `--source` makes HEAD the source, which is
+    /// the difference that matters against [`discard`](Self::discard): a change
+    /// that is merely *staged* is still uncommitted work, and leaving it behind
+    /// while reporting "restored to the last committed state" would be a lie
+    /// told by the one command that destroys things.
+    ///
+    /// It also accepts cases the index-sourced form rejects outright — a staged
+    /// deletion (`git restore -- <p>` answers "did not match any file(s) known
+    /// to git"), and a path staged as new, which HEAD has no version of and
+    /// which is therefore removed rather than reverted.
+    ///
+    /// **One invocation for the whole batch, on purpose.** git validates every
+    /// pathspec before it touches any of them, so a path it will not accept
+    /// costs nothing at all — where a path-at-a-time loop would already have
+    /// destroyed the paths ahead of it.
+    pub fn discard_to_head(&self, files: &[String]) -> Result<(), String> {
+        if files.is_empty() {
+            return Ok(());
+        }
+        let mut args = vec!["restore", "--staged", "--worktree", "--"];
+        for f in files {
+            reject_unsafe_path(f)?;
+            args.push(f);
+        }
+        self.run(&args).map(|_| ())
+    }
+
+    /// Delete `files` from disk — untracked paths, which no index or commit
+    /// holds a copy of. One `git clean` for the whole batch, for the same
+    /// reason [`discard_to_head`](Self::discard_to_head) takes one.
+    pub fn discard_untracked(&self, files: &[String]) -> Result<(), String> {
+        if files.is_empty() {
+            return Ok(());
+        }
+        let mut args = vec!["clean", "-f", "--"];
+        for f in files {
+            reject_unsafe_path(f)?;
+            args.push(f);
+        }
+        self.run(&args).map(|_| ())
     }
 
     pub fn checkout_branch(&self, branch: &str) -> Result<(), String> {
@@ -1538,6 +1866,121 @@ impl Repo {
         // own lane + merge point in the graph instead of being fast-forwarded
         // into a straight line (which erases the branch topology).
         self.run(&["merge", "--no-ff", "--no-edit", "--", branch])
+    }
+
+    /// True when a rebase is paused — stopped on a conflict, held at an `edit`
+    /// or a `break`, or halted by an `exec` that failed — awaiting
+    /// continue / skip / abort.
+    ///
+    /// **`REBASE_HEAD` is not the question**, which is what this used to ask.
+    /// Git sets that ref only when the sequencer stops *on a commit*; a `break`
+    /// and a failed `exec` stop between commits and set nothing. Both are states
+    /// glimpse's own rebase dialog produces — [`interactive_rebase`](Self::interactive_rebase) writes an
+    /// `exec … --amend --file=…` line for every reword — so a probe that missed
+    /// them had `rebase abort`, `rebase continue` and `glimpse info` all denying
+    /// a rebase the program had just started, and let `discard --all --force`
+    /// run through and leave it open behind a clean-looking `status`.
+    ///
+    /// What decides it is the sequencer's state directory, which is what git
+    /// itself consults before answering "No rebase in progress?". `onto` is the
+    /// file to look for: both backends write it, and `git am` — which shares the
+    /// apply backend's `rebase-apply` directory — does not, so a patch
+    /// application is not mistaken for a rebase.
+    ///
+    /// **Asked of git, never of the host filesystem.** The tempting probe is
+    /// `Path::exists` on `.git/rebase-merge`, and it is wrong the moment the
+    /// repository is not local: every other call here goes through
+    /// [`self.target`], so on Windows a `\\wsl$` repository is reached by
+    /// `wsl.exe` and a `Path::exists` in the Windows process would be answering
+    /// about the wrong filesystem. So git resolves the directory
+    /// (`rev-parse --absolute-git-dir`) and git reads the file
+    /// (`hash-object`, which fails when the path is not there) — both in the
+    /// process that owns the repository.
+    ///
+    /// A method rather than a line inside [`info`](Self::info) because a command
+    /// that has just failed needs the same answer without building the whole
+    /// repository summary to get it.
+    ///
+    /// **It costs up to three git invocations**, not the single ref lookup it
+    /// used to be: one `rev-parse`, then one `hash-object` per backend until one
+    /// answers. [`info`](Self::info) pays that on every summary. The price is
+    /// deliberate — a cheaper probe was the wrong probe — and it is stated here
+    /// rather than left to be rediscovered, because it is the number to weigh if
+    /// this is ever called in a loop.
+    pub fn rebase_in_progress(&self) -> bool {
+        let Ok(git_dir) = self.run(&["rev-parse", "--absolute-git-dir"]) else {
+            return false;
+        };
+        let git_dir = git_dir.trim();
+        if git_dir.is_empty() {
+            return false;
+        }
+        // Merge backend first: it is the default, and the only one that can
+        // reach a `break` or an `exec` at all.
+        ["rebase-merge/onto", "rebase-apply/onto"]
+            .iter()
+            .any(|state| self.file_in_git_dir(git_dir, state))
+    }
+
+    /// Does `<git dir>/<name>` exist, **as the git that owns the repository sees
+    /// it**?
+    ///
+    /// `hash-object` is the existence check because it is plumbing that reads
+    /// the path and exits non-zero when it cannot — and, unlike a host-side
+    /// `Path::exists`, it runs wherever the repository does. It writes nothing
+    /// (that would need `-w`); the files asked about here are one object id
+    /// long.
+    fn file_in_git_dir(&self, git_dir: &str, name: &str) -> bool {
+        // The `rev-parse` half above goes through `run`, so a simulated git
+        // failure stops the probe there and it answers `false`. This half calls
+        // the target directly and would not have — an inconsistency that today
+        // is latent only because the failing `rev-parse` returns first. Asked
+        // here explicitly so the two steps agree by construction rather than by
+        // the order they happen to run in.
+        if trace::faults().injected_failure().is_some() {
+            return false;
+        }
+        let path = format!("{git_dir}/{name}");
+        self.target
+            .command(&["hash-object", "--", &path])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    /// Is a merge started and not yet concluded?
+    ///
+    /// `MERGE_HEAD` exists for exactly that window, which is what makes it worth
+    /// asking git rather than reading it off [`status`](Self::status): once the
+    /// conflicts are resolved and staged, a mid-merge index is indistinguishable
+    /// from an ordinary one. Anything about to throw the working tree away needs
+    /// the difference, because the merge is uncommitted state that discarding
+    /// does **not** undo — it would silently settle every conflict on *ours* and
+    /// leave the merge open behind a clean-looking `status`.
+    ///
+    /// A probe rather than a `Result`: `rev-parse --verify --quiet` exits
+    /// non-zero both when the ref is absent and when git itself fails, and
+    /// distinguishing the two here would be false precision — every caller runs
+    /// a git command that fails loudly first.
+    pub fn merge_in_progress(&self) -> bool {
+        self.run(&["rev-parse", "--verify", "--quiet", "MERGE_HEAD"])
+            .is_ok()
+    }
+
+    /// Is a cherry-pick stopped and not yet concluded? The same window, and the
+    /// same reasoning, as [`merge_in_progress`](Self::merge_in_progress):
+    /// `CHERRY_PICK_HEAD` exists for exactly as long as the operation is open,
+    /// and once its conflicts are staged the index alone cannot tell you.
+    pub fn cherry_pick_in_progress(&self) -> bool {
+        self.run(&["rev-parse", "--verify", "--quiet", "CHERRY_PICK_HEAD"])
+            .is_ok()
+    }
+
+    /// Is a revert stopped and not yet concluded? `REVERT_HEAD`, on the same
+    /// terms as the two probes above.
+    pub fn revert_in_progress(&self) -> bool {
+        self.run(&["rev-parse", "--verify", "--quiet", "REVERT_HEAD"])
+            .is_ok()
     }
 
     /// Rebase the current branch onto `onto` (a branch, tag or commit). A
@@ -1651,6 +2094,25 @@ impl Repo {
         self.run(&["bisect", sub])
     }
 
+    /// Is a bisect session open?
+    ///
+    /// `git bisect log` is the probe rather than a ref: bisect keeps its state
+    /// in `BISECT_START` and a log file, and the log is the one thing that
+    /// exists for exactly as long as the session does. It succeeds only while
+    /// a session is running, which is the whole question.
+    ///
+    /// A method rather than the line it replaces inside [`info`](Self::info),
+    /// on the same reasoning as [`rebase_in_progress`](Self::rebase_in_progress):
+    /// a command about to begin an operation needs this answer without paying
+    /// for the whole repository summary to get it.
+    pub fn bisect_in_progress(&self) -> bool {
+        self.target
+            .command(&["bisect", "log"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
     /// End the bisect session and return to the original HEAD.
     pub fn bisect_reset(&self) -> Result<(), String> {
         self.run(&["bisect", "reset"]).map(|_| ())
@@ -1703,26 +2165,44 @@ impl Repo {
         self.run(&["submodule", "sync", "--recursive"]).map(|_| ())
     }
 
-    /// Sparse-checkout state: `git sparse-checkout list` succeeds only when it's
-    /// active, listing the included patterns.
+    /// Sparse-checkout state: whether the worktree is narrowed, and to what.
+    ///
+    /// `git sparse-checkout list` is NOT a probe for whether the feature is on.
+    /// On a worktree that is not sparse it warns on stderr and still exits **0**
+    /// (git 2.34), so a successful call proves nothing and every ordinary
+    /// repository read as narrowed-to-nothing. The switch git itself reads is
+    /// `core.sparseCheckout`, so that is what decides `enabled`; `list` is asked
+    /// only afterwards, for the patterns.
     pub fn sparse_status(&self) -> Result<SparseStatus, String> {
+        // `config --get` exits 1 when the key is unset, which is the common
+        // case and not an error — hence the raw command rather than `run`.
+        let cfg = self
+            .target
+            .command(&["config", "--get", "core.sparseCheckout"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        let enabled = cfg.status.success()
+            && String::from_utf8_lossy(&cfg.stdout)
+                .trim()
+                .eq_ignore_ascii_case("true");
+        if !enabled {
+            return Ok(SparseStatus {
+                enabled: false,
+                patterns: Vec::new(),
+            });
+        }
         let out = self
             .target
             .command(&["sparse-checkout", "list"])
             .output()
             .map_err(|e| e.to_string())?;
-        if out.status.success() {
+        let patterns = if out.status.success() {
             let raw = String::from_utf8_lossy(&out.stdout);
-            Ok(SparseStatus {
-                enabled: true,
-                patterns: lines(&raw).map(str::to_string).collect(),
-            })
+            lines(&raw).map(str::to_string).collect()
         } else {
-            Ok(SparseStatus {
-                enabled: false,
-                patterns: Vec::new(),
-            })
-        }
+            Vec::new()
+        };
+        Ok(SparseStatus { enabled, patterns })
     }
 
     /// Enable (cone-mode) sparse-checkout limited to `patterns` (directories).
@@ -1759,6 +2239,88 @@ impl Repo {
         self.run(&["checkout", hash]).map(|_| ())
     }
 
+    /// The checked-out branch, or `HEAD` when it is detached.
+    ///
+    /// The cheap probe [`info`](Self::info) is not: `info` runs half a dozen git
+    /// commands to build the whole picture, and a command that has just moved
+    /// one ref and wants to read back *where HEAD ended up* should not pay for
+    /// the branch list, the tag list and the stash list to find out.
+    /// On an **unborn** HEAD — a repository with no commits, or one just
+    /// switched to a branch that has none — `rev-parse` cannot resolve `HEAD`
+    /// at all, because there is no commit to resolve it to. The branch is real
+    /// nonetheless: it is written in `.git/HEAD` and its ref appears with the
+    /// first commit. `symbolic-ref` reads that, and is asked only as the
+    /// fallback so a detached HEAD keeps answering `HEAD` as it always has
+    /// (`symbolic-ref` fails there, which is the wrong answer to give).
+    pub fn current_branch(&self) -> Result<String, String> {
+        match self.run(&["rev-parse", "--abbrev-ref", "HEAD"]) {
+            Ok(name) => Ok(name.trim().to_string()),
+            Err(unresolvable) => Ok(self
+                .run(&["symbolic-ref", "--short", "HEAD"])
+                .map_err(|_| unresolvable)?
+                .trim()
+                .to_string()),
+        }
+    }
+
+    /// Local branch names, nothing else — the read-back after a create, rename
+    /// or delete. [`info`](Self::info) computes ahead/behind and upstream state
+    /// per branch, which is a page of work to answer "does this ref exist?".
+    pub fn branch_names(&self) -> Result<Vec<String>, String> {
+        let raw = self.run(&["for-each-ref", "--format=%(refname:short)", "refs/heads"])?;
+        Ok(lines(&raw).map(str::to_string).collect())
+    }
+
+    /// Tag names, for the same reason as [`branch_names`](Self::branch_names).
+    pub fn tag_names(&self) -> Result<Vec<String>, String> {
+        let raw = self.run(&["for-each-ref", "--format=%(refname:short)", "refs/tags"])?;
+        Ok(lines(&raw).map(str::to_string).collect())
+    }
+
+    /// Commit hashes reachable from `HEAD` but not from `base`, oldest first —
+    /// what an operation *actually added*, asked of git afterwards.
+    ///
+    /// The commits a cherry-pick or revert produces are new objects with new
+    /// hashes, so the arguments a caller passed in are not an answer to "what
+    /// landed?"; only this is.
+    pub fn commits_since(&self, base: &str) -> Result<Vec<String>, String> {
+        self.commits_between(base, "HEAD")
+    }
+
+    /// Commit hashes reachable from `to` but not from `from`, oldest first —
+    /// [`commits_since`](Self::commits_since) with both ends named.
+    ///
+    /// The end that is not `HEAD` is the point: "what did this operation add?"
+    /// and "what did the other side send?" are different questions, and a pull
+    /// of a diverged branch answers them differently — the local commits a
+    /// rebase replays, and the merge commit a merge writes, are both new to
+    /// `HEAD` and neither came from the remote.
+    pub fn commits_between(&self, from: &str, to: &str) -> Result<Vec<String>, String> {
+        reject_option(from)?;
+        reject_option(to)?;
+        let range = format!("{from}..{to}");
+        let raw = self.run(&["rev-list", "--reverse", &range])?;
+        Ok(lines(&raw).map(str::to_string).collect())
+    }
+
+    /// The best common ancestor of `HEAD` and `rev` (`git merge-base`).
+    ///
+    /// The read-back that tells "there was nothing to merge" from "the merge
+    /// did nothing it should have done": when this equals `rev`'s own commit,
+    /// `rev` is already reachable from HEAD and git's silent success was the
+    /// correct answer. Returned as a hash rather than as a yes/no because
+    /// `merge-base --is-ancestor` answers by *exit code*, which this engine
+    /// cannot tell apart from git failing outright.
+    pub fn merge_base(&self, rev: &str) -> Result<String, String> {
+        reject_option(rev)?;
+        Ok(self.run(&["merge-base", "HEAD", rev])?.trim().to_string())
+    }
+
+    /// Configured remote names, for the same reason again.
+    pub fn remote_names(&self) -> Result<Vec<String>, String> {
+        Ok(lines(&self.run(&["remote"])?).map(str::to_string).collect())
+    }
+
     pub fn create_branch(&self, name: &str) -> Result<(), String> {
         reject_option(name)?;
         self.run(&["switch", "-c", name]).map(|_| ())
@@ -1771,9 +2333,14 @@ impl Repo {
         self.run(&["switch", "-c", name, hash]).map(|_| ())
     }
 
-    pub fn delete_branch(&self, name: &str) -> Result<(), String> {
+    /// Delete a branch. `force` is `-D` rather than `-d`: it deletes a branch
+    /// whose commits no other ref holds, which is the only way this call can
+    /// lose work. Kept as a parameter rather than a second method so a caller
+    /// has to *say* which one it means at the call site.
+    pub fn delete_branch(&self, name: &str, force: bool) -> Result<(), String> {
         reject_option(name)?;
-        self.run(&["branch", "-d", "--", name]).map(|_| ())
+        let flag = if force { "-D" } else { "-d" };
+        self.run(&["branch", flag, "--", name]).map(|_| ())
     }
 
     /// Revert a commit (creates a new inverse commit, no editor).
@@ -1874,9 +2441,30 @@ impl Repo {
         self.run(&["tag", "-d", "--", name]).map(|_| ())
     }
 
-    /// Push all local tags to the default remote.
-    pub fn push_tags(&self) -> Result<String, String> {
-        self.run(&["push", "--tags"])
+    /// Push all local tags to the default remote, answering in git's
+    /// machine-readable push format.
+    ///
+    /// `--porcelain` because the human format goes to **stderr**, which the
+    /// engine returns only on failure — so a successful `git push --tags` used
+    /// to hand its caller an empty string and no way to say what moved.
+    ///
+    /// It returns a [`TagPush`] rather than a `Result` because a push is a
+    /// batch and its exit code is not a verdict on any single ref: one tag the
+    /// remote already has makes git exit 1 with the *other* tags pushed, and a
+    /// `?` at the call site would throw away the only record of them.
+    pub fn push_tags(&self) -> TagPush {
+        let done = self.run_capturing(&["push", "--porcelain", "--tags"], trace::faults());
+        TagPush {
+            porcelain: done.stdout,
+            failure: done.failure,
+        }
+    }
+
+    /// A remote's fetch URL — read before a rename or a removal, because after
+    /// one there is nowhere left to read it from.
+    pub fn remote_url(&self, name: &str) -> Result<String, String> {
+        reject_option(name)?;
+        Ok(self.run(&["remote", "get-url", name])?.trim().to_string())
     }
 
     pub fn add_remote(&self, name: &str, url: &str) -> Result<(), String> {
@@ -1998,6 +2586,47 @@ impl Repo {
         self.run(&["fetch", "--all", "--prune"])
     }
 
+    /// Every remote-tracking ref and the commit it points at, `origin/HEAD`
+    /// excluded (it is a symbolic pointer at another entry in this same list,
+    /// so counting it would report one ref twice).
+    ///
+    /// The read-back a fetch is checked against. `git fetch` reports what it
+    /// moved on **stderr**, in a format that has changed between git versions
+    /// and is localised, so parsing it would be guessing; comparing this list
+    /// either side of the fetch is the repository's own answer to the same
+    /// question, and it is the answer `--json` can carry.
+    pub fn remote_tips(&self) -> Result<Vec<(String, String)>, String> {
+        let raw = self.run(&[
+            "for-each-ref",
+            "--format=%(refname:short) %(objectname)",
+            "refs/remotes",
+        ])?;
+        Ok(lines(&raw)
+            .filter_map(|l| l.split_once(' '))
+            .filter(|(name, _)| !name.ends_with("/HEAD"))
+            .map(|(name, hash)| (name.to_string(), hash.to_string()))
+            .collect())
+    }
+
+    /// The current branch's configured upstream (`origin/main`), or an empty
+    /// string when it has none.
+    ///
+    /// Infallible by design: "this branch has no upstream" is a **normal**
+    /// state, not an error, and git answers it by failing `rev-parse` with a
+    /// message about `@{upstream}` that assumes the reader knows the syntax.
+    /// A caller that has to tell that failure apart from a broken repository
+    /// would be re-deriving this every time, so it is derived once here.
+    pub fn upstream(&self) -> String {
+        self.run(&[
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}",
+        ])
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+    }
+
     /// Pull with an explicit reconcile strategy so git never aborts with "Need
     /// to specify how to reconcile divergent branches" (which it does for a bare
     /// `git pull` on diverged branches when the user has no pull.rebase/pull.ff
@@ -2048,16 +2677,45 @@ impl Repo {
         self.run(&["add", "--", file]).map(|_| ())
     }
 
+    /// The remote a branch with no upstream would be published to: `origin`
+    /// when it exists, otherwise the sole remote when there is exactly one.
+    ///
+    /// `None` where there are several and none is called `origin` — a genuine
+    /// ambiguity, and the one case this cannot answer for the caller. Naming
+    /// `origin` unconditionally is what it replaces: a repository whose one
+    /// remote is called `upstream` has an upstream to publish to, and hardcoding
+    /// the conventional name told it otherwise.
+    pub fn push_remote(&self) -> Option<String> {
+        let remotes = self.remote_names().ok()?;
+        if remotes.iter().any(|r| r == "origin") {
+            return Some("origin".to_string());
+        }
+        match remotes.as_slice() {
+            [only] => Some(only.clone()),
+            _ => None,
+        }
+    }
+
     /// Push the current branch. `set_upstream` publishes a new branch and
-    /// records its upstream (`-u origin HEAD`); `force` uses the safe
+    /// records its upstream (`-u <remote> HEAD`, the remote resolved by
+    /// [`push_remote`](Self::push_remote)); `force` uses the safe
     /// `--force-with-lease` (never the unconditional `--force`).
     pub fn push(&self, set_upstream: bool, force: bool) -> Result<String, String> {
+        let remote = if set_upstream {
+            self.push_remote().ok_or_else(|| {
+                "several remotes are configured and none is named origin, so there is no \
+                 default to publish to\n\nName the one you mean: git push -u <remote> HEAD"
+                    .to_string()
+            })?
+        } else {
+            String::new()
+        };
         let mut args = vec!["push"];
         if force {
             args.push("--force-with-lease");
         }
         if set_upstream {
-            args.extend(["--set-upstream", "origin", "HEAD"]);
+            args.extend(["--set-upstream", remote.as_str(), "HEAD"]);
         }
         self.run(&args)
     }
@@ -2198,11 +2856,11 @@ fn export_bindings() {
     ];
     let body: String = decls.iter().map(|d| format!("export {d}\n\n")).collect();
     let file = format!(
-        "// GENERATED from src-tauri/src/git.rs by `cargo test` (ts-rs).\n\
+        "// GENERATED from src-tauri/crates/glimpse-core/src/git.rs by `cargo test` (ts-rs).\n\
          // Do not edit — change the Rust structs and re-run.\n\n{body}"
     );
-    std::fs::create_dir_all("../app/types").expect("create app/types");
-    std::fs::write("../app/types/bindings.ts", file).expect("write bindings.ts");
+    std::fs::create_dir_all("../../../app/types").expect("create app/types");
+    std::fs::write("../../../app/types/bindings.ts", file).expect("write bindings.ts");
 }
 
 #[cfg(test)]
@@ -3044,5 +3702,559 @@ mod whole_mode_refusal_tests {
         assert!(hunk_bytes(&stash.hunks) <= MAX_DIFF_CONTENT_BYTES);
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// Sparse-checkout detection, against a real `git`.
+///
+/// The regression this pins: `git sparse-checkout list` was used as the probe
+/// for whether the feature is *on*, and it is not one — a worktree that is not
+/// sparse gets a warning on stderr and exit code **0** (git 2.34), so every
+/// ordinary repository reported `enabled: true` with an empty pattern list.
+#[cfg(test)]
+mod sparse_status_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("glimpse-sparse-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::create_dir_all(dir.join("keep")).unwrap();
+        std::fs::write(dir.join("keep/k.txt"), "k\n").unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        dir
+    }
+
+    #[test]
+    fn an_ordinary_repository_is_not_reported_as_sparse() {
+        let dir = scratch("off");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let state = repo.sparse_status().expect("sparse status");
+        assert!(
+            !state.enabled,
+            "a repository that was never narrowed must read as disabled"
+        );
+        assert!(state.patterns.is_empty(), "{:?}", state.patterns);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_narrowed_repository_reports_its_patterns() {
+        let dir = scratch("on");
+        let repo = Repo::open(dir.to_str().unwrap());
+        git(&dir, &["sparse-checkout", "set", "keep"]);
+
+        let state = repo.sparse_status().expect("sparse status");
+        assert!(state.enabled, "a narrowed checkout must read as enabled");
+        assert!(
+            state.patterns.iter().any(|p| p.contains("keep")),
+            "the included directory is listed: {:?}",
+            state.patterns
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod write_receipt_tests {
+    use super::{Repo, WriteReceipt};
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-receipt-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        dir
+    }
+
+    #[test]
+    fn the_receipt_lands_in_the_git_dir_and_round_trips() {
+        let dir = scratch("roundtrip");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let written = WriteReceipt::new("commit", vec!["a.txt".to_string()]);
+        repo.write_receipt(&written).expect("write the receipt");
+
+        // Inside the git dir, so it is per-worktree and never committed —
+        // asserted on the resolved path rather than on a string we built.
+        let path = repo.write_receipt_file().expect("resolve the receipt path");
+        assert!(
+            path.replace('\\', "/").contains("/glimpse/last-write.json"),
+            "{path}"
+        );
+        assert!(Path::new(&path).exists());
+
+        let text = std::fs::read_to_string(&path).unwrap();
+        let read: WriteReceipt = serde_json::from_str(&text).expect("parse the receipt");
+        assert_eq!(read, written, "what the GUI reads is what the CLI wrote");
+        assert!(read.at > 0, "a usable timestamp");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_second_write_replaces_the_first_rather_than_appending() {
+        let dir = scratch("replace");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        repo.write_receipt(&WriteReceipt::new("stage", vec!["a.txt".to_string()]))
+            .unwrap();
+        repo.write_receipt(&WriteReceipt::new("discard", vec!["b.txt".to_string()]))
+            .unwrap();
+
+        let path = repo.write_receipt_file().unwrap();
+        let read: WriteReceipt =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(read.action, "discard", "the latest write wins");
+        assert_eq!(read.paths, vec!["b.txt".to_string()]);
+
+        // The atomic-write temp file is not left behind for a watcher to trip on.
+        assert!(!Path::new(&format!("{path}.tmp")).exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn writing_a_receipt_reports_failure_rather_than_pretending() {
+        // The CLI treats a failed receipt as unimportant, but it can only make
+        // that choice if the engine tells it the truth. A file where the
+        // directory belongs makes the write genuinely impossible.
+        let dir = scratch("unwritable");
+        let repo = Repo::open(dir.to_str().unwrap());
+        let path = repo.write_receipt_file().unwrap();
+        let parent = Path::new(&path).parent().unwrap().to_path_buf();
+        std::fs::write(&parent, "not a directory").unwrap();
+
+        let err = repo
+            .write_receipt(&WriteReceipt::new("stage", vec![]))
+            .expect_err("an impossible write is an error");
+        assert!(!err.is_empty(), "the failure is named: {err:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod paths_in_tree_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-in-tree-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        std::fs::write(dir.join("sub/b.txt"), "b\n").unwrap();
+        std::fs::write(dir.join("g1.txt"), "g\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        dir
+    }
+
+    #[test]
+    fn a_tree_answers_for_the_paths_it_holds_and_stays_quiet_about_the_rest() {
+        let dir = scratch("holds");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let asked: Vec<String> = ["a.txt", "sub/b.txt", "gone.txt"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let found = repo.paths_in_tree("HEAD", &asked).expect("ls-tree");
+
+        assert_eq!(
+            found,
+            vec!["a.txt".to_string(), "sub/b.txt".to_string()],
+            "a nested path comes back whole, and an absent one comes back not at all"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_directory_answers_with_the_files_under_it() {
+        // `ls-tree` matches its paths as prefixes, so a directory name matches
+        // everything beneath it — and `-r` is what turns that into blob paths
+        // instead of the directory's own name.
+        //
+        // This is load-bearing, not incidental. An earlier version of this test
+        // asserted the empty set and justified it with "a guard that read git's
+        // yes would warn about work nothing can overwrite". That is false
+        // against real git: `reset --hard` deletes an untracked *file* called
+        // `sub` to make room for the target's `sub/` directory, exactly as it
+        // deletes an untracked directory to make room for a file. Answering
+        // "no files at `sub`" hid that from the one caller who had to know.
+        let dir = scratch("dir");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .paths_in_tree("HEAD", &["sub".to_string()])
+            .expect("ls-tree");
+        assert_eq!(
+            found,
+            vec!["sub/b.txt".to_string()],
+            "the tree needs `sub` to be a directory, and says so by naming what is in it"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_path_under_a_file_matches_nothing_at_all() {
+        // Why a caller asking "what does this tree want at `p`?" has to ask
+        // about `p`'s ancestors too. `a.txt` is a file here, so nothing can
+        // live at `a.txt/inner` — and git does not say "there is a file in the
+        // way", it says nothing whatsoever. A caller that asked only about
+        // `a.txt/inner` would read that silence as "the tree wants nothing
+        // here", which is the exact opposite of the truth.
+        let dir = scratch("shadowed");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .paths_in_tree("HEAD", &["a.txt/inner".to_string()])
+            .expect("ls-tree");
+        assert!(found.is_empty(), "silence, not an answer: {found:?}");
+
+        // Asking about the ancestor is what turns the silence into the answer.
+        let found = repo
+            .paths_in_tree("HEAD", &["a.txt".to_string()])
+            .expect("ls-tree");
+        assert_eq!(found, vec!["a.txt".to_string()]);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_file_name_is_a_name_and_never_a_pattern() {
+        // The paths handed in here are read back out of `git status`, not typed
+        // by anyone, so any pattern reading would be wrong: `g[1].txt` must be a
+        // file that is not in this tree, never a match for the `g1.txt` that is.
+        let dir = scratch("literal");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .paths_in_tree("HEAD", &["g[1].txt".to_string()])
+            .expect("ls-tree");
+        assert!(found.is_empty(), "no such path in the tree: {found:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn asking_about_nothing_answers_nothing() {
+        // The commonest call of all: a working tree with nothing untracked in
+        // it. Empty in, empty out — never "the whole tree", which is what an
+        // empty pathspec list means to git.
+        let dir = scratch("empty");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo.paths_in_tree("HEAD", &[]).expect("ls-tree");
+        assert!(found.is_empty(), "{found:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod ignored_paths_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    /// One commit, a `.gitignore` that hides `out.log` and `build/`, and both of
+    /// those actually present in the working tree.
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-ignored-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "test@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::write(dir.join(".gitignore"), "out.log\nbuild/\n").unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        git(&dir, &["add", "-A"]);
+        git(&dir, &["commit", "-q", "-m", "initial"]);
+        std::fs::write(dir.join("out.log"), "log\n").unwrap();
+        std::fs::create_dir_all(dir.join("build")).unwrap();
+        std::fs::write(dir.join("build/app"), "binary\n").unwrap();
+        std::fs::write(dir.join("untracked.txt"), "u\n").unwrap();
+        dir
+    }
+
+    #[test]
+    fn an_ignored_file_is_a_file_and_an_ignored_directory_is_one_entry() {
+        // The collapse is the point: `build/` answers as ONE path, not as every
+        // file underneath it, so a repository with a `node_modules` does not
+        // hand its caller a hundred thousand paths to ask the tree about.
+        let dir = scratch("list");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let mut found = repo.ignored_paths().expect("ls-files");
+        found.sort();
+        assert_eq!(
+            found,
+            vec![("build".to_string(), true), ("out.log".to_string(), false)],
+            "the directory is marked as one, and the untracked file is not ignored at all"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_collapsed_directory_expands_to_the_files_in_it_when_asked() {
+        let dir = scratch("expand");
+        let repo = Repo::open(dir.to_str().unwrap());
+
+        let found = repo
+            .ignored_files_in(&["build".to_string()])
+            .expect("ls-files");
+        assert_eq!(found, vec!["build/app".to_string()]);
+
+        // …and asking about nothing stays nothing, never "every ignored file":
+        // an empty pathspec list means "everything" to git.
+        assert!(repo.ignored_files_in(&[]).expect("ls-files").is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod rebase_state_tests {
+    use super::Repo;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn git(dir: &Path, args: &[&str]) -> bool {
+        Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .status()
+            .expect("run git")
+            .success()
+    }
+
+    fn must(dir: &Path, args: &[&str]) {
+        assert!(git(dir, args), "git {args:?} failed");
+    }
+
+    fn git_out(dir: &Path, args: &[&str]) -> String {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .expect("run git");
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    /// Two commits on `main`, clean tree — enough history for a rebase to have
+    /// something to replay.
+    fn scratch(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-rebase-state-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp repo");
+
+        must(&dir, &["init", "-q", "-b", "main"]);
+        must(&dir, &["config", "user.email", "test@example.com"]);
+        must(&dir, &["config", "user.name", "Test"]);
+        must(&dir, &["config", "commit.gpgsign", "false"]);
+        std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
+        must(&dir, &["add", "-A"]);
+        must(&dir, &["commit", "-q", "-m", "first"]);
+        std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
+        must(&dir, &["commit", "-q", "-am", "second"]);
+        dir
+    }
+
+    fn has_rebase_head(dir: &Path) -> bool {
+        git(dir, &["rev-parse", "--verify", "--quiet", "REBASE_HEAD"])
+    }
+
+    #[test]
+    fn a_clean_repository_is_not_mid_rebase() {
+        let dir = scratch("clean");
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(!repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rebase_stopped_on_a_conflict_is_in_progress() {
+        let dir = scratch("conflict");
+        must(&dir, &["switch", "-q", "-c", "side", "HEAD~1"]);
+        std::fs::write(dir.join("a.txt"), "side\n").unwrap();
+        must(&dir, &["commit", "-q", "-am", "side"]);
+        assert!(!git(&dir, &["rebase", "main"]), "the rebase should stop");
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(has_rebase_head(&dir), "a conflict stop sets REBASE_HEAD");
+        assert!(repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rebase_paused_on_a_break_is_in_progress() {
+        // The state glimpse's own rebase dialog reaches: the sequencer stopped
+        // *between* commits, so git set no `REBASE_HEAD` — the probe this test
+        // guards used to answer "no rebase in progress" here, which made
+        // `rebase abort`, `rebase continue` and the `discard --all` refusal all
+        // wrong about a state the program creates itself.
+        let dir = scratch("break");
+        let head = git_out(&dir, &["rev-parse", "HEAD"]);
+        let todo = std::env::temp_dir().join(format!("glimpse-todo-break-{}", std::process::id()));
+        std::fs::write(&todo, format!("break\npick {head}\n")).unwrap();
+        must(
+            &dir,
+            &[
+                "-c",
+                "core.editor=true",
+                "-c",
+                &format!("sequence.editor=cp {}", todo.display()),
+                "rebase",
+                "-i",
+                "HEAD~1",
+            ],
+        );
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(
+            !has_rebase_head(&dir),
+            "the premise: a break stop sets no REBASE_HEAD"
+        );
+        assert!(repo.rebase_in_progress(), "but the rebase *is* in progress");
+
+        // And it goes back to false once the rebase is over, so the probe is
+        // reading the state rather than answering true for everything.
+        must(&dir, &["rebase", "--abort"]);
+        assert!(!repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&todo);
+    }
+
+    #[test]
+    fn a_rebase_stopped_on_a_failed_exec_is_in_progress() {
+        // The other `REBASE_HEAD`-less stop, and the one glimpse writes for
+        // every reword: `exec … --amend --file=…`.
+        let dir = scratch("exec");
+        assert!(
+            !git(&dir, &["rebase", "--exec", "false", "HEAD~1"]),
+            "the exec was supposed to fail"
+        );
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(
+            !has_rebase_head(&dir),
+            "the premise: a failed exec sets no REBASE_HEAD"
+        );
+        assert!(repo.rebase_in_progress(), "but the rebase *is* in progress");
+
+        must(&dir, &["rebase", "--abort"]);
+        assert!(!repo.rebase_in_progress());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_am_in_progress_is_not_a_rebase() {
+        // `git am` uses the same `rebase-apply` directory as the apply backend,
+        // so a probe that answered on the directory alone would call a patch
+        // application a rebase and offer `rebase abort` as the way out of it.
+        let dir = scratch("am");
+        must(&dir, &["switch", "-q", "-c", "side", "HEAD~1"]);
+        std::fs::write(dir.join("a.txt"), "side\n").unwrap();
+        must(&dir, &["commit", "-q", "-am", "side"]);
+        let patches = std::env::temp_dir().join(format!("glimpse-am-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&patches);
+        must(
+            &dir,
+            &[
+                "format-patch",
+                "-1",
+                "main",
+                "-o",
+                patches.to_str().unwrap(),
+            ],
+        );
+        let patch = std::fs::read_dir(&patches)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        assert!(
+            !git(&dir, &["am", patch.to_str().unwrap()]),
+            "the patch was supposed to collide"
+        );
+
+        let repo = Repo::open(dir.to_str().unwrap());
+        assert!(!repo.rebase_in_progress(), "an `am` is not a rebase");
+
+        must(&dir, &["am", "--abort"]);
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(&patches);
     }
 }

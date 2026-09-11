@@ -1582,8 +1582,10 @@ dependencies = [
 
 [[package]]
 name = "glimpse"
-version = "0.13.0"
+version = "0.15.1"
 dependencies = [
+ "glimpse-cli",
+ "glimpse-core",
  "log",
  "notify",
  "notify-debouncer-mini",
@@ -1601,6 +1603,23 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
+]
+
+[[package]]
+name = "glimpse-cli"
+version = "0.15.1"
+dependencies = [
+ "glimpse-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "glimpse-core"
+version = "0.15.1"
+dependencies = [
+ "serde",
+ "serde_json",
  "ts-rs",
 ]
 

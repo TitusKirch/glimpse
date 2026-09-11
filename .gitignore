@@ -104,5 +104,11 @@ $RECYCLE.BIN/
 
 # endregion
 
+# The CLI sidecar `scripts/build-cli-sidecar.ts` stages for Tauri's
+# `bundle.externalBin` — a build artifact of `crates/glimpse-cli`, rebuilt by
+# every `tauri build`/`tauri dev`, and named for the host triple so it is never
+# the same file on two platforms.
+src-tauri/binaries/
+
 # Local-only operator notes (signing/updater setup, secret references)
 *.local.md

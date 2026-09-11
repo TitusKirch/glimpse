@@ -1,85 +1,35 @@
-//! Headless `glimpse cl …` command line — drive changelists from a terminal or
-//! a script/agent, without opening the GUI.
+//! `glimpse cl …` — drive changelists from a terminal or a script/agent.
 //!
-//! [`try_run_cli`] is called at the very start of [`crate::run`]: if the first
-//! argument is `cl`/`changelist` it handles the command and returns an exit code
-//! (the caller then `exit`s before any Tauri/window setup); otherwise it returns
-//! `None` and the normal app launches. Everything operates on the same
-//! git-native store the GUI uses (`<git-dir>/glimpse/changelists.json`) via the
-//! shared model in [`crate::changelist`] and the git engine in [`crate::git`],
-//! so the CLI and GUI never disagree.
+//! Everything here operates on the same git-native store the GUI uses
+//! (`<git-dir>/glimpse/changelists.json`) via the shared model in
+//! [`glimpse_core::changelist`] and the engine in [`glimpse_core::git`], so the
+//! CLI and the app never disagree about what is in a list.
 //!
 //! Subcommands: `ls` (default), `add <name>`, `mv <list> <path>…`, `rm <list>`,
-//! `active <list>`, `commit <list> -m <msg>`. Global flags: `--json` (machine
-//! output), `-C <path>` (repo dir, default cwd), `-h`/`--help`.
+//! `active <list>`, `commit <list> -m <msg>`. The global flags (`--json`,
+//! `-C <path>`, `-h`) are the crate's, parsed once in
+//! [`parse_globals`](crate::parse_globals) rather than again here.
 
-use crate::changelist as cl;
-use crate::git;
+use crate::{fail, open_repo, parse_globals, wants_json};
+use glimpse_core::changelist as cl;
+use glimpse_core::git;
 use std::io::Write;
 
-/// Run the CLI if argv asks for it. `Some(code)` → handled, the caller should
-/// exit with `code`; `None` → not a CLI invocation, launch the GUI.
-pub fn try_run_cli() -> Option<i32> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match args.first().map(String::as_str) {
-        Some("cl") | Some("changelist") => {}
-        _ => return None,
+pub(crate) fn run(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let globals = match parse_globals(args) {
+        Ok(g) => g,
+        // Same reasoning as `read::run` — the flag comes off argv because
+        // `globals` is precisely what could not be parsed.
+        Err(e) => return fail(err, wants_json(args), "glimpse cl", &e),
+    };
+    if globals.help {
+        let _ = write!(out, "{}", help());
+        return 0;
     }
-    attach_console();
-    let code = run(&args[1..]);
-    // stdout may be block-buffered when piped; flush before the caller exits
-    // (process::exit runs no destructors).
-    let _ = std::io::stdout().flush();
-    let _ = std::io::stderr().flush();
-    Some(code)
-}
+    let json = globals.json;
+    let repo = open_repo(globals.dir);
 
-/// On Windows the GUI binary has no console (`windows_subsystem = "windows"`);
-/// attach to the launching terminal so CLI output is visible. Best-effort — if
-/// there is no parent console (double-clicked, piped) it simply does nothing.
-/// No-op on every other platform.
-#[cfg(windows)]
-fn attach_console() {
-    extern "system" {
-        fn AttachConsole(dw_process_id: u32) -> i32;
-    }
-    const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
-    unsafe {
-        let _ = AttachConsole(ATTACH_PARENT_PROCESS);
-    }
-}
-#[cfg(not(windows))]
-fn attach_console() {}
-
-fn run(args: &[String]) -> i32 {
-    let mut json = false;
-    let mut dir: Option<String> = None;
-    let mut rest: Vec<String> = Vec::new();
-    let mut it = args.iter();
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--json" => json = true,
-            "-C" | "--repo" => match it.next() {
-                Some(p) => dir = Some(p.clone()),
-                None => return fail("missing path after -C"),
-            },
-            "-h" | "--help" | "help" => {
-                print_help();
-                return 0;
-            }
-            _ => rest.push(a.clone()),
-        }
-    }
-
-    let dir = dir
-        .or_else(|| {
-            std::env::current_dir()
-                .ok()
-                .map(|p| p.to_string_lossy().into_owned())
-        })
-        .unwrap_or_else(|| ".".to_string());
-    let repo = git::Repo::open(&dir);
-
+    let rest = globals.rest;
     let cmd = rest.first().map(String::as_str).unwrap_or("ls");
     let cmd_args = if rest.is_empty() { &[][..] } else { &rest[1..] };
     let result = match cmd {
@@ -94,20 +44,12 @@ fn run(args: &[String]) -> i32 {
         )),
     };
     match result {
-        Ok(()) => 0,
-        // Structured error output under --json so an agent can parse failures the
-        // same way it parses success; plain prefixed line otherwise.
-        Err(e) if json => {
-            eprintln!("{}", serde_json::json!({ "error": e }));
-            1
+        Ok(text) => {
+            let _ = write!(out, "{text}");
+            0
         }
-        Err(e) => fail(&e),
+        Err(e) => fail(err, json, "glimpse cl", &e),
     }
-}
-
-fn fail(msg: &str) -> i32 {
-    eprintln!("glimpse cl: {msg}");
-    1
 }
 
 // ── State helpers ──────────────────────────────────────────────────────────
@@ -167,41 +109,44 @@ fn display_name(list: &cl::Changelist) -> &str {
 
 // ── Output ─────────────────────────────────────────────────────────────────
 
-fn print_human(state: &cl::ChangelistState) {
+fn render_human(state: &cl::ChangelistState) -> String {
+    let mut out = String::new();
     for list in &state.lists {
         let marker = if list.id == state.active_id { "*" } else { " " };
-        println!("{marker} {} ({})", display_name(list), list.members.len());
+        out.push_str(&format!(
+            "{marker} {} ({})\n",
+            display_name(list),
+            list.members.len()
+        ));
         for m in &list.members {
-            println!("    {m}");
+            out.push_str(&format!("    {m}\n"));
         }
     }
+    out
 }
 
 /// Emit the resulting state: the JSON contract for `--json`, else a confirmation
 /// line plus the human-readable listing.
-fn report(state: &cl::ChangelistState, json: bool, note: &str) -> Result<(), String> {
+fn report(state: &cl::ChangelistState, json: bool, note: &str) -> Result<String, String> {
     if json {
-        println!("{}", cl::serialize(state));
+        Ok(format!("{}\n", cl::serialize(state)))
     } else {
-        println!("{note}");
-        print_human(state);
+        Ok(format!("{note}\n{}", render_human(state)))
     }
-    Ok(())
 }
 
 // ── Subcommands ────────────────────────────────────────────────────────────
 
-fn cmd_ls(repo: &git::Repo, json: bool) -> Result<(), String> {
+fn cmd_ls(repo: &git::Repo, json: bool) -> Result<String, String> {
     let state = current(repo)?;
     if json {
-        println!("{}", cl::serialize(&state));
+        Ok(format!("{}\n", cl::serialize(&state)))
     } else {
-        print_human(&state);
+        Ok(render_human(&state))
     }
-    Ok(())
 }
 
-fn cmd_add(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> {
+fn cmd_add(repo: &git::Repo, args: &[String], json: bool) -> Result<String, String> {
     let name = args.first().ok_or("usage: glimpse cl add <name>")?;
     let state = current(repo)?;
     let (next, id) = cl::create_list(&state, name);
@@ -214,7 +159,7 @@ fn cmd_add(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> 
     )
 }
 
-fn cmd_move(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> {
+fn cmd_move(repo: &git::Repo, args: &[String], json: bool) -> Result<String, String> {
     if args.len() < 2 {
         return Err("usage: glimpse cl mv <list> <path>...".to_string());
     }
@@ -228,7 +173,7 @@ fn cmd_move(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String>
     report(&next, json, &format!("Moved {} file(s).", args.len() - 1))
 }
 
-fn cmd_rm(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> {
+fn cmd_rm(repo: &git::Repo, args: &[String], json: bool) -> Result<String, String> {
     let token = args.first().ok_or("usage: glimpse cl rm <list>")?;
     let state = current(repo)?;
     let id = resolve(&state, token).ok_or_else(|| format!("no such changelist: {token}"))?;
@@ -240,7 +185,7 @@ fn cmd_rm(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> {
     report(&next, json, &format!("Deleted changelist '{token}'."))
 }
 
-fn cmd_active(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> {
+fn cmd_active(repo: &git::Repo, args: &[String], json: bool) -> Result<String, String> {
     let token = args.first().ok_or("usage: glimpse cl active <list>")?;
     let state = current(repo)?;
     let id = resolve(&state, token).ok_or_else(|| format!("no such changelist: {token}"))?;
@@ -249,7 +194,7 @@ fn cmd_active(repo: &git::Repo, args: &[String], json: bool) -> Result<(), Strin
     report(&next, json, &format!("Active changelist: '{token}'."))
 }
 
-fn cmd_commit(repo: &git::Repo, args: &[String], json: bool) -> Result<(), String> {
+fn cmd_commit(repo: &git::Repo, args: &[String], json: bool) -> Result<String, String> {
     let mut token: Option<String> = None;
     let mut message: Option<String> = None;
     let mut it = args.iter();
@@ -275,29 +220,29 @@ fn cmd_commit(repo: &git::Repo, args: &[String], json: bool) -> Result<(), Strin
         return Err(format!("changelist '{token}' has no files to commit"));
     }
 
-    let out = repo.commit_paths(&message, &members, false)?;
+    let git_output = repo.commit_paths(&message, &members, false)?;
     // Prune the now-committed paths from the store so it reflects reality.
     let after = cl::reconcile(&state, &changed_paths(repo)?);
     save(repo, &after)?;
 
     if json {
-        println!(
-            "{}",
-            serde_json::json!({ "committed": members, "output": out.trim() })
-        );
+        Ok(format!(
+            "{}\n",
+            serde_json::json!({ "committed": members, "output": git_output.trim() })
+        ))
     } else {
-        println!("Committed {} file(s) from '{token}'.", members.len());
-        let out = out.trim();
-        if !out.is_empty() {
-            println!("{out}");
+        let mut out = format!("Committed {} file(s) from '{token}'.\n", members.len());
+        let trimmed = git_output.trim();
+        if !trimmed.is_empty() {
+            out.push_str(trimmed);
+            out.push('\n');
         }
+        Ok(out)
     }
-    Ok(())
 }
 
-fn print_help() {
-    println!(
-        "glimpse cl — manage changelists from the command line
+fn help() -> String {
+    "glimpse cl — manage changelists from the command line
 
 Usage:
   glimpse cl [ls]                 List changelists and their files (default)
@@ -315,6 +260,7 @@ Options:
 
 <list> matches a changelist by id or (case-insensitive) name; 'default' is the
 permanent Default list. Membership is stored in <git-dir>/glimpse/changelists.json,
-the same file the glimpse app uses."
-    );
+the same file the glimpse app uses.
+"
+    .to_string()
 }

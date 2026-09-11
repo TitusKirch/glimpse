@@ -371,7 +371,10 @@ const otherPullStrategies = computed(() =>
                 <UiTabsTrigger value="changes">{{
                   t('changes.title')
                 }}</UiTabsTrigger>
-                <UiTabsTrigger value="history">{{
+                <!-- data-testid: the e2e smoke test clicks this tab. The label
+                     is translated and Reka generates the id, so this attribute
+                     is the only locale- and version-stable handle on it. -->
+                <UiTabsTrigger value="history" data-testid="tab-history">{{
                   t('history.title')
                 }}</UiTabsTrigger>
               </UiTabsList>

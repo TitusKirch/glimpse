@@ -1,0 +1,39 @@
+{
+  // The repo's Node-side tooling: the Vitest config, the build-plugin specs
+  // and the CI guards under `scripts/`. None of it is Nuxt code, so none of it
+  // is in the tsconfig `nuxt typecheck` drives, and until this file existed a
+  // type error here surfaced only at runtime — the exact class of regression
+  // the typecheck was added to catch.
+  //
+  // A THIRD CONFIG RATHER THAN A SHARED NON-NUXT ONE. `tests/e2e/tsconfig.json`
+  // covers the WebdriverIO suite, and its `types` are `mocha` +
+  // `@wdio/globals/types`; merging the two would hand each suite the other's
+  // globals, so a `browser` typo in a Vitest spec would type-check.
+  //
+  // NOT `nuxt.typescript.tsConfig` either: that would give plain Node files the
+  // Nuxt auto-imports and the Vue environment, and Nuxt regenerates the file on
+  // every prepare.
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    // These files are run by `node` with no bundler and no build step, and
+    // Node's type stripping does not rewrite specifiers — so a relative import
+    // between two of them has to name the `.ts` file that is actually on disk.
+    // Nothing is emitted here, so allowing the extension costs nothing.
+    "allowImportingTsExtensions": true,
+    // Vitest's own types arrive through the explicit `vitest` imports every
+    // spec here makes — the suite does not run with `globals: true`, so
+    // declaring them ambiently would let an undeclared `describe` type-check
+    // and then fail at runtime.
+    "types": ["node"]
+  },
+  "include": ["vitest.config.ts", "build/**/*.ts", "scripts/**/*.ts"]
+}
