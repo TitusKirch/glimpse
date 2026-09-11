@@ -108,12 +108,15 @@ fn pull(repo: &Repo, args: &[String]) -> Result<Report, Failure> {
     // read-back is against the upstream ref, which the pull has just moved, and
     // `paths` names commits the remote really did send — it is also the receipt
     // a running window is handed.
-    let added = match repo.resolve_commit(&upstream) {
-        Ok(tip) => repo.commits_between(&before, &tip)?,
-        // No remote-tracking ref to read back against. Nothing else here knows
-        // better than "what HEAD gained", so say that rather than nothing.
-        Err(_) => repo.commits_since(&before)?,
-    };
+    //
+    // There is no fallback branch here, because there is no case for one to
+    // answer: `upstream_or_refuse` above read `@{upstream}`, which git resolves
+    // only where the remote-tracking ref exists — an unresolvable one comes back
+    // empty and is refused there, before the pull. So this is a read, not a
+    // gamble, and an error from it is a real fault worth surfacing rather than a
+    // shape to paper over with a different measurement.
+    let tip = repo.resolve_commit(&upstream)?;
+    let added = repo.commits_between(&before, &tip)?;
     let now = repo.resolve_commit("HEAD")?;
     let detail = if added.is_empty() {
         format!("{branch} is already up to date with {upstream}")
