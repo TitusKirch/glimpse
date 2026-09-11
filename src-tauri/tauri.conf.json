@@ -6,7 +6,7 @@
   "build": {
     "frontendDist": "../.output/public",
     "devUrl": "http://localhost:3210",
-    "beforeDevCommand": "pnpm cli:sidecar:debug && pnpm dev",
+    "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm generate && pnpm cli:sidecar"
   },
   "app": {
@@ -53,9 +53,6 @@
   },
   "bundle": {
     "active": true,
-    "externalBin": [
-      "binaries/glimpse-cli"
-    ],
     "targets": [
       "deb",
       "rpm",

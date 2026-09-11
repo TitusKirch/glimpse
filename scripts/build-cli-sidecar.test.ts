@@ -1,12 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { basename, dirname } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
   hostTriple,
   plan,
+  SIDECAR_CONFIG,
   sidecarName,
   STAGE_DIR
 } from './build-cli-sidecar.ts';
@@ -22,6 +23,16 @@ const SCRIPT = fileURLToPath(
 const TAURI_CONF = fileURLToPath(
   new URL('../src-tauri/tauri.conf.json', import.meta.url)
 );
+
+const SIDECAR_CONF = fileURLToPath(
+  new URL(`../src-tauri/${SIDECAR_CONFIG}`, import.meta.url)
+);
+
+const WORKFLOWS = fileURLToPath(
+  new URL('../.github/workflows', import.meta.url)
+);
+
+const PACKAGE_JSON = fileURLToPath(new URL('../package.json', import.meta.url));
 
 function printedPlan(args: string[]) {
   const result = spawnSync(
@@ -68,12 +79,12 @@ release: 1.96.0
     );
   });
 
-  it('stages exactly where tauri.conf.json says it looks', () => {
+  it('stages exactly where the sidecar config fragment says it looks', () => {
     // THE GUARD, and it runs in both directions: the script decides the path,
     // the bundler decides the path, and neither knows about the other. A
     // renamed directory or package on either side lands here instead of in a
     // release that installs no `glimpse-cli`.
-    const conf = JSON.parse(readFileSync(TAURI_CONF, 'utf8'));
+    const conf = JSON.parse(readFileSync(SIDECAR_CONF, 'utf8'));
     const external: string[] = conf.bundle?.externalBin ?? [];
     expect(external).toContain(`${STAGE_DIR}/glimpse-cli`);
 
@@ -84,6 +95,59 @@ release: 1.96.0
         true
       );
     }
+  });
+
+  it('keeps the sidecar out of the config a bare `cargo` build reads', () => {
+    // THE REGRESSION THIS FILE EXISTS TO STOP. `bundle.externalBin` in
+    // `tauri.conf.json` is not a bundling detail — `tauri-build`'s build script
+    // resolves it on every compile, so a declared sidecar that nothing staged
+    // fails `cargo clippy` and `cargo test` on a clean checkout, for everyone,
+    // with no bundle anywhere in sight. It lives in the fragment above instead,
+    // merged in with `--config` exactly where something stages it first.
+    const conf = JSON.parse(readFileSync(TAURI_CONF, 'utf8'));
+    expect(conf.bundle?.externalBin).toBeUndefined();
+  });
+
+  it('merges the fragment into every invocation that produces a bundle', () => {
+    // THE OTHER HALF OF THE SPLIT. Moving `externalBin` out of the checked-in
+    // config bought a green `cargo test` at the price of a new silent failure:
+    // an invocation that BUNDLES and forgets `--config` ships installers with
+    // no command line in them, and nothing goes red — the release chain least
+    // of all, which runs once per tag and is watched by nobody at 3am.
+    //
+    // A `--no-bundle` compile is exempt on purpose: it produces no installer,
+    // so declaring the sidecar there only buys a CLI build. `ci.yml`'s matrix
+    // opts in anyway, because resolving the name on all three platforms is the
+    // only Windows evidence this repo can produce without a Windows machine.
+    const steps = (yaml: string) =>
+      yaml.split(/^\s*- (?:name|uses):/m).map((step) =>
+        step
+          .split('\n')
+          .filter((line) => !/^\s*#/.test(line))
+          .join('\n')
+      );
+
+    const bundling: { where: string; body: string }[] = [];
+    for (const file of readdirSync(WORKFLOWS).filter((f) => f.endsWith('.yml')))
+      for (const body of steps(readFileSync(join(WORKFLOWS, file), 'utf8'))) {
+        const builds =
+          /tauri build/.test(body) || /tauri-apps\/tauri-action/.test(body);
+        if (builds && !body.includes('--no-bundle'))
+          bundling.push({
+            where: `${file}: ${body.split('\n')[0]?.trim() ?? ''}`,
+            body
+          });
+      }
+
+    // A guard that matches nothing passes for free — name the count first.
+    expect(bundling.length).toBeGreaterThan(0);
+    for (const step of bundling)
+      expect(step.body, step.where).toContain(SIDECAR_CONFIG);
+
+    // The local route is the same rule: `pnpm tauri build` is a compile with no
+    // command line in it, `pnpm tauri:build` is the one that packages.
+    const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8'));
+    expect(pkg.scripts['tauri:build']).toContain(SIDECAR_CONFIG);
   });
 
   it('takes the release build from target/release and the debug one from target/debug', () => {

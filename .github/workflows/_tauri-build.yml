@@ -188,11 +188,18 @@ jobs:
       # default. That is how the v0.13.0 rebuild had both legs write the shared
       # manifest anyway; only `finalize`'s `--clobber` afterwards hid it.
       # NO SIDECAR STEP HERE, and that is the difference from `ci.yml`. This
-      # chain builds through `tauri build` with the config as it stands, so
+      # chain builds through `tauri build` with the hooks intact, so
       # `beforeBuildCommand` runs — `pnpm generate && pnpm cli:sidecar` — and
-      # stages `binaries/glimpse-cli-<triple>` for `bundle.externalBin` itself.
-      # `ci.yml` drops that hook to reuse a prebuilt frontend, which is why it
-      # has to stage the sidecar by hand and this does not.
+      # stages `binaries/glimpse-cli-<triple>` itself. `ci.yml` drops that hook
+      # to reuse a prebuilt frontend, which is why it has to stage by hand.
+      #
+      # `--config` IS STILL REQUIRED (#103). `bundle.externalBin` is deliberately
+      # NOT in `tauri.conf.json`: a declared sidecar is a build input that
+      # `tauri-build` resolves on every compile, so keeping it there broke a bare
+      # `cargo clippy`/`cargo test` on a clean checkout. It is switched on by the
+      # fragment below, at the invocations that stage the file — and THIS is the
+      # one that ships installers, so forgetting it here means a release whose
+      # packages carry no command line at all.
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
@@ -205,3 +212,4 @@ jobs:
           releaseDraft: false
           prerelease: ${{ inputs.prerelease }}
           uploadUpdaterJson: false
+          args: --config src-tauri/tauri.sidecar.conf.json

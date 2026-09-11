@@ -281,18 +281,30 @@ jobs:
       #
       # `shell: bash` so those JSON quotes mean the same thing on the Windows leg
       # as on the other two.
-      # THE SIDECAR THE BUILD CANNOT PRODUCE ITSELF (#103). `bundle.externalBin`
-      # makes `binaries/glimpse-cli-<triple>` a BUILD INPUT: Tauri looks for it
-      # by that exact name and fails the build when it is missing. Locally
-      # `beforeBuildCommand` stages it — and the step below drops that hook, so
-      # here it has to be its own step. `--debug` is deliberately absent: this
-      # leg builds release, and the sidecar has to match what it ships.
+      #
+      # THE SIDECAR THE BUILD CANNOT PRODUCE ITSELF (#103). The merge patch also
+      # carries `bundle.externalBin`, and that is the whole reason it is a patch
+      # rather than a key in `tauri.conf.json`: a declared sidecar is a BUILD
+      # INPUT that `tauri-build` resolves on every compile, so leaving it in the
+      # checked-in config breaks `cargo clippy` and `cargo test` for anyone who
+      # has not run a pnpm script first. It is switched on exactly here, where
+      # the step below stages the file. `src-tauri/tauri.sidecar.conf.json` is
+      # the single declaration; `jq` folds the hook-dropping key into it so the
+      # one `--config` value the CLI accepts carries both.
+      #
+      # `--debug` is deliberately absent from the staging step: this leg builds
+      # release, and the sidecar has to match what it ships. This build compiles
+      # without bundling, which is enough — `tauri-build` resolves the sidecar
+      # by name at compile time, so all three platforms prove the name the
+      # bundler will look for, the Windows `.exe` placement included.
       - name: Stage the CLI sidecar
         run: pnpm cli:sidecar
 
       - name: Tauri build (compile, no installers)
         shell: bash
-        run: pnpm tauri build --no-bundle --config '{"build":{"beforeBuildCommand":null}}'
+        run: >-
+          pnpm tauri build --no-bundle --config
+          "$(jq -c '. + {build:{beforeBuildCommand:null}}' src-tauri/tauri.sidecar.conf.json)"
 
       # A Vue auto-import Nuxt decided not to inject leaves a bare `ref(` in the
       # bundle and throws only once that component renders — invisible to `pnpm
@@ -393,12 +405,12 @@ jobs:
         shell: bash
         run: test -f .output/public/index.html
 
-      # Same build input as the matrix above, dev-profile here because this job
-      # builds `--debug`: staging the release binary would compile the whole
-      # workspace a second time for a smoke test that never runs it.
-      - name: Stage the CLI sidecar
-        run: pnpm cli:sidecar:debug
-
+      # NO SIDECAR HERE, and nothing is missing. This job never merges
+      # `tauri.sidecar.conf.json` in, so `bundle.externalBin` is simply not
+      # declared for this build — the smoke test drives the GUI and never
+      # invokes the command line. The matrix above is where the sidecar naming
+      # is exercised, on all three platforms; paying for a second CLI build here
+      # would prove nothing that build does not.
       - name: Build the debug binary
         shell: bash
         run: pnpm tauri build --debug --no-bundle --config '{"build":{"beforeBuildCommand":null}}'

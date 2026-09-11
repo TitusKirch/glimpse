@@ -124,11 +124,22 @@ jobs:
       # step, which would fail this job after doing all the work. The updater
       # artifacts are a separate `.nsis.zip` + `.sig`; the `-setup.exe` this job
       # measures is byte-identical either way.
+      #
+      # And `bundle.externalBin`, merged in from `src-tauri/tauri.sidecar.conf.json`
+      # by `jq` (#103). The sidecar is not declared in the checked-in config —
+      # a declared build input breaks a bare `cargo` build — so an installer
+      # built without the fragment carries no `glimpse-cli`, and the size this
+      # job publishes would be smaller than the one users download.
+      - name: Stage the CLI sidecar
+        run: pnpm cli:sidecar
+
       - name: Build the Windows installer
         shell: bash
         run: |
-          pnpm tauri build --config \
-            '{"build":{"beforeBuildCommand":null},"bundle":{"createUpdaterArtifacts":false}}'
+          pnpm tauri build --config "$(jq -c '. + {
+            build: {beforeBuildCommand: null},
+            bundle: (.bundle + {createUpdaterArtifacts: false})
+          }' src-tauri/tauri.sidecar.conf.json)"
 
       # DOES NOT FAIL THE STEP, on purpose. The two size numbers and the two
       # timing numbers have different failure modes: a hosted runner may not

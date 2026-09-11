@@ -15,6 +15,16 @@
 // onto `PATH` as `glimpse-cli` in the Linux packages (where the launcher's PATH
 // search finds it). Nothing in the launcher had to change to be shipped to.
 //
+// WHY `externalBin` IS NOT IN `tauri.conf.json`. It used to be, and that broke
+// every plain `cargo` command in the repo: `tauri-build`'s build script
+// resolves the declared sidecar on EVERY compile, so `cargo clippy` and `cargo
+// test` on a clean checkout failed with `resource path … doesn't exist` — no
+// bundling anywhere in sight, and no `pnpm` step to stage one. The declaration
+// therefore lives in `src-tauri/tauri.sidecar.conf.json` and is merged in with
+// `tauri build --config` at the invocations that stage the file first
+// (`pnpm tauri:build`, ci.yml's tauri job, the release chain's tauri-action).
+// A build input exists exactly where something produces it, and nowhere else.
+//
 // THE TRIPLE IN THE FILENAME IS TAURI'S CONTRACT, not decoration:
 // `externalBin: ["binaries/glimpse-cli"]` makes the bundler look for
 // `binaries/glimpse-cli-<target-triple>` (plus `.exe` on Windows) and strip the
@@ -29,8 +39,8 @@
 // this plan, so the naming rule is checked without a Rust toolchain in reach.
 //
 // Usage: node scripts/build-cli-sidecar.ts [--debug] [--host <triple>] [--print-plan]
-//   --debug        — stage the dev-profile build (what `tauri dev` and a
-//                    `--debug` build want) instead of the release one
+//   --debug        — stage the dev-profile build (what a `--debug` build wants)
+//                    instead of the release one
 //   --host <triple>— use this target triple instead of asking `rustc -vV`
 //   --print-plan   — print the plan as JSON and exit, building nothing
 
@@ -45,6 +55,11 @@ const PACKAGE = 'glimpse-cli';
 // `externalBin` names this path, relative to tauri.conf.json's directory. Both
 // halves have to agree, and the test reads them from here and from that file.
 export const STAGE_DIR = 'binaries';
+
+// The merge patch that turns the sidecar on, relative to tauri.conf.json's
+// directory. Named here so the test can read the declaration out of it rather
+// than restating it, the way it used to read it out of tauri.conf.json.
+export const SIDECAR_CONFIG = 'tauri.sidecar.conf.json';
 
 type Plan = {
   triple: string;
