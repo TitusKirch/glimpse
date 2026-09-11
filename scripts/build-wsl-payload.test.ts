@@ -180,6 +180,25 @@ describe('build-wsl-payload', () => {
       job,
       'the job never builds the binary the fallback forwards to'
     ).toContain('glimpse-cli.exe');
+    // The engine the payload runs and the resource declaration that ships it:
+    // a change to either changes what this job measures, so neither may be
+    // outside the paths filter that decides whether it runs at all.
+    for (const guarded of [
+      'src-tauri/crates/glimpse-core/**',
+      'src-tauri/tauri.wsl-payload.conf.json'
+    ]) {
+      expect(job, `the paths filter lets ${guarded} skip the job`).toContain(
+        guarded
+      );
+    }
+    // The payload the job hands it, by the one name both sides agree on…
+    expect(job).toContain(payloadName(PAYLOAD_TRIPLE));
+    // …staged through the flag that exists for exactly this hand-off…
+    expect(job).toContain('--from');
+    // …and pointed at by the variable the test reads.
+    const env = 'GLIMPSE_WSL_SMOKE_PAYLOAD_DIR';
+    expect(job).toContain(env);
+    expect(lib).toContain(env);
   });
 
   it('is reachable by the command a human is told to run', () => {

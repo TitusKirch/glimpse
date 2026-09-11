@@ -60,6 +60,11 @@ on:
     paths:
       - 'src-tauri/src/lib.rs'
       - 'src-tauri/crates/glimpse-cli/**'
+      # The engine the payload actually runs, and the resource declaration that
+      # puts the payload beside glimpse.exe in the first place: a change to
+      # either one changes what this job measures, so neither may skip it.
+      - 'src-tauri/crates/glimpse-core/**'
+      - 'src-tauri/tauri.wsl-payload.conf.json'
       - 'scripts/glimpse-wsl.sh'
       - 'scripts/build-wsl-payload.ts'
       - '.github/workflows/wsl-smoke.yml'
