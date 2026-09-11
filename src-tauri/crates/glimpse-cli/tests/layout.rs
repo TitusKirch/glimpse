@@ -341,6 +341,35 @@ fn the_bare_group_words_still_list() {
 }
 
 #[test]
+fn the_long_sparse_checkout_spelling_reaches_the_verbs_and_not_the_listing() {
+    // `sparse-checkout` is an alias, and an alias resolves to the *read* view
+    // unless dispatch normalises it first. The listing above proves the bare
+    // word arrives; it cannot tell a normalised verb from the bug the
+    // normalisation exists to prevent — `glimpse sparse-checkout disable`
+    // listing a narrowed tree instead of restoring it. So both verbs are driven
+    // here under the long spelling, and asserted against the working tree.
+    let dir = clean_repo("sparse-long");
+    let path = dir.to_str().unwrap();
+    std::fs::create_dir_all(dir.join("keep")).unwrap();
+    std::fs::create_dir_all(dir.join("drop")).unwrap();
+    std::fs::write(dir.join("keep/k.txt"), "k\n").unwrap();
+    std::fs::write(dir.join("drop/d.txt"), "d\n").unwrap();
+    git(&dir, &["add", "-A"]);
+    git(&dir, &["commit", "-q", "-m", "two directories"]);
+
+    let (code, out, err) = run(&["sparse-checkout", "set", "keep", "-C", path]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(out.contains("keep"), "{out:?}");
+    assert!(!dir.join("drop/d.txt").exists(), "it narrowed, not listed");
+
+    let (code, _, err) = run(&["sparse-checkout", "disable", "-C", path]);
+    assert_eq!(code, 0, "stderr: {err}");
+    assert!(dir.join("drop/d.txt").exists(), "it restored, not listed");
+
+    wipe(&[&dir]);
+}
+
+#[test]
 fn an_unknown_verb_names_the_ones_that_exist() {
     let dir = clean_repo("layout-verb");
     let path = dir.to_str().unwrap();
