@@ -208,6 +208,32 @@ jobs:
           wsl.exe -- /usr/local/lib/glimpse/glimpse-cli --version
           exit 0
 
+      # WIN32 INTEROP, MEASURED BEFORE IT IS RELIED ON. Forwarding means a
+      # Linux shell `exec`ing a Windows PE binary, which only works while the
+      # kernel has a binfmt handler registered for one. A runner's distro does
+      # not always: the first run of this job died inside the test with
+      # `exec: …/glimpse-cli.exe: Exec format error` — the route taken
+      # correctly, the environment unable to complete it.
+      #
+      # So it is turned on and PROVED here, with a Windows program that has
+      # nothing to do with glimpse. A distro that cannot run cmd.exe fails this
+      # step, naming the environment, instead of failing the test that needs it
+      # and reading like a defect in the launcher.
+      #
+      # AFTER the native half, deliberately: that half needs no interop at all,
+      # and is left running on exactly the machine it was measured on.
+      - name: Make sure the distro can run a Windows program at all
+        shell: pwsh
+        run: |
+          wsl.exe -u root -- cat /etc/wsl.conf
+          wsl.exe -u root -- sh -c "printf '\n[interop]\nenabled=true\n' >> /etc/wsl.conf"
+          wsl.exe --shutdown
+          wsl.exe -u root -- cat /etc/wsl.conf
+          wsl.exe -- cmd.exe /c ver
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Win32 interop is off in this distro: the forwarding route cannot be measured here'
+          }
+
       # THE OTHER HALF OF CRITERION (c). The fallback route forwards to the
       # CONSOLE binary beside glimpse.exe (`console_exe` in glimpse-wsl.sh), so
       # the machine it needs is: launcher installed, glimpse-cli.exe staged,
