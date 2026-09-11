@@ -55,23 +55,30 @@ jobs:
     timeout-minutes: 10
     outputs:
       version: ${{ steps.target.outputs.version }}
+      release-id: ${{ steps.target.outputs.release-id }}
       ref: ${{ steps.target.outputs.ref }}
     steps:
-      # A dispatch is a repair, and a repair that quietly CREATES a release is
-      # worse than one that fails: tauri-action makes a release when the tag it
-      # is handed has none, so a typo would publish an empty stray. Fail here
-      # instead, before anything is built.
-      - name: Check the release exists and derive the version
+      # Resolving the tag to a NUMERIC RELEASE ID is what keeps release-please's
+      # changelog on the page: handed a tag instead, tauri-action looks the
+      # release up itself and then overwrites its name and body — that is how
+      # v0.12.1 through v0.13.0 all shipped with empty notes. See `release-id`
+      # in `_tauri-build.yml`.
+      #
+      # It doubles as the guard a dispatch needs. A dispatch is a repair, and a
+      # repair that fails is better than one that quietly builds against nothing,
+      # so a typo'd tag stops here, before anything is built.
+      - name: Resolve the release and derive the version
         id: target
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if ! id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq .id 2>/dev/null); then
             echo "::error::no release found for tag $TAG — release-please publishes it first"
             exit 1
           fi
+          echo "release-id=$id" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           # On a call the triggering ref IS the release commit, and an empty ref
           # lets the build reuse the checkout cache for it. A dispatch runs from
@@ -91,9 +98,8 @@ jobs:
     with:
       matrix: '{"os": ["ubuntu-latest", "windows-latest"]}'
       version: ${{ needs.prepare.outputs.version }}
-      tag: ${{ inputs.tag }}
+      release-id: ${{ needs.prepare.outputs.release-id }}
       ref: ${{ needs.prepare.outputs.ref }}
-      prerelease: false
       job-name: Stable build
       matrix-label: os
     secrets:

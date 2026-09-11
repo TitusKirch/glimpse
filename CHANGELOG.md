@@ -1,5 +1,107 @@
 # Changelog
 
+## [0.15.1](https://github.com/TitusKirch/glimpse/compare/v0.15.0...v0.15.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **history:** put hasMore and loadError on the tab that produced them ([f736dff](https://github.com/TitusKirch/glimpse/commit/f736dffa1eab7e0698955b39c3d9d7794dcf8bfb)), closes [#198](https://github.com/TitusKirch/glimpse/issues/198)
+* **i18n:** drop a fallbackLocale block that decided nothing ([e3f1eb8](https://github.com/TitusKirch/glimpse/commit/e3f1eb81efd53742ddcd21c328614b84c367d231)), closes [#197](https://github.com/TitusKirch/glimpse/issues/197)
+* **types:** clear the typecheck backlog before the gate enforces it ([c7370d8](https://github.com/TitusKirch/glimpse/commit/c7370d8a7feef443c4d42eebf0154cf7e5c9b1b1)), closes [#197](https://github.com/TitusKirch/glimpse/issues/197)
+
+
+### Performance Improvements
+
+* **git:** refuse whole-file mode past the ceiling instead of shipping the file ([37e83fc](https://github.com/TitusKirch/glimpse/commit/37e83fc2b69e08aaf1d25a8d2f2aac122e170197)), closes [#199](https://github.com/TitusKirch/glimpse/issues/199)
+
+## [0.15.0](https://github.com/TitusKirch/glimpse/compare/v0.14.0...v0.15.0) (2026-09-09)
+
+
+### Features
+
+* **changes:** assign changelist membership by hunk, not only by file ([52c3f76](https://github.com/TitusKirch/glimpse/commit/52c3f76ccb0f1949f9ac6e8524838720f73b3ae9)), closes [#112](https://github.com/TitusKirch/glimpse/issues/112)
+* **repo:** scroll the tab strip instead of squeezing every tab ([f33039e](https://github.com/TitusKirch/glimpse/commit/f33039e369e439e390a27323c43018f2b5ec12d5)), closes [#185](https://github.com/TitusKirch/glimpse/issues/185)
+
+
+### Bug Fixes
+
+* **changelists:** release a closed repo's session state ([9d1e603](https://github.com/TitusKirch/glimpse/commit/9d1e6039222e5e2b99dd455f9704665132351f02)), closes [#186](https://github.com/TitusKirch/glimpse/issues/186)
+* **changelists:** stop a write in flight from restoring a released repo ([c6c1806](https://github.com/TitusKirch/glimpse/commit/c6c18060a10bb54fe06513fdadbfd09ff0fef90b)), closes [#186](https://github.com/TitusKirch/glimpse/issues/186)
+* **changes:** keep moveFile authoritative and survive a pre-hunk cache ([7b8b8ab](https://github.com/TitusKirch/glimpse/commit/7b8b8abda09d6cc30fbb408eb340ed0ef44e1844)), closes [#112](https://github.com/TitusKirch/glimpse/issues/112)
+* **diff:** carry contentsOmitted into every payload literal ([f45f124](https://github.com/TitusKirch/glimpse/commit/f45f124ec7d4e9cf5f38da9c9121faec8e75a801)), closes [#194](https://github.com/TitusKirch/glimpse/issues/194)
+* **git:** drop the lock reference before the map guard, not after ([055d4a1](https://github.com/TitusKirch/glimpse/commit/055d4a13f591a451d2480e01a11106015a8aa4c0)), closes [#189](https://github.com/TitusKirch/glimpse/issues/189)
+* **git:** release a repo's lock entry once no call holds it ([51d14ef](https://github.com/TitusKirch/glimpse/commit/51d14eff166a725fa03f4126d84edab93c596107)), closes [#189](https://github.com/TitusKirch/glimpse/issues/189)
+* **history:** make the log limit per tab instead of app-wide ([96547fb](https://github.com/TitusKirch/glimpse/commit/96547fba0bf378084c3c2c858bb3d46b5a26b549)), closes [#190](https://github.com/TitusKirch/glimpse/issues/190)
+* **hooks:** apply oxfmt's own ignore list before calling it ([b0cafa1](https://github.com/TitusKirch/glimpse/commit/b0cafa1167f0f1059464a3d8e0759b973e8806a7))
+* **repo:** keep vuedraggable's slots to a single node ([67cc1a2](https://github.com/TitusKirch/glimpse/commit/67cc1a21f2b019e4ef71351d81d5d28fad7c1597)), closes [#185](https://github.com/TitusKirch/glimpse/issues/185)
+* **repo:** release a platform probe's claim with the tab, not with the probe ([04b3832](https://github.com/TitusKirch/glimpse/commit/04b3832c6e60268fbbe7d019e78da4424a39a1ea)), closes [#187](https://github.com/TitusKirch/glimpse/issues/187)
+
+
+### Performance Improvements
+
+* **diff:** build only the row model that will actually render ([8061a52](https://github.com/TitusKirch/glimpse/commit/8061a5291b415560b11f7d50f7011ab1ae999b2d)), closes [#192](https://github.com/TitusKirch/glimpse/issues/192)
+* **git:** cap an image diff and stop holding each side twice ([d3655dc](https://github.com/TitusKirch/glimpse/commit/d3655dcdf05b7b0377cfee8f92938ea8c9b9383f)), closes [#194](https://github.com/TitusKirch/glimpse/issues/194)
+* **git:** cap the file contents a diff loads into memory ([28a1d73](https://github.com/TitusKirch/glimpse/commit/28a1d73f3ff17f2898574db4c0ee5c9c0dbfc4e0)), closes [#193](https://github.com/TitusKirch/glimpse/issues/193)
+* **graph:** window the graph's SVG nodes and edges to the rows in view ([0d823b6](https://github.com/TitusKirch/glimpse/commit/0d823b66063b38e0ecd66165677ae27a56d42d58)), closes [#191](https://github.com/TitusKirch/glimpse/issues/191)
+* **repo:** release an idle tab's git data and stop deep-proxying it ([5c26e99](https://github.com/TitusKirch/glimpse/commit/5c26e999a7a8071add896d5405e3d4d81715a7bf)), closes [#195](https://github.com/TitusKirch/glimpse/issues/195)
+
+## [0.14.0](https://github.com/TitusKirch/glimpse/compare/v0.13.0...v0.14.0) (2026-09-08)
+
+
+### Features
+
+* **diagnostics:** describe a healthy app, not only a crashed one ([c501dd4](https://github.com/TitusKirch/glimpse/commit/c501dd4c2cdbbfaa6cc91baa4f22d175b4a00fab)), closes [#177](https://github.com/TitusKirch/glimpse/issues/177)
+* **diagnostics:** line up the command log and let it be searched ([e9cc39c](https://github.com/TitusKirch/glimpse/commit/e9cc39c544f8a7536a65598bdb545978e8540abe))
+* **error:** share the diagnostics assembly with the Diagnostics page ([cb90f90](https://github.com/TitusKirch/glimpse/commit/cb90f90a89ba8d6fd5720103508c4ef1ed11ff59)), closes [#177](https://github.com/TitusKirch/glimpse/issues/177)
+* **error:** surface the failures that only reached the console ([be25cf0](https://github.com/TitusKirch/glimpse/commit/be25cf0fafa5f195503df499aab0941ad15d63a7)), closes [#176](https://github.com/TitusKirch/glimpse/issues/176)
+* **git:** expose the command log and the fault switches to the frontend ([ddbf48a](https://github.com/TitusKirch/glimpse/commit/ddbf48a08a27abb8e93af2999c36da0e68feed88)), closes [#178](https://github.com/TitusKirch/glimpse/issues/178)
+* **git:** log every git invocation and allow injecting failures ([bb27b0f](https://github.com/TitusKirch/glimpse/commit/bb27b0fc1e43b203458b8af52cfdcbd8cd109f4a)), closes [#178](https://github.com/TitusKirch/glimpse/issues/178)
+* **git:** report the version of the git that actually runs ([d8e6b8b](https://github.com/TitusKirch/glimpse/commit/d8e6b8b58037f7d97e08b2e1e50797264bc0d1c9)), closes [#177](https://github.com/TitusKirch/glimpse/issues/177)
+* **graph:** cap the graph column at a share of the pane ([783dc5f](https://github.com/TitusKirch/glimpse/commit/783dc5ffab3daca2a6b035714f36e02f1b48a2aa)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **graph:** give the reclaimed graph width back to commit subjects ([50a51e5](https://github.com/TitusKirch/glimpse/commit/50a51e52c3fdda5003b8fdf45971bac1ea97d1d3)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **graph:** move a straggling branch onto a lane that has fallen free ([94366df](https://github.com/TitusKirch/glimpse/commit/94366dff12861a6bd7c6091368a1c151bebede7c)), closes [#182](https://github.com/TitusKirch/glimpse/issues/182)
+* **graph:** move the column's width continuously, not in snaps ([875656d](https://github.com/TitusKirch/glimpse/commit/875656d28533c3e9738753c98b4f872908e6f130)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **graph:** narrow the column and stop animating its width ([45a05c8](https://github.com/TitusKirch/glimpse/commit/45a05c81523df4918636f4a5ded27c29fc7a5400)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **graph:** size the commit graph column from the rows in view ([bcc0fe0](https://github.com/TitusKirch/glimpse/commit/bcc0fe002346c9e6ee948385e3b912835672d4fe)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **settings:** add session-only simulation state ([c25268b](https://github.com/TitusKirch/glimpse/commit/c25268b9eba986cd529c2c5470fcf13ccf80bb1f)), closes [#175](https://github.com/TitusKirch/glimpse/issues/175)
+* **settings:** add the Diagnostics and Simulation developer pages ([b56b293](https://github.com/TitusKirch/glimpse/commit/b56b29369c97d01e74afbc9074276584e819b023)), closes [#175](https://github.com/TitusKirch/glimpse/issues/175)
+* **settings:** crash the app on purpose from the Triggers page ([946ed1e](https://github.com/TitusKirch/glimpse/commit/946ed1ec65294bcab89978739942211522d0e65b)), closes [#176](https://github.com/TitusKirch/glimpse/issues/176)
+* **settings:** fail or slow git calls from the Simulation page ([5a2db62](https://github.com/TitusKirch/glimpse/commit/5a2db621d15a7ebfe88afcb40087a56609a5e0ca)), closes [#178](https://github.com/TitusKirch/glimpse/issues/178)
+* **settings:** show alerts and buttons in the showcase ([ce45efb](https://github.com/TitusKirch/glimpse/commit/ce45efbd47696d3025bbb05813115fe2ba1dcd95)), closes [#174](https://github.com/TitusKirch/glimpse/issues/174)
+* **settings:** show the diagnostics report and open the inspector ([8d1b465](https://github.com/TitusKirch/glimpse/commit/8d1b46563fcf0846ca61a1992ac11e61abf49bdd)), closes [#177](https://github.com/TitusKirch/glimpse/issues/177)
+* **settings:** show the git command log on the Diagnostics page ([9e4c99e](https://github.com/TitusKirch/glimpse/commit/9e4c99e533f31ca0b08fbc894e02d85b76c8e285)), closes [#178](https://github.com/TitusKirch/glimpse/issues/178)
+* **settings:** show the restored button variants in the showcase ([e19684a](https://github.com/TitusKirch/glimpse/commit/e19684a2ea5c6b76fb005045d8b25f8c68dd807a)), closes [#174](https://github.com/TitusKirch/glimpse/issues/174)
+* **settings:** simulate updater states from the Simulation page ([2e154af](https://github.com/TitusKirch/glimpse/commit/2e154af1a0e2f1ece45a8ac7d016938817868b3b)), closes [#179](https://github.com/TitusKirch/glimpse/issues/179)
+* **sidebar:** flag an active simulation next to the app name ([e5520a1](https://github.com/TitusKirch/glimpse/commit/e5520a1b2fb2419f46b45b134983b51aae5ce1ca)), closes [#175](https://github.com/TitusKirch/glimpse/issues/175)
+* **theme:** pair every semantic colour with a measured foreground ([9c85da1](https://github.com/TitusKirch/glimpse/commit/9c85da1e889e8de15ae754d5cf6d74f35ec42f06)), closes [#174](https://github.com/TitusKirch/glimpse/issues/174)
+* **ui:** give alert, badge and button one semantic-colour rule ([b7c6952](https://github.com/TitusKirch/glimpse/commit/b7c6952fb0c1c15d2a63e56e53bebfb50a6b8eed)), closes [#174](https://github.com/TitusKirch/glimpse/issues/174)
+* **updater:** report download progress and expose a restart command ([6a87606](https://github.com/TitusKirch/glimpse/commit/6a876060896c0a1dbd4b1fc3f63cd4cbd1ad01c6)), closes [#179](https://github.com/TitusKirch/glimpse/issues/179)
+* **updater:** show install progress in one toast and offer a restart ([95d1525](https://github.com/TitusKirch/glimpse/commit/95d15255773ccf144e7231b84f64a3a7cf44a188)), closes [#179](https://github.com/TitusKirch/glimpse/issues/179)
+* **updater:** simulate the check, download and restart states ([82b60ed](https://github.com/TitusKirch/glimpse/commit/82b60ed01d5778be6f9beec9f61ae43f10a2d841)), closes [#179](https://github.com/TitusKirch/glimpse/issues/179)
+
+
+### Bug Fixes
+
+* **ci:** build the stable installers again after a release is cut ([7ac1ccc](https://github.com/TitusKirch/glimpse/commit/7ac1cccfad26c54729f570527e8e36e0729fb3bb))
+* **ci:** stop the build legs racing on the shared updater manifest ([61ba479](https://github.com/TitusKirch/glimpse/commit/61ba479506b9be4ef848a0ba09d88370a611725d))
+* **ci:** stop the installer build wiping the release notes ([6653673](https://github.com/TitusKirch/glimpse/commit/6653673cde1bcb4ddafb913829f41031138bbb4f))
+* **ci:** stop the installer build wiping the release notes ([#183](https://github.com/TitusKirch/glimpse/issues/183)) ([88f3e2d](https://github.com/TitusKirch/glimpse/commit/88f3e2d147819a880743a303186f7556f989d47f))
+* **deps:** raise the tauri version requirements to the resolved versions ([cce82cd](https://github.com/TitusKirch/glimpse/commit/cce82cdaba15cd13ad5d66fe46204a8b3b558a13))
+* **deps:** update the transitive dependencies to their patched versions ([d0aebd9](https://github.com/TitusKirch/glimpse/commit/d0aebd910dde33a8176074a23e9a64c977fbdb15))
+* **error:** collapse repeated git failures into one counted toast ([e61cfd9](https://github.com/TitusKirch/glimpse/commit/e61cfd937d046565b94cba2e596abdbf7377f264))
+* **error:** dress the fatal page's controls like the rest of the app ([02fa8f6](https://github.com/TitusKirch/glimpse/commit/02fa8f6cfa6457334ca4d7ff10afdffe013354f5)), closes [#177](https://github.com/TitusKirch/glimpse/issues/177)
+* **error:** stop the watcher's failed reloads from toasting one by one ([ff941d2](https://github.com/TitusKirch/glimpse/commit/ff941d286c05f64723f49352fb26a2cff6acbb89))
+* **git:** redact credentials in every url of a multi-line git error ([8ae2ec1](https://github.com/TitusKirch/glimpse/commit/8ae2ec198bc9a79f39dc98078756d507b3411645)), closes [#178](https://github.com/TitusKirch/glimpse/issues/178)
+* **graph:** curve merge edges by the distance they jump ([b8232e8](https://github.com/TitusKirch/glimpse/commit/b8232e8b46c91d3602613c9aa49708196c595795)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **graph:** decide a wheel gesture's owner in a testable seam ([a9a02c5](https://github.com/TitusKirch/glimpse/commit/a9a02c5b7c3a287a9774078162db32648f185a66)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **graph:** hold the column's width still while the list scrolls ([211122e](https://github.com/TitusKirch/glimpse/commit/211122e25cd4966c7c934ee64037f47637fcf675)), closes [#180](https://github.com/TitusKirch/glimpse/issues/180)
+* **i18n:** put the copied toast under the key that reads it ([b5ac6ba](https://github.com/TitusKirch/glimpse/commit/b5ac6ba8c350d6727dc4428287db38221edc2fb9))
+* **icon:** bundle the icons instead of fetching them at runtime ([e2af610](https://github.com/TitusKirch/glimpse/commit/e2af6102d18bd1533d84b2fa7a54aea27795d5a9))
+* pin the untriaged marker so the work loop sees it ([88160c0](https://github.com/TitusKirch/glimpse/commit/88160c0c2c34075273dc96645401a38c85c73ad5))
+* **repo:** start the desktop shell with no repository ([9d30396](https://github.com/TitusKirch/glimpse/commit/9d3039681b124769ec9bbadb8f4959dc343beb12)), closes [#176](https://github.com/TitusKirch/glimpse/issues/176)
+* **theme:** let native controls follow the colour mode ([6c8f047](https://github.com/TitusKirch/glimpse/commit/6c8f04785057a4e6389803728765ab0e005febc0)), closes [#177](https://github.com/TitusKirch/glimpse/issues/177)
+* **ui:** give button back its info, success and warning fills ([5b66ec6](https://github.com/TitusKirch/glimpse/commit/5b66ec62e4d2f6171ce0fe75af4aeff4f2815843)), closes [#174](https://github.com/TitusKirch/glimpse/issues/174)
+
 ## [0.13.0](https://github.com/TitusKirch/glimpse/compare/v0.12.2...v0.13.0) (2026-09-07)
 
 

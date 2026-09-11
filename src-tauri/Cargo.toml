@@ -38,7 +38,7 @@ ts-rs = "12"
 
 [package]
 name = "glimpse"
-version = "0.13.0"
+version = "0.15.1"
 description = "A lightweight, git-native desktop Git client — the full branch graph, diffs, and everyday git, with first-class WSL support."
 authors.workspace = true
 license.workspace = true

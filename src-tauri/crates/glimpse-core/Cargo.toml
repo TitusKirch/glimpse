@@ -6,7 +6,7 @@
 name = "glimpse-core"
 # Literal, and bumped in lockstep by release-please — see the note in the
 # workspace root's Cargo.toml for why it is not inherited.
-version = "0.13.0"
+version = "0.15.1"
 description = "glimpse's git engine: shell-out git, platform resolution and the changelist model — free of any GUI toolkit."
 authors.workspace = true
 license.workspace = true

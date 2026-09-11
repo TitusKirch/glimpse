@@ -6,7 +6,7 @@
 name = "glimpse-cli"
 # Literal, and bumped in lockstep by release-please — see the note in the
 # workspace root's Cargo.toml for why it is not inherited.
-version = "0.13.0"
+version = "0.15.1"
 description = "glimpse's headless command line: the git engine, driven from a terminal or a script."
 authors.workspace = true
 license.workspace = true
