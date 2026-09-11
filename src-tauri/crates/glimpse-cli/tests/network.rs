@@ -83,6 +83,36 @@ fn fetch_refuses_a_repository_with_no_remote_instead_of_succeeding_at_nothing() 
 // ----------------------------------------------------------------- pull
 
 #[test]
+fn fetch_takes_no_arguments_and_says_so_rather_than_ignoring_one() {
+    // `glimpse fetch` is `--all --prune`, always: one spelling, the whole
+    // repository, nothing to get wrong. That is a contract and not an accident,
+    // so the refusal is pinned — a `fetch origin` silently doing something else
+    // than the caller asked, or an argument quietly dropped, is exactly what an
+    // unpinned contract drifts into. Accepting a remote name would be a new
+    // capability, and belongs in its own issue rather than in this one.
+    let r = repo_with_remote("fetch-args");
+    let dir = r.dir.to_string_lossy().to_string();
+
+    for arg in ["origin", "--all", "--prune", "main"] {
+        let (code, out, err) = run(&["fetch", "-C", &dir, arg]);
+        assert_eq!(code, 1, "`glimpse fetch {arg}` was not refused: {out:?}");
+        assert!(
+            err.contains(arg),
+            "the refusal names the argument it will not take: {err:?}"
+        );
+        assert!(
+            err.contains("takes none"),
+            "and says what the command's argument list actually is: {err:?}"
+        );
+    }
+
+    // …and it is a refusal, not a fetch with a complaint attached: the bare
+    // spelling still works afterwards.
+    let (code, _out, err) = run(&["fetch", "-C", &dir]);
+    assert_eq!(code, 0, "stderr: {err}");
+}
+
+#[test]
 fn pull_brings_the_commits_down_and_reports_the_ones_it_got() {
     let r = repo_with_remote("pull-gets");
     commit_and_push(&r.other, "b.txt", "b1\n", "from elsewhere");
@@ -345,10 +375,18 @@ fn push_u_publishes_to_the_only_remote_even_when_it_is_not_called_origin() {
     let dir = r.dir.to_string_lossy().to_string();
     let (code, _out, err) = run(&["push", "-C", &dir]);
     assert_eq!(code, 1);
-    assert!(err.contains("glimpse push -u"), "{err:?}");
+    // On the ADVICE sentence, not on the word `upstream` anywhere in the
+    // message: the refusal opens with "feat has no upstream", so a bare
+    // `contains("upstream")` is satisfied by the very message this test exists
+    // to prove wrong — it passed before the fix and would pass after a
+    // regression of it.
     assert!(
-        err.contains("upstream"),
+        err.contains("glimpse push -u — it goes to upstream."),
         "the advice names the remote it would publish to: {err:?}"
+    );
+    assert!(
+        !err.contains("origin"),
+        "and never a remote this repository does not have: {err:?}"
     );
 
     let (code, out, err) = run(&["push", "-C", &dir, "-u"]);
