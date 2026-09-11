@@ -86,8 +86,68 @@ on:
         required: true
 
 jobs:
+  # THE WSL COMMAND LINE, built once for every leg that needs it (#103).
+  #
+  # The Windows installer ships a native Linux `glimpse-cli` so the launcher it
+  # drops into each WSL distro can run subcommands against that distro's own git
+  # instead of forwarding them to glimpse.exe over the `\\wsl.localhost` share.
+  # A Windows runner has no Linux linker, so the binary cannot be produced on the
+  # leg that packages it — this job builds it and hands it over as an artifact.
+  #
+  # STATIC musl, not glibc. The payload runs inside whatever distro the user
+  # happens to have; a glibc build carries the glibc of THIS runner and dies with
+  # `GLIBC_2.xx not found` on anything older, which would make the native route
+  # worse than the forwarding one it replaces.
+  #
+  # IT GATES ALL THREE LEGS, and that is the cost of not serialising the Windows
+  # leg behind a whole Linux Tauri build. It is a single `cargo build` of a
+  # four-dependency crate on a cached runner, measured in a couple of minutes
+  # against a 45-minute budget. `fail-fast: false` below is about the matrix;
+  # this job failing does stop the release, which is right — an installer with a
+  # silently missing command line is the failure mode the guards exist to catch.
+  wsl-payload:
+    name: WSL command line (x86_64 musl)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      # rustup ships musl's libc, but not the linker that puts it together.
+      - name: Install the musl linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          shared-key: wsl-payload
+
+      # Plain node, no pnpm install: the script imports nothing but node
+      # builtins and a sibling script, so the dependency tree is not needed to
+      # run it — and skipping it is most of this job's wall clock.
+      - name: Build and stage the payload
+        run: node scripts/build-wsl-payload.ts
+
+      - name: Hand the payload to the Windows leg
+        uses: actions/upload-artifact@v7
+        with:
+          name: glimpse-cli-linux-x86_64
+          path: src-tauri/binaries/glimpse-cli-linux-x86_64
+          if-no-files-found: error
+          retention-days: 1
+
   build:
     name: ${{ inputs.job-name }} (${{ matrix[inputs.matrix-label] }})
+    needs: wsl-payload
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
@@ -200,6 +260,18 @@ jobs:
       # fragment below, at the invocations that stage the file — and THIS is the
       # one that ships installers, so forgetting it here means a release whose
       # packages carry no command line at all.
+      # Windows only: the Linux ELF the installer carries for WSL. It lands in
+      # `binaries/` beside the sidecar because that directory is already the
+      # staging area `tauri.conf.json`'s bundle paths are relative to — and the
+      # payload's own +x bit is lost on NTFS, which costs nothing: the installer
+      # inside the distro chmods after writing it.
+      - name: Stage the WSL command line
+        if: runner.os == 'Windows'
+        uses: actions/download-artifact@v8
+        with:
+          name: glimpse-cli-linux-x86_64
+          path: src-tauri/binaries
+
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
@@ -212,4 +284,15 @@ jobs:
           releaseDraft: false
           prerelease: ${{ inputs.prerelease }}
           uploadUpdaterJson: false
-          args: --config src-tauri/tauri.sidecar.conf.json
+          # TWO FRAGMENTS WOULD HAVE TO BE MERGED IN YAML, so there is one:
+          # `tauri.wsl-payload.conf.json` re-declares the sidecar and adds the
+          # WSL payload as a resource, and only the Windows leg — the only one
+          # that stages the payload above — asks for it. Every other leg takes
+          # the sidecar fragment unchanged. `build-wsl-payload.test.ts` pins the
+          # superset against what it supersets, and pins this step against the
+          # fragment, because forgetting either ships an installer with no
+          # command line in it and says nothing.
+          args: >-
+            --config
+            ${{ runner.os == 'Windows' && 'src-tauri/tauri.wsl-payload.conf.json'
+            || 'src-tauri/tauri.sidecar.conf.json' }}

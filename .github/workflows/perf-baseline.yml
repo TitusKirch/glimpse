@@ -130,6 +130,16 @@ jobs:
       # a declared build input breaks a bare `cargo` build — so an installer
       # built without the fragment carries no `glimpse-cli`, and the size this
       # job publishes would be smaller than the one users download.
+      #
+      # NOT the WSL payload, and that is a KNOWN ~1.5 MB understatement. The
+      # release chain's Windows installer also carries a static Linux
+      # `glimpse-cli` for WSL (`tauri.wsl-payload.conf.json`), built on a Linux
+      # runner because this one has no Linux linker and handed over as an
+      # artifact. Reproducing that hand-off here would buy one number at the
+      # price of a second job on every baseline run; the number is stated as
+      # what it is instead — an installer size measured without the WSL payload,
+      # comparable with every earlier figure in the README's table, which was
+      # also measured without it.
       - name: Stage the CLI sidecar
         run: pnpm cli:sidecar
 

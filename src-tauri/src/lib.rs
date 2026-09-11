@@ -405,6 +405,66 @@ fn wslpath_arg(win_exe: &str) -> String {
     win_exe.replace('\\', "/")
 }
 
+/// Where a native Linux command line has to land inside a distro: the FIRST
+/// candidate `find_native` in `scripts/glimpse-wsl.sh` tries. Installing to any
+/// other path is a silent no-op — the distro keeps taking the slow forwarding
+/// route through `glimpse.exe` and nothing says why — so a unit test reads the
+/// launcher and pins this string against the candidate list in both directions.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+const WSL_CLI_PATH: &str = "/usr/local/lib/glimpse/glimpse-cli";
+
+/// The payload beside glimpse.exe for a distro whose `uname -m` says `machine`,
+/// staged by `scripts/build-wsl-payload.ts` under the same name.
+///
+/// Arch-keyed rather than triple-keyed because `uname -m` is what a distro can
+/// answer in one cheap call, and the payload's libc is not its business — the
+/// shipped binary is static musl precisely so no distro has to match one.
+/// `None` for anything that is not a plain machine name: the value is
+/// interpolated into a path, so it is validated rather than trusted, and an
+/// ARM64 host simply finds no payload and keeps the forwarding route.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wsl_payload_name(machine: &str) -> Option<String> {
+    let machine = machine.trim();
+    if machine.is_empty()
+        || !machine
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return None;
+    }
+    Some(format!("glimpse-cli-linux-{machine}"))
+}
+
+/// The `sh -c` program that takes the payload on stdin and leaves it executable
+/// at `WSL_CLI_PATH`.
+///
+/// It writes a sibling and `mv`s it into place rather than truncating the
+/// target, because replacing a *running* ELF in place fails with ETXTBSY — and
+/// a user who reinstalls from the app while a `glimpse log` is open in that
+/// distro would otherwise be left with a half-written command line, which is
+/// worse than the one they had.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wsl_cli_install_script() -> String {
+    format!(
+        "set -e; mkdir -p \"$(dirname {WSL_CLI_PATH})\"; cat > {WSL_CLI_PATH}.new; \
+         chmod 0755 {WSL_CLI_PATH}.new; mv -f {WSL_CLI_PATH}.new {WSL_CLI_PATH}"
+    )
+}
+
+/// How one distro is named in `install_cli`'s report. The two outcomes are not
+/// cosmetic: a distro that got the payload runs the command line against its own
+/// git, and one that did not reaches the same repository the long way round over
+/// the `\\wsl.localhost` share. A user comparing two distros deserves to see
+/// which of the two they are looking at.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wsl_install_label(distro: &str, native: bool) -> String {
+    if native {
+        format!("{distro} + command line")
+    } else {
+        distro.to_string()
+    }
+}
+
 /// The WSL launcher script, embedded so the Windows build can drop it into each
 /// distro (see `install_wsl_shims`). Kept byte-for-byte in sync with the repo's
 /// `scripts/glimpse-wsl.sh`.
@@ -471,8 +531,10 @@ if (($p -split ';') -contains $d) { Write-Output 'yes' }"#;
         .then(|| dir.join("glimpse.exe").to_string_lossy().into_owned())
 }
 
-/// Drop the WSL launcher into every installed distro; returns the distros it
-/// reached. Best-effort: a distro that errors is simply skipped.
+/// Drop the WSL launcher — and, where this installer carries one, the native
+/// Linux command line — into every installed distro; returns the distros it
+/// reached, each labelled with which of the two routes it now takes.
+/// Best-effort: a distro that errors is simply skipped.
 #[cfg(all(desktop, windows))]
 fn install_wsl_shims(exe: &Path) -> Vec<String> {
     use std::os::windows::process::CommandExt;
@@ -485,10 +547,83 @@ fn install_wsl_shims(exe: &Path) -> Vec<String> {
         Ok(o) if o.status.success() => o.stdout,
         _ => return Vec::new(),
     };
+    let payload_dir = exe.parent();
     parse_wsl_distros(&listed)
         .into_iter()
-        .filter(|distro| install_wsl_shim_into(distro, &win_exe).is_ok())
+        .filter_map(|distro| {
+            install_wsl_shim_into(&distro, &win_exe).ok()?;
+            // Second, best-effort half: the NATIVE command line. Without it the
+            // launcher still works — it forwards to glimpse.exe over the share
+            // — so a distro that refuses the payload is a slower distro, never
+            // a failed install, and it is reported as such rather than dropped.
+            let native = payload_dir.is_some_and(|dir| install_wsl_cli_into(&distro, dir).is_ok());
+            Some(wsl_install_label(&distro, native))
+        })
         .collect()
+}
+
+/// Ask one distro what machine it runs on (`uname -m`), so the right payload is
+/// picked. Best-effort: None on any failure, and the caller installs no native
+/// command line — the launcher's forwarding route covers it.
+#[cfg(all(desktop, windows))]
+fn wsl_distro_machine(distro: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-d", distro, "--", "uname", "-m"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let machine = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!machine.is_empty()).then_some(machine)
+}
+
+/// Install the native Linux command line as `WSL_CLI_PATH` inside one distro,
+/// from the payload this installer shipped beside glimpse.exe.
+///
+/// Everything here is allowed to be absent. A build that staged no payload, a
+/// machine type nothing was built for, a distro that will not take it: each
+/// returns `Err`, and the launcher is already installed and already works. The
+/// payload is only ever a shortcut past the `\\wsl.localhost` hop.
+#[cfg(all(desktop, windows))]
+fn install_wsl_cli_into(distro: &str, payload_dir: &Path) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::windows::process::CommandExt;
+    let machine = wsl_distro_machine(distro).ok_or("could not read the distro's machine type")?;
+    let name =
+        wsl_payload_name(&machine).ok_or_else(|| format!("unexpected machine type: {machine}"))?;
+    let payload = payload_dir.join(&name);
+    let bytes = std::fs::read(&payload).map_err(|e| format!("{}: {e}", payload.display()))?;
+    let mut child = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args([
+            "-d",
+            distro,
+            "-u",
+            "root",
+            "--",
+            "sh",
+            "-c",
+            &wsl_cli_install_script(),
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or("no stdin for the WSL writer")?
+        .write_all(&bytes)
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
 }
 
 /// Ask one distro to translate glimpse.exe's Windows path to its in-distro
@@ -2084,7 +2219,8 @@ mod tests {
     use super::{
         bake_wsl_shim, claim_startup_report, dev_panic_now, first_path_arg, locked,
         parse_wsl_distros, progress_percent, resolve_cli_path, updater_allowed, version_outranks,
-        wslpath_arg, RepoLocks,
+        wsl_cli_install_script, wsl_install_label, wsl_payload_name, wslpath_arg, RepoLocks,
+        WSL_CLI_PATH,
     };
     use std::sync::mpsc::channel;
     use std::sync::{Arc, OnceLock};
@@ -2286,6 +2422,84 @@ mod tests {
         );
         // A path with no backslashes is left untouched.
         assert_eq!(wslpath_arg("/mnt/c/glimpse.exe"), "/mnt/c/glimpse.exe");
+    }
+
+    /// The launcher script as it sits in the repo. `WSL_SHIM` itself is
+    /// Windows-only (it is only ever installed from there), so the test reads
+    /// the same file directly and runs everywhere.
+    const LAUNCHER: &str = include_str!("../../scripts/glimpse-wsl.sh");
+
+    #[test]
+    fn the_native_cli_is_installed_where_the_launcher_looks_first() {
+        // THE GUARD, in both directions. The Windows side writes the payload to
+        // one path; the launcher inside the distro searches a list. Nothing
+        // makes them agree, and a disagreement is SILENT — the launcher finds
+        // nothing, forwards to glimpse.exe, and the user sees a slower command
+        // line with no error anywhere to explain it.
+        assert!(
+            LAUNCHER.contains(WSL_CLI_PATH),
+            "the launcher does not search {WSL_CLI_PATH}"
+        );
+        // First, not merely present: a distro with its own glimpse package must
+        // still get the freshly installed binary rather than a stale one.
+        let candidates = LAUNCHER
+            .lines()
+            .find(|l| l.contains("for candidate in"))
+            .expect("the launcher's native-candidate loop");
+        let first = candidates
+            .split_whitespace()
+            .find(|w| w.starts_with('/'))
+            .expect("a path in the candidate loop");
+        assert_eq!(first, WSL_CLI_PATH);
+    }
+
+    #[test]
+    fn the_install_script_replaces_the_binary_instead_of_truncating_it() {
+        // Overwriting a RUNNING ELF in place fails with ETXTBSY, and a
+        // half-written command line is worse than the one it replaced — so the
+        // payload lands beside the target and is moved onto it.
+        let script = wsl_cli_install_script();
+        assert!(script.contains(&format!("cat > {WSL_CLI_PATH}.new")));
+        assert!(script.contains(&format!("chmod 0755 {WSL_CLI_PATH}.new")));
+        assert!(script.contains(&format!("mv -f {WSL_CLI_PATH}.new {WSL_CLI_PATH}")));
+        // The directory is created first: /usr/local/lib/glimpse does not exist
+        // in a stock distro, and `cat >` into a missing directory is an error.
+        assert!(script.contains("mkdir -p"));
+        // `set -e`, so a failed chmod cannot leave a non-executable file to be
+        // moved into place and reported as installed.
+        assert!(script.starts_with("set -e;"));
+    }
+
+    #[test]
+    fn the_payload_is_named_by_what_uname_reports() {
+        // `scripts/build-wsl-payload.ts` stages exactly this name from the
+        // triple it builds; the distro answers the machine half of it.
+        assert_eq!(
+            wsl_payload_name("x86_64").as_deref(),
+            Some("glimpse-cli-linux-x86_64")
+        );
+        // `uname -m` arrives with its newline attached.
+        assert_eq!(
+            wsl_payload_name("aarch64\n").as_deref(),
+            Some("glimpse-cli-linux-aarch64")
+        );
+        // Not a machine name — the value becomes part of a path, so it is
+        // validated rather than trusted, and an unreadable answer simply leaves
+        // the distro on the forwarding route.
+        assert_eq!(wsl_payload_name(""), None);
+        assert_eq!(wsl_payload_name("../../glimpse.exe"), None);
+        assert_eq!(wsl_payload_name("x86_64 aarch64"), None);
+    }
+
+    #[test]
+    fn the_report_says_which_route_each_distro_got() {
+        // The two are not the same thing: one drives the distro's own git, the
+        // other reaches the same repository over the \\wsl.localhost share.
+        assert_eq!(
+            wsl_install_label("Ubuntu-24.04", true),
+            "Ubuntu-24.04 + command line"
+        );
+        assert_eq!(wsl_install_label("Debian", false), "Debian");
     }
 
     #[test]
