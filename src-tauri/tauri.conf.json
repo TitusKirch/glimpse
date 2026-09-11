@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../.output/public",
     "devUrl": "http://localhost:3210",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm generate"
+    "beforeDevCommand": "pnpm cli:sidecar:debug && pnpm dev",
+    "beforeBuildCommand": "pnpm generate && pnpm cli:sidecar"
   },
   "app": {
     "windows": [
@@ -53,6 +53,9 @@
   },
   "bundle": {
     "active": true,
+    "externalBin": [
+      "binaries/glimpse-cli"
+    ],
     "targets": [
       "deb",
       "rpm",

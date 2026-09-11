@@ -281,6 +281,15 @@ jobs:
       #
       # `shell: bash` so those JSON quotes mean the same thing on the Windows leg
       # as on the other two.
+      # THE SIDECAR THE BUILD CANNOT PRODUCE ITSELF (#103). `bundle.externalBin`
+      # makes `binaries/glimpse-cli-<triple>` a BUILD INPUT: Tauri looks for it
+      # by that exact name and fails the build when it is missing. Locally
+      # `beforeBuildCommand` stages it — and the step below drops that hook, so
+      # here it has to be its own step. `--debug` is deliberately absent: this
+      # leg builds release, and the sidecar has to match what it ships.
+      - name: Stage the CLI sidecar
+        run: pnpm cli:sidecar
+
       - name: Tauri build (compile, no installers)
         shell: bash
         run: pnpm tauri build --no-bundle --config '{"build":{"beforeBuildCommand":null}}'
@@ -383,6 +392,12 @@ jobs:
       - name: Verify the frontend bundle arrived
         shell: bash
         run: test -f .output/public/index.html
+
+      # Same build input as the matrix above, dev-profile here because this job
+      # builds `--debug`: staging the release binary would compile the whole
+      # workspace a second time for a smoke test that never runs it.
+      - name: Stage the CLI sidecar
+        run: pnpm cli:sidecar:debug
 
       - name: Build the debug binary
         shell: bash

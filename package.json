@@ -32,6 +32,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "tauri": "tauri",
+    "cli:sidecar": "node scripts/build-cli-sidecar.ts",
+    "cli:sidecar:debug": "node scripts/build-cli-sidecar.ts --debug",
     "bindings": "cargo test --manifest-path src-tauri/Cargo.toml -p glimpse-core --lib export_bindings -- --ignored && oxfmt app/types/bindings.ts",
     "test": "vitest run",
     "e2e": "wdio run tests/e2e/wdio.conf.ts",

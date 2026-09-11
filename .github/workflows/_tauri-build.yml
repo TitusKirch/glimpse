@@ -187,6 +187,12 @@ jobs:
       # an error — the run stays green while the switch silently reverts to its
       # default. That is how the v0.13.0 rebuild had both legs write the shared
       # manifest anyway; only `finalize`'s `--clobber` afterwards hid it.
+      # NO SIDECAR STEP HERE, and that is the difference from `ci.yml`. This
+      # chain builds through `tauri build` with the config as it stands, so
+      # `beforeBuildCommand` runs — `pnpm generate && pnpm cli:sidecar` — and
+      # stages `binaries/glimpse-cli-<triple>` for `bundle.externalBin` itself.
+      # `ci.yml` drops that hook to reuse a prebuilt frontend, which is why it
+      # has to stage the sidecar by hand and this does not.
       - name: Build and upload installers
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
