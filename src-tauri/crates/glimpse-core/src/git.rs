@@ -765,8 +765,8 @@ pub struct Repo {
 /// this instead.
 struct GitOutput {
     stdout: String,
-    /// Informational output some git versions write even after a successful
-    /// command. Most callers deliberately consume stdout alone.
+    /// Supplemental output a successful command may write. Most callers
+    /// deliberately consume stdout alone.
     stderr: String,
     /// Why git exited non-zero, already carrying the command line, or `None`
     /// when it did not.
@@ -774,8 +774,7 @@ struct GitOutput {
 }
 
 impl GitOutput {
-    /// The human-facing text a command wrote, regardless of which standard
-    /// stream its git version chose for it.
+    /// The human-facing text a command wrote to either standard stream.
     fn human_output(&self) -> String {
         let mut text = self.stdout.clone();
         if !text.is_empty() && !text.ends_with('\n') {
@@ -840,7 +839,7 @@ impl Repo {
     }
 
     /// The whole of what a git call produced — **stdout whichever way it
-    /// exited**, and the failure if it failed.
+    /// exited**, successful stderr, and the failure if it failed.
     ///
     /// [`run`](Self::run) drops stdout on failure, which is right for the
     /// commands whose stdout *is* their answer: a `rev-parse` that failed has
@@ -3220,7 +3219,7 @@ mod git_output_tests {
     use super::GitOutput;
 
     #[test]
-    fn human_output_keeps_a_successful_commands_stderr() {
+    fn human_output_keeps_successful_stderr() {
         let output = GitOutput {
             stdout: String::new(),
             stderr: "abc1234 is the first bad commit\n".to_string(),
@@ -3230,7 +3229,7 @@ mod git_output_tests {
         assert_eq!(
             output.human_output(),
             "abc1234 is the first bad commit\n",
-            "git 2.55 sends a successful bisect result to stderr"
+            "a human-facing caller must retain successful stderr"
         );
     }
 }

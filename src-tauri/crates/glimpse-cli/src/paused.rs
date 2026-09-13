@@ -371,7 +371,8 @@ fn bisect_reset(repo: &Repo) -> Result<Report, Failure> {
     Ok(Report::new("bisect reset", Vec::new(), detail).with_commit(now))
 }
 
-/// `<hash> is the first bad commit`, if that is what git just said.
+/// `<hash> is the first bad commit` (or Git 2.55's quoted `bad` form), if that
+/// is what git just said.
 ///
 /// Parsed rather than inferred from the exit code because there is no other
 /// signal: a verdict that ends the session and one that merely advances it both
@@ -381,7 +382,11 @@ fn first_bad_commit(out: &str) -> Option<String> {
         let hash = line.split_whitespace().next()?;
         let rest = line.strip_prefix(hash)?.trim();
         let long_enough = hash.len() >= 7 && hash.chars().all(|c| c.is_ascii_hexdigit());
-        (long_enough && rest == "is the first bad commit").then(|| hash.to_string())
+        let found = matches!(
+            rest,
+            "is the first bad commit" | "is the first 'bad' commit"
+        );
+        (long_enough && found).then(|| hash.to_string())
     })
 }
 
@@ -669,6 +674,12 @@ mod tests {
         assert_eq!(
             first_bad_commit(out).as_deref(),
             Some("8b1a9953c4611296a827abf8c47804d7")
+        );
+        assert_eq!(
+            first_bad_commit("8b1a9953c4611296a827abf8c47804d7 is the first 'bad' commit")
+                .as_deref(),
+            Some("8b1a9953c4611296a827abf8c47804d7"),
+            "Git 2.55 quotes bad"
         );
 
         // The line that merely advances the bisection must NOT read as an answer.
