@@ -765,9 +765,25 @@ pub struct Repo {
 /// this instead.
 struct GitOutput {
     stdout: String,
+    /// Informational output some git versions write even after a successful
+    /// command. Most callers deliberately consume stdout alone.
+    stderr: String,
     /// Why git exited non-zero, already carrying the command line, or `None`
     /// when it did not.
     failure: Option<String>,
+}
+
+impl GitOutput {
+    /// The human-facing text a command wrote, regardless of which standard
+    /// stream its git version chose for it.
+    fn human_output(&self) -> String {
+        let mut text = self.stdout.clone();
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        text.push_str(&self.stderr);
+        text
+    }
 }
 
 /// What a `git push --tags` did, whichever way it exited.
@@ -850,6 +866,7 @@ impl Repo {
             trace::record(described.clone(), started.elapsed(), false, message);
             GitOutput {
                 stdout,
+                stderr: String::new(),
                 failure: Some(format!("{message}\n\n$ {described}")),
             }
         };
@@ -866,6 +883,7 @@ impl Repo {
                 trace::record(described, started.elapsed(), true, "");
                 GitOutput {
                     stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                    stderr: String::from_utf8_lossy(&output.stderr).to_string(),
                     failure: None,
                 }
             }
@@ -2091,7 +2109,11 @@ impl Repo {
             "good" | "bad" | "skip" => verdict,
             _ => return Err(format!("invalid bisect verdict: {verdict}")),
         };
-        self.run(&["bisect", sub])
+        let done = self.run_capturing(&["bisect", sub], trace::faults());
+        match done.failure {
+            Some(message) => Err(message),
+            None => Ok(done.human_output()),
+        }
     }
 
     /// Is a bisect session open?
@@ -3190,6 +3212,26 @@ mod version_tests {
         assert!(v.starts_with("git version "), "unexpected output: {v:?}");
         // Trimmed, because it goes straight into a pasted markdown list item.
         assert_eq!(v, v.trim());
+    }
+}
+
+#[cfg(test)]
+mod git_output_tests {
+    use super::GitOutput;
+
+    #[test]
+    fn human_output_keeps_a_successful_commands_stderr() {
+        let output = GitOutput {
+            stdout: String::new(),
+            stderr: "abc1234 is the first bad commit\n".to_string(),
+            failure: None,
+        };
+
+        assert_eq!(
+            output.human_output(),
+            "abc1234 is the first bad commit\n",
+            "git 2.55 sends a successful bisect result to stderr"
+        );
     }
 }
 
