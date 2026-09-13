@@ -392,7 +392,10 @@ pub fn paused_on_break(tag: &str) -> PathBuf {
     // would change what a `discard --all` test is looking at.
     let todo = std::env::temp_dir().join(format!("glimpse-cli-{tag}-todo-{}", std::process::id()));
     std::fs::write(&todo, format!("break\npick {head}\n")).unwrap();
-    let editor = format!("sequence.editor=cp {}", todo.display());
+    let editor = format!(
+        "sequence.editor=cp \"{}\"",
+        todo.display().to_string().replace('\\', "/")
+    );
     git(
         &dir,
         &[

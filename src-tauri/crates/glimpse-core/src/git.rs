@@ -4215,7 +4215,10 @@ mod rebase_state_tests {
                 "-c",
                 "core.editor=true",
                 "-c",
-                &format!("sequence.editor=cp {}", todo.display()),
+                &format!(
+                    "sequence.editor=cp \"{}\"",
+                    todo.display().to_string().replace('\\', "/")
+                ),
                 "rebase",
                 "-i",
                 "HEAD~1",

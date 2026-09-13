@@ -138,7 +138,7 @@ fn resolve_then_continue_carries_the_rebase_to_the_end() {
     assert_eq!(code, 0, "stderr: {err}");
     assert!(out.contains("theirs"), "{out:?}");
     assert_eq!(
-        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
+        git_out(&dir, &["show", ":a.txt"]),
         "side\n",
         "--theirs took the commit being replayed, which is side's"
     );
@@ -182,10 +182,7 @@ fn rebase_skip_drops_the_commit_it_stopped_on_and_keeps_the_rest() {
         "the conflicting commit was dropped, the other kept: {log:?}"
     );
     // And main's version of the file survived, since side's was skipped.
-    assert_eq!(
-        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
-        "main\n"
-    );
+    assert_eq!(git_out(&dir, &["show", "HEAD:a.txt"]), "main\n");
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -210,10 +207,7 @@ fn rebase_abort_puts_the_branch_back_where_it_started() {
         before,
         "the branch is exactly where it was"
     );
-    assert_eq!(
-        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
-        "side\n"
-    );
+    assert_eq!(git_out(&dir, &["show", "HEAD:a.txt"]), "side\n");
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -576,10 +570,7 @@ fn resolve_takes_the_side_it_is_told_and_stages_the_result() {
     assert_eq!(r["paths"][0], "a.txt");
 
     // In a merge, ours is the branch we are on.
-    assert_eq!(
-        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
-        "ours\n"
-    );
+    assert_eq!(git_out(&dir, &["show", ":a.txt"]), "ours\n");
     // Asked of the index rather than of `status`: taking *ours* restores exactly
     // what HEAD holds, so the path leaves `status` altogether — which is the
     // resolved-and-staged state, and would read as "nothing happened" if the
@@ -607,10 +598,7 @@ fn resolve_theirs_takes_the_other_side() {
 
     let (code, _out, err) = run(&["resolve", "-C", path, "a.txt", "--theirs"]);
     assert_eq!(code, 0, "stderr: {err}");
-    assert_eq!(
-        std::fs::read_to_string(dir.join("a.txt")).unwrap(),
-        "theirs\n"
-    );
+    assert_eq!(git_out(&dir, &["show", ":a.txt"]), "theirs\n");
 
     // The whole merge can now be concluded, which is the point of resolving.
     let (code, _out, err) = run(&["commit", "-C", path, "-m", "merged"]);
