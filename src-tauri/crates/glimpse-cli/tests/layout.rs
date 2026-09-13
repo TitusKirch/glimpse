@@ -322,7 +322,10 @@ fn the_bare_group_words_still_list() {
     // way `glimpse branch` lists branches.
     let (code, out, err) = run(&["worktree", "-C", path]);
     assert_eq!(code, 0, "stderr: {err}");
-    assert!(out.contains(path), "the main worktree: {out:?}");
+    assert!(
+        out.contains(&path.replace('\\', "/")),
+        "the main worktree: {out:?}"
+    );
 
     let (code, out, err) = run(&["submodule", "-C", path]);
     assert_eq!(code, 0, "stderr: {err}");
