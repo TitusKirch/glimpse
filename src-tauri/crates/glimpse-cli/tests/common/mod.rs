@@ -20,6 +20,20 @@ pub fn git(dir: &Path, args: &[&str]) {
         .status()
         .expect("run git");
     assert!(status.success(), "git {args:?} failed");
+    if args.first() == Some(&"init") {
+        // Test fixtures write LF content and must not inherit Git for Windows'
+        // global autocrlf setting when a later checkout rewrites that content.
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["config", "core.autocrlf", "false"])
+            .status()
+            .expect("configure test repository");
+        assert!(
+            status.success(),
+            "failed to disable autocrlf in test repository"
+        );
+    }
 }
 
 /// `git -C <dir> <args>`, returning stdout — for asserting on repository state
@@ -293,12 +307,13 @@ pub fn repo_with_remote(tag: &str) -> Remoted {
 /// global config.
 fn clone(origin: &Path, dir: &Path) {
     let status = Command::new("git")
-        .args(["clone", "-q"])
+        .args(["-c", "core.autocrlf=false", "clone", "-q"])
         .arg(origin)
         .arg(dir)
         .status()
         .expect("run git");
     assert!(status.success(), "git clone failed");
+    git(dir, &["config", "core.autocrlf", "false"]);
     git(dir, &["config", "user.email", "test@example.com"]);
     git(dir, &["config", "user.name", "Test"]);
     git(dir, &["config", "commit.gpgsign", "false"]);
