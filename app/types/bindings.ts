@@ -1,4 +1,4 @@
-// GENERATED from src-tauri/src/git.rs by `cargo test` (ts-rs).
+// GENERATED from src-tauri/crates/glimpse-core/src/git.rs by `cargo test` (ts-rs).
 // Do not edit — change the Rust structs and re-run.
 
 export type Commit = {

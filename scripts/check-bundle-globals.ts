@@ -13,7 +13,7 @@
 // toolchain's scope analysis does this month, a Vue API that survived
 // minification as a bare call is one the bundle never imported.
 //
-// Usage: node scripts/check-bundle-globals.mjs [bundleDir]
+// Usage: node scripts/check-bundle-globals.ts [bundleDir]
 // Exits 1 and lists file, identifier and surrounding source on any finding.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -42,7 +42,7 @@ const WATCHED = [
   'watchEffect'
 ];
 
-function jsFiles(dir) {
+function jsFiles(dir: string): string[] {
   const out = [];
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
@@ -55,7 +55,7 @@ function jsFiles(dir) {
 // Does the chunk bind this name itself? A bound name is not a free reference,
 // however it got bound — an import from a sibling chunk, a declaration the
 // minifier chose not to rename, a `catch` binding.
-function isBound(code, name) {
+function isBound(code: string, name: string) {
   const patterns = [
     // import { ref } from … / import { r as ref } from …
     new RegExp(`import[^;]*[{,]\\s*(?:[\\w$]+\\s+as\\s+)?${name}\\s*[,}]`),
@@ -70,7 +70,7 @@ function isBound(code, name) {
 // A call is followed by an expression's continuation; a *definition* — an object
 // or class method shorthand, `watch(e){…}` — is followed by its body. Skipping
 // those is what keeps a minified library's own method names out of the report.
-function isDefinition(code, openParen) {
+function isDefinition(code: string, openParen: number) {
   let depth = 0;
   for (let i = openParen; i < code.length; i++) {
     const ch = code[i];
@@ -91,9 +91,9 @@ function isDefinition(code, openParen) {
 // regex literals — replacing each character with a space so every offset still
 // lines up with the original. Without this the app's own translations trip the
 // scan: "Branch / ref (optional)" reads as a call to `ref` otherwise.
-function maskNonCode(code) {
+function maskNonCode(code: string) {
   const out = code.split('');
-  const blank = (from, to) => {
+  const blank = (from: number, to: number) => {
     for (let i = from; i < to; i++) if (out[i] !== '\n') out[i] = ' ';
   };
   // A `/` starts a regex rather than a division wherever an operand cannot have
@@ -104,12 +104,12 @@ function maskNonCode(code) {
   // ordinary `}` — an object or arrow body inside the interpolation — from
   // being read as the end of the interpolation, which would blank live code and
   // let a real finding through unseen.
-  const interpolations = [];
+  const interpolations: number[] = [];
 
   // Blank a run of template text starting at `from`, stopping at the literal's
   // closing backtick or at the `${` that opens the next interpolation. Returns
   // the index of whichever it found.
-  const skipTemplateText = (from) => {
+  const skipTemplateText = (from: number) => {
     let j = from;
     while (j < code.length) {
       if (code[j] === '\\') j += 2;
@@ -146,7 +146,10 @@ function maskNonCode(code) {
       continue;
     }
     if (interpolations.length > 0 && (ch === '{' || ch === '}')) {
-      const depth = interpolations.at(-1);
+      // `?? 0` is unreachable — this branch is guarded by `length > 0` — but
+      // it is what lets the compiler see that, and it reads the same as the
+      // depth an empty stack would imply.
+      const depth = interpolations.at(-1) ?? 0;
       if (ch === '{') {
         interpolations[interpolations.length - 1] = depth + 1;
       } else if (depth > 0) {
@@ -213,7 +216,7 @@ function maskNonCode(code) {
   return out.join('');
 }
 
-function findFree(code, masked, name) {
+function findFree(code: string, masked: string, name: string) {
   // A free call: the name is called, and the character before it cannot be part
   // of a longer identifier or a property access (`x.ref(`, `deref(`, `a?.ref(`).
   // No whitespace before the `(` — generated code never emits `ref (`, while

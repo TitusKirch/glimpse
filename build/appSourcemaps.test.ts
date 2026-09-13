@@ -14,9 +14,42 @@ const BUNDLER_DIR = '/repo/node_modules/.cache/nuxt/.nuxt/dist/client';
 const VENDOR_SOURCE = '../../../node_modules/.pnpm/dep@1.0.0/dep/index.js';
 const APP_SOURCE = '../../../app/components/commit/Graph.vue';
 
-type Bundle = Record<string, Record<string, unknown>>;
+// The fixture entries carry a LITERAL `type`, not a widened `string`. The
+// plugin takes a discriminated union, so a bundle typed as
+// `Record<string, Record<string, unknown>>` was not assignable to it — and the
+// same discriminant is what lets the assertions below read `code` off a chunk
+// and `source` off an asset without a cast.
+interface Chunk {
+  type: 'chunk';
+  fileName: string;
+  moduleIds: string[];
+  map: unknown;
+  sourcemapFileName: string;
+  code: string;
+}
 
-function chunk(fileName: string, moduleIds: string[]) {
+interface MapAsset {
+  type: 'asset';
+  fileName: string;
+  source: string;
+}
+
+type Bundle = Record<string, Chunk | MapAsset>;
+
+// Narrowing, not casting: an entry the plugin was supposed to leave as a chunk
+// but turned into something else reads as `undefined` here and fails the
+// assertion, rather than being asserted through.
+function chunkAt(bundle: Bundle, name: string): Chunk | undefined {
+  const entry = bundle[name];
+  return entry?.type === 'chunk' ? entry : undefined;
+}
+
+function assetAt(bundle: Bundle, name: string): MapAsset | undefined {
+  const entry = bundle[name];
+  return entry?.type === 'asset' ? entry : undefined;
+}
+
+function chunk(fileName: string, moduleIds: string[]): Chunk {
   return {
     type: 'chunk',
     fileName,
@@ -27,7 +60,7 @@ function chunk(fileName: string, moduleIds: string[]) {
   };
 }
 
-function mapAsset(fileName: string, sources: string[]) {
+function mapAsset(fileName: string, sources: string[]): MapAsset {
   return {
     type: 'asset',
     fileName: `${fileName}.map`,
@@ -60,8 +93,8 @@ describe('appSourcemaps', () => {
     run(bundle);
 
     expect(bundle['_nuxt/vendor.js.map']).toBeUndefined();
-    expect(bundle['_nuxt/vendor.js']?.code).toBe('console.log(1);\n');
-    expect(bundle['_nuxt/vendor.js']?.map).toBe(null);
+    expect(chunkAt(bundle, '_nuxt/vendor.js')?.code).toBe('console.log(1);\n');
+    expect(chunkAt(bundle, '_nuxt/vendor.js')?.map).toBe(null);
   });
 
   it('reduces a mixed chunk to the app sources and keeps its map', () => {
@@ -80,16 +113,18 @@ describe('appSourcemaps', () => {
 
     // The bundler serialises the map the chunk carries, so the asset alone is
     // not enough — both sides have to end up narrowed.
-    expect(bundle['_nuxt/entry.js']?.map).toMatchObject({
+    expect(chunkAt(bundle, '_nuxt/entry.js')?.map).toMatchObject({
       sources: [APP_SOURCE],
       sourcesContent: [`/* ${APP_SOURCE} */`]
     });
 
-    const map = JSON.parse(String(bundle['_nuxt/entry.js.map']?.source));
+    const map = JSON.parse(
+      String(assetAt(bundle, '_nuxt/entry.js.map')?.source)
+    );
     expect(map.sources).toEqual([APP_SOURCE]);
     expect(map.sourcesContent).toEqual([`/* ${APP_SOURCE} */`]);
     // Still advertised, or the webview never fetches the map at all.
-    expect(bundle['_nuxt/entry.js']?.code).toContain(
+    expect(chunkAt(bundle, '_nuxt/entry.js')?.code).toContain(
       '//# sourceMappingURL=entry.js.map'
     );
   });

@@ -1,0 +1,31 @@
+# The headless command line. A library so the GUI binary can keep answering
+# `glimpse status …` on the way to its window (see `try_run_cli`), and a
+# console-subsystem binary so the same commands work where no GUI is installed
+# at all — a CI runner, an SSH session, a WSL distro.
+[package]
+name = "glimpse-cli"
+# Literal, and bumped in lockstep by release-please — see the note in the
+# workspace root's Cargo.toml for why it is not inherited.
+version = "0.15.1"
+description = "glimpse's headless command line: the git engine, driven from a terminal or a script."
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "glimpse_cli"
+path = "src/lib.rs"
+
+# NOT named `glimpse`: the GUI package already produces a `glimpse` binary, and
+# two targets of that name in one workspace collide in `target/`. Installing this
+# one *as* `glimpse` inside a WSL distro is packaging's job, not cargo's.
+[[bin]]
+name = "glimpse-cli"
+path = "src/main.rs"
+
+[dependencies]
+glimpse-core = { path = "../glimpse-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

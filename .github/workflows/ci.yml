@@ -115,6 +115,31 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      # THE TAURI-FREE CLAIM, MEASURED (#103). `glimpse-core` carries the git
+      # engine so the CLI can run it with no desktop anywhere in reach — a
+      # promise that holds only as long as nothing drags Tauri back in, and one
+      # nobody notices breaking, because the GUI build stays green either way.
+      #
+      # `cargo tree` is what settles it, and the whole *transitive* graph is the
+      # point: the unit test in the crate reads its own manifest, which catches
+      # a direct dependency and nothing else. A helper crate that innocently
+      # depends on tauri would slip straight past it and be caught here.
+      #
+      # THE DECISION IS NOT IN THIS FILE, deliberately. It was, as three lines
+      # of `grep -q 'tauri'` over whole `cargo tree` lines, and it matched the
+      # crate's own manifest path — this workspace's root directory is named
+      # `src-tauri` — so the step failed unconditionally and nobody saw it,
+      # because a workflow that runs on `pull_request` never executed against
+      # work landing on a shared branch. It now lives in a script whose test
+      # pins both sides of the guard, and `pnpm test` runs that test on every
+      # local `pnpm check`. See `scripts/check-core-tauri-free.ts`.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Core crate is Tauri-free
+        run: node scripts/check-core-tauri-free.ts
+
   # BUILT ONCE, NOT THREE TIMES (#196). `tauri build` runs `beforeBuildCommand`
   # — `pnpm generate` — inside every leg of the matrix below, and the result is
   # platform-independent: the same `.output/public` three times over. It is
@@ -256,16 +281,145 @@ jobs:
       #
       # `shell: bash` so those JSON quotes mean the same thing on the Windows leg
       # as on the other two.
+      #
+      # THE SIDECAR THE BUILD CANNOT PRODUCE ITSELF (#103). The merge patch also
+      # carries `bundle.externalBin`, and that is the whole reason it is a patch
+      # rather than a key in `tauri.conf.json`: a declared sidecar is a BUILD
+      # INPUT that `tauri-build` resolves on every compile, so leaving it in the
+      # checked-in config breaks `cargo clippy` and `cargo test` for anyone who
+      # has not run a pnpm script first. It is switched on exactly here, where
+      # the step below stages the file. `src-tauri/tauri.sidecar.conf.json` is
+      # the single declaration; `jq` folds the hook-dropping key into it so the
+      # one `--config` value the CLI accepts carries both.
+      #
+      # `--debug` is deliberately absent from the staging step: this leg builds
+      # release, and the sidecar has to match what it ships. This build compiles
+      # without bundling, which is enough — `tauri-build` resolves the sidecar
+      # by name at compile time, so all three platforms prove the name the
+      # bundler will look for, the Windows `.exe` placement included.
+      - name: Stage the CLI sidecar
+        run: pnpm cli:sidecar
+
       - name: Tauri build (compile, no installers)
         shell: bash
-        run: pnpm tauri build --no-bundle --config '{"build":{"beforeBuildCommand":null}}'
+        run: >-
+          pnpm tauri build --no-bundle --config
+          "$(jq -c '. + {build:{beforeBuildCommand:null}}' src-tauri/tauri.sidecar.conf.json)"
 
       # A Vue auto-import Nuxt decided not to inject leaves a bare `ref(` in the
       # bundle and throws only once that component renders — invisible to `pnpm
       # dev`, invisible to the unit tests, and fatal in the packaged app.
       # `.output/public` is on disk from the download above, so the scan is free.
+      #
+      # PLAIN `node` ON A `.ts` FILE, no loader and no devDependency: Node has
+      # stripped types natively since 23.6, this repo pins `engines.node >= 24`,
+      # and the setup-node above installs 24 on all three platforms. The price
+      # is that the script must stay inside the erasable subset — no `enum`, no
+      # `namespace`, no parameter properties — which is what the unit test in
+      # `scripts/check-bundle-globals.test.ts` pins by running it exactly so.
       - name: Check the bundle for free Vue-API identifiers
-        run: node scripts/check-bundle-globals.mjs
+        run: node scripts/check-bundle-globals.ts
+
+  # THE ONE END-TO-END TEST, ON ONE PLATFORM (#159). It launches the built
+  # binary through `tauri-driver` + `WebKitWebDriver` and drives the real UI, so
+  # it is the only check in this workflow that proves the app BOOTS — the Tauri
+  # matrix above proves it links, which is not the same claim.
+  #
+  # UBUNTU ONLY, and not as a compromise: `tauri-driver` has no macOS support at
+  # all, on any version. Windows needs a matching `msedgedriver` and is a
+  # deliberate follow-up.
+  #
+  # It reuses `frontend`'s bundle exactly as the matrix does, and builds
+  # `--debug` rather than release: same code path, a fraction of the compile.
+  e2e:
+    name: E2E smoke test
+    needs: [precheck, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    if: github.event.pull_request.draft == false
+    steps:
+      # FULL HISTORY ON PURPOSE. The suite opens this checkout as the repository
+      # under test and asserts the commit graph renders, so the clone it drives
+      # has to look like a real one rather than a single grafted commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # HELD at v6.0.10 for the reason spelled out on the matrix job above.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # `webkit2gtk-driver` is what provides `WebKitWebDriver`, and `xvfb` the
+      # display the webview needs on a headless runner — neither is implied by
+      # the build dependencies the other jobs install.
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file \
+            wget \
+            webkit2gtk-driver \
+            xvfb
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      # `rust-dev` — the DEV-PROFILE family, shared with `precheck`: this job
+      # builds the same workspace with the same profile, and `cache-bin` (on by
+      # default) keeps the compiled `tauri-driver` below out of the critical
+      # path on subsequent runs.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          shared-key: rust-dev
+
+      # Ships as a cargo binary, not an npm package, which is why it is not a
+      # wdio service and not in the lockfile.
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Built once by `frontend` above, exactly as the Tauri matrix consumes it.
+      - name: Download the frontend bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-dist
+          path: .output/public
+
+      - name: Verify the frontend bundle arrived
+        shell: bash
+        run: test -f .output/public/index.html
+
+      # NO SIDECAR HERE, and nothing is missing. This job never merges
+      # `tauri.sidecar.conf.json` in, so `bundle.externalBin` is simply not
+      # declared for this build — the smoke test drives the GUI and never
+      # invokes the command line. The matrix above is where the sidecar naming
+      # is exercised, on all three platforms; paying for a second CLI build here
+      # would prove nothing that build does not.
+      - name: Build the debug binary
+        shell: bash
+        run: pnpm tauri build --debug --no-bundle --config '{"build":{"beforeBuildCommand":null}}'
+
+      # `dbus-run-session` as well as `xvfb-run`: the app registers a
+      # single-instance guard and a `glimpse://` scheme over the session bus,
+      # and a runner does not reliably have one.
+      - name: Run the smoke test
+        run: xvfb-run --auto-servernum dbus-run-session -- pnpm e2e
 
   # The one job above is what this repo actually ships, and nothing was
   # enforcing it: the required checks are `CI / Gate` and `Rust / Gate`, both
@@ -291,16 +445,20 @@ jobs:
   # its timeout have no such twin, and any of those failing removes the matrix
   # from the merge gate silently. That is the #165 shape, and listing the job is
   # the whole fix.
+  #
+  # `e2e` is here for the same rule read the other way round: it reports nowhere
+  # else at all, so a red smoke test outside this list would be invisible to the
+  # merge button rather than merely skipped.
   tauri-gate:
     name: Tauri Gate
-    needs: [precheck, frontend, tauri]
+    needs: [precheck, frontend, tauri, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - name: Check every job the Tauri build matrix depends on
+      - name: Check every job this gate covers
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
@@ -309,6 +467,6 @@ jobs:
           for result in $RESULTS; do
             case "$result" in
               success | skipped) ;;
-              *) echo "::error::A job the Tauri build depends on reported '$result'." && exit 1 ;;
+              *) echo "::error::A job this gate covers reported '$result'." && exit 1 ;;
             esac
           done

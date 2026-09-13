@@ -1,0 +1,278 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: WSL smoke test
+
+# THE WINDOWS HALF OF #103's CRITERION (c), ACTUALLY RUN.
+#
+# The Windows installer carries a static Linux `glimpse-cli` and drops it into
+# every installed WSL distro, so a `glimpse status` typed in a WSL shell runs
+# against that distro's own git instead of being forwarded to glimpse.exe over
+# the `\\wsl.localhost` share. Every guard that existed before this job proved a
+# PIECE of that off Windows: the `sh -c` program runs under a Linux shell in the
+# unit tests, the payload name is pinned against the script that stages it, the
+# launcher's candidate list is pinned against the path written to.
+#
+# What none of them touched is the hop: `wsl.exe -l -q` against a real distro,
+# `uname -m`, the binary going down a pipe into `sh`, the chmod, the `mv`, and
+# the launcher then choosing the native route over forwarding. GitHub's
+# `windows-latest` image carries no WSL, so this job installs one and drives the
+# real thing.
+#
+# BOTH ROUTES, because criterion (c) names both. The first test installs the
+# payload and runs the subjects natively; the second stages a `glimpse-cli.exe`
+# where the launcher forwards to, takes the payload away again, and runs the
+# same subjects over the `\\wsl.localhost` share. Neither is inferred from the
+# other's absence — `glimpse info` reports `linux` on one and `wsl` on the
+# other, and only the responder can say it.
+#
+# WHAT IT DOES NOT PROVE, stated here rather than discovered later:
+#
+#   • A step running the install is NOT the packaged installer running it. The
+#     NSIS installer placing the payload beside glimpse.exe is proved elsewhere
+#     (an experiment build); what is proved here is what happens once it is
+#     there. Nothing in this job runs the bundler.
+#   • The distro a runner hands out is not the distro a user has. The job
+#     records the WSL version and the distro it actually got — see the step that
+#     prints them — rather than assuming either. A runner that can only give
+#     WSL1 differs from a user's WSL2 in `\\wsl$` share behaviour, which the
+#     forwarding half of this job does cross; read the recorded version before
+#     reading that half's result as covering the other one.
+#   • A `cargo build`'d glimpse-cli.exe is not the bundled one. What the
+#     fallback half proves is the ROUTE — that a WSL shell reaches a Windows
+#     console binary beside glimpse.exe and gets this distro's repository back
+#     — not that the installer put that binary there.
+#   • One distro, one architecture. x86_64 only, because that is the only
+#     payload built (an ARM64 host keeps the forwarding route by design).
+#
+# WHY `push` AND NOT `pull_request`. The AI work loop lands on `dev` directly,
+# so a `pull_request`-only workflow would never run against the code it guards —
+# which is exactly how the Windows half went unmeasured for three rounds. The
+# paths filter keeps it off every unrelated push. It is NOT a required check and
+# is deliberately outside `CI / Gate`: it needs an artifact from a second runner
+# and a distro install, and a gate that heavy on every pull request would buy
+# less than it costs.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - 'src-tauri/src/lib.rs'
+      - 'src-tauri/crates/glimpse-cli/**'
+      # The engine the payload actually runs, and the resource declaration that
+      # puts the payload beside glimpse.exe in the first place: a change to
+      # either one changes what this job measures, so neither may skip it.
+      - 'src-tauri/crates/glimpse-core/**'
+      - 'src-tauri/tauri.wsl-payload.conf.json'
+      - 'scripts/glimpse-wsl.sh'
+      - 'scripts/build-wsl-payload.ts'
+      - '.github/workflows/wsl-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # The same build the release chain's `wsl-payload` job does, for the same
+  # reason: a Windows runner has no Linux linker, so the binary cannot be
+  # produced on the machine that needs it.
+  payload:
+    name: WSL command line (x86_64 musl)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      # rustup ships musl's libc, but not the linker that puts it together.
+      - name: Install the musl linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          shared-key: wsl-payload
+
+      # Plain node, no pnpm install: the script imports nothing but node
+      # builtins and a sibling script.
+      - name: Build and stage the payload
+        run: node scripts/build-wsl-payload.ts
+
+      - name: Hand the payload to the Windows leg
+        uses: actions/upload-artifact@v7
+        with:
+          name: glimpse-cli-linux-x86_64
+          path: src-tauri/binaries/glimpse-cli-linux-x86_64
+          if-no-files-found: error
+          retention-days: 1
+
+  smoke:
+    name: Install into a real distro
+    needs: payload
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Take the payload from the Linux leg
+        uses: actions/download-artifact@v8
+        with:
+          name: glimpse-cli-linux-x86_64
+          path: payload
+
+      # `--from` rather than downloading straight into `src-tauri/binaries`:
+      # this is the one caller that has the bytes somewhere else and wants the
+      # canonical name and place computed for it, which is what the flag is for.
+      # The installer reads the payload out of the directory holding
+      # glimpse.exe, and the test below points at this staging directory as if
+      # it were that one.
+      - name: Stage the payload where the installer looks for it
+        shell: bash
+        run: node scripts/build-wsl-payload.ts --from payload/glimpse-cli-linux-x86_64
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      # The dev-profile family, shared with `ci.yml`'s `precheck`: same
+      # workspace, same profile.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          shared-key: rust-dev
+
+      # `git` is what `glimpse status` shells out to inside the distro — the
+      # whole point of the native route — and a stock image does not carry it.
+      - name: Install a WSL distro
+        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        with:
+          distribution: Debian-13
+          additional-packages: git
+          wsl-version: 2
+
+      # MEASURED, NOT ASSUMED. Which WSL version a hosted runner can actually
+      # give is an environment fact that changes under us; recording it in the
+      # log is what makes a later reader able to say what this run proved.
+      - name: Record what this runner actually gave us
+        shell: bash
+        run: |
+          wsl.exe -l -v || true
+          wsl.exe -- uname -a
+          wsl.exe -- git --version
+
+      # THE TEST IS THE SMOKE TEST, and it lives in the crate rather than in
+      # this file: it installs through the real `install_wsl_shims` — the
+      # function the app calls — and then drives `glimpse status` from inside
+      # the distro through the launcher that install dropped there. Anyone with
+      # a Windows machine and a distro runs the identical check with
+      # `cargo test -p glimpse -- --ignored`.
+      - name: Install into the distro and run the command line there
+        shell: bash
+        env:
+          GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: ${{ github.workspace }}/src-tauri/binaries
+        run: >-
+          cargo test --manifest-path src-tauri/Cargo.toml -p glimpse --lib --
+          --ignored --nocapture
+          the_install_puts_a_working_command_line_inside_a_real_distro
+
+      # The test asserts the outcome; this prints it, so a human reading the
+      # log sees the two halves of the install with their own eyes.
+      #
+      # BEFORE the fallback steps below, deliberately: that test removes the
+      # payload from the distro on purpose, and a listing taken afterwards
+      # would report the install missing right after the test that proved it
+      # was there.
+      #
+      # `pwsh`, NOT `bash`: Git-bash rewrites an argument that looks like a unix
+      # path before the child ever sees it, so `wsl.exe -- ls -l
+      # /usr/local/bin/glimpse` reached the distro as `C:/Program
+      # Files/Git/usr/local/bin/glimpse` and reported the install missing while
+      # the test that had just passed proved it was there. A log that says the
+      # opposite of the measurement is worse than no log.
+      - name: Show what landed in the distro
+        if: always()
+        shell: pwsh
+        run: |
+          wsl.exe -- ls -l /usr/local/bin/glimpse /usr/local/lib/glimpse/glimpse-cli
+          wsl.exe -- /usr/local/lib/glimpse/glimpse-cli --version
+          exit 0
+
+      # WIN32 INTEROP, MADE DETERMINISTIC AND THEN MEASURED. Forwarding means
+      # a Linux SHELL `exec`ing a Windows PE binary, which works only while the
+      # kernel has a binfmt_misc handler registered for one. Debian-13 boots
+      # systemd, and `systemd-binfmt` FLUSHES binfmt_misc after `/init`
+      # registered WSLInterop into it — so whether a shell can exec a Windows
+      # program is a race, and a run of this job lost it in the middle: a probe
+      # right after boot answered, and the test minutes later died on
+      # `exec: …/glimpse-cli.exe: Exec format error`.
+      #
+      # Turning systemd off is what removes the race rather than out-waiting
+      # it. Nothing in this job wants systemd; `git` inside the distro does not
+      # need it, and the native half has already run by here.
+      #
+      # `wsl.exe -- cmd.exe` is NOT the check: wsl.exe launches a Windows
+      # command itself and answered fine while a shell in the same distro could
+      # not exec one. The probe therefore runs cmd.exe THROUGH `sh`, the shape
+      # the launcher uses — and re-registers the handler if even that is gone,
+      # so a distro that still cannot do it fails HERE, naming the environment,
+      # instead of failing the test and reading like a defect in the launcher.
+      - name: Make sure a shell in the distro can exec a Windows program
+        shell: pwsh
+        run: |
+          wsl.exe -u root -- sh -c "printf '[boot]\nsystemd=false\n[interop]\nenabled=true\n' > /etc/wsl.conf"
+          wsl.exe --shutdown
+          wsl.exe -u root -- sh -c "cat /etc/wsl.conf; ls /proc/sys/fs/binfmt_misc/"
+          wsl.exe -u root -- sh -c "/mnt/c/Windows/System32/cmd.exe /c ver >/dev/null 2>&1 || echo ':WSLInterop:M::MZ::/init:PF' > /proc/sys/fs/binfmt_misc/register"
+          wsl.exe -u root -- sh -c "/mnt/c/Windows/System32/cmd.exe /c ver"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'a shell in this distro cannot exec a Windows program: the forwarding route cannot be measured here'
+          }
+
+      # THE OTHER HALF OF CRITERION (c). The fallback route forwards to the
+      # CONSOLE binary beside glimpse.exe (`console_exe` in glimpse-wsl.sh), so
+      # the machine it needs is: launcher installed, glimpse-cli.exe staged,
+      # native payload removed from the distro. Built here rather than in the
+      # step above so the native test keeps running on the machine it was
+      # written for — nothing to forward to at all.
+      - name: Build the Windows console binary the fallback forwards to
+        shell: bash
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml -p glimpse-cli
+          cp src-tauri/target/debug/glimpse-cli.exe src-tauri/binaries/glimpse-cli.exe
+          ls -l src-tauri/binaries/
+
+      # The file the distro will exec, described BY the distro: what it sees,
+      # what the first bytes are, and whether it runs at all from there. When
+      # the route fails, this is what says whether the launcher picked the
+      # wrong thing or the environment refused a right one.
+      - name: Show the distro what it is being asked to exec
+        shell: pwsh
+        run: |
+          $ws = $env:GITHUB_WORKSPACE -replace '\\', '/'
+          $exe = wsl.exe -u root -- wslpath -u "$ws/src-tauri/binaries/glimpse-cli.exe"
+          wsl.exe -u root -- sh -c "ls -l '$exe'; od -An -c -N 4 '$exe'; '$exe' --version"
+          exit 0
+
+      # Runs AFTER the native test, and destroys what that one installed: it
+      # removes the payload from the distro so `find_native` has nothing to
+      # return. `glimpse info` then has to answer `wsl`, which only a Windows
+      # process reading the \\wsl.localhost share can say.
+      - name: Run the same subjects through the forwarding fallback
+        shell: bash
+        env:
+          GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: ${{ github.workspace }}/src-tauri/binaries
+        run: >-
+          cargo test --manifest-path src-tauri/Cargo.toml -p glimpse --lib --
+          --ignored --nocapture
+          the_launcher_forwards_to_the_windows_binary_from_a_real_distro

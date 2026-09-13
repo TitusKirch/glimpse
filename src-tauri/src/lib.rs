@@ -1,13 +1,14 @@
-mod changelist;
-mod cli;
-mod git;
-mod platform;
+// The git engine and the command line are their own, Tauri-free crates (see
+// `src-tauri/Cargo.toml`). Imported under their bare module names so every
+// `git::` / `platform::` path below reads exactly as it did when they were
+// modules of this crate.
+use glimpse_core::{git, platform};
 
 use std::collections::HashMap;
 use std::env;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use notify_debouncer_mini::notify::{
     Config as NotifyConfig, PollWatcher, RecommendedWatcher, RecursiveMode,
@@ -15,7 +16,41 @@ use notify_debouncer_mini::notify::{
 use notify_debouncer_mini::{
     new_debouncer, new_debouncer_opt, Config as DebouncerConfig, DebounceEventResult, Debouncer,
 };
+use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Emitter, Manager, State};
+
+/// When this process started, stamped before anything else runs.
+///
+/// It exists so startup is measurable from *outside* the app. A webview app has
+/// no moment it can be asked "are you up yet?" — so the app says so itself:
+/// `STARTUP_LOG_PREFIX` goes to stdout via `tauri-plugin-log` when the main
+/// window's first page load finishes, and `scripts/perf-baseline.ts` reads it
+/// off the spawned binary. Anything else (polling the window manager, watching
+/// for git subprocesses) measures a proxy and differs per platform.
+static PROCESS_START: OnceLock<Instant> = OnceLock::new();
+
+/// The line `scripts/perf-baseline.ts` matches on. THE SCRIPT PARSES THIS
+/// LITERAL — changing the wording changes the script too.
+const STARTUP_LOG_PREFIX: &str = "startup: main webview ready in ";
+
+/// Whether this page-load event is the one to report: the main window's, and
+/// the first of them. `logged` is the claim, won by whichever caller sets it —
+/// so a reload of the same window, or a second webview, never reports a second
+/// "startup" that would be measured from the wrong zero.
+fn claim_startup_report(label: &str, logged: &OnceLock<()>) -> bool {
+    label == "main" && logged.set(()).is_ok()
+}
+
+/// Report time-to-first-paint once per launch, for the perf baseline.
+fn report_startup(label: &str) {
+    static LOGGED: OnceLock<()> = OnceLock::new();
+    if !claim_startup_report(label, &LOGGED) {
+        return;
+    }
+    if let Some(start) = PROCESS_START.get() {
+        log::info!("{STARTUP_LOG_PREFIX}{} ms", start.elapsed().as_millis());
+    }
+}
 
 /// Default debounce window that coalesces a burst of FS events into a single
 /// refresh, and the poll cadence for the WSL fallback. Both are overridable via
@@ -23,6 +58,10 @@ use tauri::{AppHandle, Emitter, Manager, State};
 /// tuned without a rebuild, defaulting to these sensible values.
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(400);
 const WSL_POLL_INTERVAL: Duration = Duration::from_secs(2);
+/// Poll interval for the write-receipt directory over `\\wsl$`. Far shorter than
+/// [`WSL_POLL_INTERVAL`] because it covers one directory of small files, not a
+/// source tree — see [`watch_write_receipt`].
+const RECEIPT_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Read a millisecond duration from `key`, falling back to `default` when unset
 /// or unparseable.
@@ -45,9 +84,21 @@ enum RepoWatcher {
     Poll(Debouncer<PollWatcher>),
 }
 
-/// Holds the active filesystem watcher. Only the most recently watched repo is
+/// Holds the active filesystem watchers. Only the most recently watched repo is
 /// tracked.
-struct WatcherState(Mutex<Option<RepoWatcher>>);
+///
+/// Two of them, for one repository: the recursive watcher over the working tree
+/// (`repo`), and a second one over the single file the headless CLI writes after
+/// a successful write (`receipt`). The second exists because the first is slow
+/// on purpose — 400ms of debounce, and seconds of poll interval over the
+/// `\\wsl$` share, where native events do not arrive at all. Watching one small
+/// file costs almost nothing, so it can react much faster, which is what makes
+/// `glimpse commit` in a terminal show up in the window immediately.
+#[derive(Default)]
+struct WatcherState {
+    repo: Mutex<Option<RepoWatcher>>,
+    receipt: Mutex<Option<RepoWatcher>>,
+}
 
 /// Per-repository write serialization. Every mutating git command takes its
 /// repo's lock, so two never run at once and can't collide on `index.lock`
@@ -354,6 +405,82 @@ fn wslpath_arg(win_exe: &str) -> String {
     win_exe.replace('\\', "/")
 }
 
+/// Where a native Linux command line has to land inside a distro: the FIRST
+/// candidate `find_native` in `scripts/glimpse-wsl.sh` tries. Installing to any
+/// other path is a silent no-op — the distro keeps taking the slow forwarding
+/// route through `glimpse.exe` and nothing says why — so a unit test reads the
+/// launcher and pins this string against the candidate list in both directions.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+const WSL_CLI_PATH: &str = "/usr/local/lib/glimpse/glimpse-cli";
+
+/// The payload beside glimpse.exe for a distro whose `uname -m` says `machine`,
+/// staged by `scripts/build-wsl-payload.ts` under the same name.
+///
+/// Arch-keyed rather than triple-keyed because `uname -m` is what a distro can
+/// answer in one cheap call, and the payload's libc is not its business — the
+/// shipped binary is static musl precisely so no distro has to match one.
+/// `None` for anything that is not a plain machine name: the value is
+/// interpolated into a path, so it is validated rather than trusted, and an
+/// ARM64 host simply finds no payload and keeps the forwarding route.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wsl_payload_name(machine: &str) -> Option<String> {
+    let machine = machine.trim();
+    if machine.is_empty()
+        || !machine
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+    {
+        return None;
+    }
+    Some(format!("glimpse-cli-linux-{machine}"))
+}
+
+/// The `sh -c` program that takes the payload on stdin and leaves it executable
+/// at `target` — `WSL_CLI_PATH` in the install, a scratch path in the tests
+/// that actually run it.
+///
+/// It writes a sibling and `mv`s it into place rather than truncating the
+/// target, because replacing a *running* ELF in place fails with ETXTBSY — and
+/// a user who reinstalls from the app while a `glimpse log` is open in that
+/// distro would otherwise be left with a half-written command line, which is
+/// worse than the one they had.
+///
+/// And it PROVES the sibling before moving it. `set -e` plus `cat >` catches a
+/// broken pipe, not a payload that arrives complete and wrong: that one is
+/// chmod'd, moved into place and `exec`'d by the launcher forever, because the
+/// only thing the launcher asks of a candidate is that it be executable. A
+/// route that worked before the install would then be permanently broken, which
+/// is exactly what the best-effort posture exists to rule out. So the write is
+/// measured against `size` — the byte count the Rust side is streaming, the one
+/// number this side of the hop knows and the distro cannot infer — and then run
+/// once; either check failing removes the sibling and exits non-zero, leaving
+/// whatever was there before (usually nothing) and the forwarding route intact.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wsl_cli_install_script(target: &str, size: usize) -> String {
+    format!(
+        "set -e; mkdir -p \"$(dirname {target})\"; cat > {target}.new; \
+         chmod 0755 {target}.new; \
+         if [ \"$(wc -c < {target}.new)\" -ne {size} ] || \
+         ! {target}.new --version >/dev/null 2>&1; \
+         then rm -f {target}.new; exit 1; fi; \
+         mv -f {target}.new {target}"
+    )
+}
+
+/// How one distro is named in `install_cli`'s report. The two outcomes are not
+/// cosmetic: a distro that got the payload runs the command line against its own
+/// git, and one that did not reaches the same repository the long way round over
+/// the `\\wsl.localhost` share. A user comparing two distros deserves to see
+/// which of the two they are looking at.
+#[allow(dead_code)] // used by the Windows install path + the unit tests
+fn wsl_install_label(distro: &str, native: bool) -> String {
+    if native {
+        format!("{distro} + command line")
+    } else {
+        distro.to_string()
+    }
+}
+
 /// The WSL launcher script, embedded so the Windows build can drop it into each
 /// distro (see `install_wsl_shims`). Kept byte-for-byte in sync with the repo's
 /// `scripts/glimpse-wsl.sh`.
@@ -420,8 +547,10 @@ if (($p -split ';') -contains $d) { Write-Output 'yes' }"#;
         .then(|| dir.join("glimpse.exe").to_string_lossy().into_owned())
 }
 
-/// Drop the WSL launcher into every installed distro; returns the distros it
-/// reached. Best-effort: a distro that errors is simply skipped.
+/// Drop the WSL launcher — and, where this installer carries one, the native
+/// Linux command line — into every installed distro; returns the distros it
+/// reached, each labelled with which of the two routes it now takes.
+/// Best-effort: a distro that errors is simply skipped.
 #[cfg(all(desktop, windows))]
 fn install_wsl_shims(exe: &Path) -> Vec<String> {
     use std::os::windows::process::CommandExt;
@@ -434,10 +563,83 @@ fn install_wsl_shims(exe: &Path) -> Vec<String> {
         Ok(o) if o.status.success() => o.stdout,
         _ => return Vec::new(),
     };
+    let payload_dir = exe.parent();
     parse_wsl_distros(&listed)
         .into_iter()
-        .filter(|distro| install_wsl_shim_into(distro, &win_exe).is_ok())
+        .filter_map(|distro| {
+            install_wsl_shim_into(&distro, &win_exe).ok()?;
+            // Second, best-effort half: the NATIVE command line. Without it the
+            // launcher still works — it forwards to glimpse.exe over the share
+            // — so a distro that refuses the payload is a slower distro, never
+            // a failed install, and it is reported as such rather than dropped.
+            let native = payload_dir.is_some_and(|dir| install_wsl_cli_into(&distro, dir).is_ok());
+            Some(wsl_install_label(&distro, native))
+        })
         .collect()
+}
+
+/// Ask one distro what machine it runs on (`uname -m`), so the right payload is
+/// picked. Best-effort: None on any failure, and the caller installs no native
+/// command line — the launcher's forwarding route covers it.
+#[cfg(all(desktop, windows))]
+fn wsl_distro_machine(distro: &str) -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    let out = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args(["-d", distro, "--", "uname", "-m"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let machine = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!machine.is_empty()).then_some(machine)
+}
+
+/// Install the native Linux command line as `WSL_CLI_PATH` inside one distro,
+/// from the payload this installer shipped beside glimpse.exe.
+///
+/// Everything here is allowed to be absent. A build that staged no payload, a
+/// machine type nothing was built for, a distro that will not take it: each
+/// returns `Err`, and the launcher is already installed and already works. The
+/// payload is only ever a shortcut past the `\\wsl.localhost` hop.
+#[cfg(all(desktop, windows))]
+fn install_wsl_cli_into(distro: &str, payload_dir: &Path) -> Result<(), String> {
+    use std::io::Write;
+    use std::os::windows::process::CommandExt;
+    let machine = wsl_distro_machine(distro).ok_or("could not read the distro's machine type")?;
+    let name =
+        wsl_payload_name(&machine).ok_or_else(|| format!("unexpected machine type: {machine}"))?;
+    let payload = payload_dir.join(&name);
+    let bytes = std::fs::read(&payload).map_err(|e| format!("{}: {e}", payload.display()))?;
+    let mut child = std::process::Command::new("wsl.exe")
+        .creation_flags(NO_WINDOW)
+        .args([
+            "-d",
+            distro,
+            "-u",
+            "root",
+            "--",
+            "sh",
+            "-c",
+            &wsl_cli_install_script(WSL_CLI_PATH, bytes.len()),
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or("no stdin for the WSL writer")?
+        .write_all(&bytes)
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
+    }
+    Ok(())
 }
 
 /// Ask one distro to translate glimpse.exe's Windows path to its in-distro
@@ -570,8 +772,71 @@ async fn watch_repo(
             .map_err(|e| e.to_string())?;
         RepoWatcher::Native(debouncer)
     };
-    *state.0.lock().unwrap() = Some(watcher);
+    *state.repo.lock().unwrap() = Some(watcher);
+
+    // Best-effort, exactly like the CLI half that writes the file: a repository
+    // whose git dir cannot be resolved, or whose receipt cannot be watched, is
+    // still perfectly usable — it simply falls back to the recursive watcher
+    // above, which is what happened before this existed.
+    *state.receipt.lock().unwrap() = watch_write_receipt(&app, &path);
     Ok(())
+}
+
+/// How fast the write-receipt watcher reacts. Much shorter than
+/// [`WATCH_DEBOUNCE`] because it watches one small file rather than a whole
+/// tree: there is no burst of events here to coalesce, just the single rename
+/// the CLI performs, so the debounce only has to outlast that rename.
+const RECEIPT_DEBOUNCE: Duration = Duration::from_millis(50);
+
+/// Watch the file `glimpse stage`/`commit`/… writes after a successful headless
+/// write, and emit `repo-changed` when it moves.
+///
+/// Returns `None` rather than an error: this is a latency optimisation over the
+/// recursive watcher, never a correctness requirement, so nothing about opening
+/// a repository should fail because it could not be set up.
+///
+/// The *parent directory* is watched, not the file — the file may not exist yet
+/// (no headless write has happened), and `notify` cannot watch a path that is
+/// not there. That directory is therefore created here if missing, which is the
+/// one side effect of opening a repository: an empty `<git-dir>/glimpse/`, the
+/// same directory the changelist store creates on its first write. It holds only
+/// glimpse's own small state files, so the extra events are few and a spurious
+/// refresh is harmless anyway.
+fn watch_write_receipt(app: &AppHandle, path: &str) -> Option<RepoWatcher> {
+    let receipt = git::Repo::open(path).write_receipt_file().ok()?;
+    let dir = Path::new(&receipt).parent()?.to_path_buf();
+    std::fs::create_dir_all(&dir).ok()?;
+
+    let handle = app.clone();
+    let on_change = move |res: DebounceEventResult| {
+        if res.is_ok() {
+            let _ = handle.emit("repo-changed", ());
+        }
+    };
+    let debounce = duration_from_env("GLIMPSE_RECEIPT_DEBOUNCE_MS", RECEIPT_DEBOUNCE);
+
+    // A `\\wsl$` repo needs the polling backend here for the same reason the
+    // recursive watcher does, but it can poll far more often: one directory
+    // holding a handful of small files, rather than a whole source tree.
+    if platform::resolve(path).flavor == "wsl" {
+        let poll = duration_from_env("GLIMPSE_RECEIPT_POLL_MS", RECEIPT_POLL_INTERVAL);
+        let config = DebouncerConfig::default()
+            .with_timeout(debounce)
+            .with_notify_config(NotifyConfig::default().with_poll_interval(poll));
+        let mut debouncer = new_debouncer_opt::<_, PollWatcher>(config, on_change).ok()?;
+        debouncer
+            .watcher()
+            .watch(&dir, RecursiveMode::NonRecursive)
+            .ok()?;
+        Some(RepoWatcher::Poll(debouncer))
+    } else {
+        let mut debouncer = new_debouncer(debounce, on_change).ok()?;
+        debouncer
+            .watcher()
+            .watch(&dir, RecursiveMode::NonRecursive)
+            .ok()?;
+        Some(RepoWatcher::Native(debouncer))
+    }
 }
 
 #[tauri::command]
@@ -1137,9 +1402,19 @@ async fn discard_all(locks: State<'_, RepoLocks>, path: String) -> Result<(), St
     locked(&locks, &path, || git::Repo::open(&path).discard_all())
 }
 
+/// The IPC contract stays `Result<String, String>` — the UI shows a summary or
+/// an error — so a partial push surfaces here as the failure it also is. The
+/// porcelain of the refs that did get through is kept for the CLI, which has a
+/// message to put it in.
 #[tauri::command]
 async fn push_tags(locks: State<'_, RepoLocks>, path: String) -> Result<String, String> {
-    locked(&locks, &path, || git::Repo::open(&path).push_tags())
+    locked(&locks, &path, || {
+        let done = git::Repo::open(&path).push_tags();
+        match done.failure {
+            Some(message) => Err(message),
+            None => Ok(done.porcelain),
+        }
+    })
 }
 
 #[tauri::command]
@@ -1218,7 +1493,10 @@ async fn delete_branch(
     name: String,
 ) -> Result<(), String> {
     locked(&locks, &path, || {
-        git::Repo::open(&path).delete_branch(&name)
+        // The GUI has no force-delete button, so it is always the safe `-d`:
+        // git refuses a branch whose commits nothing else holds, and the dialog
+        // shows that refusal rather than overriding it.
+        git::Repo::open(&path).delete_branch(&name, false)
     })
 }
 
@@ -1550,6 +1828,55 @@ async fn resolve_update(
     Ok(best)
 }
 
+/// Set to `1` to let a debug build reach the real updater anyway, or to `0` to
+/// keep a release build away from it.
+#[cfg(desktop)]
+const ALLOW_UPDATER_ENV: &str = "GLIMPSE_ALLOW_UPDATER";
+
+/// Whether this build may reach the real updater.
+///
+/// A debug build must not, by default. glimpse updates in place — on Linux an
+/// install rewrites the running AppImage — so a build whose version trails the
+/// newest release downloads that release straight over itself on launch. That is
+/// the normal state of `dev`, which makes it the normal state of `pnpm tauri dev`
+/// and of the `--debug` binary the e2e suite drives: what runs is no longer what
+/// was built.
+///
+/// `GLIMPSE_ALLOW_UPDATER=1` opens the gate deliberately, because otherwise the
+/// download, signature check and install could only ever be exercised by a
+/// release build — the one place a fault in them surfaces too late to be cheap.
+/// Exactly `1`, nothing looser: the value has to be typed on purpose, never
+/// inherited from an environment that happens to carry the name.
+///
+/// `GLIMPSE_ALLOW_UPDATER=0` closes it, release build included, and the reason
+/// is the paragraph above read the other way round: a RELEASE build off `dev`
+/// also trails the newest release, so it too rewrites itself on launch. That is
+/// right for a user and wrong for anything measuring the build in front of it —
+/// `pnpm perf:baseline` sets this, because otherwise its numbers include an
+/// 80 MB download and its next run measures a binary nobody here built.
+#[cfg(desktop)]
+fn updater_allowed(debug_build: bool, allow_override: Option<&str>) -> bool {
+    match allow_override {
+        Some("0") => false,
+        Some("1") => true,
+        _ => !debug_build,
+    }
+}
+
+/// [`updater_allowed`] for this process: the build kind is compiled in, the
+/// override is read from the environment.
+#[cfg(desktop)]
+fn updater_enabled() -> bool {
+    let allow = env::var(ALLOW_UPDATER_ENV).ok();
+    let allowed = updater_allowed(cfg!(debug_assertions), allow.as_deref());
+    if !allowed {
+        // Said out loud rather than failing silently: a developer wondering why
+        // "check for updates" does nothing gets the reason and the way through.
+        log::info!("updater disabled ({ALLOW_UPDATER_ENV}=1 allows it, =0 forbids it)");
+    }
+    allowed
+}
+
 /// Check the given channel for an available update; returns its version string.
 #[cfg(desktop)]
 #[tauri::command]
@@ -1558,6 +1885,9 @@ async fn check_update(
     channel: String,
     force: bool,
 ) -> Result<Option<String>, String> {
+    if !updater_enabled() {
+        return Ok(None);
+    }
     Ok(resolve_update(&app, &channel, force)
         .await?
         .map(|u| u.version))
@@ -1604,6 +1934,9 @@ struct UpdateProgress {
 #[cfg(desktop)]
 #[tauri::command]
 async fn install_update(app: AppHandle, channel: String, force: bool) -> Result<(), String> {
+    if !updater_enabled() {
+        return Ok(());
+    }
     let Some(update) = resolve_update(&app, &channel, force).await? else {
         return Ok(());
     };
@@ -1678,15 +2011,20 @@ fn restart_app() {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // A `glimpse cl …` invocation is handled headlessly here and the process
-    // exits before any window/Tauri setup; anything else falls through to the
-    // normal app launch.
-    if let Some(code) = cli::try_run_cli() {
+    // Stamped first, before the CLI branch and before any Tauri setup, so the
+    // startup number below is measured from as close to process start as this
+    // crate can reach.
+    let _ = PROCESS_START.set(Instant::now());
+
+    // A headless invocation (`glimpse status`, `glimpse cl …`, `glimpse --help`)
+    // is handled here and the process exits before any window/Tauri setup;
+    // anything else — a repo path, no arguments — falls through to the app.
+    if let Some(code) = glimpse_cli::try_run_cli() {
         std::process::exit(code);
     }
 
     let builder = tauri::Builder::default()
-        .manage(WatcherState(Mutex::new(None)))
+        .manage(WatcherState::default())
         .manage(RepoLocks::default());
 
     // Holds a repo path passed on the launch command line until the frontend
@@ -1731,6 +2069,12 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
 
     builder
+        // Time-to-first-paint, logged once per launch. See PROCESS_START.
+        .on_page_load(|webview, payload| {
+            if payload.event() == PageLoadEvent::Finished {
+                report_startup(webview.label());
+            }
+        })
         .setup(|app| {
             // Logging is registered in release builds too, not just under
             // `cfg!(debug_assertions)`: a bug report is worth far more with the
@@ -1754,18 +2098,27 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 use tauri_plugin_cli::CliExt;
-                if let Ok(matches) = app.cli().matches() {
-                    let resolved = matches
-                        .args
-                        .get("path")
-                        .and_then(|arg| arg.value.as_str())
-                        .and_then(|raw| {
-                            let cwd = env::current_dir().ok()?;
-                            resolve_cli_path(raw, &cwd.to_string_lossy())
-                        });
-                    if let Some(path) = resolved {
-                        *app.state::<CliOpenState>().0.lock().unwrap() = Some(path);
+                match app.cli().matches() {
+                    Ok(matches) => {
+                        let resolved = matches
+                            .args
+                            .get("path")
+                            .and_then(|arg| arg.value.as_str())
+                            .and_then(|raw| {
+                                let cwd = env::current_dir().ok()?;
+                                resolve_cli_path(raw, &cwd.to_string_lossy())
+                            });
+                        if let Some(path) = resolved {
+                            *app.state::<CliOpenState>().0.lock().unwrap() = Some(path);
+                        }
                     }
+                    // Clap rejects the WHOLE argv over one entry it does not
+                    // know — a flag a launcher or a test harness appended, say —
+                    // and the repo path goes down with it. The launch is not
+                    // worth aborting over that, but it was previously dropped
+                    // with no trace anywhere: the app just came up on the start
+                    // screen and nothing said why. Say why.
+                    Err(e) => log::warn!("ignoring the launch command line ({e})"),
                 }
             }
             Ok(())
@@ -1880,12 +2233,64 @@ pub fn run() {
 #[cfg(all(test, desktop))]
 mod tests {
     use super::{
-        bake_wsl_shim, dev_panic_now, first_path_arg, locked, parse_wsl_distros, progress_percent,
-        resolve_cli_path, version_outranks, wslpath_arg, RepoLocks,
+        bake_wsl_shim, claim_startup_report, dev_panic_now, first_path_arg, locked,
+        parse_wsl_distros, progress_percent, resolve_cli_path, updater_allowed, version_outranks,
+        wsl_cli_install_script, wsl_install_label, wsl_payload_name, wslpath_arg, RepoLocks,
+        WSL_CLI_PATH,
     };
     use std::sync::mpsc::channel;
-    use std::sync::Arc;
+    use std::sync::{Arc, OnceLock};
     use std::thread;
+
+    #[test]
+    fn a_debug_build_never_reaches_the_updater() {
+        // The bug: a debug build trailing the newest release pulled that release
+        // down over itself on launch — `pnpm tauri dev` and the `--debug` binary
+        // the e2e suite drives alike — so what ran was not what was built.
+        assert!(!updater_allowed(true, None));
+        // A release build is the one that is supposed to update itself.
+        assert!(updater_allowed(false, None));
+    }
+
+    #[test]
+    fn the_escape_hatch_opens_the_gate_for_a_debug_build() {
+        // Without a way through, the real download, signature check and install
+        // could only ever be exercised by a release build — the one place a
+        // fault in them surfaces too late to be cheap.
+        assert!(updater_allowed(true, Some("1")));
+    }
+
+    #[test]
+    fn an_explicit_zero_closes_the_gate_on_a_release_build() {
+        // A release build off `dev` trails the newest release too, so it
+        // rewrites itself on launch exactly the way a debug build would. That
+        // is right for a user and ruinous for `pnpm perf:baseline`, which would
+        // otherwise measure a download and then measure a binary it never
+        // built.
+        assert!(!updater_allowed(false, Some("0")));
+        assert!(updater_allowed(false, None));
+        assert!(updater_allowed(false, Some("anything else")));
+    }
+
+    #[test]
+    fn only_an_explicit_one_opens_the_gate() {
+        // Off by default, and only the documented value turns it on: the e2e
+        // suite sets nothing, so CI stays guarded whatever else is in its env.
+        assert!(!updater_allowed(true, Some("")));
+        assert!(!updater_allowed(true, Some("0")));
+        assert!(!updater_allowed(true, Some("true")));
+    }
+
+    #[test]
+    fn startup_is_reported_once_and_only_for_the_main_window() {
+        // The number is measured from process start, so a second report would
+        // time a page *reload* against the wrong zero and read as a startup
+        // several minutes long. Only the main window counts, and only once.
+        let logged = OnceLock::new();
+        assert!(!claim_startup_report("devtools", &logged));
+        assert!(claim_startup_report("main", &logged));
+        assert!(!claim_startup_report("main", &logged));
+    }
 
     #[test]
     fn progress_reports_each_whole_percent_once() {
@@ -2033,6 +2438,420 @@ mod tests {
         );
         // A path with no backslashes is left untouched.
         assert_eq!(wslpath_arg("/mnt/c/glimpse.exe"), "/mnt/c/glimpse.exe");
+    }
+
+    /// The launcher script as it sits in the repo. `WSL_SHIM` itself is
+    /// Windows-only (it is only ever installed from there), so the test reads
+    /// the same file directly and runs everywhere.
+    const LAUNCHER: &str = include_str!("../../scripts/glimpse-wsl.sh");
+
+    #[test]
+    fn the_native_cli_is_installed_where_the_launcher_looks_first() {
+        // THE GUARD, in both directions. The Windows side writes the payload to
+        // one path; the launcher inside the distro searches a list. Nothing
+        // makes them agree, and a disagreement is SILENT — the launcher finds
+        // nothing, forwards to glimpse.exe, and the user sees a slower command
+        // line with no error anywhere to explain it.
+        assert!(
+            LAUNCHER.contains(WSL_CLI_PATH),
+            "the launcher does not search {WSL_CLI_PATH}"
+        );
+        // First, not merely present: a distro with its own glimpse package must
+        // still get the freshly installed binary rather than a stale one.
+        let candidates = LAUNCHER
+            .lines()
+            .find(|l| l.contains("for candidate in"))
+            .expect("the launcher's native-candidate loop");
+        let first = candidates
+            .split_whitespace()
+            .find(|w| w.starts_with('/'))
+            .expect("a path in the candidate loop");
+        assert_eq!(first, WSL_CLI_PATH);
+    }
+
+    #[test]
+    fn the_install_script_replaces_the_binary_instead_of_truncating_it() {
+        // Overwriting a RUNNING ELF in place fails with ETXTBSY, and a
+        // half-written command line is worse than the one it replaced — so the
+        // payload lands beside the target and is moved onto it.
+        let script = wsl_cli_install_script(WSL_CLI_PATH, 1_487_056);
+        assert!(script.contains(&format!("cat > {WSL_CLI_PATH}.new")));
+        assert!(script.contains(&format!("chmod 0755 {WSL_CLI_PATH}.new")));
+        assert!(script.contains(&format!("mv -f {WSL_CLI_PATH}.new {WSL_CLI_PATH}")));
+        // The directory is created first: /usr/local/lib/glimpse does not exist
+        // in a stock distro, and `cat >` into a missing directory is an error.
+        assert!(script.contains("mkdir -p"));
+        // `set -e`, so a failed chmod cannot leave a non-executable file to be
+        // moved into place and reported as installed.
+        assert!(script.starts_with("set -e;"));
+    }
+
+    /// Run the install script the way `install_wsl_cli_into` runs it inside a
+    /// distro — `sh -c <script>` with the payload on stdin — against a target
+    /// inside a scratch directory. Returns what the target holds afterwards, if
+    /// anything: `None` is the degrade-to-forwarding outcome.
+    #[cfg(unix)]
+    fn run_install_script(dir: &std::path::Path, payload: &[u8], size: usize) -> Option<String> {
+        use std::io::Write;
+        let target = dir.join("glimpse-cli").to_string_lossy().into_owned();
+        let mut child = std::process::Command::new("sh")
+            .args(["-c", &wsl_cli_install_script(&target, size)])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("sh");
+        child
+            .stdin
+            .take()
+            .expect("stdin")
+            .write_all(payload)
+            .expect("write the payload");
+        child.wait().expect("wait");
+        // A `.new` sibling left behind is a failure of its own: the next
+        // install would find a stale half-write already in place.
+        assert!(
+            !std::path::Path::new(&format!("{target}.new")).exists(),
+            "the script left a .new sibling behind"
+        );
+        std::fs::read_to_string(&target).ok()
+    }
+
+    #[cfg(unix)]
+    fn payload_scratch(tag: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("glimpse-wsl-payload-{tag}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        dir
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_payload_that_arrives_whole_is_installed() {
+        // The happy path, RUN rather than pinned: the bytes land, executable,
+        // at the path the launcher searches first.
+        let dir = payload_scratch("whole");
+        let payload = b"#!/bin/sh\necho 'glimpse 0.13.0'\n";
+        assert_eq!(
+            run_install_script(&dir, payload, payload.len()).as_deref(),
+            Some(std::str::from_utf8(payload).unwrap())
+        );
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(dir.join("glimpse-cli"))
+            .expect("the installed payload")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o111, 0o111, "the payload is not executable");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_payload_that_arrives_short_never_reaches_the_native_path() {
+        // THE POINT OF THE SIZE CHECK. A truncated stream is still a file, and
+        // `chmod 0755` makes it an executable one — so without this the
+        // launcher would `exec` a broken command line forever, on a route that
+        // worked before the install. It has to degrade to forwarding, which
+        // means nothing at the native path at all.
+        let dir = payload_scratch("short");
+        let payload = b"#!/bin/sh\necho 'glimpse 0.13.0'\n";
+        assert_eq!(run_install_script(&dir, payload, payload.len() + 512), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_payload_that_cannot_run_never_replaces_a_working_one() {
+        // Complete but WRONG: the right byte count and not a runnable program.
+        // The install already there is the better of the two, so the check runs
+        // before the move and the old command line survives it.
+        let dir = payload_scratch("corrupt");
+        let good = "#!/bin/sh\necho 'glimpse 0.13.0'\n";
+        std::fs::write(dir.join("glimpse-cli"), good).expect("seed the old install");
+        let corrupt = b"\x7fELF but not an executable one\n";
+        assert_eq!(
+            run_install_script(&dir, corrupt, corrupt.len()).as_deref(),
+            Some(good),
+            "a corrupt payload replaced a working command line"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The distro the Windows smoke test drives: the first one `wsl.exe -l -q`
+    /// lists, read through the same parser the installer itself uses — so a
+    /// listing this test can read is a listing the installer can read.
+    #[cfg(windows)]
+    fn smoke_distro() -> String {
+        let out = std::process::Command::new("wsl.exe")
+            .args(["-l", "-q"])
+            .output()
+            .expect("wsl.exe -l -q");
+        assert!(out.status.success(), "wsl.exe -l -q failed");
+        parse_wsl_distros(&out.stdout)
+            .into_iter()
+            .next()
+            .expect("no WSL distro is installed on this machine")
+    }
+
+    /// Run one `sh -c` program inside the distro as root — the same hop the
+    /// installer takes — and hand back what it said.
+    #[cfg(windows)]
+    fn in_distro(distro: &str, script: &str) -> (bool, String, String) {
+        let out = std::process::Command::new("wsl.exe")
+            .args(["-d", distro, "-u", "root", "--", "sh", "-c", script])
+            .output()
+            .expect("wsl.exe");
+        (
+            out.status.success(),
+            String::from_utf8_lossy(&out.stdout).trim().to_string(),
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        )
+    }
+
+    /// The subjects #103's criterion (c) names, run through whichever route the
+    /// launcher picks, in one `sh -c` program: a read (`status`), the flavour
+    /// probe that says WHICH route answered (`info`), the changelist read
+    /// (`cl ls`) and one write (`stage`).
+    ///
+    /// One program rather than four `wsl.exe` calls because the repository has
+    /// to be the same one throughout — and because a `set -e` script that gets
+    /// as far as the last line has proved every earlier one exited 0.
+    #[cfg(windows)]
+    fn criterion_subjects_in(distro: &str, repo: &str) -> (bool, String, String) {
+        in_distro(
+            distro,
+            &format!(
+                "set -e; rm -rf {repo}; mkdir -p {repo}; cd {repo}; git init -q .; \
+                 echo smoke > smoke.txt; \
+                 glimpse status --json; glimpse info --json; \
+                 glimpse cl ls --json; glimpse stage smoke.txt"
+            ),
+        )
+    }
+
+    /// The three assertions that hold whichever route answered. `flavor` is
+    /// deliberately NOT among them: it is the one thing that differs, and each
+    /// test asserts its own.
+    #[cfg(windows)]
+    fn assert_the_subjects_answered(route: &str, out: &str) {
+        assert!(
+            out.contains("smoke.txt"),
+            "`glimpse status --json` did not see the untracked file ({route}): {out}"
+        );
+        assert!(
+            out.contains("\"activeId\""),
+            "`glimpse cl ls --json` did not render the changelist store ({route}): {out}"
+        );
+        assert!(
+            out.contains("staged smoke.txt"),
+            "`glimpse stage` did not report the write ({route}): {out}"
+        );
+    }
+
+    /// What **git** says is staged inside the distro. The write is read back by
+    /// something other than the tool that claimed to have made it, so a `stage`
+    /// that only printed its own report fails here rather than passing.
+    #[cfg(windows)]
+    fn staged_in_distro(distro: &str, repo: &str) -> String {
+        let (ok, staged, err) =
+            in_distro(distro, &format!("git -C {repo} diff --cached --name-only"));
+        assert!(ok, "git could not read the index in {repo}: {err}");
+        staged
+    }
+
+    /// THE WINDOWS HALF OF CRITERION (c), RUN RATHER THAN ARGUED (#103).
+    ///
+    /// Every other test of this install proves a piece of it off Windows: the
+    /// `sh -c` program runs under this container's shell, the payload name is
+    /// pinned against the script that stages it, the launcher's candidate list
+    /// is pinned against the path written to. What none of them touches is the
+    /// hop itself — `wsl.exe -l -q` against a real distro, `uname -m`, the
+    /// binary going down a pipe into `sh`, the chmod, the `mv`, and the
+    /// launcher then choosing the native route over forwarding.
+    ///
+    /// So this test does exactly that, against whatever distro the machine has.
+    /// It is `#[ignore]`d because it needs one: a developer's Windows box runs
+    /// it with `cargo test -p glimpse -- --ignored`, and the `wsl-smoke.yml`
+    /// workflow arranges a runner that can.
+    ///
+    /// WHAT IT DOES NOT PROVE, and the job says so too: a step running the
+    /// install is not the packaged installer running it, and the distro a
+    /// runner hands out is not the distro a user has.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "drives a real WSL distro; needs GLIMPSE_WSL_SMOKE_PAYLOAD_DIR"]
+    fn the_install_puts_a_working_command_line_inside_a_real_distro() {
+        let dir = std::path::PathBuf::from(
+            std::env::var("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR")
+                .expect("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: the directory holding the staged payload"),
+        );
+        let distro = smoke_distro();
+
+        // A previous run's install would let every assertion below pass without
+        // the hop happening at all, so the distro starts without either half.
+        in_distro(
+            &distro,
+            &format!("rm -f {WSL_CLI_PATH} /usr/local/bin/glimpse"),
+        );
+
+        // `exe` is where glimpse.exe WOULD be: the payload sits beside it,
+        // exactly as the bundler places the resource, and `install_wsl_shims`
+        // reads the directory from the path it is given. The file itself need
+        // not exist — `wslpath -u` translates a path, it does not open one.
+        let labels = super::install_wsl_shims(&dir.join("glimpse.exe"));
+        assert!(
+            !labels.is_empty(),
+            "no distro was reached, though wsl.exe listed {distro}"
+        );
+        assert!(
+            labels.iter().any(|l| l.ends_with("+ command line")),
+            "the native command line was not installed: {labels:?}"
+        );
+
+        // The payload ran under `--version` inside the install script already;
+        // asking again from the outside proves it survived the `mv` as well.
+        let (ok, version, err) = in_distro(&distro, &format!("{WSL_CLI_PATH} --version"));
+        assert!(ok, "the installed payload does not run: {err}");
+        assert!(
+            version.starts_with("glimpse "),
+            "unexpected version line: {version}"
+        );
+
+        // And the launcher takes it. glimpse.exe does not exist on this
+        // machine — `dir/glimpse.exe` was never written — so the forwarding
+        // route cannot answer: whatever replies here is the native binary
+        // reading the distro's own git.
+        let repo = "/tmp/glimpse-wsl-smoke";
+        let (ok, out, err) = criterion_subjects_in(&distro, repo);
+        assert!(ok, "the command line failed inside {distro}: {err}");
+        assert_the_subjects_answered("native", &out);
+        // Which route answered, said by the answer rather than inferred from
+        // the absence of the other one: the native binary IS Linux git, so it
+        // reports `linux`. The forwarding route cannot produce that string —
+        // it reaches the same repository over the share and reports `wsl`.
+        assert!(
+            out.contains("\"flavor\":\"linux\""),
+            "the native route did not answer `glimpse info`: {out}"
+        );
+        assert_eq!(
+            staged_in_distro(&distro, repo),
+            "smoke.txt",
+            "git does not agree that the native `glimpse stage` staged anything"
+        );
+    }
+
+    /// THE OTHER HALF OF CRITERION (c): the same subjects through the
+    /// FORWARDING FALLBACK, from a WSL shell (#103).
+    ///
+    /// `tests/wsl_shim.rs` already proves the argv this route builds, under
+    /// `sh` against stub executables — good cover for the program, none at all
+    /// for the route being taken on a real machine. The test above deliberately
+    /// forecloses it by leaving no Windows binary to forward to.
+    ///
+    /// So this one arranges the opposite machine: the launcher installed, a
+    /// real `glimpse-cli.exe` beside where glimpse.exe would be (`console_exe`
+    /// in `scripts/glimpse-wsl.sh` execs exactly that), and NO native command
+    /// line inside the distro. Every subject then has one possible responder —
+    /// a Windows process reading `\\wsl.localhost\<distro>\…` through the UNC
+    /// share and routing git back into the distro — and `glimpse info` is asked
+    /// to say so: that path resolves to the `wsl` flavour, which the native
+    /// binary cannot report.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "drives a real WSL distro; needs GLIMPSE_WSL_SMOKE_PAYLOAD_DIR with a glimpse-cli.exe in it"]
+    fn the_launcher_forwards_to_the_windows_binary_from_a_real_distro() {
+        let dir = std::path::PathBuf::from(
+            std::env::var("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR")
+                .expect("GLIMPSE_WSL_SMOKE_PAYLOAD_DIR: the directory holding the staged payload"),
+        );
+        // The binary the fallback execs. Absent, the launcher would fall back
+        // to glimpse.exe itself — a GUI-subsystem program whose stdout is
+        // best-effort — and the assertions below would fail for a reason that
+        // has nothing to do with the route, so say it here instead.
+        let console = dir.join("glimpse-cli.exe");
+        assert!(
+            console.is_file(),
+            "{}: the console binary the fallback forwards to was not staged",
+            console.display()
+        );
+        let distro = smoke_distro();
+
+        // Install the launcher the way the app does — the same call, the same
+        // baked glimpse.exe path, which is what `console_exe` takes the
+        // directory from.
+        in_distro(
+            &distro,
+            &format!("rm -f {WSL_CLI_PATH} /usr/local/bin/glimpse"),
+        );
+        let labels = super::install_wsl_shims(&dir.join("glimpse.exe"));
+        assert!(
+            !labels.is_empty(),
+            "no distro was reached, though wsl.exe listed {distro}"
+        );
+
+        // Then take the native route away. This is the whole experiment: with
+        // the payload gone, `find_native` has nothing to return and the
+        // launcher must forward or fail.
+        in_distro(&distro, &format!("rm -f {WSL_CLI_PATH}"));
+        let (_, left, _) = in_distro(
+            &distro,
+            &format!("ls {WSL_CLI_PATH} 2>/dev/null || true; command -v glimpse-cli || true"),
+        );
+        assert!(
+            left.is_empty(),
+            "a native command line is still reachable, so this proves nothing: {left}"
+        );
+
+        let repo = "/tmp/glimpse-wsl-fallback";
+        let (ok, out, err) = criterion_subjects_in(&distro, repo);
+        assert!(ok, "the forwarded command line failed in {distro}: {err}");
+        assert_the_subjects_answered("forwarded", &out);
+        assert!(
+            out.contains("\"flavor\":\"wsl\""),
+            "the answer did not come from the Windows binary over the share: {out}"
+        );
+        assert!(
+            out.contains(&format!("\"distro\":\"{distro}\"")),
+            "the forwarded repository was not this distro's: {out}"
+        );
+        assert_eq!(
+            staged_in_distro(&distro, repo),
+            "smoke.txt",
+            "git does not agree that the forwarded `glimpse stage` staged anything"
+        );
+    }
+
+    #[test]
+    fn the_payload_is_named_by_what_uname_reports() {
+        // `scripts/build-wsl-payload.ts` stages exactly this name from the
+        // triple it builds; the distro answers the machine half of it.
+        assert_eq!(
+            wsl_payload_name("x86_64").as_deref(),
+            Some("glimpse-cli-linux-x86_64")
+        );
+        // `uname -m` arrives with its newline attached.
+        assert_eq!(
+            wsl_payload_name("aarch64\n").as_deref(),
+            Some("glimpse-cli-linux-aarch64")
+        );
+        // Not a machine name — the value becomes part of a path, so it is
+        // validated rather than trusted, and an unreadable answer simply leaves
+        // the distro on the forwarding route.
+        assert_eq!(wsl_payload_name(""), None);
+        assert_eq!(wsl_payload_name("../../glimpse.exe"), None);
+        assert_eq!(wsl_payload_name("x86_64 aarch64"), None);
+    }
+
+    #[test]
+    fn the_report_says_which_route_each_distro_got() {
+        // The two are not the same thing: one drives the distro's own git, the
+        // other reaches the same repository over the \\wsl.localhost share.
+        assert_eq!(
+            wsl_install_label("Ubuntu-24.04", true),
+            "Ubuntu-24.04 + command line"
+        );
+        assert_eq!(wsl_install_label("Debian", false), "Debian");
     }
 
     #[test]

@@ -7,7 +7,7 @@
     "frontendDist": "../.output/public",
     "devUrl": "http://localhost:3210",
     "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm generate"
+    "beforeBuildCommand": "pnpm generate && pnpm cli:sidecar"
   },
   "app": {
     "windows": [
