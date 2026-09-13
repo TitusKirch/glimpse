@@ -1,5 +1,70 @@
 # Changelog
 
+## [0.16.0](https://github.com/TitusKirch/glimpse/compare/v0.15.1...v0.16.0) (2026-09-13)
+
+
+### Features
+
+* **build:** cross-build the sidecar instead of renaming a host binary ([568135e](https://github.com/TitusKirch/glimpse/commit/568135e6ac2105368932b9162df8067ca3dba6e9)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **build:** ship the native command line into every WSL distro ([03c7902](https://github.com/TitusKirch/glimpse/commit/03c790277903443503b929e6f37671bd700f348b)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** accept a global option before the subcommand ([1c4f59f](https://github.com/TitusKirch/glimpse/commit/1c4f59f412fa99d29dac06fb8fbe317fb33e7fa6)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** add the branch, tag, remote, stash and commit-moving commands ([bb5c2a8](https://github.com/TitusKirch/glimpse/commit/bb5c2a8e2f3a2d7643d596d9a501e8e928ae90b6)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** add the one-shot layout writes ([f80c93a](https://github.com/TitusKirch/glimpse/commit/f80c93a7c92ed7a48de3e82585f5e99e808f72ed)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** add the remaining GUI read views as subcommands ([a23623a](https://github.com/TitusKirch/glimpse/commit/a23623a8c67a61f434cf6491e6bcb59a0f055b6c)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** add the working-tree and commit write commands ([d399747](https://github.com/TitusKirch/glimpse/commit/d399747c0676b839549cc703bbe3afb31bb48bd6)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** give fetch, pull and push a headless command each ([411935c](https://github.com/TitusKirch/glimpse/commit/411935caddee7596e282ccea5f3c8cb0a72203f4)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** read a repository headlessly with status, log, branches and info ([113910c](https://github.com/TitusKirch/glimpse/commit/113910c3c97ac12da97be49ff0838ed3bbf34fb6)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** run a glimpse subcommand from a WSL shell ([4fe403e](https://github.com/TitusKirch/glimpse/commit/4fe403ee41cbb8f097b5098c73daa30f77c49040)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** run rebase, bisect and conflict resolution headlessly ([a02c8e7](https://github.com/TitusKirch/glimpse/commit/a02c8e7c0b39f619c4be3ccd4b2f9956df500f77)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** ship the command line beside the app in every installer ([3091552](https://github.com/TitusKirch/glimpse/commit/30915527eacaaa8458b1f215a4fdcaa7149abc63)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **core:** ask git which paths it is ignoring ([62c922b](https://github.com/TitusKirch/glimpse/commit/62c922b0a4cdb17007452ec3349c0d22b27f97ea)), closes [#207](https://github.com/TitusKirch/glimpse/issues/207)
+* **git:** answer where a branch tracks and what a remote ref holds ([e4e4497](https://github.com/TitusKirch/glimpse/commit/e4e44972e87d73a5c14a83d3e7631039f2c4a4b2)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **git:** leave a write receipt for a running window ([5e5fb9c](https://github.com/TitusKirch/glimpse/commit/5e5fb9c75186ef0ecfa5ad163584c62072124c5a)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **git:** read a ref operation's outcome back from git ([2eca911](https://github.com/TitusKirch/glimpse/commit/2eca9114ae7ba1cc72efb20520ad7bfb3d9cee71)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **shell:** log time to first paint so startup can be measured ([3dbd23c](https://github.com/TitusKirch/glimpse/commit/3dbd23ce30df8db4f10852b4b1d8208816eeadb4)), closes [#104](https://github.com/TitusKirch/glimpse/issues/104)
+* **shell:** refresh at once when a headless write lands ([46ad5b3](https://github.com/TitusKirch/glimpse/commit/46ad5b309680a4198b3d056d75929e452fe59d89)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **wsl:** refuse forwarding with no WSLInterop handler registered ([4b07485](https://github.com/TitusKirch/glimpse/commit/4b074854496a24b3e493fa224f013621f4a8e3fe)), closes [#207](https://github.com/TitusKirch/glimpse/issues/207)
+
+
+### Bug Fixes
+
+* **build:** keep the CLI sidecar out of the config cargo reads ([9077bd2](https://github.com/TitusKirch/glimpse/commit/9077bd2044488ac85942e0785e3f63df37dbdda0)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **build:** point the perf baseline at the packaging invocation ([a0c0180](https://github.com/TitusKirch/glimpse/commit/a0c0180875f85539096a415164bd8baae721af26)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **build:** prove the WSL payload before it replaces the command line ([fa1609a](https://github.com/TitusKirch/glimpse/commit/fa1609a41f9231a29182f235c33a6f7fc9b9b11f))
+* **build:** refuse a `--from` with no value instead of building ([982bfb8](https://github.com/TitusKirch/glimpse/commit/982bfb852645da7396a67efb298fd229ae9a29e9)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** count the ignored work a reset --hard comes for ([cb0dccb](https://github.com/TitusKirch/glimpse/commit/cb0dccbc37293bf4b70932e9743110d2f43d1f57)), closes [#207](https://github.com/TitusKirch/glimpse/issues/207)
+* **cli:** count what a pull brought down, not what HEAD gained ([72a3b41](https://github.com/TitusKirch/glimpse/commit/72a3b41e7ee80faa26857c633a7e55594f1cdc29)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** create a branch in an empty repository without failing ([a84dc7c](https://github.com/TitusKirch/glimpse/commit/a84dc7c7b9c86da2747881f7039dabe29e532f1f)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** decide an untracked file's fate from the target tree ([9f4080f](https://github.com/TitusKirch/glimpse/commit/9f4080fefc5327424645a6de49991171f986066d)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** keep a --json failure json when the globals are the failure ([d3ffdab](https://github.com/TitusKirch/glimpse/commit/d3ffdab41c3ad62ea0bf1b105f51f73930d22037)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** keep a merge-base probe from answering for the merge ([9479751](https://github.com/TitusKirch/glimpse/commit/947975150278eb0dfcffc63b05d5357a0932a70b)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** keep an option's value out of the global scan ([5630693](https://github.com/TitusKirch/glimpse/commit/56306935e28b758d66f3218b7177ef766691bf5c)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** keep an option's value out of the WSL forwarder's -C scan ([0bbe12d](https://github.com/TitusKirch/glimpse/commit/0bbe12db8bb815c7737b014600388e241afd4603)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** make discard destroy exactly what it reports ([92d1c49](https://github.com/TitusKirch/glimpse/commit/92d1c49bbd7e3c4f12fea49fd1bb079ff7ff4eef)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** make tag push report what actually moved ([b8c947b](https://github.com/TitusKirch/glimpse/commit/b8c947b603b89ec838ef68762bed1b0599622544)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** name the merge conflict that blocks a commit ([1946a39](https://github.com/TitusKirch/glimpse/commit/1946a39a949540e6f8c4b3236c02787e4113ac13)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** parse Git 2.55 bisect results ([03aaab1](https://github.com/TitusKirch/glimpse/commit/03aaab130321d9b43ec209ab83d0d04b7b3174d1))
+* **cli:** refuse a reset that clears untracked work by shape ([8c1ccdf](https://github.com/TitusKirch/glimpse/commit/8c1ccdffa11c8764f0a05feaa84141b9d9f1cb63)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** refuse discard --all --force mid cherry-pick or revert ([658a8c9](https://github.com/TitusKirch/glimpse/commit/658a8c9ba954c967761ca8f68aff9c564ae59cab)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** refuse discard --all --force while a merge is open ([9f257af](https://github.com/TitusKirch/glimpse/commit/9f257afa68b06b7cc8076269b719b5f2fc774361)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** refuse to settle a paused rebase on ours ([75cf282](https://github.com/TitusKirch/glimpse/commit/75cf282b6370024f8266b90234724f0c1269978a)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** report a conflicted stash restore as what it was ([e475a24](https://github.com/TitusKirch/glimpse/commit/e475a242a15e81e2f42662e8d83095947dfad28b)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** report an already-merged branch as up to date ([87240f0](https://github.com/TitusKirch/glimpse/commit/87240f0c58d0b1350bb64e2a020a2a006fe4be99)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** resolve every command's paths against the repository root ([542813f](https://github.com/TitusKirch/glimpse/commit/542813f9faab6359c0cdd98aa0d0fa7f8be3bb35)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** retain completed bisect output ([51dacb8](https://github.com/TitusKirch/glimpse/commit/51dacb8756c7ad1408874a809b1bd691d358b9d4))
+* **cli:** say how to undo the rename discard refuses ([cbc215d](https://github.com/TitusKirch/glimpse/commit/cbc215d3ca8018c4338110197b26df28fdffd82c)), closes [#207](https://github.com/TitusKirch/glimpse/issues/207)
+* **cli:** say what a mid-operation refusal actually leaves behind ([599538c](https://github.com/TitusKirch/glimpse/commit/599538c2e3f5bb003c2f3996ca68d43f7d746c0b)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** say what discard --all already destroyed ([e34d516](https://github.com/TitusKirch/glimpse/commit/e34d5160cf79a023e8efddad3bc55d20c3633939)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** say when the launch command line is dropped ([ea91ed6](https://github.com/TitusKirch/glimpse/commit/ea91ed6f11fd529ebae9b37c7a53055778a3db02))
+* **cli:** say why a resolve --theirs has no other side to take ([dd0f6b8](https://github.com/TitusKirch/glimpse/commit/dd0f6b892d5f5f9019d155a5acb7139e28861b23)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **cli:** see a rebase that stopped without a REBASE_HEAD ([7cdd6d8](https://github.com/TitusKirch/glimpse/commit/7cdd6d82a2228a58b89a3e19a29b65a257907fb5)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **config:** correct the codex policy match examples ([f88b371](https://github.com/TitusKirch/glimpse/commit/f88b371f606fe4646dbd954f446acca696c91502))
+* **git:** answer what a tree holds under a path, not only at it ([e78633c](https://github.com/TitusKirch/glimpse/commit/e78633cf8cb54bdbaeacd750ec9cf64aedb1b249)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **git:** publish -u to the repository's own remote, not to origin ([9a80bfb](https://github.com/TitusKirch/glimpse/commit/9a80bfb16203642abf712da155ca65c59c40833a)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **git:** report sparse-checkout as off when the worktree is not narrowed ([02c8049](https://github.com/TitusKirch/glimpse/commit/02c8049e56f2eb27ed061fd50fb07d0229c36a82)), closes [#103](https://github.com/TitusKirch/glimpse/issues/103)
+* **updater:** keep a debug build from updating itself ([3fe3d69](https://github.com/TitusKirch/glimpse/commit/3fe3d695646ef16f88ac917022c20ae1f00ddd71)), closes [#204](https://github.com/TitusKirch/glimpse/issues/204)
+* **updater:** let an explicit 0 close the gate on a release build too ([75507bc](https://github.com/TitusKirch/glimpse/commit/75507bc7c3c465e323427d9b7f027874139c494e)), closes [#104](https://github.com/TitusKirch/glimpse/issues/104)
+
 ## [0.15.1](https://github.com/TitusKirch/glimpse/compare/v0.15.0...v0.15.1) (2026-09-09)
 
 
