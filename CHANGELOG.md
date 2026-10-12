@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.2](https://github.com/TitusKirch/glimpse/compare/v0.16.1...v0.16.2) (2026-10-12)
+
+
+### Bug Fixes
+
+* **deps:** pin nuxt to 4.5.2 to restore the windows build ([f81367b](https://github.com/TitusKirch/glimpse/commit/f81367b6150c59ee4b4b11cda7c6d363d8a5810a))
+
 ## [0.16.1](https://github.com/TitusKirch/glimpse/compare/v0.16.0...v0.16.1) (2026-10-12)
 
 
