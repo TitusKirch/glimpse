@@ -21,7 +21,7 @@ permissions:
 jobs:
   check:
     name: CI
-    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@4749430b355865343a7f70c111eeeb2e1f3e430b # v0.10.0
+    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@4767c07534dcf886d6a387f29dc70a097b44c591 # v0.14.0
 
   # NO LONGER IN FRONT OF THE TAURI MATRIX — see `precheck` below for why, and
   # for what replaced it.
@@ -33,7 +33,7 @@ jobs:
   # contents and evicted each other. Naming the family is the whole fix.
   rust:
     name: Rust
-    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@4749430b355865343a7f70c111eeeb2e1f3e430b # v0.10.0
+    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@4767c07534dcf886d6a387f29dc70a097b44c591 # v0.14.0
     with:
       working-directory: src-tauri
       # Shares the dev-profile family `precheck` writes, and keeps both out of
