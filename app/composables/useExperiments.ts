@@ -1,4 +1,4 @@
-import { useNow } from '@vueuse/core';
+import { useIntervalFn, useNow } from '@vueuse/core';
 
 // Active experiments come from the public GitHub Releases API (no token needed,
 // ~60 req/h unauthenticated). The list is cached in the settings store; we fetch
@@ -10,7 +10,7 @@ const THROTTLE_MS = 60_000;
 
 export function useExperiments() {
   const settings = useSettingsStore();
-  const now = useNow({ interval: 1000 });
+  const now = useNow({ scheduler: (cb) => useIntervalFn(cb, 1000) });
 
   // True once the throttle window since the last fetch has elapsed.
   const canRefresh = computed(

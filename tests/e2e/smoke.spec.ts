@@ -21,7 +21,11 @@ describe('glimpse smoke', () => {
     const graph = await $('[data-testid="commit-graph"]');
     await graph.waitForDisplayed({ timeout: 60_000 });
 
-    const firstCommit = await $('[data-testid="commit-row"]');
+    // Every commit renders a row, and WebdriverIO 10 rejects a `$` that matches
+    // more than one element — the first match is the one meant here.
+    const firstCommit = await $('[data-testid="commit-row"]', {
+      strict: false
+    });
     await firstCommit.waitForDisplayed({ timeout: 60_000 });
     // A row exists and carries its commit's text — the subject/author line the
     // graph is there to show.
