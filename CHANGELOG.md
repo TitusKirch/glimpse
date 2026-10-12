@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.1](https://github.com/TitusKirch/glimpse/compare/v0.16.0...v0.16.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* **deps:** update the cargo lockfile to the latest compatible versions ([91d2ae2](https://github.com/TitusKirch/glimpse/commit/91d2ae29f24ba757e91bcf17bcdbf8e45f4736cf))
+* **deps:** update the cargo lockfile to the latest compatible versions ([c72426f](https://github.com/TitusKirch/glimpse/commit/c72426fa71b75dc811312fa8ad3693687058f2c7))
+* **deps:** update the npm dependencies to their latest major versions ([c8d5ce6](https://github.com/TitusKirch/glimpse/commit/c8d5ce697d65da9e22e06b966a7e935f312e4447))
+* **deps:** update the npm dependencies to their latest minor versions ([e6a494c](https://github.com/TitusKirch/glimpse/commit/e6a494c37368e08306811b311ec389ca5d8dc054))
+* **deps:** update the npm dependencies to their latest minor versions ([ee511ed](https://github.com/TitusKirch/glimpse/commit/ee511ede0b8550a87839f910b5154502c9822003))
+
 ## [0.16.0](https://github.com/TitusKirch/glimpse/compare/v0.15.1...v0.16.0) (2026-09-13)
 
 
