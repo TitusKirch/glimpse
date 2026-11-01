@@ -21,7 +21,7 @@ permissions:
 jobs:
   check:
     name: CI
-    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@4767c07534dcf886d6a387f29dc70a097b44c591 # v0.14.0
+    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@17381dcb03641c3e720449c345afeefa1365a329 # v0.17.0
 
   # NO LONGER IN FRONT OF THE TAURI MATRIX — see `precheck` below for why, and
   # for what replaced it.
@@ -33,7 +33,7 @@ jobs:
   # contents and evicted each other. Naming the family is the whole fix.
   rust:
     name: Rust
-    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@4767c07534dcf886d6a387f29dc70a097b44c591 # v0.14.0
+    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@17381dcb03641c3e720449c345afeefa1365a329 # v0.17.0
     with:
       working-directory: src-tauri
       # Shares the dev-profile family `precheck` writes, and keeps both out of
@@ -102,7 +102,7 @@ jobs:
       # below is the one that body runs, so the dependency graph they cache is
       # the same one and sharing the entry is exact rather than approximate.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: rust-dev
@@ -243,7 +243,7 @@ jobs:
       # this job and all three release chains — on one entry, and leaves the
       # dev-profile checks on `rust-dev`.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: tauri-release
@@ -381,7 +381,7 @@ jobs:
       # default) keeps the compiled `tauri-driver` below out of the critical
       # path on subsequent runs.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: rust-dev
