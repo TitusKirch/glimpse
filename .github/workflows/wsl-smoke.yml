@@ -95,7 +95,7 @@ jobs:
           sudo apt-get install -y musl-tools
 
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: wsl-payload
@@ -147,7 +147,7 @@ jobs:
       # The dev-profile family, shared with `ci.yml`'s `precheck`: same
       # workspace, same profile.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: rust-dev
@@ -155,7 +155,7 @@ jobs:
       # `git` is what `glimpse status` shells out to inside the distro — the
       # whole point of the native route — and a stock image does not carry it.
       - name: Install a WSL distro
-        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        uses: Vampire/setup-wsl@4c48163d9f981914dd8caa0fc335fe19cca5bff4 # v7.2.0
         with:
           distribution: Debian-13
           additional-packages: git
