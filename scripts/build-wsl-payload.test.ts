@@ -225,7 +225,7 @@ describe('build-wsl-payload', () => {
     // installer's second binary would then only ever be produced by CI, and a
     // human debugging the WSL route locally has to reverse-engineer the
     // invocation out of a workflow. The script, the package script and the
-    // agent files' Commands table are pinned to each other here, so a rename
+    // agent file's Commands table are pinned to each other here, so a rename
     // fails rather than leaving two of the three pointing at nothing.
     const pkg = JSON.parse(
       readFileSync(
@@ -240,13 +240,13 @@ describe('build-wsl-payload', () => {
     expect(pkg.scripts[PAYLOAD_SCRIPT]).toContain(
       `scripts/${basename(SCRIPT)}`
     );
-    // Both agent files, because they are kept byte-identical and a row added
-    // to one of them only is exactly the drift that rule exists to prevent.
-    for (const doc of ['../CLAUDE.md', '../AGENTS.md'])
-      expect(
-        readFileSync(fileURLToPath(new URL(doc, import.meta.url)), 'utf8'),
-        doc
-      ).toContain(`pnpm ${PAYLOAD_SCRIPT}`);
+    expect(
+      readFileSync(
+        fileURLToPath(new URL('../AGENTS.md', import.meta.url)),
+        'utf8'
+      ),
+      'AGENTS.md'
+    ).toContain(`pnpm ${PAYLOAD_SCRIPT}`);
   });
 
   it('merges the payload fragment into the chain that ships installers', () => {
