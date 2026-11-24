@@ -34,7 +34,7 @@ That's it. A slim, fast desktop client that shells out to your own `git` — no 
 - **🌳 Graph & history** — the full multi-branch commit graph, history search by message **or content** (pickaxe `-S`/`-G`), per-commit detail, GPG/SSH signature verification, and a repository-statistics panel (contributors, activity, file churn).
 - **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, collapsible unchanged regions, soft word-wrap, **image diffs** (side-by-side / onion-skin), ignore-whitespace, blame, and file history.
 - **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend (optionally signed, with an opt-in conventional-commit composer), and resolve conflicts whole-file or with a **region-by-region three-way merge editor**.
-- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — every read view the GUI has (`status`, `diff`, `log`, `show`, `history`, `blame`, `branches`, `stashes`, `reflog`, `worktrees`, `submodules`, `sparse`, `stats`, `info`), the working-tree writes (`stage`, `unstage`, `discard`, `commit`, `amend`) and `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents drive the repository exactly as the app does.
+- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — every read view the GUI has (`status`, `diff`, `log`, `show`, `history`, `blame`, `branches`, `tags`, `remotes`, `stashes`, `reflog`, `worktrees`, `submodules`, `sparse`, `stats`, `info`), the file-level writes (stage, commit, branches, tags, remotes, stashes, cherry-pick/revert/reset, fetch/pull/push, rebase/bisect/resolve, worktrees/submodules/sparse) and `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents drive the repository exactly as the app does.
 - **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), **annotated/signed tags**, and stash save/pop/apply/drop.
 - **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs **or two selected commits**, reflog recovery with one-click undo, **export/apply patches**, plus worktrees, submodules, and sparse-checkout.
 - **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
@@ -96,7 +96,7 @@ Download a build from the [latest release](https://github.com/TitusKirch/glimpse
 
 ### Manual setup (from source)
 
-Prerequisites: Node **24+**, **pnpm 11**, the **Rust toolchain**, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/) for your platform.
+Prerequisites: Node **24+**, **pnpm 12**, the **Rust toolchain**, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/) for your platform.
 
 ```bash
 git clone https://github.com/TitusKirch/glimpse.git
