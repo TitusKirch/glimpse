@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.16.3](https://github.com/TitusKirch/glimpse/compare/v0.16.2...v0.16.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **cli:** report the shipped version from beta builds ([64b6d48](https://github.com/TitusKirch/glimpse/commit/64b6d4830758a215ef83818f66db524711243527))
+* **deps:** move the nuxt pin to 4.6.4 ([9ccc2d3](https://github.com/TitusKirch/glimpse/commit/9ccc2d3f368c63a5b84344a57762a1640ec0e371))
+* **deps:** refresh transitive npm dependencies within their ranges ([05ce3c9](https://github.com/TitusKirch/glimpse/commit/05ce3c981c244f22eb59df989abf9cdafdc9bb38))
+* **deps:** update npm and cargo dependencies to their latest minor versions ([a763e24](https://github.com/TitusKirch/glimpse/commit/a763e24787b18f6917c7cea9b3156d45028a0e11))
+* **release:** build the linux packages on ubuntu 24.04 ([070e6bd](https://github.com/TitusKirch/glimpse/commit/070e6bd5d7ac80a38fb41b73b9d9a7a90e144f40))
+
 ## [0.16.2](https://github.com/TitusKirch/glimpse/compare/v0.16.1...v0.16.2) (2026-10-12)
 
 
