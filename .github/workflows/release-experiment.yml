@@ -71,7 +71,8 @@ jobs:
           PLATFORMS: ${{ inputs.platforms }}
         run: |
           node <<'NODE' >> "$GITHUB_OUTPUT"
-          const RUNNER = { mac: 'macos-latest', windows: 'windows-latest', linux: 'ubuntu-latest' };
+          // Linux on 24.04, not -latest: see the matrix note in release-stable.yml.
+          const RUNNER = { mac: 'macos-latest', windows: 'windows-latest', linux: 'ubuntu-24.04' };
           const raw = (process.env.PLATFORMS || 'all').trim().toLowerCase();
           let sel;
           if (raw === '' || raw === 'all') {

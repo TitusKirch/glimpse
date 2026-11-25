@@ -30,6 +30,9 @@ const SIDECAR_CONF = fileURLToPath(
 const LIB_RS = fileURLToPath(
   new URL('../src-tauri/src/lib.rs', import.meta.url)
 );
+const CLI_LIB_RS = fileURLToPath(
+  new URL('../src-tauri/crates/glimpse-cli/src/lib.rs', import.meta.url)
+);
 const LAUNCHER = fileURLToPath(new URL('./glimpse-wsl.sh', import.meta.url));
 
 // The package script that runs this file, named once so the guard below and a
@@ -225,7 +228,7 @@ describe('build-wsl-payload', () => {
     // installer's second binary would then only ever be produced by CI, and a
     // human debugging the WSL route locally has to reverse-engineer the
     // invocation out of a workflow. The script, the package script and the
-    // agent files' Commands table are pinned to each other here, so a rename
+    // agent file's Commands table are pinned to each other here, so a rename
     // fails rather than leaving two of the three pointing at nothing.
     const pkg = JSON.parse(
       readFileSync(
@@ -240,13 +243,43 @@ describe('build-wsl-payload', () => {
     expect(pkg.scripts[PAYLOAD_SCRIPT]).toContain(
       `scripts/${basename(SCRIPT)}`
     );
-    // Both agent files, because they are kept byte-identical and a row added
-    // to one of them only is exactly the drift that rule exists to prevent.
-    for (const doc of ['../CLAUDE.md', '../AGENTS.md'])
-      expect(
-        readFileSync(fileURLToPath(new URL(doc, import.meta.url)), 'utf8'),
-        doc
-      ).toContain(`pnpm ${PAYLOAD_SCRIPT}`);
+    expect(
+      readFileSync(
+        fileURLToPath(new URL('../AGENTS.md', import.meta.url)),
+        'utf8'
+      ),
+      'AGENTS.md'
+    ).toContain(`pnpm ${PAYLOAD_SCRIPT}`);
+  });
+
+  it('stamps the shipped version into every glimpse-cli the chain builds', () => {
+    // `glimpse --version` reads `GLIMPSE_VERSION` at compile time and falls
+    // back to the crate's own version. A beta is built from `dev`, whose crate
+    // versions lag behind release-please's bumps on `main`, so without the
+    // stamp `v0.16.3-beta.1` shipped a command line reporting `0.15.1`. Both
+    // places that compile the binary — the sidecar inside the tauri-action
+    // step and the musl payload — have to be handed the version.
+    const yaml = readFileSync(join(WORKFLOWS, '_tauri-build.yml'), 'utf8');
+    const stepBodies = yaml.split(/^\s*- (?:name|uses):/m).map((step) =>
+      step
+        .split('\n')
+        .filter((line) => !/^\s*#/.test(line))
+        .join('\n')
+    );
+    const builds = stepBodies.filter(
+      (body) =>
+        /tauri-apps\/tauri-action/.test(body) ||
+        /node scripts\/build-wsl-payload\.ts/.test(body)
+    );
+    // A guard that matches nothing passes for free — name the count first.
+    expect(builds).toHaveLength(2);
+    for (const body of builds)
+      expect(body, body.split('\n')[0]).toMatch(
+        /GLIMPSE_VERSION: \$\{\{ inputs\.version \}\}/
+      );
+    expect(readFileSync(CLI_LIB_RS, 'utf8')).toMatch(
+      /option_env!\("GLIMPSE_VERSION"\)/
+    );
   });
 
   it('merges the payload fragment into the chain that ships installers', () => {

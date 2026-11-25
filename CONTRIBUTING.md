@@ -1,27 +1,17 @@
 # Contributing to glimpse
 
-Thanks for taking the time to contribute! 👀 This document covers what you need to get a PR landed.
-
-## Code of Conduct
-
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to uphold it.
+Thanks for contributing! 👀 This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Reporting issues
 
-- **Bugs**: open a [Bug report](https://github.com/TitusKirch/glimpse/issues/new?template=bug_report.yml) with a minimal reproduction if at all possible.
-- **Feature requests**: open a [Feature request](https://github.com/TitusKirch/glimpse/issues/new?template=feature_request.yml).
-- **Questions & ideas, or something that might be a bug**: start in the [Discord forum](https://discord.kirch.dev/) — that's where the low-friction, unconfirmed stuff lives.
-- **Security vulnerabilities**: **do not** open a public issue. Follow [SECURITY.md](SECURITY.md).
+- **Bugs:** [Bug report](https://github.com/TitusKirch/glimpse/issues/new?template=bug_report.yml), with a minimal reproduction if possible.
+- **Features:** [Feature request](https://github.com/TitusKirch/glimpse/issues/new?template=feature_request.yml).
+- **Questions, ideas or possible bugs:** the [Discord forum](https://discord.kirch.dev/).
+- **Security vulnerabilities:** never a public issue. Follow [SECURITY.md](SECURITY.md).
 
-## Development setup
+## Setup
 
-Requirements:
-
-- Node **24+** and **pnpm 11**
-- The **Rust toolchain** (stable) and the [Tauri system prerequisites](https://tauri.app/start/prerequisites/) for your OS
-- `git`
-
-Clone and install:
+You need Node **24+**, **pnpm 12**, stable **Rust** with the [Tauri prerequisites](https://tauri.app/start/prerequisites/), and `git`.
 
 ```bash
 git clone https://github.com/TitusKirch/glimpse.git
@@ -29,41 +19,19 @@ cd glimpse
 pnpm install   # wires husky hooks
 ```
 
-## Running the suite
+`pnpm check` runs the CI gate (lint, format, typecheck, `cargo fmt`, tests), and `pnpm check:fix` auto-fixes what it can. The full command list is in [AGENTS.md](AGENTS.md#commands).
 
-| Command          | What it does                              |
-| :--------------- | :---------------------------------------- |
-| `pnpm lint`      | oxlint across the repo.                   |
-| `pnpm format`    | oxfmt check across JS / JSON / YAML / MD. |
-| `pnpm typecheck` | vue-tsc over the app, SFCs included.      |
-| `pnpm check`     | Runs the full gate.                       |
-| `pnpm check:fix` | Auto-fix lint + format issues.            |
+## Branches, commits and PRs
 
-The same commands run in CI — keep them green before you push.
+- Branch off `dev` and open PRs against `dev`. `main` only receives release promotions.
+- Use [Conventional Commits](https://www.conventionalcommits.org/), which commitlint enforces. Mark breaking changes with `!` or a `BREAKING CHANGE:` footer.
+- Keep one concern per PR, and update the README or docs when you change behaviour or a default.
+- Husky runs oxlint/oxfmt (JS/TS/JSON/YAML/TOML/MD) and rustfmt (`*.rs`) on commit. Fix any failure instead of using `--no-verify`.
 
-## Branching & PRs
+## Coding agents
 
-1. **Don't push directly to `main`.** Branch off `main` for every change.
-2. **Conventional Commits required.** Commitlint enforces this on every commit. Examples:
-   - `feat: add side-by-side diff view`
-   - `fix(watcher): debounce rapid FS events`
-   - `docs(readme): clarify setup steps`
-   - `chore(deps): bump oxlint to 1.67`
-   - Breaking changes: `feat!: ...` or include `BREAKING CHANGE:` in the body.
-3. **One concern per PR.** Smaller PRs land faster.
-4. **Update relevant docs.** README, CONTRIBUTING, or comments if you change a default.
-
-## Style & quality gates
-
-Husky runs the following on `git commit`:
-
-- **JS / JSON / YAML / MD** → `oxlint` + `oxfmt`
-
-If a hook fails, fix the issue and commit again. **Don't `--no-verify`** unless I explicitly ask.
-
-> [!TIP]
-> Run `pnpm check:fix` before opening a PR — saves a CI cycle.
+Agent instructions live in [AGENTS.md](AGENTS.md). Claude Code (v2.1.277+) loads it on its own as long as no `CLAUDE.md` or `CLAUDE.local.md` is in the working directory or above it. Don't add a `CLAUDE.md`; a personal `CLAUDE.local.md` stays untracked.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+Contributions are licensed under the [MIT License](LICENSE).

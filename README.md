@@ -25,39 +25,6 @@ wsl.exe -d Ubuntu --cd /home/you/repo --exec git log --graph # a \\wsl$ repo →
 
 That's it. A slim, fast desktop client that shells out to your own `git` — no reimplemented engine, no Chromium, and on Windows it transparently uses WSL git for repos that live in the WSL filesystem.
 
-## ✨ Features
-
-- **🪶 Featherweight** — built on [Tauri](https://tauri.app/), it uses the OS-native WebView (WebView2 / WebKitGTK) instead of bundling Chromium. Small disk and RAM footprint.
-- **🧬 Git-native** — never reimplements git; it shells out to your real `git` binary and parses its porcelain output. Your config, hooks, and credentials apply unchanged, glimpse stores no secrets, signs commits and tags with your GPG/SSH key when configured, and Git LFS-tracked files are detected and surfaced.
-- **🪟 First-class WSL (Windows)** — a `\\wsl$` repository is driven through that distro's git automatically, while Windows-path repos use Windows git. No setup; a per-repo override can still pin the git binary or WSL distro.
-- **📂 Get a repo** — open a local folder, **clone** a remote, or **init** a brand-new repository.
-- **🌳 Graph & history** — the full multi-branch commit graph, history search by message **or content** (pickaxe `-S`/`-G`), per-commit detail, GPG/SSH signature verification, and a repository-statistics panel (contributors, activity, file churn).
-- **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, collapsible unchanged regions, soft word-wrap, **image diffs** (side-by-side / onion-skin), ignore-whitespace, blame, and file history.
-- **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend (optionally signed, with an opt-in conventional-commit composer), and resolve conflicts whole-file or with a **region-by-region three-way merge editor**.
-- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — every read view the GUI has (`status`, `diff`, `log`, `show`, `history`, `blame`, `branches`, `stashes`, `reflog`, `worktrees`, `submodules`, `sparse`, `stats`, `info`), the working-tree writes (`stage`, `unstage`, `discard`, `commit`, `amend`) and `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents drive the repository exactly as the app does.
-- **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), **annotated/signed tags**, and stash save/pop/apply/drop.
-- **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs **or two selected commits**, reflog recovery with one-click undo, **export/apply patches**, plus worktrees, submodules, and sparse-checkout.
-- **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
-- **⌨️ Fast workflow** — command palette, **global fuzzy quick-open** (files / branches / commits), keyboard shortcuts, drag-reorderable multi-repo tabs, a resizable sidebar, recent repos, and "open in editor / terminal / file manager".
-- **🌓 Themed & localized** — dark/light follows the OS (manually switchable), with a localized UI.
-
-<details>
-<summary>Full feature list</summary>
-
-- **Repositories** — open a local folder, clone a remote, or initialise a new repository.
-- **Viewing** — multi-branch commit graph, commit search by message or content (pickaxe `-S`/`-G`), side-by-side / unified / whole-file diffs with syntax highlighting, word-level diff, collapsible unchanged regions and soft word-wrap, image diffs (side-by-side / onion-skin), ignore-whitespace, blame, file history, list/tree file view, compare any two refs or two selected commits, repository statistics (contributors / activity / churn), GPG/SSH signature verification status, Git LFS-tracked files flagged.
-- **Staging & commits** — stage / unstage by file, hunk, or line, discard by file or hunk, discard all, commit, `commit --amend`, optional GPG/SSH commit signing, an opt-in conventional-commit composer (toggleable globally or per repo), conflict resolution (use ours/theirs, mark resolved, or a region-by-region three-way merge editor).
-- **Changelists** — group pending changes into named lists over one working tree (file-level, JetBrains-style; a permanent Default list, new changes routed to the active list), commit one list at a time without staging the rest. Enabled by default (toggle in Settings → Git for the classic staged/unstaged view). Membership is persisted git-natively (`<git-dir>/glimpse/changelists.json`, versioned and human-readable) and drivable from a bundled headless CLI (`glimpse cl ls|add|mv|rm|active|commit`, with `--json` and `-C <dir>`) for scripts and AI agents. An opt-in extra lets you review & commit only selected hunks of a list from the GUI.
-- **Branches & tags** — create / switch / rename / delete branches, branch from a commit, publish (set upstream), merge in either direction, create / delete / push tags (lightweight, annotated, or signed), checkout a commit (detached HEAD).
-- **History rewriting** — cherry-pick / revert (one or many commits, incl. merge reverts), reset (soft / mixed / hard), rebase onto another ref or interactively (reword / squash / fixup / drop / reorder), guided bisect, reflog recovery view with undo-last-action, export commits as `.patch` and apply patches (`am` / `apply`).
-- **Stash** — save (selected paths, optionally including untracked), pop, apply, drop, preview contents.
-- **Worktrees, submodules & sparse-checkout** — list / add / remove / open linked worktrees, list / update / sync submodules, enable / disable and edit sparse-checkout paths.
-- **Remotes & sync** — add / rename / remove remotes, fetch, pull (incl. rebase, with per-pull strategy), push (set-upstream, `--force-with-lease`), push tags.
-- **Git settings — global defaults, overridable per repo** — git identity, commit/tag signing, the git target (auto / native / WSL distro / explicit git path), the conventional-commit composer, and SSH keys & credential helper are all configured globally; a single per-repository switch overrides any of them — including which SSH key the repo authenticates with (`core.sshCommand`). WSL-aware and environment-labelled, with one-click ed25519 generation.
-- **App** — command palette, global fuzzy quick-open (files / branches / commits), keyboard shortcuts, drag-reorderable multi-repo tabs, resizable sidebar, recent repositories, open in editor / terminal / file manager, built-in auto-update.
-
-</details>
-
 ## 📦 Stack
 
 [Tauri](https://tauri.app/) (Rust) shell + [Nuxt 4](https://nuxt.com/) (Vue 3) SPA, [Tailwind v4](https://tailwindcss.com/) + [shadcn-vue](https://www.shadcn-vue.com/), with git accessed by shelling out to the system binary.
@@ -96,7 +63,7 @@ Download a build from the [latest release](https://github.com/TitusKirch/glimpse
 
 ### Manual setup (from source)
 
-Prerequisites: Node **24+**, **pnpm 11**, the **Rust toolchain**, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/) for your platform.
+Prerequisites: Node **24+**, **pnpm 12**, the **Rust toolchain**, and the [Tauri system dependencies](https://tauri.app/start/prerequisites/) for your platform.
 
 ```bash
 git clone https://github.com/TitusKirch/glimpse.git
@@ -107,6 +74,39 @@ pnpm tauri dev    # desktop dev shell
 
 > [!TIP]
 > For fast UI iteration you can run `pnpm dev` (the Nuxt dev server) and open `http://localhost:3210` in a browser — backend IPC is mocked when not running under Tauri.
+
+## ✨ Features
+
+- **🪶 Featherweight** — built on [Tauri](https://tauri.app/), it uses the OS-native WebView (WebView2 / WebKitGTK) instead of bundling Chromium. Small disk and RAM footprint.
+- **🧬 Git-native** — never reimplements git; it shells out to your real `git` binary and parses its porcelain output. Your config, hooks, and credentials apply unchanged, glimpse stores no secrets, signs commits and tags with your GPG/SSH key when configured, and Git LFS-tracked files are detected and surfaced.
+- **🪟 First-class WSL (Windows)** — a `\\wsl$` repository is driven through that distro's git automatically, while Windows-path repos use Windows git. No setup; a per-repo override can still pin the git binary or WSL distro.
+- **📂 Get a repo** — open a local folder, **clone** a remote, or **init** a brand-new repository.
+- **🌳 Graph & history** — the full multi-branch commit graph, history search by message **or content** (pickaxe `-S`/`-G`), per-commit detail, GPG/SSH signature verification, and a repository-statistics panel (contributors, activity, file churn).
+- **🔍 Rich diffs** — side-by-side, unified, or whole-file, with syntax highlighting, word-level diff, collapsible unchanged regions, soft word-wrap, **image diffs** (side-by-side / onion-skin), ignore-whitespace, blame, and file history.
+- **✏️ Stage & commit** — stage/unstage by file, **hunk, or line**, discard, commit, amend (optionally signed, with an opt-in conventional-commit composer), and resolve conflicts whole-file or with a **region-by-region three-way merge editor**.
+- **🗂️ Changelists & a headless CLI** — group pending changes into named sets (JetBrains-style) and commit one set at a time, with membership stored as a **git-native, human-readable JSON file**. The same binary answers from a terminal with no window open — every read view the GUI has (`status`, `diff`, `log`, `show`, `history`, `blame`, `branches`, `tags`, `remotes`, `stashes`, `reflog`, `worktrees`, `submodules`, `sparse`, `stats`, `info`), the file-level writes (stage, commit, branches, tags, remotes, stashes, cherry-pick/revert/reset, fetch/pull/push, rebase/bisect/resolve, worktrees/submodules/sparse) and `glimpse cl …`, every one of them with `--json` and `-C <dir>` — so scripts, CI and AI agents drive the repository exactly as the app does.
+- **🌿 Branches, tags & stashes** — create/switch/rename/delete branches, merge, cherry-pick, revert, reset (soft/mixed/hard), **annotated/signed tags**, and stash save/pop/apply/drop.
+- **🛠️ Advanced git** — rebase (interactive or onto a ref), guided bisect, compare any two refs **or two selected commits**, reflog recovery with one-click undo, **export/apply patches**, plus worktrees, submodules, and sparse-checkout.
+- **🔄 Live refresh** — a debounced filesystem watcher repaints status, diff, and graph as files change, with manual and on-window-focus refresh as fallback.
+- **⌨️ Fast workflow** — command palette, **global fuzzy quick-open** (files / branches / commits), keyboard shortcuts, drag-reorderable multi-repo tabs, a resizable sidebar, recent repos, and "open in editor / terminal / file manager".
+- **🌓 Themed & localized** — dark/light follows the OS (manually switchable), with a localized UI.
+
+<details>
+<summary>Full feature list</summary>
+
+- **Repositories** — open a local folder, clone a remote, or initialise a new repository.
+- **Viewing** — multi-branch commit graph, commit search by message or content (pickaxe `-S`/`-G`), side-by-side / unified / whole-file diffs with syntax highlighting, word-level diff, collapsible unchanged regions and soft word-wrap, image diffs (side-by-side / onion-skin), ignore-whitespace, blame, file history, list/tree file view, compare any two refs or two selected commits, repository statistics (contributors / activity / churn), GPG/SSH signature verification status, Git LFS-tracked files flagged.
+- **Staging & commits** — stage / unstage by file, hunk, or line, discard by file or hunk, discard all, commit, `commit --amend`, optional GPG/SSH commit signing, an opt-in conventional-commit composer (toggleable globally or per repo), conflict resolution (use ours/theirs, mark resolved, or a region-by-region three-way merge editor).
+- **Changelists** — group pending changes into named lists over one working tree (file-level, JetBrains-style; a permanent Default list, new changes routed to the active list), commit one list at a time without staging the rest. Enabled by default (toggle in Settings → Git for the classic staged/unstaged view). Membership is persisted git-natively (`<git-dir>/glimpse/changelists.json`, versioned and human-readable) and drivable from a bundled headless CLI (`glimpse cl ls|add|mv|rm|active|commit`, with `--json` and `-C <dir>`) for scripts and AI agents. An opt-in extra lets you review & commit only selected hunks of a list from the GUI.
+- **Branches & tags** — create / switch / rename / delete branches, branch from a commit, publish (set upstream), merge in either direction, create / delete / push tags (lightweight, annotated, or signed), checkout a commit (detached HEAD).
+- **History rewriting** — cherry-pick / revert (one or many commits, incl. merge reverts), reset (soft / mixed / hard), rebase onto another ref or interactively (reword / squash / fixup / drop / reorder), guided bisect, reflog recovery view with undo-last-action, export commits as `.patch` and apply patches (`am` / `apply`).
+- **Stash** — save (selected paths, optionally including untracked), pop, apply, drop, preview contents.
+- **Worktrees, submodules & sparse-checkout** — list / add / remove / open linked worktrees, list / update / sync submodules, enable / disable and edit sparse-checkout paths.
+- **Remotes & sync** — add / rename / remove remotes, fetch, pull (incl. rebase, with per-pull strategy), push (set-upstream, `--force-with-lease`), push tags.
+- **Git settings — global defaults, overridable per repo** — git identity, commit/tag signing, the git target (auto / native / WSL distro / explicit git path), the conventional-commit composer, and SSH keys & credential helper are all configured globally; a single per-repository switch overrides any of them — including which SSH key the repo authenticates with (`core.sshCommand`). WSL-aware and environment-labelled, with one-click ed25519 generation.
+- **App** — command palette, global fuzzy quick-open (files / branches / commits), keyboard shortcuts, drag-reorderable multi-repo tabs, resizable sidebar, recent repositories, open in editor / terminal / file manager, built-in auto-update.
+
+</details>
 
 ## 🧬 Git-native & WSL
 
@@ -144,6 +144,11 @@ glimpse stats                  # commits, contributors, activity, churn
 glimpse info                   # branch, remotes, tags, stashes, git flavour
 glimpse --help                 # every command, with its options
 ```
+
+Every write follows the same shape — the working-tree writes, then a group name plus a verb for branches, tags, remotes and stashes, the network operations, history moves, the flows that pause, and the layout writes.
+
+<details>
+<summary>All write commands</summary>
 
 Changing the repository works the same way:
 
@@ -229,7 +234,12 @@ glimpse sparse set app src            # narrow the working tree to those directo
 glimpse sparse disable                # …and restore the whole tree
 ```
 
+</details>
+
 Two options apply to all of them: `--json` emits machine-readable output — the very same camelCase contract the GUI receives over IPC, with **every** failure reported as `{"error": …}` on stderr, a misspelled flag included — and `-C <dir>` targets a repository other than the current directory. Both may be written **before** the command as well as after it, so `glimpse -C <dir> status` and `glimpse status -C <dir>` mean the same thing. A write answers with what it did (`{"action": "commit", "detail": …, "commit": "<hash>"}`), so a script never needs a second command to find out whether the first one landed.
+
+<details>
+<summary>Paths, safety rules and window refresh</summary>
 
 Every path argument means the same thing on every command: **relative to the repository root**, the spelling `glimpse status` prints and `--json` reports back — whichever directory you run from. So the obvious pipeline (read paths out of one command, hand them to the next) holds from a subdirectory too, which is where a script, a CI job or an agent usually finds itself. The one exception is a **linked worktree**: `glimpse worktree add` and `glimpse worktree remove` report the absolute path git itself prints, because a second working tree normally lives *outside* the repository root — a repo-root-relative spelling for it would be a chain of `../` or simply untrue. `-C <dir>` is the other argument that is not repo-root-relative; it is what picks the repository in the first place.
 
@@ -252,6 +262,8 @@ Every path argument means the same thing on every command: **relative to the rep
 
 When a glimpse window is open on the same repository, it refreshes as soon as a write command succeeds — the CLI leaves a small receipt in the repository's git dir (`<git-dir>/glimpse/last-write.json`) that the window watches directly, instead of waiting on its debounced filesystem watcher. That notification is **best-effort**: if it cannot be written, the command that already succeeded still succeeds.
 
+</details>
+
 ### From a WSL shell
 
 Inside a WSL distro `glimpse` is a small launcher, and it tells a **path** from a **subcommand** the way the binary does — `glimpse .` opens a window on that repository, `glimpse status` runs headlessly:
@@ -264,12 +276,20 @@ glimpse cl ls --json
 
 A subcommand takes the shortest route available. If the distro has a **native** glimpse command line — the Linux `glimpse-cli` binary, or the Linux package's own `glimpse` — it runs there, driving the distro's git directly with nothing crossing the Windows boundary. Otherwise it is **forwarded to `glimpse.exe`** (or to the console binary beside it, whose output is not the best-effort console attach a GUI program has to make do with), with the repository translated to its `\\wsl.localhost\<distro>\…` form by `wslpath -w` — glimpse's engine routes that straight back through `wsl.exe -d <distro>`, so the same repository answers either way. Only `-C` crosses as a path; every other path argument is repo-root-relative on both sides and is passed through exactly as you wrote it.
 
+<details>
+<summary>What stays GUI-only, where the routes come from, and when forwarding cannot be taken</summary>
+
 > [!NOTE]
 > **What stays a GUI job.** The command line works at **file** granularity, so staging, discarding or committing only *part* of a file is the GUI's (hunk- and line-level, an opt-in extra under **Settings → Git**). So are the actions whose whole point is the window: rewriting history interactively — reword, squash, fixup, drop, reorder (`glimpse rebase` *replays* a branch, it does not rewrite it) — the three-way merge editor's save, importing and exporting patches, checking out a detached commit, and cloning or initialising a repository. Everything else the app can do to a repository is above, `--json` and `-C` included: the working-tree writes, the commit writes, the refs-and-metadata group, the network operations, the paused flows and the layout writes.
 >
 > **Where the two routes come from.** The command line ships with the app as a Tauri sidecar: the `.deb` carries `glimpse-cli` on `PATH` beside `glimpse` (measured), and the same bundler list puts it into the `.rpm` and `.AppImage`, and `glimpse-cli.exe` beside `glimpse.exe` in the Windows installer — those three are Tauri's documented sidecar behaviour rather than something anyone here has opened and looked at. Installing the Linux package *inside* a distro gives that distro the native route; so, now, does **Settings → General → Command line** in the Windows app, which drops a **static Linux `glimpse-cli`** into every installed distro at `/usr/local/lib/glimpse/glimpse-cli` alongside the launcher. It is built for `x86_64-unknown-linux-musl` — static, so it runs in Ubuntu, Debian, Alpine or a decade-old image without matching anyone's glibc — and it is chosen per distro by what `uname -m` answers, so an ARM64 Windows host simply keeps the forwarding route rather than being handed a binary it cannot run. Like the launcher install itself, it is **best-effort**: a distro that refuses it is a slower distro, never a failed install, and the report names which route each distro ended up with.
 >
 > **When forwarding cannot be taken.** Forwarding is a Linux shell running a Windows program, which the kernel allows only while `binfmt_misc` holds a `WSLInterop` handler for one — and on a distro that boots systemd, `systemd-binfmt` can flush that handler after WSL registered it. The launcher checks before it forwards and says so, naming the handler, instead of leaving you with the shell's bare `Exec format error`; `wsl.exe --shutdown` from Windows restarts the distro and puts the handler back, and a distro with the native command line in it never needs the handler at all.
+
+> [!NOTE]
+> On Windows, `glimpse.exe` is a GUI program attaching to its parent console, so its output there is best-effort. The installer therefore also ships `glimpse-cli.exe` — the same command line built as a real console program — beside it, and the WSL launcher prefers it whenever it is there. The Linux packages ship the same binary as `glimpse-cli`. (Verified on the `.deb`; the Windows placement is Tauri's documented behaviour, not yet an observation.)
+
+</details>
 
 ### Changelists
 
@@ -298,9 +318,6 @@ glimpse cl ls --json                          # machine-readable state (the file
 > [!TIP]
 > Because the state is a plain JSON file in the git directory (reachable across the `\\wsl$` share on Windows) and a list-commit never touches the staging index, **scripts and AI coding agents can read and drive changelists too** — carving a sprawling diff into reviewable, separately-committable sets, deterministically, without the GUI.
 
-> [!NOTE]
-> On Windows, `glimpse.exe` is a GUI program attaching to its parent console, so its output there is best-effort. The installer therefore also ships `glimpse-cli.exe` — the same command line built as a real console program — beside it, and the WSL launcher prefers it whenever it is there. The Linux packages ship the same binary as `glimpse-cli`. (Verified on the `.deb`; the Windows placement is Tauri's documented behaviour, not yet an observation.)
-
 ## 🧪 Development
 
 `pnpm tauri dev` for the desktop shell, `pnpm dev` for fast browser iteration, `pnpm check` for the CI gate. Rust unit tests cover the risky backend logic — git output parsing and WSL path translation — and CI builds across a Linux + Windows + macOS matrix (`cargo fmt --check`, `clippy -D warnings`, `cargo test`, `tauri build`).
@@ -315,28 +332,7 @@ The Rust side is a **cargo workspace** rooted at `src-tauri/`:
 
 `glimpse-core` carries **no Tauri dependency** — that is what lets the CLI run where no desktop exists, and CI proves it on every pull request with `cargo tree --package glimpse-core`.
 
-<details>
-<summary>All commands</summary>
-
-| Command            | What it does                                  |
-| :----------------- | :-------------------------------------------- |
-| `pnpm dev`         | Nuxt dev server (browser-testable, mocked IPC) |
-| `pnpm tauri dev`   | Desktop dev shell                             |
-| `pnpm tauri build` | Compile the desktop app (no command line in it) |
-| `pnpm tauri:build` | Packaged installers, `glimpse-cli` included   |
-| `pnpm test`        | Frontend unit tests (Vitest)                  |
-| `pnpm lint`        | `oxlint . --deny-warnings`                    |
-| `pnpm format`      | `oxfmt --check .`                             |
-| `pnpm typecheck`   | `vue-tsc` over app, e2e suite, Node tooling   |
-| `pnpm cargofmt`    | `cargo fmt --check` for the Rust backend      |
-| `pnpm cargo:update`   | Refresh Rust deps within semver            |
-| `pnpm cargo:outdated` | Show major Rust-dep upgrades (needs `cargo-edit`) |
-| `pnpm cargo:upgrade`  | Apply major Rust-dep upgrades (needs `cargo-edit`) |
-| `pnpm check`       | `lint` + `format` + `typecheck` + `cargofmt` + `test` — the CI gate |
-| `pnpm check:fix`   | Auto-fix lint, format, and Rust formatting    |
-| `pnpm perf:baseline` | Re-measure the performance baseline below     |
-
-</details>
+Every script is in [`package.json`](package.json); the command reference with what each one does is in [AGENTS.md](AGENTS.md#commands). The Rust dependency scripts are `pnpm cargo:update` (refresh within semver), `pnpm cargo:outdated` and `pnpm cargo:upgrade` (show / apply major upgrades; both need `cargo-edit`).
 
 ## ⚡ Performance baseline
 
@@ -347,6 +343,9 @@ The feature list above claims a **small disk and RAM footprint**. These are the 
 | **Linux** — x86-64, Ubuntu 22.04 on WSL2/WSLg, WebKitGTK 2.50.4 (no GPU) |  **1488 ms** |          **697 MiB** |       **8.5 MiB** (`.deb`) |
 | **Windows** — x86-64, WebView2, GitHub Actions `windows-latest`          | **723 ms** † |        **410 MiB** † | **5.0 MiB** (`-setup.exe`) |
 | **macOS** — Apple Silicon, WKWebView                                     | not measured |         not measured |               not measured |
+
+<details>
+<summary>How it was measured, and what the numbers do not say</summary>
 
 † **The two Windows timings are CI numbers and the Linux ones are not — the rows are not the same kind of measurement.** Startup and RSS on that row come from a shared, virtualised GitHub-hosted runner (`windows-latest`, image `windows-2025-vs2026` `20260824.214.3`, Windows Server 2025, no GPU): reproducible run to run, but not what a desktop sees, while the Linux row was taken on real hardware. The **sizes carry no dagger because they need none** — they are properties of the build rather than of the machine that measured it. A *rebuild* still moves the installer by a few kilobytes, because NSIS compresses a binary that is not bit-reproducible; that is why it is quoted to one decimal.
 
@@ -360,6 +359,8 @@ Each row is the median of five launches, each opening this repository. **Linux**
 > [!IMPORTANT]
 > **macOS says "not measured" because it was not measured, not because it is unmeasurable.** The script carries a code path for all three platforms — process-tree memory and profile isolation are the two things that cannot be written once — but it has never run on a Mac: macOS compiles in CI here and is tested by nobody. Anyone on one can fill the row in by running `pnpm perf:baseline` there.
 
+</details>
+
 ## 🎨 Assets & branding
 
 > [!NOTE]
@@ -367,6 +368,9 @@ Each row is the median of five launches, each opening this repository. **Linux**
 
 - **Source logo:** `assets/logo.png` (643×643). The platform icon set in `src-tauri/icons/` is regenerated from it via `pnpm tauri icon assets/logo.png`.
 - **Display variants:** `assets/logo_256x256.png` (README hero) and `public/logo.png` + `public/logo_128x128.png` (served in-app — sidebar header, About screen).
+
+<details>
+<summary>Brand colours</summary>
 
 **Brand colours** — the logo is a deep indigo→violet gradient (hue ≈ 289°) with a white mark, read straight from the artwork:
 
@@ -376,6 +380,8 @@ Each row is the median of five launches, each opening this repository. **Linux**
 | Gradient (base)   | `#202050` | `oklch(0.274 0.086 279)`  |
 | Gradient (violet) | `#403090` | `oklch(0.388 0.151 285)`  |
 | Mark              | `#FFFFFF` | `oklch(1 0 0)`            |
+
+</details>
 
 ## 🤝 Contributing
 

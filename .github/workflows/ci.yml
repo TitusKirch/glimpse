@@ -21,7 +21,7 @@ permissions:
 jobs:
   check:
     name: CI
-    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@4767c07534dcf886d6a387f29dc70a097b44c591 # v0.14.0
+    uses: kirchDev/workflows/.github/workflows/_ci-check.yml@1d7a1746b99aa4e6c717d044f37ea98d3a8f6bfc # v0.18.0
 
   # NO LONGER IN FRONT OF THE TAURI MATRIX — see `precheck` below for why, and
   # for what replaced it.
@@ -33,7 +33,7 @@ jobs:
   # contents and evicted each other. Naming the family is the whole fix.
   rust:
     name: Rust
-    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@4767c07534dcf886d6a387f29dc70a097b44c591 # v0.14.0
+    uses: kirchDev/workflows/.github/workflows/_ci-rust.yml@1d7a1746b99aa4e6c717d044f37ea98d3a8f6bfc # v0.18.0
     with:
       working-directory: src-tauri
       # Shares the dev-profile family `precheck` writes, and keeps both out of
@@ -102,7 +102,7 @@ jobs:
       # below is the one that body runs, so the dependency graph they cache is
       # the same one and sharing the entry is exact rather than approximate.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: rust-dev
@@ -160,7 +160,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # HELD at v6.0.10 for the reason spelled out on the matrix job below.
+      # Pinned for the reason spelled out on the matrix job below.
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@v7
@@ -203,12 +203,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # HELD at v6.0.10 deliberately — do not bump without checking Windows.
-      # v6.1.0 (d9184bf) leaves `pnpm` unrunnable on windows-latest: the shell
-      # finds nothing to run, so `pnpm install` and `pnpm tauri build` each
-      # return 0 in about a second having done nothing, and the job goes green
-      # without building. `_tauri-build.yml` is on this same sha. Cause: #164;
-      # #166 tracks lifting the hold once upstream ships a fix.
+      # Do not bump without checking Windows in the job LOG, not its colour.
+      # d9184bf leaves `pnpm` unrunnable on windows-latest: the shell finds
+      # nothing to run, so `pnpm install` and `pnpm tauri build` each return 0
+      # in about a second having done nothing, and the job goes green without
+      # building (#164, #166). This sha (ea17c68, v6.1.0) is the one v0.16.2's
+      # Windows installer was actually built and signed with. `_tauri-build.yml`
+      # is on this same sha.
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@v7
@@ -243,7 +244,7 @@ jobs:
       # this job and all three release chains — on one entry, and leaves the
       # dev-profile checks on `rust-dev`.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: tauri-release
@@ -347,7 +348,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # HELD at v6.0.10 for the reason spelled out on the matrix job above.
+      # Pinned for the reason spelled out on the matrix job above.
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@v7
@@ -355,12 +356,17 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      # `webkit2gtk-driver` is what provides `WebKitWebDriver`, and `xvfb` the
-      # display the webview needs on a headless runner — neither is implied by
-      # the build dependencies the other jobs install.
+      # The WebKit WebDriver package is what provides `WebKitWebDriver`, and
+      # `xvfb` the display the webview needs on a headless runner — neither is
+      # implied by the build dependencies the other jobs install. The package
+      # was renamed: Ubuntu 26.04 (today's `ubuntu-latest`) ships it as
+      # `webkitgtk-webdriver`, older releases as `webkit2gtk-driver`, so apt is
+      # asked which one exists rather than one name being pinned.
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
+          driver=webkitgtk-webdriver
+          apt-cache show "$driver" > /dev/null 2>&1 || driver=webkit2gtk-driver
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
@@ -370,7 +376,7 @@ jobs:
             build-essential \
             file \
             wget \
-            webkit2gtk-driver \
+            "$driver" \
             xvfb
 
       - name: Set up Rust
@@ -381,7 +387,7 @@ jobs:
       # default) keeps the compiled `tauri-driver` below out of the critical
       # path on subsequent runs.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: rust-dev

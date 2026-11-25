@@ -122,7 +122,7 @@ jobs:
           sudo apt-get install -y musl-tools
 
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: wsl-payload
@@ -131,6 +131,9 @@ jobs:
       # builtins and a sibling script, so the dependency tree is not needed to
       # run it — and skipping it is most of this job's wall clock.
       - name: Build and stage the payload
+        env:
+          # What `glimpse --version` reports — see `GLIMPSE_VERSION` below.
+          GLIMPSE_VERSION: ${{ inputs.version }}
         run: node scripts/build-wsl-payload.ts
 
       - name: Hand the payload to the Windows leg
@@ -196,7 +199,7 @@ jobs:
       # beta, experiment, stable, and CI's own `tauri` job — on one entry per
       # platform, and keeps them clear of the dev-profile one.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
           shared-key: tauri-release
@@ -275,6 +278,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           GLIMPSE_EXPERIMENT: ${{ inputs.experiment-slug }}
+          # The stamp above reaches tauri.conf.json only; the command line reads
+          # its version at compile time, and a beta built from `dev` would
+          # otherwise report the crate version `dev` still carries.
+          GLIMPSE_VERSION: ${{ inputs.version }}
         with:
           # ADDRESS THE RELEASE BY ID, NEVER BY TAG — see `release-id` above.
           # `releaseDraft` and `prerelease` are deliberately absent: both only
