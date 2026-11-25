@@ -135,7 +135,14 @@ pub const GROUPED: &[&str] = &[
 /// before means anything different today.
 pub const ALIASES: &[&str] = &["changelist", "sparse-checkout", "file-history"];
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// What `--version` reports: the version the build ships as, when the release
+/// chain stamps one into `GLIMPSE_VERSION`, else the crate's own. A beta is
+/// built from `dev`, whose crate versions lag behind release-please's bumps on
+/// `main`, so the manifest alone would name a release that is long gone.
+const VERSION: &str = match option_env!("GLIMPSE_VERSION") {
+    Some(v) if !v.is_empty() => v,
+    _ => env!("CARGO_PKG_VERSION"),
+};
 
 /// Does this argv belong to the command line rather than to the GUI?
 ///

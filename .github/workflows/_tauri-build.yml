@@ -131,6 +131,9 @@ jobs:
       # builtins and a sibling script, so the dependency tree is not needed to
       # run it — and skipping it is most of this job's wall clock.
       - name: Build and stage the payload
+        env:
+          # What `glimpse --version` reports — see `GLIMPSE_VERSION` below.
+          GLIMPSE_VERSION: ${{ inputs.version }}
         run: node scripts/build-wsl-payload.ts
 
       - name: Hand the payload to the Windows leg
@@ -275,6 +278,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           GLIMPSE_EXPERIMENT: ${{ inputs.experiment-slug }}
+          # The stamp above reaches tauri.conf.json only; the command line reads
+          # its version at compile time, and a beta built from `dev` would
+          # otherwise report the crate version `dev` still carries.
+          GLIMPSE_VERSION: ${{ inputs.version }}
         with:
           # ADDRESS THE RELEASE BY ID, NEVER BY TAG — see `release-id` above.
           # `releaseDraft` and `prerelease` are deliberately absent: both only
