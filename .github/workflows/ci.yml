@@ -356,12 +356,17 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      # `webkit2gtk-driver` is what provides `WebKitWebDriver`, and `xvfb` the
-      # display the webview needs on a headless runner — neither is implied by
-      # the build dependencies the other jobs install.
+      # The WebKit WebDriver package is what provides `WebKitWebDriver`, and
+      # `xvfb` the display the webview needs on a headless runner — neither is
+      # implied by the build dependencies the other jobs install. The package
+      # was renamed: Ubuntu 26.04 (today's `ubuntu-latest`) ships it as
+      # `webkitgtk-webdriver`, older releases as `webkit2gtk-driver`, so apt is
+      # asked which one exists rather than one name being pinned.
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
+          driver=webkitgtk-webdriver
+          apt-cache show "$driver" > /dev/null 2>&1 || driver=webkit2gtk-driver
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
@@ -371,7 +376,7 @@ jobs:
             build-essential \
             file \
             wget \
-            webkit2gtk-driver \
+            "$driver" \
             xvfb
 
       - name: Set up Rust

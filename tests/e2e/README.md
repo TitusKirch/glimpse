@@ -13,7 +13,7 @@ WebdriverIO) and the platform driver — `WebKitWebDriver` on Linux,
 
 ```bash
 cargo install tauri-driver --locked
-sudo apt-get install -y webkit2gtk-driver xvfb   # provides WebKitWebDriver
+sudo apt-get install -y webkitgtk-webdriver xvfb # provides WebKitWebDriver (webkit2gtk-driver before Ubuntu 26.04)
 pnpm install
 ```
 
