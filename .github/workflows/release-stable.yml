@@ -96,7 +96,11 @@ jobs:
       contents: write
     uses: ./.github/workflows/_tauri-build.yml
     with:
-      matrix: '{"os": ["ubuntu-latest", "windows-latest"]}'
+      # Linux is built on ubuntu-24.04, NOT ubuntu-latest: the .deb/.rpm/AppImage
+      # link against the build host's glibc and WebKitGTK, and ubuntu-latest moved
+      # to 26.04 — a package built there will not start on 24.04 or 22.04.
+      # v0.16.2 shipped from 24.04; raise this only as a deliberate support cut.
+      matrix: '{"os": ["ubuntu-24.04", "windows-latest"]}'
       version: ${{ needs.prepare.outputs.version }}
       release-id: ${{ needs.prepare.outputs.release-id }}
       ref: ${{ needs.prepare.outputs.ref }}
